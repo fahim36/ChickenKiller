@@ -47,13 +47,23 @@ A Stack's `id` is also the name of its folder (`content/<stack-id>/<version>/`),
 |---|---|
 | `schema_version` | Always `1` |
 | `version` | This Syllabus version, such as `v2026-09-26` |
-| `stack` | `{id, name, summary}` |
+| `stack` | `{id, name, summary, published}`. `published` is optional and defaults to `true`; see below. |
 | `materials` | `{id, title, url, type, subject}`, where `type` is one of `book`, `docs`, `free`, `paid`, `paper`, `platform`, `tool`, `video`. The URL must be `https://`. |
 | `weeks` | In order: `{id, number, title, goal, deliverable, interview_checks[], lessons[], milestones[]}` |
 
 - A **Lesson** is `{id, title, topics[] (at least one), exercise (text or null), minutes, materials[]}`.
 - A **Milestone** is `{id, title, kind (build or job-hunt), minutes, materials[]}`.
 - In both, `materials` lists the IDs of Materials in the same file.
+
+### Published Stacks
+
+Learners can only pick a published Stack, during onboarding or in settings. A Stack's current Syllabus decides whether it is published:
+
+- Leave `published` out (or set it to `true`) to publish the Stack when that version is imported.
+- Set `"published": false` to import a Stack before it is ready, for example while working through a Stack Request. It is left off the list of Stacks.
+- A later version can publish it, or withdraw it by setting `false`. Learners whose Active Stack is withdrawn keep it and their progress; nobody new can pick it.
+
+Leaving `published` out and writing `"published": true` are the same content, so versions written before the field existed still import unchanged.
 
 ## Question Bank (`questions/<lesson-id>.json`)
 

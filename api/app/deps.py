@@ -5,6 +5,10 @@
   so a route that needs the Learner just declares `learner: CurrentLearner`; FastAPI runs the
   check once per request.
 - `AdminLearner`: the same, but refused with 403 unless the Learner is the Admin.
+- `ActiveStack`: the signed-in Learner's record on their Active Stack (`LearnerStack`, with its
+  `stack` loaded). Refused with 409 `onboarding_needed` until the Learner has onboarded, so any
+  route about studying declares `active: ActiveStack` and gets `active.learner_id` /
+  `active.stack_id` for the progress it reads or writes.
 """
 
 from typing import Annotated
@@ -13,16 +17,21 @@ from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
-from app import learners
+from app import learners, onboarding
 from app.auth import Identity, InvalidToken, KeysUnavailable, TokenVerifier
 from app.db import get_session
-from app.models import Learner
+from app.models import Learner, LearnerStack
 
 SessionDep = Annotated[Session, Depends(get_session)]
 
 NOT_INVITED = {
     "code": "not_invited",
     "message": "This email address hasn't been invited. Ask the Admin for an invitation.",
+}
+
+ONBOARDING_NEEDED = {
+    "code": "onboarding_needed",
+    "message": "Pick your Active Stack and time zone first.",
 }
 
 _bearer = HTTPBearer(auto_error=False)
@@ -75,3 +84,13 @@ def get_admin(learner: CurrentLearner, verifier: VerifierDep) -> Learner:
 
 
 AdminLearner = Annotated[Learner, Depends(get_admin)]
+
+
+def get_active_stack(learner: CurrentLearner, session: SessionDep) -> LearnerStack:
+    record = onboarding.active_stack(session, learner)
+    if record is None or onboarding.needs_onboarding(learner):
+        raise HTTPException(409, ONBOARDING_NEEDED)
+    return record
+
+
+ActiveStack = Annotated[LearnerStack, Depends(get_active_stack)]

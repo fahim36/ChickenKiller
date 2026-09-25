@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { api, ApiError, apiPost } from "./api";
+import { api, ApiError, apiPost, apiPut } from "./api";
 
 // Clerk is the login provider (ADR-0002): stand in for the signed-in person's session.
 vi.mock("@clerk/nextjs/server", () => ({
@@ -26,6 +26,30 @@ it("sends a person who wasn't invited to the not-invited page", async () => {
 
   await expect(api("/stacks")).rejects.toThrow(
     expect.objectContaining({ digest: expect.stringContaining("/not-invited") }),
+  );
+});
+
+it("sends a Learner who hasn't onboarded yet to onboarding", async () => {
+  const detail = { code: "onboarding_needed", message: "Pick your Active Stack and time zone first." };
+  vi.stubGlobal("fetch", vi.fn(async () => Response.json({ detail }, { status: 409 })));
+
+  await expect(api("/stacks/agentic-ai-engineer")).rejects.toThrow(
+    expect.objectContaining({ digest: expect.stringContaining("/onboarding") }),
+  );
+});
+
+it("PUTs JSON with the session token", async () => {
+  const fetch = vi.fn(async () => Response.json({ ok: true }));
+  vi.stubGlobal("fetch", fetch);
+
+  expect(await apiPut("/me/settings", { time_zone: "Asia/Dhaka" })).toEqual({ ok: true });
+  expect(fetch).toHaveBeenCalledWith(
+    "http://localhost:8000/me/settings",
+    expect.objectContaining({
+      method: "PUT",
+      body: JSON.stringify({ time_zone: "Asia/Dhaka" }),
+      headers: { Authorization: "Bearer session-token", "Content-Type": "application/json" },
+    }),
   );
 });
 

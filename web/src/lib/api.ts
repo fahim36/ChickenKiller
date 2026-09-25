@@ -67,9 +67,26 @@ export interface Lesson {
   next_lesson_id: string | null;
 }
 
+export interface ActiveStack {
+  id: string;
+  name: string;
+  started_at: string;
+}
+
 export interface Me {
   email: string;
   is_admin: boolean;
+  /** True until the Learner has picked an Active Stack and a time zone. */
+  needs_onboarding: boolean;
+  active_stack: ActiveStack | null;
+  /** An IANA name, such as Asia/Dhaka. */
+  time_zone: string | null;
+}
+
+/** What onboarding sets, and settings change. */
+export interface Settings {
+  active_stack_id: string;
+  time_zone: string;
 }
 
 export interface Invitation {
@@ -92,7 +109,8 @@ export class ApiError extends Error {
 
 /**
  * Call the API as the signed-in person: every request carries their Clerk session token.
- * A person who signed in but was never invited is sent to /not-invited.
+ * A person who signed in but was never invited is sent to /not-invited, and a Learner who
+ * hasn't picked an Active Stack yet is sent to /onboarding.
  */
 async function request(method: string, path: string, body?: unknown): Promise<Response> {
   const { getToken } = await auth();
@@ -113,16 +131,14 @@ async function request(method: string, path: string, body?: unknown): Promise<Re
     .json()
     .then((json: { detail?: unknown }) => json.detail)
     .catch(() => null);
-  if (isNotInvited(res.status, detail)) redirect("/not-invited");
+  if (res.status === 403 && hasCode(detail, "not_invited")) redirect("/not-invited");
+  if (res.status === 409 && hasCode(detail, "onboarding_needed")) redirect("/onboarding");
   throw new ApiError(res.status, detail, `${method} ${path}`);
 }
 
-function isNotInvited(status: number, detail: unknown): boolean {
+function hasCode(detail: unknown, code: string): boolean {
   return (
-    status === 403 &&
-    typeof detail === "object" &&
-    detail !== null &&
-    (detail as { code?: unknown }).code === "not_invited"
+    typeof detail === "object" && detail !== null && (detail as { code?: unknown }).code === code
   );
 }
 
@@ -137,5 +153,12 @@ export async function api<T>(path: string): Promise<T | null> {
 export async function apiPost<T>(path: string, body: unknown): Promise<T> {
   const res = await request("POST", path, body);
   if (res.status === 404) throw new ApiError(404, "Not found", `POST ${path}`);
+  return res.json() as Promise<T>;
+}
+
+/** PUT JSON to the API. Throws ApiError on any error status, including 404. */
+export async function apiPut<T>(path: string, body: unknown): Promise<T> {
+  const res = await request("PUT", path, body);
+  if (res.status === 404) throw new ApiError(404, "Not found", `PUT ${path}`);
   return res.json() as Promise<T>;
 }

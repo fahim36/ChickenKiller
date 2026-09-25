@@ -142,7 +142,7 @@ BANK = make_bank()
 
 
 def write_folder(root: Path, syllabus: dict[str, Any], banks: dict[str, dict[str, Any]]) -> Path:
-    folder = root / "mini-stack" / syllabus["version"]
+    folder = root / syllabus["stack"]["id"] / syllabus["version"]
     (folder / "questions").mkdir(parents=True, exist_ok=True)
     (folder / "syllabus.json").write_text(json.dumps(syllabus), encoding="utf-8")
     for name, bank in banks.items():
@@ -315,3 +315,10 @@ def api(admin: TestClient, signed_in: ClientFactory) -> TestClient:
     """The HTTP API as a Learner the Admin has invited."""
     admin.post("/invitations", json={"email": LEARNER_EMAIL}).raise_for_status()
     return signed_in(LEARNER_EMAIL)
+
+
+def onboard(client: TestClient, stack_id: str = "mini-stack", time_zone: str = "UTC") -> None:
+    """Onboard the client's Learner onto an imported Stack, as the onboarding screen does."""
+    client.put(
+        "/me/settings", json={"active_stack_id": stack_id, "time_zone": time_zone}
+    ).raise_for_status()

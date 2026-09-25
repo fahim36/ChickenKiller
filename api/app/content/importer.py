@@ -106,6 +106,7 @@ def import_content(session: Session, content: ContentFolder) -> ImportResult:
         stack.current_syllabus = row
         stack.name = syllabus.stack.name
         stack.summary = syllabus.stack.summary
+        stack.published = syllabus.stack.published
     session.flush()
     return ImportResult(syllabus.stack.id, syllabus.version, "imported", _is_current(session, row))
 
@@ -116,9 +117,11 @@ def _is_current(session: Session, row: Syllabus) -> bool:
 
 
 def _content_hash(content: ContentFolder) -> str:
-    digest = hashlib.sha256(content.syllabus.model_dump_json().encode())
+    # Fields left at their default are skipped, so adding an optional field to the format
+    # doesn't change the hash of a version that is already imported.
+    digest = hashlib.sha256(content.syllabus.model_dump_json(exclude_defaults=True).encode())
     for bank in sorted(content.banks.values(), key=lambda b: b.lesson_id):
-        digest.update(bank.model_dump_json().encode())
+        digest.update(bank.model_dump_json(exclude_defaults=True).encode())
     return digest.hexdigest()
 
 

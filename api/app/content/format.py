@@ -65,6 +65,13 @@ class Stack(_Model):
     id: PermanentId
     name: Text
     summary: Text
+    published: bool = Field(
+        default=True,
+        description=(
+            "Whether Learners can choose this Stack. Set false to import a Stack before it is "
+            "ready; a later version can publish or withdraw it."
+        ),
+    )
 
 
 class Material(_Model):

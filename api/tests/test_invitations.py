@@ -14,7 +14,8 @@ def pending(admin: TestClient) -> list[str]:
 
 
 def test_the_admin_is_let_in_without_an_invitation(admin: TestClient) -> None:
-    assert admin.get("/me").json() == {"email": ADMIN_EMAIL, "is_admin": True}
+    me = admin.get("/me").json()
+    assert (me["email"], me["is_admin"]) == (ADMIN_EMAIL, True)
 
 
 def test_an_invited_email_is_pending(admin: TestClient) -> None:
@@ -40,7 +41,7 @@ def test_an_invited_person_becomes_a_learner_on_first_sign_in(
     response = signed_in(ADA).get("/me")
 
     assert response.status_code == 200
-    assert response.json() == {"email": ADA, "is_admin": False}
+    assert (response.json()["email"], response.json()["is_admin"]) == (ADA, False)
     assert pending(admin) == []
 
 
