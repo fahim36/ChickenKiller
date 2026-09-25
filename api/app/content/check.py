@@ -14,12 +14,15 @@ import sys
 from collections import Counter
 from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor
+from datetime import date
 from pathlib import Path
 
 import httpx
 
-from app.content.format import Lesson, Material, Milestone, MultipleChoiceQuestion
+from app.content.diff import diff_contents
+from app.content.format import ItemKind, Lesson, Material, Milestone, MultipleChoiceQuestion
 from app.content.loader import (
+    CHANGELOG_FILE,
     QUESTIONS_DIR,
     SYLLABUS_FILE,
     ContentError,
@@ -27,6 +30,7 @@ from app.content.loader import (
     Problem,
     read_folder,
 )
+from app.content.versions import VersionKey, earlier_versions, is_version, version_key
 
 __all__ = ["Problem", "check_folder", "load_checked_folder", "main", "version_folders"]
 
@@ -62,17 +66,18 @@ def load_checked_folder(path: Path) -> ContentFolder:
 def _check_parsed(folder: ContentFolder, links: bool) -> list[Problem]:
     syllabus_file = str(folder.path / SYLLABUS_FILE)
     problems = (
-        _check_permanent_ids(folder) + _check_syllabus(folder, syllabus_file) + _check_banks(folder)
+        _check_permanent_ids(folder)
+        + _check_syllabus(folder, syllabus_file)
+        + _check_banks(folder)
+        + _check_across_versions(folder)
     )
     if links:
         problems += _check_links(folder.syllabus.materials, syllabus_file)
     return problems
 
 
-def _check_permanent_ids(folder: ContentFolder) -> list[Problem]:
-    """No two items of any kind share a permanent ID within a Stack version: Learner data refers
-    to content by (stack id, permanent id) alone. Each reuse is reported in the file that reuses
-    the ID, naming the item that had it first."""
+def _id_items(folder: ContentFolder) -> list[tuple[str, str, Path]]:
+    """(kind, permanent id, file) for every item with a permanent ID."""
     s = folder.syllabus
     syllabus_file = folder.path / SYLLABUS_FILE
     items: list[tuple[str, str, Path]] = [("Stack", s.stack.id, syllabus_file)]
@@ -84,10 +89,16 @@ def _check_permanent_ids(folder: ContentFolder) -> list[Problem]:
     for bank_path, bank in folder.banks.items():
         items += [("Concept", c.id, bank_path) for c in bank.concepts]
         items += [("Question", q.id, bank_path) for q in bank.questions]
+    return items
 
+
+def _check_permanent_ids(folder: ContentFolder) -> list[Problem]:
+    """No two items of any kind share a permanent ID within a Stack version: Learner data refers
+    to content by (stack id, permanent id) alone. Each reuse is reported in the file that reuses
+    the ID, naming the item that had it first."""
     problems: list[Problem] = []
     first: dict[str, tuple[str, Path]] = {}
-    for kind, item_id, path in items:
+    for kind, item_id, path in _id_items(folder):
         if item_id not in first:
             first[item_id] = (kind, path)
             continue
@@ -223,6 +234,130 @@ def _check_banks(folder: ContentFolder) -> list[Problem]:
     return problems
 
 
+def _check_across_versions(folder: ContentFolder) -> list[Problem]:
+    """Rules against the Stack's earlier versions, which sit beside this folder."""
+    earlier_paths = earlier_versions(folder.path.resolve())
+    earlier = [f for f in (read_folder(p)[0] for p in earlier_paths) if f is not None]
+    problems = _check_kinds_across_versions(folder, earlier)
+    if not earlier_paths:
+        return problems + _check_changelog(folder, None)
+    if not earlier or earlier[-1].path != earlier_paths[-1]:
+        problems.append(
+            Problem(
+                "warning",
+                str(folder.path / CHANGELOG_FILE),
+                earlier_paths[-1].name,
+                "can't hold the changelog to the version before: that version doesn't pass "
+                "the format",
+            )
+        )
+        return problems
+    return problems + _check_changelog(folder, earlier[-1])
+
+
+def _check_kinds_across_versions(
+    folder: ContentFolder, earlier: list[ContentFolder]
+) -> list[Problem]:
+    """A permanent ID keeps its kind for good: Learner data keyed by it outlives the item. So an
+    ID that an earlier version used (even one that was removed since) never comes back as a
+    different kind of item."""
+    first_seen: dict[str, tuple[str, str]] = {}  # id -> (kind, version)
+    for old in earlier:
+        for kind, item_id, _ in _id_items(old):
+            first_seen.setdefault(item_id, (kind, old.syllabus.version))
+    problems: list[Problem] = []
+    for kind, item_id, path in _id_items(folder):
+        seen = first_seen.get(item_id)
+        if seen is not None and seen[0] != kind:
+            problems.append(
+                Problem(
+                    "error",
+                    str(path),
+                    item_id,
+                    f"permanent id reused: it was a {seen[0]} in {seen[1]}, and a permanent id "
+                    "never names a different kind of item, even after it is removed",
+                )
+            )
+    return problems
+
+
+def _check_changelog(folder: ContentFolder, previous: ContentFolder | None) -> list[Problem]:
+    """A version that follows another says what changed: every added, changed or removed Lesson
+    has an entry, and every entry matches what `content-diff` finds. A first version needs no
+    changelog, but one it has is held to the same rules."""
+    file = str(folder.path / CHANGELOG_FILE)
+    if not folder.has_changelog_file:
+        if previous is None:
+            return []
+        return [
+            Problem(
+                "error",
+                file,
+                "(file)",
+                f"missing: a version that follows {previous.syllabus.version} must say what "
+                "changed, why, and its sources",
+            )
+        ]
+    log = folder.changelog
+    if log is None:
+        return []  # it breaks the format, which is already reported
+
+    problems: list[Problem] = []
+    version = folder.syllabus.version
+    if log.version != version:
+        problems.append(
+            Problem(
+                "error",
+                file,
+                "version",
+                f"the changelog is for {log.version}, but this folder is {version}",
+            )
+        )
+    expected = previous.syllabus.version if previous is not None else None
+    if log.previous_version != expected:
+        before = expected or "none: this is the Stack's first version"
+        problems.append(
+            Problem(
+                "error",
+                file,
+                "previous_version",
+                f"the changelog follows {log.previous_version or 'nothing'}, but the version "
+                f"before this one is {before}",
+            )
+        )
+
+    since = expected or "nothing (this is the first version)"
+    actual = {(c.kind, c.id): c.change for c in diff_contents(previous, folder)}
+    listed: dict[tuple[ItemKind, str], str] = {}
+    for entry in log.changes:
+        if (entry.kind, entry.id) in listed:
+            problems.append(
+                Problem("error", file, entry.id, "listed more than once in the changelog")
+            )
+        listed.setdefault((entry.kind, entry.id), entry.change)
+    for (kind, item_id), change in actual.items():
+        if kind is ItemKind.LESSON and (kind, item_id) not in listed:
+            problems.append(
+                Problem(
+                    "error",
+                    file,
+                    item_id,
+                    f"the Lesson was {change} since {since}, but the changelog doesn't list it",
+                )
+            )
+    for (kind, item_id), claimed in listed.items():
+        was = actual.get((kind, item_id))
+        if was == claimed:
+            continue
+        claim = f"the changelog says the {kind.label} was {claimed}"
+        if was is None:
+            message = f"{claim}, but it didn't change since {since}"
+        else:
+            message = f"{claim}, but since {since} it was {was}"
+        problems.append(Problem("error", file, item_id, message))
+    return problems
+
+
 # 401/403/429 usually mean the site blocks automated requests, not that the link is dead.
 _BLOCKED = {401, 403, 429}
 
@@ -256,14 +391,22 @@ def _check_links(materials: list[Material], file: str) -> list[Problem]:
 
 
 def version_folders(paths: list[Path]) -> list[Path]:
-    """Each path as a Stack version folder, or every <stack>/v* folder under a content root."""
+    """Each path as a Stack version folder, or every <stack>/v* folder under a content root
+    (each Stack's versions oldest first)."""
     found: list[Path] = []
     for path in paths:
         if (path / SYLLABUS_FILE).exists():
             found.append(path)
         else:
-            found += sorted(p for p in path.glob("*/v*") if p.is_dir())
+            found += sorted((p for p in path.glob("*/v*") if p.is_dir()), key=_folder_order)
     return found
+
+
+def _folder_order(folder: Path) -> tuple[str, bool, VersionKey, str]:
+    """By Stack, then by version; a folder whose name isn't a version goes last."""
+    if is_version(folder.name):
+        return folder.parent.name, False, version_key(folder.name), ""
+    return folder.parent.name, True, (date.min, 0), folder.name
 
 
 def main(argv: list[str] | None = None) -> int:

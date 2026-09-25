@@ -20,9 +20,10 @@ graph LR
 
 | Path | What's there |
 |---|---|
-| `content/schema/` | JSON Schema for `syllabus.json` and Question Bank files, generated from `api/app/content/format.py` ([format notes](docs/content-format.md)) |
-| `content/<stack>/<version>/` | One Syllabus version: `syllabus.json` plus `questions/<lesson-id>.json` |
-| `api/` | FastAPI app, SQLAlchemy models, Alembic migrations, and the `content-check`, `content-import` and `content-schema` commands |
+| `content/schema/` | JSON Schema for `syllabus.json`, Question Bank files and `changelog.json`, generated from `api/app/content/format.py` ([format notes](docs/content-format.md)) |
+| `content/<stack>/<version>/` | One Syllabus version: `syllabus.json`, `questions/<lesson-id>.json` and `changelog.json` |
+| `.claude/skills/update-syllabus/` | The `/update-syllabus` command that writes a new Syllabus version ([below](#update-a-syllabus)) |
+| `api/` | FastAPI app, SQLAlchemy models, Alembic migrations, and the `content-check`, `content-diff`, `content-import`, `content-new-version` and `content-schema` commands |
 | `web/` | Next.js 16 front end (App Router, server components) |
 | `render.yaml`, `api/Dockerfile` | Deployment ([docs/deploy.md](docs/deploy.md)) |
 
@@ -80,6 +81,36 @@ Open http://localhost:3000 and sign in with the `ADMIN_EMAILS` address. The **In
 
 `.claude/launch.json` starts both servers with the local database, the API URL and `CLERK_AUTHORIZED_PARTIES`. The API still needs `CLERK_ISSUER` and `ADMIN_EMAILS` from the environment it is started in.
 
+## Update a Syllabus
+
+In Claude Code, from the repo root:
+
+```
+/update-syllabus agentic-ai-engineer
+```
+
+It researches the Stack's field against primary sources and writes a new version folder, `content/<stack>/<version>/`. The folder holds the Syllabus, a Question Bank for every Lesson, and a `changelog.json` of what changed, why, and its sources. It passes the content check before the command finishes. A Stack that doesn't exist yet is created. Review the folder, then commit and import it. The steps are in [.claude/skills/update-syllabus/SKILL.md](.claude/skills/update-syllabus/SKILL.md).
+
+It never asks questions, so it also runs headless, for example from a scheduled task:
+
+```bash
+claude -p "/update-syllabus agentic-ai-engineer" \
+  --permission-mode acceptEdits \
+  --allowedTools "Read,Write,Edit,Glob,Grep,WebSearch,WebFetch,Agent,Bash(uv run --project api content-new-version *),Bash(uv run --project api content-diff *),Bash(uv run --project api content-check *),Bash(git status *),Bash(git log *),Bash(grep *)"
+```
+
+- `acceptEdits` lets it write files. `--allowedTools` lets it research, start sub-agents and run the content tools, and nothing else.
+- Anything else it tries is denied, not prompted for.
+- Add `--max-budget-usd 20` (or whatever you choose) to cap what one run costs.
+- **In Git Bash**, put `MSYS_NO_PATHCONV=1` in front. Otherwise Git Bash rewrites `/update-syllabus` into a Windows path and the command never runs. PowerShell, macOS and Linux shells don't need it.
+
+The content tools it relies on also work by hand, from the repo root:
+
+| Command | What it does |
+|---|---|
+| `uv run --project api content-new-version <stack>` | Copies the newest version to a new folder named for today, and starts its changelog. Items you don't touch keep their IDs because they are copies. |
+| `uv run --project api content-diff [<old>] <new>` | Lists what was added, changed and removed, by permanent ID, per kind. With one folder, it compares with the version before it. `--json` for scripts. |
+
 ## Checks
 
 ```bash
@@ -89,8 +120,9 @@ cd api && uv run content-check ../content
 This checks every Stack version against the format and the Question Bank rules:
 - 8–12 Questions per bank, and at least 2 per Concept;
 - enough Questions for a Lesson Quiz;
-- permanent IDs unique across every kind of item;
-- every Material reference exists.
+- permanent IDs unique across every kind of item, and never reused as another kind in a later version;
+- every Material reference exists;
+- a version that follows another has a changelog that lists every added, changed and removed Lesson, with sources.
 
 Each error names the file and the item, such as the Question. Add `--links` to also check that every Material URL loads. The rules are in [docs/content-format.md](docs/content-format.md).
 

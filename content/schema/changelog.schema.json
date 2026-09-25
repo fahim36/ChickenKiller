@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "changelog.schema.json",
+  "$defs": {
+    "ChangelogEntry": {
+      "additionalProperties": false,
+      "description": "One change since the previous version: what, why, and the sources behind it.",
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/ItemKind"
+        },
+        "id": {
+          "description": "Permanent ID: lowercase words joined by hyphens. It never changes across Syllabus versions, so Learner progress can be keyed by it.",
+          "maxLength": 80,
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "change": {
+          "enum": [
+            "added",
+            "changed",
+            "removed"
+          ],
+          "title": "Change",
+          "type": "string"
+        },
+        "what": {
+          "description": "What changed, in a sentence or two.",
+          "minLength": 1,
+          "title": "What",
+          "type": "string"
+        },
+        "why": {
+          "description": "Why: what moved in the field, or what was wrong.",
+          "minLength": 1,
+          "title": "Why",
+          "type": "string"
+        },
+        "sources": {
+          "description": "High-trust primary sources behind the change.",
+          "items": {
+            "pattern": "^https://",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Sources",
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind",
+        "id",
+        "change",
+        "what",
+        "why",
+        "sources"
+      ],
+      "title": "ChangelogEntry",
+      "type": "object"
+    },
+    "ItemKind": {
+      "description": "The kinds of item that carry a permanent ID, in the order a diff lists them.",
+      "enum": [
+        "stack",
+        "week",
+        "lesson",
+        "milestone",
+        "material",
+        "concept",
+        "question"
+      ],
+      "title": "ItemKind",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "What a Syllabus Update changed since the previous version, and why (`changelog.json`).",
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "version": {
+      "description": "Syllabus version: the date it was made, e.g. v2026-09-26, plus .1, .2, ... for more versions on the same day. Versions sort by date, then by that number.",
+      "pattern": "^v\\d{4}-\\d{2}-\\d{2}(\\.[1-9]\\d*)?$",
+      "title": "Version",
+      "type": "string"
+    },
+    "previous_version": {
+      "anyOf": [
+        {
+          "description": "Syllabus version: the date it was made, e.g. v2026-09-26, plus .1, .2, ... for more versions on the same day. Versions sort by date, then by that number.",
+          "pattern": "^v\\d{4}-\\d{2}-\\d{2}(\\.[1-9]\\d*)?$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "The version this one follows; null for a Stack's first version.",
+      "title": "Previous Version"
+    },
+    "summary": {
+      "minLength": 1,
+      "title": "Summary",
+      "type": "string"
+    },
+    "changes": {
+      "items": {
+        "$ref": "#/$defs/ChangelogEntry"
+      },
+      "title": "Changes",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "version",
+    "previous_version",
+    "summary",
+    "changes"
+  ],
+  "title": "Changelog",
+  "type": "object"
+}

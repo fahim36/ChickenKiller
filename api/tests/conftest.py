@@ -141,33 +141,75 @@ def make_bank(lesson: str = LESSON, concept_prefix: str = "concept") -> dict[str
 BANK = make_bank()
 
 
-def write_folder(root: Path, syllabus: dict[str, Any], banks: dict[str, dict[str, Any]]) -> Path:
+def changelog_entry(kind: str, item_id: str, change: str) -> dict[str, Any]:
+    return {
+        "kind": kind,
+        "id": item_id,
+        "change": change,
+        "what": f"{change} {item_id}",
+        "why": "The field moved on.",
+        "sources": ["https://example.com/release-notes"],
+    }
+
+
+def make_changelog(version: str, previous: str | None, *entries: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "schema_version": 1,
+        "version": version,
+        "previous_version": previous,
+        "summary": "What changed in this version.",
+        "changes": list(entries),
+    }
+
+
+def write_folder(
+    root: Path,
+    syllabus: dict[str, Any],
+    banks: dict[str, dict[str, Any]],
+    changelog: dict[str, Any] | None = None,
+) -> Path:
     folder = root / "mini-stack" / syllabus["version"]
     (folder / "questions").mkdir(parents=True, exist_ok=True)
     (folder / "syllabus.json").write_text(json.dumps(syllabus), encoding="utf-8")
     for name, bank in banks.items():
         (folder / "questions" / f"{name}.json").write_text(json.dumps(bank), encoding="utf-8")
+    if changelog is not None:
+        (folder / "changelog.json").write_text(json.dumps(changelog), encoding="utf-8")
     return folder
 
 
 ContentFactory = Callable[..., Path]
+Edit = Callable[[dict[str, Any], dict[str, Any]], None]
+
+
+def as_version(version: str, edit: Edit | None = None) -> Edit:
+    """A `make_content` edit that names the folder's version, then applies `edit`."""
+
+    def apply(syllabus: dict[str, Any], bank: dict[str, Any]) -> None:
+        syllabus["version"] = version
+        if edit:
+            edit(syllabus, bank)
+
+    return apply
 
 
 @pytest.fixture
 def make_content(tmp_path: Path) -> ContentFactory:
-    """Write a valid folder; pass `edit(syllabus, bank)` to break it for a test, and
-    `extra_banks` ({file stem: bank}) to add more Question Banks (see `make_bank`)."""
+    """Write a valid folder; pass `edit(syllabus, bank)` to break it for a test,
+    `extra_banks` ({file stem: bank}) to add more Question Banks (see `make_bank`), and
+    `changelog` (see `make_changelog`) for a version that follows another."""
 
     def factory(
         edit: Callable[[dict, dict], None] | None = None,
         *,
         extra_banks: dict[str, dict[str, Any]] | None = None,
+        changelog: dict[str, Any] | None = None,
     ) -> Path:
         syllabus, bank = copy.deepcopy(SYLLABUS), copy.deepcopy(BANK)
         if edit:
             edit(syllabus, bank)
         banks = {bank.get("lesson_id", LESSON): bank, **(extra_banks or {})}
-        return write_folder(tmp_path, syllabus, banks)
+        return write_folder(tmp_path, syllabus, banks, changelog)
 
     return factory
 
