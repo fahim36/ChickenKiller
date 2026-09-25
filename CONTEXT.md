@@ -15,8 +15,12 @@ The one Stack a Learner is currently studying. Switching to another Stack keeps 
 _Avoid_: Current course, enrolment
 
 **Admin**:
-The person who runs Syllabus Updates from their own terminal with Claude Code.
+The person who runs Syllabus Updates from their own terminal with Claude Code, and who invites Learners. The Admin is a Learner too.
 _Avoid_: Owner, maintainer
+
+**Invitation**:
+The Admin's permission for one email address to join. It is pending until that person first signs in, which makes them a Learner. Anyone signing in without one is refused.
+_Avoid_: Invite code, allowlist entry
 
 ### Content
 

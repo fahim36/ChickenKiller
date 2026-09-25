@@ -1,15 +1,37 @@
-from typing import Annotated
-
 from fastapi import APIRouter, Depends, FastAPI, HTTPException
-from sqlalchemy.orm import Session
 
-from app import lessons, schemas
-from app.db import get_session
+from app import learners, lessons, schemas
+from app.auth import TokenVerifier
+from app.deps import AdminLearner, CurrentLearner, SessionDep, VerifierDep, get_current_learner
 
-SessionDep = Annotated[Session, Depends(get_session)]
+# Everything except the health check: only a signed-in, invited Learner gets in (app/deps.py).
+router = APIRouter(dependencies=[Depends(get_current_learner)])
 
-# Everything except the health check. Sign-in (#3) is added here as a router dependency.
-router = APIRouter()
+
+@router.get("/me")
+def me(learner: CurrentLearner, verifier: VerifierDep) -> schemas.MeOut:
+    return schemas.MeOut(
+        email=learner.email,
+        is_admin=learners.is_admin(learner, verifier.settings.admin_emails),
+    )
+
+
+@router.get("/invitations")
+def list_pending_invitations(_: AdminLearner, session: SessionDep) -> list[schemas.InvitationOut]:
+    return [schemas.InvitationOut.model_validate(i) for i in learners.pending_invitations(session)]
+
+
+@router.post("/invitations", status_code=201)
+def invite(
+    body: schemas.InvitationIn, _: AdminLearner, session: SessionDep
+) -> schemas.InvitationOut:
+    try:
+        invitation = learners.invite(session, body.email)
+    except learners.AlreadyInvited as error:
+        raise HTTPException(409, f"{body.email} is already invited.") from error
+    except learners.AlreadyALearner as error:
+        raise HTTPException(409, f"{body.email} is already a Learner.") from error
+    return schemas.InvitationOut.model_validate(invitation)
 
 
 @router.get("/stacks")
@@ -58,8 +80,10 @@ def get_lesson(stack_id: str, lesson_id: str, session: SessionDep) -> schemas.Le
     )
 
 
-def create_app() -> FastAPI:
+def create_app(verifier: TokenVerifier | None = None) -> FastAPI:
+    """The API. Session tokens are checked by `verifier`, by default the one CLERK_* configures."""
     app = FastAPI(title="Learning App API")
+    app.state.verifier = verifier or TokenVerifier.from_config()
 
     @app.get("/health")
     def health() -> dict[str, str]:

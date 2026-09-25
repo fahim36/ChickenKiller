@@ -1,18 +1,23 @@
 import copy
 import json
 import os
+import time
 from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any
 
+import jwt
 import pytest
 from alembic import command
 from alembic.config import Config
+from cryptography.hazmat.primitives.asymmetric import rsa
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine, create_engine, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
 
+from app.auth import AuthSettings, TokenVerifier
 from app.config import normalize_database_url
 from app.db import get_session
 from app.main import create_app
@@ -198,10 +203,102 @@ def session(engine: Engine) -> Iterator[Session]:
         transaction.rollback()
 
 
+# --- Signing in -------------------------------------------------------------------------------
+# Tests sign their own session tokens with a locally generated RSA key, which stands in for
+# Clerk's JWKS endpoint. Everything after the key lookup is the real verification code.
+
+ISSUER = "https://clerk.test.example"
+WEB_ORIGIN = "http://localhost:3000"
+ADMIN_EMAIL = "admin@example.com"
+LEARNER_EMAIL = "learner@example.com"
+AUTH_SETTINGS = AuthSettings(
+    issuer=ISSUER,
+    jwks_url=f"{ISSUER}/.well-known/jwks.json",
+    authorized_parties=frozenset({WEB_ORIGIN}),
+    admin_emails=frozenset({ADMIN_EMAIL}),
+)
+
+
+class LocalKeys:
+    """A KeySource holding one public key, in place of Clerk's published JWKS."""
+
+    def __init__(self, private_key: rsa.RSAPrivateKey) -> None:
+        self._public_key = private_key.public_key()
+
+    def signing_key(self, token: str) -> Any:
+        return self._public_key
+
+
+@pytest.fixture(scope="session")
+def signing_key() -> rsa.RSAPrivateKey:
+    return rsa.generate_private_key(public_exponent=65537, key_size=2048)
+
+
+TokenFactory = Callable[..., str]
+
+
 @pytest.fixture
-def api(session: Session) -> Iterator[TestClient]:
+def make_token(signing_key: rsa.RSAPrivateKey) -> TokenFactory:
+    """A Clerk-style session token. Override any claim, or pass `key=` to sign with another key."""
+
+    def factory(
+        email: str | None = LEARNER_EMAIL,
+        sub: str | None = None,
+        *,
+        key: rsa.RSAPrivateKey | None = None,
+        **claims: Any,
+    ) -> str:
+        now = int(time.time())
+        payload: dict[str, Any] = {
+            "iss": ISSUER,
+            "sub": sub or f"user_{email}",
+            "azp": WEB_ORIGIN,
+            "iat": now,
+            "nbf": now - 5,
+            "exp": now + 60,
+            **claims,
+        }
+        if email is not None:
+            payload["email"] = email
+        return jwt.encode(payload, key or signing_key, algorithm="RS256", headers={"kid": "k1"})
+
+    return factory
+
+
+@pytest.fixture
+def app(session: Session, signing_key: rsa.RSAPrivateKey) -> FastAPI:
     """The HTTP API, reading and writing through the test session."""
-    app = create_app()
+    app = create_app(verifier=TokenVerifier(AUTH_SETTINGS, LocalKeys(signing_key)))
     app.dependency_overrides[get_session] = lambda: session
-    with TestClient(app) as client:
-        yield client
+    return app
+
+
+@pytest.fixture
+def anonymous(app: FastAPI) -> TestClient:
+    """A client with no sign-in token."""
+    return TestClient(app)
+
+
+ClientFactory = Callable[..., TestClient]
+
+
+@pytest.fixture
+def signed_in(app: FastAPI, make_token: TokenFactory) -> ClientFactory:
+    """`signed_in(email)` is a client whose every request carries that person's session token."""
+
+    def factory(email: str, sub: str | None = None) -> TestClient:
+        return TestClient(app, headers={"Authorization": f"Bearer {make_token(email, sub)}"})
+
+    return factory
+
+
+@pytest.fixture
+def admin(signed_in: ClientFactory) -> TestClient:
+    return signed_in(ADMIN_EMAIL)
+
+
+@pytest.fixture
+def api(admin: TestClient, signed_in: ClientFactory) -> TestClient:
+    """The HTTP API as a Learner the Admin has invited."""
+    admin.post("/invitations", json={"email": LEARNER_EMAIL}).raise_for_status()
+    return signed_in(LEARNER_EMAIL)

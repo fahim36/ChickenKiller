@@ -10,6 +10,9 @@ Two kinds of identifier, kept apart on purpose:
   are never sent to the browser.
 
 A Stack has many Syllabus versions and points at its current one.
+
+People (`Learner`, `Invitation`) are not content: they have a plain integer `id`, which is also
+internal and never sent to the browser.
 """
 
 from datetime import datetime
@@ -233,3 +236,37 @@ class Question(Base):
     material_links: Mapped[list[QuestionMaterial]] = relationship(
         order_by=QuestionMaterial.position, cascade="all, delete-orphan"
     )
+
+
+# --- People ----------------------------------------------------------------------------------
+
+
+class Learner(Base):
+    """A person with an account, created on their first sign-in (app/learners.py).
+
+    Sign-in itself is Clerk's (ADR-0002); `clerk_user_id` is the token's `sub`. Emails are stored
+    lower-cased.
+    """
+
+    __tablename__ = "learners"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    clerk_user_id: Mapped[str] = mapped_column(String(64), unique=True)
+    email: Mapped[str] = mapped_column(Text, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    # Both are set during onboarding (#4) and empty until then.
+    active_stack_id: Mapped[str | None] = mapped_column(
+        ForeignKey("stacks.id", ondelete="SET NULL")
+    )
+    time_zone: Mapped[str | None] = mapped_column(String(64), comment="An IANA name.")
+
+
+class Invitation(Base):
+    """The Admin's invitation for one email address. Pending until that person first signs in."""
+
+    __tablename__ = "invitations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    email: Mapped[str] = mapped_column(Text, unique=True, comment="Lower-cased.")
+    invited_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

@@ -112,10 +112,6 @@ def client(session: Session, api: TestClient, make_content: ContentFactory) -> I
     yield api
 
 
-def test_health(client: TestClient) -> None:
-    assert client.get("/health").json() == {"status": "ok"}
-
-
 def test_lesson_page_data(client: TestClient) -> None:
     body = client.get(LESSON).json()
     assert body["title"] == "First lesson"

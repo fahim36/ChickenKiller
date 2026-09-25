@@ -1,5 +1,8 @@
+import re
+from datetime import datetime
+
 from pydantic import BaseModel as _BaseModel
-from pydantic import ConfigDict
+from pydantic import ConfigDict, field_validator
 
 
 class BaseModel(_BaseModel):
@@ -64,3 +67,31 @@ class LessonOut(BaseModel):
     materials: list[MaterialOut]
     previous_lesson_id: str | None
     next_lesson_id: str | None
+
+
+class MeOut(BaseModel):
+    """The signed-in Learner. Later admin-only screens check `is_admin`."""
+
+    email: str
+    is_admin: bool
+
+
+# Deliberately loose: Clerk verifies the address when the person signs up.
+_EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+class InvitationIn(BaseModel):
+    email: str
+
+    @field_validator("email")
+    @classmethod
+    def _is_an_email(cls, value: str) -> str:
+        value = value.strip().lower()
+        if not _EMAIL.match(value):
+            raise ValueError("Enter an email address, such as name@example.com")
+        return value
+
+
+class InvitationOut(BaseModel):
+    email: str
+    invited_at: datetime

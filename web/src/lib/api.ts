@@ -1,3 +1,6 @@
+import { auth } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
+
 // Types mirror the FastAPI response models in api/app/schemas.py.
 
 export type MaterialType =
@@ -64,12 +67,75 @@ export interface Lesson {
   next_lesson_id: string | null;
 }
 
+export interface Me {
+  email: string;
+  is_admin: boolean;
+}
+
+export interface Invitation {
+  email: string;
+  invited_at: string;
+}
+
 const API_URL = process.env.API_URL ?? "http://localhost:8000";
+
+/** A non-2xx answer from the API. `detail` is FastAPI's error detail. */
+export class ApiError extends Error {
+  constructor(
+    readonly status: number,
+    readonly detail: unknown,
+    request: string,
+  ) {
+    super(typeof detail === "string" ? detail : `${request} failed: HTTP ${status}`);
+  }
+}
+
+/**
+ * Call the API as the signed-in person: every request carries their Clerk session token.
+ * A person who signed in but was never invited is sent to /not-invited.
+ */
+async function request(method: string, path: string, body?: unknown): Promise<Response> {
+  const { getToken } = await auth();
+  const token = await getToken();
+  const headers: Record<string, string> = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+  if (body !== undefined) headers["Content-Type"] = "application/json";
+
+  const res = await fetch(`${API_URL}${path}`, {
+    method,
+    headers,
+    body: body === undefined ? undefined : JSON.stringify(body),
+    cache: "no-store",
+  });
+  if (res.ok || res.status === 404) return res;
+
+  const detail = await res
+    .json()
+    .then((json: { detail?: unknown }) => json.detail)
+    .catch(() => null);
+  if (isNotInvited(res.status, detail)) redirect("/not-invited");
+  throw new ApiError(res.status, detail, `${method} ${path}`);
+}
+
+function isNotInvited(status: number, detail: unknown): boolean {
+  return (
+    status === 403 &&
+    typeof detail === "object" &&
+    detail !== null &&
+    (detail as { code?: unknown }).code === "not_invited"
+  );
+}
 
 /** GET from the API. Resolves null on 404 so pages can call notFound(). */
 export async function api<T>(path: string): Promise<T | null> {
-  const res = await fetch(`${API_URL}${path}`, { cache: "no-store" });
+  const res = await request("GET", path);
   if (res.status === 404) return null;
-  if (!res.ok) throw new Error(`GET ${path} failed: HTTP ${res.status}`);
+  return res.json() as Promise<T>;
+}
+
+/** POST JSON to the API. Throws ApiError on any error status, including 404. */
+export async function apiPost<T>(path: string, body: unknown): Promise<T> {
+  const res = await request("POST", path, body);
+  if (res.status === 404) throw new ApiError(404, "Not found", `POST ${path}`);
   return res.json() as Promise<T>;
 }
