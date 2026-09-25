@@ -28,9 +28,9 @@ TEST_DATABASE_URL = normalize_database_url(
 LESSON = "w01-l01"
 
 
-def _mc(n: int, concept: str) -> dict[str, Any]:
+def _mc(lesson: str, n: int, concept: str) -> dict[str, Any]:
     return {
-        "id": f"{LESSON}-q{n:02}",
+        "id": f"{lesson}-q{n:02}",
         "concept": concept,
         "type": "multiple_choice",
         "prompt": f"Question {n}?",
@@ -41,9 +41,9 @@ def _mc(n: int, concept: str) -> dict[str, Any]:
     }
 
 
-def _written(n: int, concept: str) -> dict[str, Any]:
+def _written(lesson: str, n: int, concept: str) -> dict[str, Any]:
     return {
-        "id": f"{LESSON}-q{n:02}",
+        "id": f"{lesson}-q{n:02}",
         "concept": concept,
         "type": "written",
         "prompt": f"Explain {n}.",
@@ -112,21 +112,28 @@ SYLLABUS: dict[str, Any] = {
     ],
 }
 
-BANK: dict[str, Any] = {
-    "schema_version": 1,
-    "lesson_id": LESSON,
-    "concepts": [{"id": f"concept-{c}", "name": f"Concept {c}"} for c in "abcd"],
-    "questions": [
-        _mc(1, "concept-a"),
-        _mc(2, "concept-a"),
-        _mc(3, "concept-b"),
-        _mc(4, "concept-b"),
-        _mc(5, "concept-c"),
-        _mc(6, "concept-c"),
-        _written(7, "concept-d"),
-        _written(8, "concept-d"),
-    ],
-}
+
+def make_bank(lesson: str = LESSON, concept_prefix: str = "concept") -> dict[str, Any]:
+    """A valid Question Bank for `lesson`: 4 Concepts, 6 multiple-choice and 2 written."""
+    c = [f"{concept_prefix}-{x}" for x in "abcd"]
+    return {
+        "schema_version": 1,
+        "lesson_id": lesson,
+        "concepts": [{"id": cid, "name": f"Concept {cid}"} for cid in c],
+        "questions": [
+            _mc(lesson, 1, c[0]),
+            _mc(lesson, 2, c[0]),
+            _mc(lesson, 3, c[1]),
+            _mc(lesson, 4, c[1]),
+            _mc(lesson, 5, c[2]),
+            _mc(lesson, 6, c[2]),
+            _written(lesson, 7, c[3]),
+            _written(lesson, 8, c[3]),
+        ],
+    }
+
+
+BANK = make_bank()
 
 
 def write_folder(root: Path, syllabus: dict[str, Any], banks: dict[str, dict[str, Any]]) -> Path:
@@ -143,13 +150,19 @@ ContentFactory = Callable[..., Path]
 
 @pytest.fixture
 def make_content(tmp_path: Path) -> ContentFactory:
-    """Write a valid folder; pass `edit(syllabus, bank)` to break it for a test."""
+    """Write a valid folder; pass `edit(syllabus, bank)` to break it for a test, and
+    `extra_banks` ({file stem: bank}) to add more Question Banks (see `make_bank`)."""
 
-    def factory(edit: Callable[[dict, dict], None] | None = None) -> Path:
+    def factory(
+        edit: Callable[[dict, dict], None] | None = None,
+        *,
+        extra_banks: dict[str, dict[str, Any]] | None = None,
+    ) -> Path:
         syllabus, bank = copy.deepcopy(SYLLABUS), copy.deepcopy(BANK)
         if edit:
             edit(syllabus, bank)
-        return write_folder(tmp_path, syllabus, {bank.get("lesson_id", LESSON): bank})
+        banks = {bank.get("lesson_id", LESSON): bank, **(extra_banks or {})}
+        return write_folder(tmp_path, syllabus, banks)
 
     return factory
 

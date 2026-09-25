@@ -79,9 +79,28 @@ def _read[M: BaseModel](path: Path, model: type[M], problems: list[Problem]) -> 
         return model.model_validate(doc)
     except ValidationError as e:
         problems.extend(
-            Problem(
-                "error", str(path), "/".join(str(p) for p in err["loc"]) or "(root)", err["msg"]
-            )
-            for err in e.errors()
+            _format_problem(str(path), doc, err["loc"], err["msg"]) for err in e.errors()
         )
         return None
+
+
+def _format_problem(file: str, doc: Any, loc: tuple[int | str, ...], msg: str) -> Problem:
+    """Name the item by the permanent ID of the innermost object around the error (such as the
+    Question), with the path to the field in the message; outside any item, name the field."""
+    where = "/".join(str(p) for p in loc)
+    item_id = None
+    node = doc
+    for i, part in enumerate(loc):
+        in_choices = i >= 2 and loc[i - 2] == "choices"  # a Choice's id is a letter, not an item
+        if isinstance(node, dict) and isinstance(node.get("id"), str) and not in_choices:
+            item_id = node["id"]
+        if isinstance(node, dict) and part in node:
+            node = node[part]
+        elif isinstance(node, list) and isinstance(part, int) and 0 <= part < len(node):
+            node = node[part]
+        elif isinstance(part, int) or isinstance(node, list):
+            break
+        # else: a union tag such as "multiple_choice", which isn't a key in the file
+    if item_id is None:
+        return Problem("error", file, where or "(root)", msg)
+    return Problem("error", file, item_id, f"{where}: {msg}")

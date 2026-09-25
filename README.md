@@ -65,10 +65,24 @@ cd api && uv run content-check ../content
 This checks every Stack version against the format and the Question Bank rules:
 - 8–12 Questions per bank, and at least 2 per Concept;
 - enough Questions for a Lesson Quiz;
-- unique permanent IDs;
+- permanent IDs unique across every kind of item;
 - every Material reference exists.
 
-Add `--links` to also check that every Material URL loads. Install the pre-commit hook once with `uvx pre-commit install`, and a commit with broken content is refused.
+Each error names the file and the item, such as the Question. Add `--links` to also check that every Material URL loads. The rules are in [docs/content-format.md](docs/content-format.md).
+
+**Pre-commit hook.** Install it once, from the repo root:
+
+```bash
+uvx pre-commit install
+```
+
+This needs only `uv`, with no global install and no scripts. From then on, a commit that touches `content/` (or the check itself) runs `uv run --project api content-check content`. The commit is refused if there are errors. To run the hook by hand, use `uvx pre-commit run --all-files`.
+
+**In CI**, the `content` job runs the same command on every committed Stack version, so a pull request with invalid content fails. The **Content links** workflow runs `--links`:
+- weekly, and on demand from the Actions tab, over every Stack version;
+- on pull requests that touch `content/`, over only the Stack versions they change.
+
+A dead link is an error. A site that refuses automated requests is only a warning.
 
 ```bash
 cd api && uv run pytest && uv run ruff check && uv run ruff format --check && uv run mypy

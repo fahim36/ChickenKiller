@@ -61,20 +61,70 @@ def load_checked_folder(path: Path) -> ContentFolder:
 
 def _check_parsed(folder: ContentFolder, links: bool) -> list[Problem]:
     syllabus_file = str(folder.path / SYLLABUS_FILE)
-    problems = _check_syllabus(folder, syllabus_file) + _check_banks(folder)
+    problems = (
+        _check_permanent_ids(folder) + _check_syllabus(folder, syllabus_file) + _check_banks(folder)
+    )
     if links:
         problems += _check_links(folder.syllabus.materials, syllabus_file)
+    return problems
+
+
+def _check_permanent_ids(folder: ContentFolder) -> list[Problem]:
+    """No two items of any kind share a permanent ID within a Stack version: Learner data refers
+    to content by (stack id, permanent id) alone. Each reuse is reported in the file that reuses
+    the ID, naming the item that had it first."""
+    s = folder.syllabus
+    syllabus_file = folder.path / SYLLABUS_FILE
+    items: list[tuple[str, str, Path]] = [("Stack", s.stack.id, syllabus_file)]
+    items += [("Material", m.id, syllabus_file) for m in s.materials]
+    for week in s.weeks:
+        items.append(("Week", week.id, syllabus_file))
+        items += [("Lesson", x.id, syllabus_file) for x in week.lessons]
+        items += [("Milestone", x.id, syllabus_file) for x in week.milestones]
+    for bank_path, bank in folder.banks.items():
+        items += [("Concept", c.id, bank_path) for c in bank.concepts]
+        items += [("Question", q.id, bank_path) for q in bank.questions]
+
+    problems: list[Problem] = []
+    first: dict[str, tuple[str, Path]] = {}
+    for kind, item_id, path in items:
+        if item_id not in first:
+            first[item_id] = (kind, path)
+            continue
+        first_kind, first_path = first[item_id]
+        where = first_path.relative_to(folder.path).as_posix()
+        problems.append(
+            Problem(
+                "error",
+                str(path),
+                item_id,
+                f"duplicate permanent id ({kind}): already used by a {first_kind} in {where}",
+            )
+        )
     return problems
 
 
 def _check_syllabus(folder: ContentFolder, file: str) -> list[Problem]:
     s = folder.syllabus
     problems: list[Problem] = []
-    ids = [s.stack.id, *(m.id for m in s.materials)]
-    for week in s.weeks:
-        ids += [week.id, *(x.id for x in week.lessons), *(x.id for x in week.milestones)]
-    for dup in _duplicates(ids):
-        problems.append(Problem("error", file, dup, "duplicate permanent id"))
+    # content/<stack-id>/<version>/: so no two Stack folders can claim the same Stack id.
+    where = folder.path.resolve()
+    if s.version != where.name:
+        problems.append(
+            Problem(
+                "error", file, s.version, f"version doesn't match its folder name '{where.name}'"
+            )
+        )
+    if s.stack.id != where.parent.name:
+        problems.append(
+            Problem(
+                "error",
+                file,
+                s.stack.id,
+                f"Stack id doesn't match its folder name '{where.parent.name}'; "
+                "a Stack's versions live in content/<stack-id>/<version>/",
+            )
+        )
 
     numbers = [w.number for w in s.weeks]
     if numbers != list(range(1, len(numbers) + 1)):
@@ -96,8 +146,6 @@ def _check_banks(folder: ContentFolder) -> list[Problem]:
     problems: list[Problem] = []
     lesson_ids = {lesson.id for lesson in folder.lessons()}
     material_ids = {m.id for m in folder.syllabus.materials}
-    seen_concepts: list[str] = []
-    seen_questions: list[str] = []
     banked: set[str] = set()
 
     for bank_path, bank in folder.banks.items():
@@ -110,9 +158,7 @@ def _check_banks(folder: ContentFolder) -> list[Problem]:
             problems.append(Problem("error", file, lesson_id, "lesson_id is not in the Syllabus"))
 
         concept_ids = [c.id for c in bank.concepts]
-        seen_concepts += concept_ids
         questions = bank.questions
-        seen_questions += [q.id for q in questions]
 
         per_concept = Counter(q.concept for q in questions)
         for q in questions:
@@ -164,11 +210,6 @@ def _check_banks(folder: ContentFolder) -> list[Problem]:
             )
 
     questions_dir = str(folder.path / QUESTIONS_DIR)
-    for dup in _duplicates(seen_concepts):
-        problems.append(Problem("error", questions_dir, dup, "duplicate concept id"))
-    for dup in _duplicates(seen_questions):
-        problems.append(Problem("error", questions_dir, dup, "duplicate question id"))
-
     missing = sorted(lesson_ids - banked)
     if missing:
         problems.append(
@@ -189,16 +230,25 @@ _BLOCKED = {401, 403, 429}
 def _check_links(materials: list[Material], file: str) -> list[Problem]:
     headers = {"User-Agent": "Mozilla/5.0 (content-check; +learning-app)"}
 
+    def get(url: str) -> httpx.Response:
+        # A network failure is tried once more, so one flaky moment doesn't fail the check.
+        with httpx.Client(follow_redirects=True, timeout=20, headers=headers) as client:
+            try:
+                return client.get(url)
+            except httpx.TransportError:
+                return client.get(url)
+
     def probe(m: Material) -> Problem | None:
         try:
-            with httpx.Client(follow_redirects=True, timeout=20, headers=headers) as client:
-                r = client.get(m.url)
+            r = get(m.url)
         except httpx.HTTPError as e:
-            return Problem("error", file, m.id, f"link doesn't load: {type(e).__name__}")
+            return Problem("error", file, m.id, f"link doesn't load: {type(e).__name__} ({m.url})")
         if r.status_code in _BLOCKED:
             return Problem("warning", file, m.id, f"site refused the check (HTTP {r.status_code})")
         if r.status_code >= 400:
-            return Problem("error", file, m.id, f"link doesn't load: HTTP {r.status_code}")
+            return Problem(
+                "error", file, m.id, f"link doesn't load: HTTP {r.status_code} ({m.url})"
+            )
         return None
 
     with ThreadPoolExecutor(max_workers=16) as pool:

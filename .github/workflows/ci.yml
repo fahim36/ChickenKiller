@@ -43,13 +43,15 @@ jobs:
           uv run content-import ../content
       - run: uv run pytest -q
 
+  # The same command as the pre-commit hook: every committed Stack version, failing on any error.
+  # Material links are checked by content-links.yml, so this job never depends on the network.
   content:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
       - name: Check every committed Stack version
-        run: uv run --directory api content-check ../content
+        run: uv run --locked --project api content-check content
 
   web:
     runs-on: ubuntu-latest
