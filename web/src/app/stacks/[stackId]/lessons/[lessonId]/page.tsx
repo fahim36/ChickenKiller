@@ -6,10 +6,14 @@ import { MaterialList } from "@/components/MaterialList";
 import { api, type Lesson } from "@/lib/api";
 import { formatMinutes } from "@/lib/format";
 
-export default async function LessonPage({ params }: PageProps<"/lessons/[lessonId]">) {
+export default async function LessonPage({
+  params,
+}: PageProps<"/stacks/[stackId]/lessons/[lessonId]">) {
   await connection();
-  const { lessonId } = await params;
-  const lesson = await api<Lesson>(`/lessons/${encodeURIComponent(lessonId)}`);
+  const { stackId, lessonId } = await params;
+  const lesson = await api<Lesson>(
+    `/stacks/${encodeURIComponent(stackId)}/lessons/${encodeURIComponent(lessonId)}`,
+  );
   if (!lesson) notFound();
 
   return (
@@ -46,12 +50,16 @@ export default async function LessonPage({ params }: PageProps<"/lessons/[lesson
 
       <nav className="pager">
         {lesson.previous_lesson_id ? (
-          <Link href={`/lessons/${lesson.previous_lesson_id}`}>← Previous Lesson</Link>
+          <Link href={`/stacks/${lesson.stack_id}/lessons/${lesson.previous_lesson_id}`}>
+            ← Previous Lesson
+          </Link>
         ) : (
           <span />
         )}
         {lesson.next_lesson_id && (
-          <Link href={`/lessons/${lesson.next_lesson_id}`}>Next Lesson →</Link>
+          <Link href={`/stacks/${lesson.stack_id}/lessons/${lesson.next_lesson_id}`}>
+            Next Lesson →
+          </Link>
         )}
       </nav>
     </main>

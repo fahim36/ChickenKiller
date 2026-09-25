@@ -11,7 +11,7 @@ export default async function Home() {
       <h1>Choose a Stack</h1>
       {stacks.length === 0 ? (
         <p className="muted">
-          No Stacks imported yet. Run <code>uv run content-import</code> in <code>api/</code>.
+          No Stacks imported yet. Run <code>uv run content-import ../content</code> in <code>api/</code>.
         </p>
       ) : (
         <ul className="cards">

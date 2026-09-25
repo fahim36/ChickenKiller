@@ -1,61 +1,72 @@
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, HTTPException
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, FastAPI, HTTPException
 from sqlalchemy.orm import Session
 
-from app import schemas
+from app import lessons, schemas
 from app.db import get_session
-from app.models import Lesson, Material, Stack
-
-app = FastAPI(title="Learning App API")
 
 SessionDep = Annotated[Session, Depends(get_session)]
 
-
-@app.get("/health")
-def health() -> dict[str, str]:
-    return {"status": "ok"}
+# Everything except the health check. Sign-in (#3) is added here as a router dependency.
+router = APIRouter()
 
 
-@app.get("/stacks", response_model=list[schemas.StackSummary])
-def list_stacks(session: SessionDep) -> list[Stack]:
-    return list(session.scalars(select(Stack).order_by(Stack.name)))
+@router.get("/stacks")
+def list_stacks(session: SessionDep) -> list[schemas.StackSummary]:
+    return [
+        schemas.StackSummary(
+            id=s.id, name=s.name, summary=s.summary, version=s.current_syllabus.version
+        )
+        for s in lessons.list_stacks(session)
+        if s.current_syllabus is not None
+    ]
 
 
-@app.get("/stacks/{stack_id}", response_model=schemas.SyllabusOut)
-def get_syllabus(stack_id: str, session: SessionDep) -> Stack:
-    stack = session.get(Stack, stack_id)
-    if stack is None:
+@router.get("/stacks/{stack_id}")
+def get_syllabus(stack_id: str, session: SessionDep) -> schemas.SyllabusOut:
+    syllabus = lessons.current_syllabus(session, stack_id)
+    if syllabus is None:
         raise HTTPException(404, "Stack not found")
-    return stack
+    stack = syllabus.stack
+    return schemas.SyllabusOut(
+        id=stack.id,
+        name=stack.name,
+        summary=stack.summary,
+        version=syllabus.version,
+        weeks=[schemas.WeekOut.model_validate(week) for week in syllabus.weeks],
+    )
 
 
-@app.get("/lessons/{lesson_id}", response_model=schemas.LessonOut)
-def get_lesson(lesson_id: str, session: SessionDep) -> schemas.LessonOut:
-    lesson = session.get(Lesson, lesson_id)
+@router.get("/stacks/{stack_id}/lessons/{lesson_id}")
+def get_lesson(stack_id: str, lesson_id: str, session: SessionDep) -> schemas.LessonOut:
+    lesson = lessons.find_current_lesson(session, stack_id, lesson_id)
     if lesson is None:
         raise HTTPException(404, "Lesson not found")
-
-    week = lesson.week
-    stack = session.get(Stack, week.stack_id)
-    assert stack is not None
-    ordered = [x.id for w in stack.weeks for x in w.lessons]
-    i = ordered.index(lesson.id)
-
-    found = session.scalars(select(Material).where(Material.id.in_(lesson.material_ids)))
-    by_id = {m.id: m for m in found}
-    materials = [by_id[mid] for mid in lesson.material_ids if mid in by_id]
-
+    previous_id, next_id = lessons.neighbour_lesson_ids(session, lesson)
     return schemas.LessonOut(
         id=lesson.id,
-        stack_id=stack.id,
-        week=schemas.WeekRef(id=week.id, number=week.number, title=week.title),
+        stack_id=stack_id,
+        week=schemas.WeekRef.model_validate(lesson.week),
         title=lesson.title,
         topics=lesson.topics,
         exercise=lesson.exercise,
         minutes=lesson.minutes,
-        materials=[schemas.MaterialOut.model_validate(m) for m in materials],
-        previous_lesson_id=ordered[i - 1] if i > 0 else None,
-        next_lesson_id=ordered[i + 1] if i + 1 < len(ordered) else None,
+        materials=[schemas.MaterialOut.model_validate(m) for m in lesson.materials],
+        previous_lesson_id=previous_id,
+        next_lesson_id=next_id,
     )
+
+
+def create_app() -> FastAPI:
+    app = FastAPI(title="Learning App API")
+
+    @app.get("/health")
+    def health() -> dict[str, str]:
+        return {"status": "ok"}
+
+    app.include_router(router)
+    return app
+
+
+app = create_app()

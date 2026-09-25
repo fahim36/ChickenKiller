@@ -17,7 +17,7 @@ Version 1 is six milestones. Each one ends with something you can show a person 
 ## How every milestone is tested
 
 - **Domain rules are plain functions with a fake clock.** Unlocking, Pass Mark, Review Round timing and Streaks take `now` and the Learner's time zone as arguments. Tests can then say "it is 23:59 in Dhaka" without waiting or patching time.
-- **API tests** run FastAPI's test client against an in-memory database seeded from a small content folder (`api/tests/conftest.py`).
+- **API tests** run FastAPI's test client against a real Postgres (Docker Compose locally, a service container in CI). The database is built from the Alembic migrations and seeded from a small content folder (`api/tests/conftest.py`). Each test's writes are rolled back.
 - **Component tests** use Vitest and Testing Library in `web/`.
 - **The demo script is an end-to-end test.** From M2 on, each milestone's demo is also a Playwright test that clicks through the same steps. If the test passes, the demo will work live.
 - **CI** (`.github/workflows/ci.yml`) runs all of it on every pull request, plus the content check on every committed Stack version.
@@ -26,20 +26,31 @@ Version 1 is six milestones. Each one ends with something you can show a person 
 
 ## M0 Scaffold (done)
 
-**What exists:** a Next.js 16 front end, a FastAPI backend, Postgres in Docker Compose, the content format as JSON Schema, the content check, and the importer. The 16-week Agentic AI Engineer syllabus is converted into content files: 80 Lessons, 169 Milestones, 115 Materials, and Question Banks for Week 1's five Lessons.
+**What exists:**
+- a Next.js 16 front end;
+- a FastAPI backend with Alembic migrations, and Postgres in Docker Compose;
+- the content format as Pydantic models, with the JSON Schema in `content/schema/` generated from them;
+- the content check;
+- the importer.
 
-**Tests:** 21 pytest tests cover:
+Each imported Syllabus version is stored as its own set of rows. Rows carry permanent IDs, and the newest version is current. The 16-week Agentic AI Engineer syllabus is converted into content files: 80 Lessons, 169 Milestones, 115 Materials, and Question Banks for Week 1's five Lessons.
+
+**Tests:** 31 pytest tests cover:
 - each content-check rule;
 - importing twice changes nothing;
+- changed content under an imported version is refused;
+- a newer version becomes current;
 - the Lesson response never includes answers;
-- the committed content passes.
+- the committed content passes;
+- the JSON Schema files match the models;
+- the migrations match the models.
 
-There are also 9 Vitest tests for the page helpers and components.
+There are also 11 Vitest tests for the page helpers, the components and the Lesson page.
 
 **Demo:**
 1. `docker compose up -d`, then import the content. The check runs first and prints its one warning: 75 Lessons have no Question Bank yet.
 2. Open the Stack page. Show that Week 1 adds up to 15 hours, and Milestones are tagged Build or Job hunt.
-3. Open a Lesson. Show the topics, the exercise, the Materials with their type labels, and the previous/next links.
+3. Open a Lesson (`/stacks/<stack>/lessons/<lesson>`). Show the topics, the exercise, the Materials with their type labels, and the previous/next links.
 
 **Portfolio note:** "Content is code." The Syllabus lives in version-numbered files that are reviewed like any pull request. A schema plus semantic checks run before every commit: every Concept has a sibling for Retakes, and every Material a Lesson refers to exists.
 
@@ -48,7 +59,7 @@ There are also 9 Vitest tests for the page helpers and components.
 **Tickets:** finish #1 (deployment) and #2 (content check runs as a pre-commit hook and in CI).
 
 **Build:**
-- Deploy the web app, the API and a managed Postgres, then run the importer against production as a release step.
+- Deploy the web app, the API and a managed Postgres, then run the importer against production as a release step. The config is ready: `render.yaml` and `api/Dockerfile`, whose start runs `api/release.sh` (migrate, then import). The remaining human steps are in [deploy.md](deploy.md).
 - Turn on the `content-check` pre-commit hook and a `--links` job that runs each week.
 
 **Tests:**

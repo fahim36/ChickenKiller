@@ -20,34 +20,41 @@ graph LR
 
 | Path | What's there |
 |---|---|
-| `content/schema/` | JSON Schema for `syllabus.json` and Question Bank files |
+| `content/schema/` | JSON Schema for `syllabus.json` and Question Bank files, generated from `api/app/content/format.py` ([format notes](docs/content-format.md)) |
 | `content/<stack>/<version>/` | One Syllabus version: `syllabus.json` plus `questions/<lesson-id>.json` |
-| `api/` | FastAPI app, SQLAlchemy models, and the `content-check` and `content-import` commands |
+| `api/` | FastAPI app, SQLAlchemy models, Alembic migrations, and the `content-check`, `content-import` and `content-schema` commands |
 | `web/` | Next.js 16 front end (App Router, server components) |
+| `render.yaml`, `api/Dockerfile` | Deployment ([docs/deploy.md](docs/deploy.md)) |
 
 ## Run it locally
 
 Needs [uv](https://docs.astral.sh/uv/), Node 24 and Docker.
 
-```bash
-docker compose up -d
-```
+1. Start Postgres 16. It listens on host port **5433**, so it doesn't clash with a local Postgres on 5432.
 
-```bash
-cd api && uv run content-import ../content/agentic-ai-engineer/v2026-09-26
-```
+   ```bash
+   docker compose up -d db
+   ```
 
-```bash
-cd api && uv run uvicorn app.main:app --reload --port 8000
-```
+2. Create the tables, then import every committed Stack version. The import is idempotent, so running it again changes nothing.
 
-```bash
-cd web && npm install && npm run dev
-```
+   ```bash
+   cd api && uv run alembic upgrade head && uv run content-import ../content
+   ```
 
-Open http://localhost:3000. The web app reads the API from `API_URL` (default `http://localhost:8000`).
+3. Start the API on http://localhost:8000:
 
-**Without Docker:** set `DATABASE_URL=sqlite:///dev.db` for both the import and the API. `.claude/launch.json` starts both servers that way.
+   ```bash
+   cd api && uv run uvicorn app.main:app --reload --port 8000
+   ```
+
+4. Start the web app:
+
+   ```bash
+   cd web && npm install && npm run dev
+   ```
+
+Open http://localhost:3000. The web app reads the API from `API_URL` (default `http://localhost:8000`). The API reads Postgres from `DATABASE_URL` (default `postgresql+psycopg://learning:learning@localhost:5433/learning`). `.claude/launch.json` starts both servers with those settings.
 
 ## Checks
 
@@ -55,14 +62,22 @@ Open http://localhost:3000. The web app reads the API from `API_URL` (default `h
 cd api && uv run content-check ../content
 ```
 
-Checks every Stack version against the schema and the Question Bank rules (8–12 Questions per bank, at least 2 per Concept, enough for a Lesson Quiz, and every Material reference exists). Add `--links` to also check that every Material URL loads. Install the pre-commit hook once with `uvx pre-commit install`, and a commit with broken content is refused.
+This checks every Stack version against the format and the Question Bank rules:
+- 8–12 Questions per bank, and at least 2 per Concept;
+- enough Questions for a Lesson Quiz;
+- unique permanent IDs;
+- every Material reference exists.
+
+Add `--links` to also check that every Material URL loads. Install the pre-commit hook once with `uvx pre-commit install`, and a commit with broken content is refused.
 
 ```bash
-cd api && uv run pytest && uv run ruff check && uv run ruff format --check
+cd api && uv run pytest && uv run ruff check && uv run ruff format --check && uv run mypy
 ```
+
+The API tests use a real Postgres: the compose `db` service by default, or `TEST_DATABASE_URL`. They create a `learning_test` database and build it from the migrations. After changing the format models, run `uv run content-schema` to regenerate `content/schema/`. After changing the database models, run `uv run alembic revision --autogenerate -m "..."`. A test fails if either one is forgotten.
 
 ```bash
-cd web && npm run lint && npm test && npm run build
+cd web && npm run typecheck && npm run lint && npm test && npm run build
 ```
 
-CI runs all three on every pull request.
+CI runs all of these on every pull request, with Postgres as a service container.

@@ -1,15 +1,29 @@
 import copy
 import json
+import os
 from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any
 
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
-from sqlalchemy.pool import StaticPool
+from alembic import command
+from alembic.config import Config
+from fastapi.testclient import TestClient
+from sqlalchemy import Engine, create_engine, text
+from sqlalchemy.engine import make_url
+from sqlalchemy.orm import Session
 
-from app.db import Base
+from app.config import normalize_database_url
+from app.db import get_session
+from app.main import create_app
+
+API_DIR = Path(__file__).resolve().parents[1]
+# Tests need a real Postgres (ADR-0002): `docker compose up -d db` locally, a service in CI.
+TEST_DATABASE_URL = normalize_database_url(
+    os.environ.get(
+        "TEST_DATABASE_URL", "postgresql+psycopg://learning:learning@localhost:5433/learning_test"
+    )
+)
 
 LESSON = "w01-l01"
 
@@ -140,11 +154,54 @@ def make_content(tmp_path: Path) -> ContentFactory:
     return factory
 
 
+def alembic_config(url: str = TEST_DATABASE_URL) -> Config:
+    config = Config(str(API_DIR / "alembic.ini"))
+    config.set_main_option("script_location", str(API_DIR / "migrations"))
+    config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
+    config.attributes["configure_logger"] = False
+    return config
+
+
+def _create_database_if_missing(url: str) -> None:
+    target = make_url(url)
+    server = create_engine(target.set(database="postgres"), isolation_level="AUTOCOMMIT")
+    with server.connect() as conn:
+        exists = conn.scalar(
+            text("SELECT 1 FROM pg_database WHERE datname = :name"), {"name": target.database}
+        )
+        if not exists:
+            conn.execute(text(f'CREATE DATABASE "{target.database}"'))
+    server.dispose()
+
+
+@pytest.fixture(scope="session")
+def engine() -> Iterator[Engine]:
+    """The test database, rebuilt from the migrations (down to nothing, then up) once per run."""
+    _create_database_if_missing(TEST_DATABASE_URL)
+    config = alembic_config()
+    command.downgrade(config, "base")
+    command.upgrade(config, "head")
+    engine = create_engine(TEST_DATABASE_URL)
+    yield engine
+    engine.dispose()
+
+
 @pytest.fixture
-def session() -> Iterator[Session]:
-    engine = create_engine(
-        "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
-    )
-    Base.metadata.create_all(engine)
-    with sessionmaker(bind=engine, expire_on_commit=False)() as s:
-        yield s
+def session(engine: Engine) -> Iterator[Session]:
+    """A session whose work is rolled back after each test, even if the code under test commits."""
+    with engine.connect() as connection:
+        transaction = connection.begin()
+        with Session(
+            bind=connection, join_transaction_mode="create_savepoint", expire_on_commit=False
+        ) as s:
+            yield s
+        transaction.rollback()
+
+
+@pytest.fixture
+def api(session: Session) -> Iterator[TestClient]:
+    """The HTTP API, reading and writing through the test session."""
+    app = create_app()
+    app.dependency_overrides[get_session] = lambda: session
+    with TestClient(app) as client:
+        yield client

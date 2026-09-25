@@ -31,7 +31,7 @@ export default async function SyllabusPage({ params }: PageProps<"/stacks/[stack
           <ol className="lessons">
             {week.lessons.map((lesson) => (
               <li key={lesson.id}>
-                <Link href={`/lessons/${lesson.id}`}>
+                <Link href={`/stacks/${syllabus.id}/lessons/${lesson.id}`}>
                   <Inline text={lesson.title} />
                 </Link>
               </li>

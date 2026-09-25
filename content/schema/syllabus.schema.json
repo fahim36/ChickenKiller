@@ -1,82 +1,313 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "syllabus.schema.json",
-  "title": "Syllabus",
-  "description": "One version of a Stack's Syllabus: its Weeks, Lessons, Milestones and Materials. Every id is permanent across versions.",
-  "type": "object",
-  "additionalProperties": false,
-  "required": ["schema_version", "version", "stack", "materials", "weeks"],
-  "properties": {
-    "schema_version": { "const": 1 },
-    "version": { "type": "string", "pattern": "^v\\d{4}-\\d{2}-\\d{2}$" },
-    "stack": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["id", "name", "summary"],
-      "properties": {
-        "id": { "$ref": "#/$defs/id" },
-        "name": { "type": "string", "minLength": 1 },
-        "summary": { "type": "string", "minLength": 1 }
-      }
-    },
-    "materials": { "type": "array", "items": { "$ref": "#/$defs/material" } },
-    "weeks": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/week" } }
-  },
   "$defs": {
-    "id": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$", "maxLength": 80 },
-    "text": { "type": "string", "minLength": 1 },
-    "material_refs": { "type": "array", "items": { "$ref": "#/$defs/id" }, "uniqueItems": true },
-    "material": {
-      "type": "object",
+    "Lesson": {
       "additionalProperties": false,
-      "required": ["id", "title", "url", "type", "subject"],
       "properties": {
-        "id": { "$ref": "#/$defs/id" },
-        "title": { "$ref": "#/$defs/text" },
-        "url": { "type": "string", "pattern": "^https://" },
-        "type": { "enum": ["docs", "free", "video", "book", "paper", "tool", "paid", "platform"] },
-        "subject": { "$ref": "#/$defs/text" }
-      }
+        "id": {
+          "description": "Permanent ID: lowercase words joined by hyphens. It never changes across Syllabus versions, so Learner progress can be keyed by it.",
+          "maxLength": 80,
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "title": {
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "topics": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Topics",
+          "type": "array"
+        },
+        "exercise": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Exercise"
+        },
+        "minutes": {
+          "minimum": 1,
+          "title": "Minutes",
+          "type": "integer"
+        },
+        "materials": {
+          "description": "IDs of Materials in this Syllabus.",
+          "items": {
+            "description": "Permanent ID: lowercase words joined by hyphens. It never changes across Syllabus versions, so Learner progress can be keyed by it.",
+            "maxLength": 80,
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+            "type": "string"
+          },
+          "title": "Materials",
+          "type": "array",
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "topics",
+        "exercise",
+        "minutes",
+        "materials"
+      ],
+      "title": "Lesson",
+      "type": "object"
     },
-    "week": {
-      "type": "object",
+    "Material": {
       "additionalProperties": false,
-      "required": ["id", "number", "title", "goal", "deliverable", "interview_checks", "lessons", "milestones"],
+      "description": "An external learning reference attached to a Lesson, Milestone or Question.",
       "properties": {
-        "id": { "$ref": "#/$defs/id" },
-        "number": { "type": "integer", "minimum": 1 },
-        "title": { "$ref": "#/$defs/text" },
-        "goal": { "$ref": "#/$defs/text" },
-        "deliverable": { "$ref": "#/$defs/text" },
-        "interview_checks": { "type": "array", "items": { "$ref": "#/$defs/text" } },
-        "lessons": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/lesson" } },
-        "milestones": { "type": "array", "items": { "$ref": "#/$defs/milestone" } }
-      }
+        "id": {
+          "description": "Permanent ID: lowercase words joined by hyphens. It never changes across Syllabus versions, so Learner progress can be keyed by it.",
+          "maxLength": 80,
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "title": {
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "url": {
+          "pattern": "^https://",
+          "title": "Url",
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/$defs/MaterialType"
+        },
+        "subject": {
+          "minLength": 1,
+          "title": "Subject",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "url",
+        "type",
+        "subject"
+      ],
+      "title": "Material",
+      "type": "object"
     },
-    "lesson": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["id", "title", "topics", "exercise", "minutes", "materials"],
-      "properties": {
-        "id": { "$ref": "#/$defs/id" },
-        "title": { "$ref": "#/$defs/text" },
-        "topics": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/text" } },
-        "exercise": { "type": ["string", "null"] },
-        "minutes": { "type": "integer", "minimum": 1 },
-        "materials": { "$ref": "#/$defs/material_refs" }
-      }
+    "MaterialType": {
+      "enum": [
+        "book",
+        "docs",
+        "free",
+        "paid",
+        "paper",
+        "platform",
+        "tool",
+        "video"
+      ],
+      "title": "MaterialType",
+      "type": "string"
     },
-    "milestone": {
-      "type": "object",
+    "Milestone": {
       "additionalProperties": false,
-      "required": ["id", "title", "kind", "minutes", "materials"],
       "properties": {
-        "id": { "$ref": "#/$defs/id" },
-        "title": { "$ref": "#/$defs/text" },
-        "kind": { "enum": ["build", "job-hunt"] },
-        "minutes": { "type": "integer", "minimum": 1 },
-        "materials": { "$ref": "#/$defs/material_refs" }
-      }
+        "id": {
+          "description": "Permanent ID: lowercase words joined by hyphens. It never changes across Syllabus versions, so Learner progress can be keyed by it.",
+          "maxLength": 80,
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "title": {
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "build",
+            "job-hunt"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "minutes": {
+          "minimum": 1,
+          "title": "Minutes",
+          "type": "integer"
+        },
+        "materials": {
+          "description": "IDs of Materials in this Syllabus.",
+          "items": {
+            "description": "Permanent ID: lowercase words joined by hyphens. It never changes across Syllabus versions, so Learner progress can be keyed by it.",
+            "maxLength": 80,
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+            "type": "string"
+          },
+          "title": "Materials",
+          "type": "array",
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "kind",
+        "minutes",
+        "materials"
+      ],
+      "title": "Milestone",
+      "type": "object"
+    },
+    "Stack": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "description": "Permanent ID: lowercase words joined by hyphens. It never changes across Syllabus versions, so Learner progress can be keyed by it.",
+          "maxLength": 80,
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "summary": {
+          "minLength": 1,
+          "title": "Summary",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "summary"
+      ],
+      "title": "Stack",
+      "type": "object"
+    },
+    "Week": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "description": "Permanent ID: lowercase words joined by hyphens. It never changes across Syllabus versions, so Learner progress can be keyed by it.",
+          "maxLength": 80,
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "number": {
+          "minimum": 1,
+          "title": "Number",
+          "type": "integer"
+        },
+        "title": {
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "goal": {
+          "minLength": 1,
+          "title": "Goal",
+          "type": "string"
+        },
+        "deliverable": {
+          "minLength": 1,
+          "title": "Deliverable",
+          "type": "string"
+        },
+        "interview_checks": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Interview Checks",
+          "type": "array"
+        },
+        "lessons": {
+          "items": {
+            "$ref": "#/$defs/Lesson"
+          },
+          "minItems": 1,
+          "title": "Lessons",
+          "type": "array"
+        },
+        "milestones": {
+          "items": {
+            "$ref": "#/$defs/Milestone"
+          },
+          "title": "Milestones",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "number",
+        "title",
+        "goal",
+        "deliverable",
+        "interview_checks",
+        "lessons",
+        "milestones"
+      ],
+      "title": "Week",
+      "type": "object"
     }
-  }
+  },
+  "additionalProperties": false,
+  "description": "One version of a Stack's Syllabus: its Weeks, Lessons, Milestones and Materials.",
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "version": {
+      "description": "Syllabus version, e.g. v2026-09-26. Newer versions sort after older ones.",
+      "pattern": "^v\\d{4}-\\d{2}-\\d{2}$",
+      "title": "Version",
+      "type": "string"
+    },
+    "stack": {
+      "$ref": "#/$defs/Stack"
+    },
+    "materials": {
+      "items": {
+        "$ref": "#/$defs/Material"
+      },
+      "title": "Materials",
+      "type": "array"
+    },
+    "weeks": {
+      "items": {
+        "$ref": "#/$defs/Week"
+      },
+      "minItems": 1,
+      "title": "Weeks",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "version",
+    "stack",
+    "materials",
+    "weeks"
+  ],
+  "title": "Syllabus",
+  "type": "object"
 }

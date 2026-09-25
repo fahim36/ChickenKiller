@@ -29,7 +29,7 @@ def test_format_violation_names_the_item(make_content: ContentFactory) -> None:
 
     [problem] = errors(make_content(edit))
     assert problem.startswith("weeks/0/lessons/0")
-    assert "'topics' is a required property" in problem
+    assert problem == "weeks/0/lessons/0/topics: Field required"
 
 
 def test_duplicate_permanent_id(make_content: ContentFactory) -> None:
