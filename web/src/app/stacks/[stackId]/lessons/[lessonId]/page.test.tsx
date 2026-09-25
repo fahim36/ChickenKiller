@@ -5,6 +5,9 @@ import LessonPage from "./page";
 
 // Outside a real request Next's `connection()` has nothing to wait for.
 vi.mock("next/server", () => ({ connection: async () => {} }));
+vi.mock("@clerk/nextjs/server", () => ({
+  auth: async () => ({ getToken: async () => "session-token" }),
+}));
 
 const lesson: Lesson = {
   id: "w01-l01",

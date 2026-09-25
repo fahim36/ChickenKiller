@@ -1,3 +1,4 @@
+import { ClerkProvider, Show, UserButton } from "@clerk/nextjs";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
@@ -18,14 +19,20 @@ export const metadata: Metadata = {
   description: "Daily self-evaluation quizzes over an always-current study Syllabus.",
 };
 
+// The layout must not call the API: /not-invited renders inside it (lib/api.ts).
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
       <body>
-        <header className="site">
-          <Link href="/">Interview Cracker</Link>
-        </header>
-        {children}
+        <ClerkProvider signInUrl="/sign-in" signUpUrl="/sign-up">
+          <header className="site">
+            <Link href="/">Interview Cracker</Link>
+            <Show when="signed-in">
+              <UserButton />
+            </Show>
+          </header>
+          {children}
+        </ClerkProvider>
       </body>
     </html>
   );

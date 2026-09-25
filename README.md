@@ -28,33 +28,57 @@ graph LR
 
 ## Run it locally
 
-Needs [uv](https://docs.astral.sh/uv/), Node 24 and Docker.
+Needs [uv](https://docs.astral.sh/uv/), Node 24, Docker, and a Clerk development instance for sign-in (set it up as in [docs/deploy.md](docs/deploy.md#sign-in-with-clerk), including the `email` session-token claim).
 
-1. Start Postgres 16. It listens on host port **5433**, so it doesn't clash with a local Postgres on 5432.
+1. Put the Clerk keys in `web/.env.local`, which git ignores:
+
+   ```bash
+   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
+   CLERK_SECRET_KEY=sk_test_...
+   ```
+
+   Then set the API's sign-in settings in the shell that starts it:
+
+   ```bash
+   export CLERK_ISSUER=https://your-app-12.clerk.accounts.dev   # the Frontend API URL
+   export CLERK_AUTHORIZED_PARTIES=http://localhost:3000
+   export ADMIN_EMAILS=you@example.com                          # you, the Admin
+   ```
+
+2. Start Postgres 16. It listens on host port **5433**, so it doesn't clash with a local Postgres on 5432.
 
    ```bash
    docker compose up -d db
    ```
 
-2. Create the tables, then import every committed Stack version. The import is idempotent, so running it again changes nothing.
+3. Create the tables, then import every committed Stack version. The import is idempotent, so running it again changes nothing.
 
    ```bash
    cd api && uv run alembic upgrade head && uv run content-import ../content
    ```
 
-3. Start the API on http://localhost:8000:
+4. Start the API on http://localhost:8000:
 
    ```bash
    cd api && uv run uvicorn app.main:app --reload --port 8000
    ```
 
-4. Start the web app:
+5. Start the web app:
 
    ```bash
    cd web && npm install && npm run dev
    ```
 
-Open http://localhost:3000. The web app reads the API from `API_URL` (default `http://localhost:8000`). The API reads Postgres from `DATABASE_URL` (default `postgresql+psycopg://learning:learning@localhost:5433/learning`). `.claude/launch.json` starts both servers with those settings.
+Open http://localhost:3000 and sign in with the `ADMIN_EMAILS` address. The **Invitations** link on the Stack list lets you invite other people.
+
+| Variable | Read by | Default |
+|---|---|---|
+| `API_URL` | web | `http://localhost:8000` |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY` | web | none. Without them `npm run dev` uses Clerk's keyless mode, but the API then needs that temporary instance's `CLERK_ISSUER` |
+| `DATABASE_URL` | API | `postgresql+psycopg://learning:learning@localhost:5433/learning` |
+| `CLERK_ISSUER`, `CLERK_JWKS_URL`, `CLERK_AUTHORIZED_PARTIES`, `ADMIN_EMAILS` | API | none. Without `CLERK_ISSUER`, everything except `/health` answers 503 ([details](docs/deploy.md#environment-variables)) |
+
+`.claude/launch.json` starts both servers with the local database, the API URL and `CLERK_AUTHORIZED_PARTIES`. The API still needs `CLERK_ISSUER` and `ADMIN_EMAILS` from the environment it is started in.
 
 ## Checks
 
@@ -88,7 +112,7 @@ A dead link is an error. A site that refuses automated requests is only a warnin
 cd api && uv run pytest && uv run ruff check && uv run ruff format --check && uv run mypy
 ```
 
-The API tests use a real Postgres: the compose `db` service by default, or `TEST_DATABASE_URL`. They create a `learning_test` database and build it from the migrations. After changing the format models, run `uv run content-schema` to regenerate `content/schema/`. After changing the database models, run `uv run alembic revision --autogenerate -m "..."`. A test fails if either one is forgotten.
+The API tests use a real Postgres: the compose `db` service by default, or `TEST_DATABASE_URL`. They create a `learning_test` database and build it from the migrations. They need no Clerk account: they sign their own session tokens with a locally generated RSA key (`api/tests/conftest.py`). After changing the format models, run `uv run content-schema` to regenerate `content/schema/`. After changing the database models, run `uv run alembic revision --autogenerate -m "..."`. A test fails if either one is forgotten.
 
 ```bash
 cd web && npm run typecheck && npm run lint && npm test && npm run build
