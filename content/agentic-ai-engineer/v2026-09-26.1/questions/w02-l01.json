@@ -1,0 +1,355 @@
+{
+  "schema_version": 1,
+  "lesson_id": "w02-l01",
+  "concepts": [
+    {
+      "id": "w02-l01-hints-are-static",
+      "name": "Type hints are checked by tools, not enforced at runtime"
+    },
+    {
+      "id": "w02-l01-optional-and-literal",
+      "name": "`X | None` and `Literal` narrow what a value can be"
+    },
+    {
+      "id": "w02-l01-typeddict-dataclass-pydantic",
+      "name": "`TypedDict` vs `@dataclass` vs a Pydantic model"
+    },
+    {
+      "id": "w02-l01-protocol-structural-typing",
+      "name": "`Protocol` and structural typing"
+    },
+    {
+      "id": "w02-l01-typevar-generics",
+      "name": "Generic functions with type variables"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w02-l01-q01",
+      "concept": "w02-l01-hints-are-static",
+      "type": "multiple_choice",
+      "prompt": "Given `def add(a: int, b: int) -> int: return a + b`, what happens when plain `python` runs `add(\"1\", \"2\")`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It raises `TypeError` because the arguments aren't `int`"
+        },
+        {
+          "id": "b",
+          "text": "It converts both arguments and returns `3`"
+        },
+        {
+          "id": "c",
+          "text": "It returns `\"12\"`"
+        },
+        {
+          "id": "d",
+          "text": "It fails when the module is imported"
+        }
+      ],
+      "answer": "c",
+      "explanation": "The Python runtime does not enforce annotations; they are for tools such as mypy, pyright and IDEs. At runtime `+` on two strings concatenates them. A type checker would report the call before the code ever runs, which is why you run one in CI.",
+      "materials": [
+        "python-docs-typing",
+        "mypy-type-hints-cheat-sheet"
+      ]
+    },
+    {
+      "id": "w02-l01-q02",
+      "concept": "w02-l01-hints-are-static",
+      "type": "multiple_choice",
+      "prompt": "A module contains `def count_tokens(text): return len(text) + \" tokens\"`, with no annotations. What does plain `mypy` (no flags) report for it?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "An error: unsupported operand types for `+` (`int` and `str`)"
+        },
+        {
+          "id": "b",
+          "text": "Nothing: by default mypy doesn't type-check the body of a function without annotations"
+        },
+        {
+          "id": "c",
+          "text": "A warning that the function returns `Any`"
+        },
+        {
+          "id": "d",
+          "text": "It refuses to run until every function is annotated"
+        }
+      ],
+      "answer": "b",
+      "explanation": "By default mypy skips the bodies of unannotated functions. `--check-untyped-defs` checks them, and `--disallow-untyped-defs` makes the missing annotations an error. Both are part of `--strict`, which is why a new codebase should start strict: otherwise an unannotated function hides bugs like this one.",
+      "materials": [
+        "mypy-command-line"
+      ]
+    },
+    {
+      "id": "w02-l01-q03",
+      "concept": "w02-l01-optional-and-literal",
+      "type": "multiple_choice",
+      "prompt": "Given `def send(role: Literal[\"user\", \"assistant\"], text: str) -> None: ...`, what happens with `send(\"system\", \"hi\")`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "mypy reports an error; at runtime the call still runs"
+        },
+        {
+          "id": "b",
+          "text": "Python raises `ValueError` at the call"
+        },
+        {
+          "id": "c",
+          "text": "mypy accepts it, because `\"system\"` is a `str`"
+        },
+        {
+          "id": "d",
+          "text": "Both mypy and Python reject it"
+        }
+      ],
+      "answer": "a",
+      "explanation": "`Literal` tells the type checker the value must equal one of the listed literals, so `\"system\"` is a type error. Like every annotation it isn't enforced at runtime: to reject bad values from outside the program (such as model output), validate them, for example with a Pydantic model.",
+      "materials": [
+        "python-docs-typing"
+      ]
+    },
+    {
+      "id": "w02-l01-q04",
+      "concept": "w02-l01-optional-and-literal",
+      "type": "multiple_choice",
+      "prompt": "`def find_user(user_id: str) -> User | None` may return `None`. What does mypy say about `print(find_user(uid).name)`, and what's the fix?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Nothing: `| None` is only documentation"
+        },
+        {
+          "id": "b",
+          "text": "An error that `None` has no attribute `name`; check `if user is None:` first so mypy narrows the type to `User`"
+        },
+        {
+          "id": "c",
+          "text": "An error that `|` isn't allowed in annotations; use `Optional[User]` instead"
+        },
+        {
+          "id": "d",
+          "text": "An error only under `--strict`"
+        }
+      ],
+      "answer": "b",
+      "explanation": "`User | None` means the same as `Optional[User]` (the `|` form needs Python 3.10+). mypy's optional checking is on by default, so using `.name` without handling `None` is an error. An `is None` check (or an early return) narrows the type to `User` in the code after it.",
+      "materials": [
+        "python-docs-typing",
+        "mypy-type-hints-cheat-sheet"
+      ]
+    },
+    {
+      "id": "w02-l01-q05",
+      "concept": "w02-l01-typeddict-dataclass-pydantic",
+      "type": "multiple_choice",
+      "prompt": "Your agent receives a tool call's arguments from the model as a JSON string. Which of these checks the values at runtime and raises an error you can send back to the model when they're wrong?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A `TypedDict`"
+        },
+        {
+          "id": "b",
+          "text": "A `@dataclass`"
+        },
+        {
+          "id": "c",
+          "text": "A `Protocol`"
+        },
+        {
+          "id": "d",
+          "text": "A Pydantic model, with `model_validate_json`"
+        }
+      ],
+      "answer": "d",
+      "explanation": "Only Pydantic validates at runtime: it raises `ValidationError` naming each bad field, and that message makes good feedback for the model. A `TypedDict` is a plain `dict` at runtime, `@dataclass` doesn't examine its field types, and a `Protocol` describes an interface, not data.",
+      "materials": [
+        "pydantic-v2-documentation",
+        "python-docs-typing"
+      ]
+    },
+    {
+      "id": "w02-l01-q06",
+      "concept": "w02-l01-typeddict-dataclass-pydantic",
+      "type": "multiple_choice",
+      "prompt": "Given `class ToolSpec(TypedDict): name: str; description: str`, what is true at runtime after `spec = ToolSpec(name=\"search\", description=42)`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`spec` is a plain `dict` holding `42`; only a type checker would flag it"
+        },
+        {
+          "id": "b",
+          "text": "`TypeError` is raised because `42` isn't a `str`"
+        },
+        {
+          "id": "c",
+          "text": "`spec` is a `ToolSpec` object, so `spec.name` works"
+        },
+        {
+          "id": "d",
+          "text": "`description` is converted to `\"42\"`"
+        }
+      ],
+      "answer": "a",
+      "explanation": "At runtime a `TypedDict` instance is simply a `dict`: no validation, no conversion, and no attribute access (use `spec[\"name\"]`). All of its checking is static: mypy checks the keys and value types wherever the dict is built or read.",
+      "materials": [
+        "python-docs-typing"
+      ]
+    },
+    {
+      "id": "w02-l01-q07",
+      "concept": "w02-l01-typeddict-dataclass-pydantic",
+      "type": "written",
+      "prompt": "An agent backend has three kinds of data: a tool definition dict passed straight to the provider's SDK, an internal record of one step of the agent loop, and the arguments the model produced for a tool call. Pick `TypedDict`, `@dataclass` or a Pydantic model for each, and say why.",
+      "model_answer": {
+        "summary": "TypedDict for the dict handed to the SDK, a dataclass for the internal record, and a Pydantic model for the model's tool arguments, because only Pydantic validates at runtime.",
+        "key_points": [
+          "TypedDict for the tool definition: it stays a plain dict the SDK accepts, and mypy checks its keys and value types statically",
+          "@dataclass for the internal step record: it generates `__init__`, `__repr__` and `__eq__` for objects your own code builds, but doesn't check field types at runtime",
+          "Pydantic model for the tool arguments: they are untrusted model output, and Pydantic validates them at runtime and raises `ValidationError`",
+          "The `ValidationError` message can be sent back to the model so it can correct the call"
+        ]
+      },
+      "explanation": "The choice turns on where the data comes from. Data your own code builds only needs static checking, so a `TypedDict` or dataclass costs nothing at runtime. Data from outside the program, like an LLM's tool call, must be validated when it arrives, which is what Pydantic does. A Pydantic model can also generate the tool's JSON Schema with `model_json_schema()`.",
+      "materials": [
+        "python-docs-typing",
+        "python-docs-dataclasses",
+        "pydantic-v2-documentation"
+      ]
+    },
+    {
+      "id": "w02-l01-q08",
+      "concept": "w02-l01-protocol-structural-typing",
+      "type": "multiple_choice",
+      "prompt": "`class LLMClient(Protocol)` declares `def complete(self, prompt: str) -> str: ...`. `class FakeClient:` has no base class but defines the same `complete` method. Does mypy accept `run(FakeClient())`, where `def run(client: LLMClient) -> None`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "No: `FakeClient` must inherit from `LLMClient`"
+        },
+        {
+          "id": "b",
+          "text": "Yes: a class matches a Protocol when it has all its members with compatible types"
+        },
+        {
+          "id": "c",
+          "text": "Only if `LLMClient` is decorated with `@runtime_checkable`"
+        },
+        {
+          "id": "d",
+          "text": "Only if `FakeClient` is registered with `LLMClient.register`"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Protocols use structural subtyping: compatibility comes from the members a class has, not from what it inherits. mypy compares the signatures, so a `complete` with a different parameter name or return type would be rejected. `@runtime_checkable` only matters for `isinstance` at runtime.",
+      "materials": [
+        "mypy-protocols-and-structural-subtyping"
+      ]
+    },
+    {
+      "id": "w02-l01-q09",
+      "concept": "w02-l01-protocol-structural-typing",
+      "type": "multiple_choice",
+      "prompt": "`LLMClient` is a Protocol decorated with `@runtime_checkable`. An object's class defines `def complete(self) -> int`, which doesn't match the Protocol's signature. What does `isinstance(obj, LLMClient)` return?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`True`: the runtime check only looks for the members, not their signatures or types"
+        },
+        {
+          "id": "b",
+          "text": "`False`, because the signature doesn't match"
+        },
+        {
+          "id": "c",
+          "text": "It raises `TypeError`"
+        },
+        {
+          "id": "d",
+          "text": "`True` only if mypy passes on the class"
+        }
+      ],
+      "answer": "a",
+      "explanation": "`@runtime_checkable` makes `isinstance` work with a Protocol, but it only checks that the required methods or attributes exist. Signatures are checked only statically, by the type checker, so don't rely on `isinstance` to prove an object really satisfies the interface.",
+      "materials": [
+        "python-docs-typing",
+        "mypy-protocols-and-structural-subtyping"
+      ]
+    },
+    {
+      "id": "w02-l01-q10",
+      "concept": "w02-l01-protocol-structural-typing",
+      "type": "written",
+      "prompt": "Why define an `LLMClient` interface as a `Protocol` rather than an abstract base class, and how does that help you test the agent?",
+      "model_answer": {
+        "summary": "A Protocol is satisfied by any class with matching methods, without inheriting from it, so real clients and test fakes both fit and mypy still checks their signatures.",
+        "key_points": [
+          "A Protocol is structural: any class with compatible members satisfies it, without inheriting from it",
+          "An abstract base class is nominal: a class must inherit from it or be registered",
+          "So clients you don't control, such as a vendor SDK's class, can satisfy the interface unchanged",
+          "In tests, a small fake that implements `complete` stands in for the real client, so no test calls the real API",
+          "mypy checks the fake's and the real client's method signatures against the Protocol"
+        ]
+      },
+      "explanation": "Structural typing lets the agent depend on the shape it needs (a `complete` method) rather than on a class hierarchy. That keeps provider SDKs out of the agent's core, and a test can pass any object with the right method while the type checker still guarantees the signatures match.",
+      "materials": [
+        "mypy-protocols-and-structural-subtyping",
+        "python-docs-typing"
+      ]
+    },
+    {
+      "id": "w02-l01-q11",
+      "concept": "w02-l01-typevar-generics",
+      "type": "multiple_choice",
+      "prompt": "Given the generic function `def first[T](items: list[T]) -> T: return items[0]` (or `T = TypeVar(\"T\")` before Python 3.12), what type does mypy infer for `first([\"a\", \"b\"])`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`Any`"
+        },
+        {
+          "id": "b",
+          "text": "`object`"
+        },
+        {
+          "id": "c",
+          "text": "`str`"
+        },
+        {
+          "id": "d",
+          "text": "`list[str]`"
+        }
+      ],
+      "answer": "c",
+      "explanation": "A type variable links the return type to the argument type: `list[str]` binds `T` to `str`, so the result is `str`. That is the point of a generic function; with `list[Any]` and `-> Any`, mypy would stop checking whatever the caller does with the result.",
+      "materials": [
+        "mypy-generics"
+      ]
+    },
+    {
+      "id": "w02-l01-q12",
+      "concept": "w02-l01-typevar-generics",
+      "type": "written",
+      "prompt": "Compare `def first(items: list[Any]) -> Any` with the generic `def first[T](items: list[T]) -> T`. What does the generic version give you, and what does an upper bound on `T` add?",
+      "model_answer": {
+        "summary": "The generic version keeps the caller's element type in the result, so mypy can check how it's used; an upper bound limits T to subtypes of one type so the body can use that type's members.",
+        "key_points": [
+          "With `T`, the return type follows the argument: `first` on a `list[str]` returns `str`",
+          "With `Any`, mypy stops checking the result, so misuse of it passes silently",
+          "An upper bound (`T = TypeVar(\"T\", bound=X)`, or `def first[T: X]`) only accepts subtypes of `X`",
+          "Inside the function the body can then use `X`'s members, and the caller still gets back the specific type it passed in"
+        ]
+      },
+      "explanation": "`Any` is compatible with everything in both directions, so it switches type checking off wherever it flows. A type variable keeps the specific type instead. A bound adds a constraint without losing that specificity: a function bounded by a base class can call the base class's methods and still return the caller's subclass.",
+      "materials": [
+        "mypy-generics",
+        "python-docs-typing"
+      ]
+    }
+  ]
+}

@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.content.importer import import_folder
 from app.content.loader import ContentError
 from app.models import Concept, Lesson, Material, Milestone, Question, Stack, Syllabus, Week
-from tests.conftest import ContentFactory
+from tests.conftest import ContentFactory, as_version, changelog_entry, make_changelog
 
 TABLES = (Stack, Syllabus, Week, Lesson, Milestone, Material, Concept, Question)
 LESSON = "/stacks/mini-stack/lessons/w01-l01"
@@ -86,7 +86,10 @@ def test_a_newer_version_becomes_the_current_syllabus(
         syllabus["version"] = "v2026-02-01"
         syllabus["weeks"][0]["lessons"][0]["title"] = "First lesson, revised"
 
-    result = import_folder(session, make_content(newer))
+    changelog = make_changelog(
+        "v2026-02-01", "v2026-01-01", changelog_entry("lesson", "w01-l01", "changed")
+    )
+    result = import_folder(session, make_content(newer, changelog=changelog))
 
     assert result.is_current
     assert api.get("/stacks/mini-stack").json()["version"] == "v2026-02-01"
@@ -104,6 +107,22 @@ def test_an_older_version_does_not_replace_the_current_one(
 
     assert (result.status, result.is_current) == ("imported", False)
     assert api.get("/stacks/mini-stack").json()["version"] == "v2026-02-01"
+
+
+def test_same_day_versions_sort_by_their_number(
+    session: Session, api: TestClient, make_content: ContentFactory
+) -> None:
+    # (version, the version before it at the time it is written)
+    for name, previous in [
+        ("v2026-01-01.2", None),
+        ("v2026-01-01.10", "v2026-01-01.2"),
+        ("v2026-01-01.9", "v2026-01-01.2"),
+        ("v2026-01-01", None),
+    ]:
+        changelog = make_changelog(name, previous) if previous else None
+        import_folder(session, make_content(as_version(name), changelog=changelog))
+
+    assert api.get("/stacks/mini-stack").json()["version"] == "v2026-01-01.10"
 
 
 @pytest.fixture

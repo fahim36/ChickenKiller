@@ -1,4 +1,5 @@
-"""Read one version folder of a Stack: `syllabus.json` plus `questions/<lesson-id>.json`.
+"""Read one version folder of a Stack: `syllabus.json`, `questions/<lesson-id>.json`, and
+`changelog.json` if there is one.
 
 Each file is parsed into the format models (`app.content.format`). Anything that breaks the
 format becomes a `Problem` naming the file and the item; rules that span several items are
@@ -12,10 +13,11 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ValidationError
 
-from app.content.format import Lesson, QuestionBank, Syllabus
+from app.content.format import Changelog, Lesson, QuestionBank, Syllabus
 
 SYLLABUS_FILE = "syllabus.json"
 QUESTIONS_DIR = "questions"
+CHANGELOG_FILE = "changelog.json"
 
 
 @dataclass(frozen=True)
@@ -42,6 +44,8 @@ class ContentFolder:
     path: Path
     syllabus: Syllabus
     banks: dict[Path, QuestionBank] = field(default_factory=dict)
+    changelog: Changelog | None = None  # None when there is no changelog.json, or it's unreadable
+    has_changelog_file: bool = False
 
     def lessons(self) -> list[Lesson]:
         return [lesson for week in self.syllabus.weeks for lesson in week.lessons]
@@ -61,6 +65,10 @@ def read_folder(path: Path) -> tuple[ContentFolder | None, list[Problem]]:
             bank = _read(bank_path, QuestionBank, problems)
             if bank is not None:
                 folder.banks[bank_path] = bank
+    changelog_path = path / CHANGELOG_FILE
+    if changelog_path.exists():
+        folder.has_changelog_file = True
+        folder.changelog = _read(changelog_path, Changelog, problems)
     return folder, problems
 
 

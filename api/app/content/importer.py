@@ -7,7 +7,8 @@ Each Stack version is imported once, as its own set of rows:
 - Importing a folder that is already imported changes nothing.
 - Importing different content under a version that already exists is refused: Learner progress
   is only safe if a published version never changes underneath it. Publish a new version instead.
-- The newest version of a Stack (versions sort by date) becomes its current Syllabus.
+- The newest version of a Stack (see `app.content.versions` for the order) becomes its current
+  Syllabus.
 
 Carrying Learner progress over to a new version is the version-import ticket (#13).
 """
@@ -25,6 +26,7 @@ from sqlalchemy.orm import Session
 from app.content import format as fmt
 from app.content.check import load_checked_folder, version_folders
 from app.content.loader import ContentError, ContentFolder, Problem
+from app.content.versions import version_key
 from app.models import (
     Concept,
     Lesson,
@@ -102,7 +104,7 @@ def import_content(session: Session, content: ContentFolder) -> ImportResult:
     _add_content(session, row.pk, content)
 
     current = stack.current_syllabus
-    if current is None or syllabus.version > current.version:
+    if current is None or version_key(syllabus.version) > version_key(current.version):
         stack.current_syllabus = row
         stack.name = syllabus.stack.name
         stack.summary = syllabus.stack.summary
