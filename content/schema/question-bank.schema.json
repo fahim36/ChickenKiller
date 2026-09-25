@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "question-bank.schema.json",
+  "title": "Question Bank",
+  "description": "All pre-written Questions for one Lesson. Questions testing the same Concept are siblings; a Retake always uses a sibling.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "lesson_id", "concepts", "questions"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "lesson_id": { "$ref": "#/$defs/id" },
+    "concepts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "name"],
+        "properties": { "id": { "$ref": "#/$defs/id" }, "name": { "$ref": "#/$defs/text" } }
+      }
+    },
+    "questions": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/question" } }
+  },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$", "maxLength": 80 },
+    "text": { "type": "string", "minLength": 1 },
+    "question": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "concept", "type", "prompt", "explanation", "materials"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "concept": { "$ref": "#/$defs/id" },
+        "type": { "enum": ["multiple_choice", "written"] },
+        "prompt": { "$ref": "#/$defs/text" },
+        "choices": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "text"],
+            "properties": { "id": { "type": "string", "pattern": "^[a-h]$" }, "text": { "$ref": "#/$defs/text" } }
+          }
+        },
+        "answer": { "type": "string", "pattern": "^[a-h]$" },
+        "model_answer": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["summary", "key_points"],
+          "properties": {
+            "summary": { "$ref": "#/$defs/text" },
+            "key_points": { "type": "array", "minItems": 2, "items": { "$ref": "#/$defs/text" } }
+          }
+        },
+        "explanation": { "$ref": "#/$defs/text" },
+        "materials": { "type": "array", "items": { "$ref": "#/$defs/id" }, "uniqueItems": true }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "type": { "const": "multiple_choice" } } },
+          "then": { "required": ["choices", "answer"], "not": { "required": ["model_answer"] } }
+        },
+        {
+          "if": { "properties": { "type": { "const": "written" } } },
+          "then": { "required": ["model_answer"], "not": { "anyOf": [{ "required": ["choices"] }, { "required": ["answer"] }] } }
+        }
+      ]
+    }
+  }
+}

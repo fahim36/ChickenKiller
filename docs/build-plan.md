@@ -1,0 +1,201 @@
+# Build plan: Learning App version 1
+
+Version 1 is six milestones. Each one ends with something you can show a person in under five minutes, tests that prove it works, and a paragraph for your portfolio. The tickets are GitHub issues #1–#13 on [fahim36/InterviewCrackerAssistant](https://github.com/fahim36/InterviewCrackerAssistant/issues), and [implementation-order.md](implementation-order.md) says which ticket blocks which. Terms follow [CONTEXT.md](../CONTEXT.md).
+
+| Milestone | Tickets | Demo in one line |
+|---|---|---|
+| [M0 Scaffold](#m0-scaffold-done) | parts of #1, #2, #12 | The 16-week Syllabus loads from files and shows in the browser |
+| [M1 Live skeleton](#m1-live-skeleton) | #1, #2 | A public URL, and a commit with broken content is refused |
+| [M2 Your own Learner](#m2-your-own-learner) | #3, #4 | An invited Learner signs in and picks an Active Stack |
+| [M3 The core loop](#m3-the-core-loop) | #5, #6 | Study a Lesson, pass its quiz, watch the next one unlock |
+| [M4 Learning from mistakes](#m4-learning-from-mistakes) | #8, #7 | A wrong answer is explained; the Retake asks a sibling Question |
+| [M5 Daily Review](#m5-daily-review) | #9, #10, #11 | A missed Review Round blocks the next Lesson until it's done |
+| [M6 A Syllabus that updates itself](#m6-a-syllabus-that-updates-itself) | #12, #13 | Claude Code rewrites a Lesson; the Learner's progress survives |
+
+#12 runs alongside M2–M5. Real Question Banks mean every quiz milestone is tested and demoed on real content, not placeholders.
+
+## How every milestone is tested
+
+- **Domain rules are plain functions with a fake clock.** Unlocking, Pass Mark, Review Round timing and Streaks take `now` and the Learner's time zone as arguments. Tests can then say "it is 23:59 in Dhaka" without waiting or patching time.
+- **API tests** run FastAPI's test client against an in-memory database seeded from a small content folder (`api/tests/conftest.py`).
+- **Component tests** use Vitest and Testing Library in `web/`.
+- **The demo script is an end-to-end test.** From M2 on, each milestone's demo is also a Playwright test that clicks through the same steps. If the test passes, the demo will work live.
+- **CI** (`.github/workflows/ci.yml`) runs all of it on every pull request, plus the content check on every committed Stack version.
+
+---
+
+## M0 Scaffold (done)
+
+**What exists:** a Next.js 16 front end, a FastAPI backend, Postgres in Docker Compose, the content format as JSON Schema, the content check, and the importer. The 16-week Agentic AI Engineer syllabus is converted into content files: 80 Lessons, 169 Milestones, 115 Materials, and Question Banks for Week 1's five Lessons.
+
+**Tests:** 21 pytest tests cover:
+- each content-check rule;
+- importing twice changes nothing;
+- the Lesson response never includes answers;
+- the committed content passes.
+
+There are also 9 Vitest tests for the page helpers and components.
+
+**Demo:**
+1. `docker compose up -d`, then import the content. The check runs first and prints its one warning: 75 Lessons have no Question Bank yet.
+2. Open the Stack page. Show that Week 1 adds up to 15 hours, and Milestones are tagged Build or Job hunt.
+3. Open a Lesson. Show the topics, the exercise, the Materials with their type labels, and the previous/next links.
+
+**Portfolio note:** "Content is code." The Syllabus lives in version-numbered files that are reviewed like any pull request. A schema plus semantic checks run before every commit: every Concept has a sibling for Retakes, and every Material a Lesson refers to exists.
+
+## M1 Live skeleton
+
+**Tickets:** finish #1 (deployment) and #2 (content check runs as a pre-commit hook and in CI).
+
+**Build:**
+- Deploy the web app, the API and a managed Postgres, then run the importer against production as a release step.
+- Turn on the `content-check` pre-commit hook and a `--links` job that runs each week.
+
+**Tests:**
+- A smoke test hits `/health` and one Lesson on the deployed URL after each deploy.
+- Content-check tests for the hook's exit code.
+- The links job's HTTP calls are replaced with a fake: a dead link is an error, a blocked site only a warning.
+
+**Demo:**
+1. Open the public URL on your phone.
+2. In the terminal, change an answer to a choice that doesn't exist and try to commit. The commit is refused, and the message names the Question.
+
+**Portfolio note:** a deployed walking skeleton with CI from the first day. Mention what the deploy costs per month and how long a cold start takes.
+
+## M2 Your own Learner
+
+**Tickets:** #3 invite-only sign-in, #4 onboarding.
+
+**Build:**
+- Clerk sign-in with an allow-list of invites.
+- A Learner record created on first sign-in.
+- Onboarding sets the Active Stack and time zone. Those two decide which Lessons and which day's Review Rounds the Learner sees.
+
+**Tests:**
+- The API rejects requests without a valid token, and rejects valid tokens whose email isn't invited.
+- Onboarding is required before any Lesson page.
+- The time zone is stored as an IANA name, and the Learner's "today" is computed from it (fake-clock test across midnight in Asia/Dhaka).
+
+**Demo (Playwright):** invite an email, sign in, pick "Agentic AI Engineer" and Asia/Dhaka, and land on Week 1.
+
+**Portfolio note:** authentication handed to a hosted provider (ADR-0002), and why that was the right trade for a one-person project.
+
+## M3 The core loop
+
+**Tickets:** #5 Week map with lock states, #6 Lesson Quiz (multiple choice) and unlocking.
+
+**Build:**
+- The Week map shows each Lesson as Completed, Unlocked or Locked.
+- A Lesson Quiz picks 4 multiple-choice Questions from the Question Bank, covering different Concepts.
+- Scoring 80% or more makes it a Completed Lesson and unlocks the next one.
+
+**Tests:**
+- Unlocking follows completion only. The date doesn't matter: a Learner can do three Lessons in one day or one in a week.
+- The quiz never repeats a Concept while an unused one remains.
+- Answers are checked on the server; the client never receives `answer`.
+- The Pass Mark boundary: 79% fails and 80% passes.
+
+**Demo (Playwright):**
+1. Lesson 2 is locked.
+2. Study Lesson 1 and take its quiz. Get one wrong and still pass.
+3. Lesson 2 unlocks.
+
+**Portfolio note:** "Completion-based, not calendar-based." Explain why the app has no time limits but still enforces the order.
+
+## M4 Learning from mistakes
+
+**Tickets:** #8 Explanations and Retakes, #7 grading written answers.
+
+**Build:**
+- After a quiz, each Missed Question shows its Explanation and links to its Materials.
+- A Retake asks a sibling Question on the same Concept.
+- Written answers are graded against the Model Answer's key points by one Claude call (the only runtime Claude call, ADR-0001). The grader returns a score and the key points the answer missed.
+
+**Tests:**
+- A Retake never shows the same Question twice.
+- It falls back to the original Question only when the Concept has no unused sibling left.
+- Grading is tested with the Claude client replaced by a fake. Separately, **a small eval set**: 30 or more written answers you've labelled pass or fail. Measure how often the grader agrees with your labels, and fail CI if agreement drops below the number you set.
+
+**Demo:**
+1. Answer a written Question badly on purpose.
+2. Show the grade, the key points you missed, the Explanation and the Material link.
+3. Take the Retake and see a different Question on the same Concept.
+
+**Portfolio note:** this is the AI-engineering section of the write-up. It covers:
+- the grading prompt and its output schema;
+- the eval set and the grader's measured agreement;
+- the cost per graded answer;
+- what happens when the Claude call fails: the answer is saved as "pending grade" and graded again later.
+
+## M5 Daily Review
+
+**Tickets:** #9 Round 1 and blocking, #10 Rounds 2 and 3, carry-over and leaving the rotation, #11 Streak.
+
+**Build:**
+- A Review Round has up to 10 Questions, drawn from Missed Questions and recently learned Concepts.
+- Round 1 opens the first time the Learner uses the app that day.
+- Each later round opens 4 hours after the previous one is finished, and becomes pending 2 hours after that. A day has at most 3 rounds.
+- A Pending Review Round blocks unlocking.
+- At day end, unfinished rounds are dropped, but their Questions carry over first.
+- A Question leaves the rotation once it has been answered correctly on 3 different days.
+- A Streak counts the days on which every round that opened was finished.
+
+**Tests (all fake-clock):**
+- Round 2 opens exactly 4 hours after Round 1 is finished, and becomes pending 2 hours after that.
+- Only 3 rounds are created, even for a Learner who uses the app for 24 hours.
+- The day ends at local midnight for a Dhaka Learner, and again for a Learner in UTC-8.
+- Carried-over Questions come first the next day.
+- A Question answered correctly twice on one day counts as one day.
+- A Streak survives a day with only Round 1 and breaks on a day with a Pending Review Round.
+
+**Demo:**
+1. Finish Round 1.
+2. Move the demo clock forward 6 hours.
+3. Round 2 is pending, and the next Lesson shows "Finish your Review Round to unlock".
+4. Finish the round and the Lesson unlocks.
+
+**Portfolio note:** scheduling that has to be correct across time zones. Show the round state machine (not open → open → pending → finished or dropped) and how the fake-clock tests cover every transition.
+
+## M6 A Syllabus that updates itself
+
+**Tickets:** #12 `/update-syllabus` and the first Stack (started in M0), #13 importing a new Syllabus version without losing progress.
+
+**Build:**
+- The `/update-syllabus` Claude Code command researches each Lesson and writes a new version folder with Question Banks for all 80 Lessons.
+- The importer adds that version beside the old one.
+- Learners keep their progress by permanent id: a Completed Lesson stays completed, and an Updated Lesson is marked as changed.
+- Questions that were removed leave the review rotation cleanly.
+
+**Tests:**
+- Import v1, record progress, then import v2 (with one Lesson changed, one Question removed and one Lesson added).
+- Completions survive, the changed Lesson is marked as an Updated Lesson, the removed Question leaves the rotation, and the new Lesson is unlocked in its place.
+- The content check passes on the generated folder.
+
+**Demo:**
+1. Show a Learner partway through Week 1.
+2. In the terminal, run `/update-syllabus` for one Lesson and review the diff it wrote.
+3. Commit and import.
+4. Refresh as the Learner: their progress is still there, and the updated Lesson has an "Updated" badge.
+
+**Portfolio note:** the headline story. It covers:
+- An agent in the terminal is the content pipeline, while the app itself makes only one runtime model call (ADR-0001).
+- Its output is checked by code before any person sees it.
+- Versioned content lets the Syllabus change every week without breaking anyone's progress.
+
+---
+
+## Portfolio write-up outline
+
+Use this once M6 is finished. Each section can reuse the milestone notes above.
+
+1. **The problem:** keeping interview preparation current in a field that changes every month, and staying consistent without a teacher.
+2. **What it does:** a 90-second screen recording of the M3 → M5 demos joined together.
+3. **Architecture:** Next.js → FastAPI → Postgres; Claude Code writes the content repo; the importer reads it. Reuse the diagram in the README.
+4. **Three decisions and their trade-offs:** ADR-0001 (the content pipeline), ADR-0002 (the stack), and completion-based unlocking.
+5. **The hard parts:** Review Round scheduling across time zones, the grader's eval, and importing a new version without losing progress.
+6. **Numbers:**
+   - test count and CI time;
+   - the grader's agreement on the eval set;
+   - cost per graded answer and per Syllabus Update;
+   - how many of your own Lessons you completed using it.
+7. **What's next:** the version 2 list from [implementation-order.md](implementation-order.md#version-2-and-later-not-ticketed-yet).
