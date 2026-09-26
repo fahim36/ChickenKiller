@@ -41,7 +41,7 @@ def upgrade() -> None:
             "content_hash",
             sa.String(length=64),
             nullable=False,
-            comment="The import refuses a change once its Day has passed.",
+            comment="The import refuses a change once its Day has begun.",
         ),
         sa.ForeignKeyConstraint(
             ["stack_id"],

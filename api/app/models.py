@@ -316,8 +316,8 @@ class Question(Base):
 class DailyChallenge(Base):
     """One Daily Challenge of a Stack: three Questions of its Question Bank, for one UTC Day.
 
-    Imported ahead as an Upcoming Challenge, it may change at import until its Day; once its Day
-    has passed it is released and frozen (app/content/importer.py). Until its Day an Upcoming
+    Imported ahead as an Upcoming Challenge, it may change at import until its Day; from 00:00
+    UTC on its Day it is released and frozen (app/content/importer.py). Until its Day an Upcoming
     Challenge's Questions are never sent to a Learner.
     """
 
@@ -332,7 +332,7 @@ class DailyChallenge(Base):
         JSONB, comment="Permanent IDs of its three Questions, in order."
     )
     content_hash: Mapped[str] = mapped_column(
-        String(64), comment="The import refuses a change once its Day has passed."
+        String(64), comment="The import refuses a change once its Day has begun."
     )
 
 

@@ -25,9 +25,9 @@ request's base), read by `app.content.baseline`:
 
 **The Daily Challenges** (`<stack>/challenges/`, #16) are numbered and dated from the Stack's
 launch Day, and each is three Questions of the bank. Against the baseline, a Challenge whose Day
-has passed (by `today`) is released and frozen: never changed or deleted, and a Day that has
-passed gets no new one. Each Stack's line says how far ahead Challenges are written ("Challenges
-written through 2026-10-03 (7 Days left)"), with a warning below three Days.
+has begun (it is `today` or earlier) is released and frozen: never changed or deleted, and a
+Day that has begun gets no new one. Each Stack's line says how far ahead Challenges are
+written ("Challenges written through 2026-10-03 (7 Days left)"), with a warning below three Days.
 
 With no git baseline (content outside a git repository) those rules are skipped, with a warning
 that says so.
@@ -732,9 +732,9 @@ def _check_challenges(challenges: Challenges | None, bank: Bank, today: date) ->
 def _check_frozen_challenges(
     stack_dir: Path, challenges: Challenges | None, committed: Baseline, today: date
 ) -> list[Problem]:
-    """Against what is `committed`: a Challenge whose Day has passed is released, and never
-    changes (byte for byte, line endings aside) or goes; and a Day that has passed never gets a
-    Challenge it didn't have."""
+    """Against what is `committed`: a Challenge whose Day has begun (today or earlier) is
+    released, and never changes (byte for byte, line endings aside) or goes; and a Day that has
+    begun never gets a Challenge it didn't have."""
     folder = stack_dir / CHALLENGES_DIR
     ref = committed.ref
     problems: list[Problem] = []
@@ -754,7 +754,7 @@ def _check_frozen_challenges(
                 "error",
                 str(path),
                 item,
-                f"{change} since {ref}, but its Day ({old.date}) has passed: a released Daily "
+                f"{change} since {ref}, but its Day ({old.date}) has begun: a released Daily "
                 "Challenge is frozen",
             )
         )
@@ -765,7 +765,7 @@ def _check_frozen_challenges(
                     "error",
                     str(path),
                     f"#{c.number}",
-                    f"written for {c.date}, a Day that has passed: a Day with no Challenge "
+                    f"written for {c.date}, a Day that has begun: a Day with no Challenge "
                     "written has no Challenge",
                 )
             )

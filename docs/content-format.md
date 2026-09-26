@@ -10,7 +10,7 @@ content/<stack-id>/challenges/launch.json        the Day of the Stack's Daily Ch
 content/<stack-id>/challenges/<number>.json      one Daily Challenge, such as 001.json
 ```
 
-The Syllabus is versioned and each new version replaces the old one. The Question Bank is not: it only grows, and a Question is never edited or deleted once committed ([ADR-0004](adr/0004-append-only-question-bank-with-sources.md)). See [the Question Bank](#question-bank-question-bankjson). The Daily Challenges aren't versioned either, and each is frozen once its Day has passed. See [Daily Challenges](#daily-challenges-challenges).
+The Syllabus is versioned and each new version replaces the old one. The Question Bank is not: it only grows, and a Question is never edited or deleted once committed ([ADR-0004](adr/0004-append-only-question-bank-with-sources.md)). See [the Question Bank](#question-bank-question-bankjson). The Daily Challenges aren't versioned either, and each is frozen from 00:00 UTC on its Day. See [Daily Challenges](#daily-challenges-challenges).
 
 Until #15 each version folder held its own banks, in `<version>/questions/<lesson-id>.json`. Nothing had been released, so the two committed versions of `agentic-ai-engineer` are rewritten into this layout **once**, by `content-migrate-bank` (see [Moving to the Stack's Question Bank](#moving-to-the-stacks-question-bank)). A version folder that still has a `questions/` folder fails the check.
 
@@ -171,18 +171,18 @@ The check holds them to these rules (`--today` is the clock):
 - A file's name is its `number`, and its `date` follows from the launch Day. So numbers and dates are consecutive from the launch, and a Challenge can't move to another Day.
 - **A Day with no Challenge written has no Challenge.** Gaps are allowed: a Stack that runs out has no Challenge on those Days, and numbering carries on from the launch.
 - Every Question is in the bank, and the mix is two multiple choice and one written. A Question can be one written for the Challenge (`question-bank/challenge-<number>.json`, tagged to a Lesson or not) or an older one.
-- An Upcoming Challenge (its Day is today or later) uses no Retired Question, since one can't be answered. A released Challenge keeps a Question retired after its Day: the Archive shows it retired ([ADR-0004](adr/0004-append-only-question-bank-with-sources.md)).
+- An Upcoming Challenge (its Day is after today) uses no Retired Question, since one can't be answered. A released Challenge keeps a Question retired after its Day: the Archive shows it retired ([ADR-0004](adr/0004-append-only-question-bank-with-sources.md)).
 - Its new Questions follow the bank's rules like any other: Sources accessed in this run, a sibling for every Concept.
 - Fewer than three Days left is a warning: `Challenges written through 2026-10-03 (2 Days left): write more with /write-challenges; ...`. Days left count from today to the last Challenge's Day, both included, so a gap before it doesn't count against it; a launched Stack with none written has 0.
 
-**Frozen.** Against the git baseline (`api/app/content/baseline.py`), a Challenge whose Day is before today (UTC) is released:
+**Frozen.** Against the git baseline (`api/app/content/baseline.py`), a Challenge is released at 00:00 UTC on its Day, so one whose Day is today (UTC) or earlier is frozen:
 
 - it never changes, byte for byte (line endings aside), and is never deleted;
-- a Day that has passed never gets a Challenge it didn't have when committed.
+- a Day that has begun (today or earlier) never gets a Challenge it didn't have when committed.
 
-Today's Challenge and later ones are Upcoming Challenges: they can be edited or deleted. Moving `launch` would re-date every Challenge, so once one is released the frozen rule refuses it too. Outside git the frozen rules are skipped, with the same warning as the bank's.
+Only Challenges for future Days are Upcoming Challenges: they can be edited or deleted until 23:59:59 UTC the Day before. The check's clock is a date (`--today`, the UTC day of the commit in CI), so a Challenge committed on the Day before its own passes. Moving `launch` would re-date every Challenge, so once one is released the frozen rule refuses it too. Outside git the frozen rules are skipped, with the same warning as the bank's.
 
-The importer loads the Challenges on every import, by the UTC Day of the import. A new Challenge is added (even one whose Day has passed, which was checked when it was committed); an Upcoming one is updated, or removed when its file is gone; a released one that differs from what is stored, or is gone, is refused, changing nothing. Re-running an import changes nothing. The API never sends an Upcoming Challenge's Questions to a Learner: the Admin's **Upcoming Challenges** page (`/admin/challenges`) only shows each Stack's "Challenges written through <date> (<n> Days left)", with the same warning.
+The importer loads the Challenges on every import, by the UTC Day of the import. A new Challenge is added (even one whose Day has begun, which was checked when it was committed); an Upcoming one is updated, or removed when its file is gone; a released one that differs from what is stored, or is gone, is refused, changing nothing. Re-running an import changes nothing. The API never sends an Upcoming Challenge's Questions to a Learner: the Admin's **Upcoming Challenges** page (`/admin/challenges`) only shows each Stack's "Challenges written through <date> (<n> Days left)", with the same warning.
 
 How to write a Challenge's Questions is in [`.claude/skills/write-challenges/challenge-rules.md`](../.claude/skills/write-challenges/challenge-rules.md), on top of the bank's rules.
 

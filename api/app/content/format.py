@@ -309,7 +309,7 @@ class ChallengeLaunch(_Model):
 class DailyChallenge(_Model):
     """One Daily Challenge of a Stack (`challenges/<number>.json`, zero-padded: `001.json`): its
     three Questions, from the Stack's Question Bank. Written ahead as an Upcoming Challenge, it
-    can be edited until its Day, and is frozen from then on."""
+    can be edited until its Day begins (00:00 UTC), and is frozen from then on."""
 
     model_config = ConfigDict(title="Daily Challenge")
 

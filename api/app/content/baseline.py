@@ -11,7 +11,7 @@ by being retired or re-tagged to another Lesson (ADR-0004). The rules themselves
   merged, the newest version winning, and each Question is tagged to its file's Lesson. Their
   Questions had no Sources, so they may gain Sources once (`BaselineQuestion.legacy`).
 - The Stack's Daily Challenges (`<stack>/challenges/<number>.json`) are read as committed bytes:
-  one whose Day has passed is frozen (the rule is in `app.content.check` too).
+  one whose Day has begun is frozen (the rule is in `app.content.check` too).
 - A Stack the ref doesn't have yet has an empty baseline: every Question is new.
 - Outside a git repository there is no baseline (`BaselineUnavailable`), and the rules that need
   one are skipped.

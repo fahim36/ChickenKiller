@@ -26,8 +26,8 @@ ever added to, so re-running an import changes nothing:
 
 Then it loads the Stack's Daily Challenges (`<stack>/challenges/`, #16), by the UTC Day of the
 import: an Upcoming Challenge is added, updated, or removed if its file is gone; a released one
-(its Day has passed) that differs from what is stored, or is gone, is refused. Re-running an
-import changes nothing.
+(its Day has begun: today or earlier) that differs from what is stored, or is gone, is
+refused. Re-running an import changes nothing.
 
 Learner progress needs no carrying over: it is keyed by permanent IDs, never by a version's rows,
 so a new version leaves Completed Lessons, Missed Questions, Milestone ticks and answers as
@@ -227,7 +227,7 @@ def import_challenges(
                     "error",
                     where,
                     f"#{number}",
-                    f"{change} since it was imported, but its Day ({old.day}) has passed: a "
+                    f"{change} since it was imported, but its Day ({old.day}) has begun: a "
                     "released Daily Challenge is frozen",
                 )
             )

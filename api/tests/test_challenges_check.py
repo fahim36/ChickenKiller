@@ -7,7 +7,7 @@ below three Days. The clock is the `today` passed to the check."""
 import copy
 import json
 import subprocess
-from datetime import date
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -30,7 +30,7 @@ from tests.conftest import (
 )
 
 TODAY = date(2026, 1, 3)
-"""The day of the test run: #1 (2026-01-01) and #2 are released, #3 is today's."""
+"""The day of the test run: #1 (2026-01-01) to #3 (today's) are released, #4 is upcoming."""
 
 MIX = CHALLENGE_MIX
 
@@ -140,10 +140,10 @@ def test_an_upcoming_challenge_cant_use_a_retired_question(stack: Path) -> None:
     bank["questions"][0]["retired"] = {"reason": "Out of date."}
     bank["questions"].append(mc_question("w01-l01-q09", "concept-a"))
     write_json(bank_file, bank)
-    write_challenges(stack, *week(1, 3))
+    write_challenges(stack, *week(1, 4))
 
     assert errors(check_here(stack)) == [
-        "#3: w01-l01-q01 is a Retired Question, which can't be answered; "
+        "#4: w01-l01-q01 is a Retired Question, which can't be answered; "
         "an Upcoming Challenge uses Questions that aren't retired",
     ]
 
@@ -253,7 +253,7 @@ def test_a_released_challenge_is_frozen(repo: Path) -> None:
     write_challenges(repo, *week(1), edited, *week(3, 4))
 
     assert errors(check_repo(repo)) == [
-        "#2: changed since HEAD, but its Day (2026-01-02) has passed: a released Daily "
+        "#2: changed since HEAD, but its Day (2026-01-02) has begun: a released Daily "
         "Challenge is frozen",
     ]
 
@@ -276,26 +276,64 @@ def test_a_released_challenge_cant_be_deleted(repo: Path) -> None:
     write_challenges(repo, *week(2, 3, 4))
 
     assert errors(check_repo(repo)) == [
-        "#1: deleted since HEAD, but its Day (2026-01-01) has passed: a released Daily "
+        "#1: deleted since HEAD, but its Day (2026-01-01) has begun: a released Daily "
         "Challenge is frozen",
     ]
 
 
-def test_todays_and_later_challenges_can_be_edited_or_deleted(repo: Path) -> None:
-    other = ["w01-l01-q02", "w01-l01-q04", "w01-l01-q08"]
-    write_challenges(repo, *week(1, 2), challenge(3, day_of(3), other))
+OTHER = ["w01-l01-q02", "w01-l01-q04", "w01-l01-q08"]
+
+
+def test_a_future_challenge_can_be_edited(repo: Path) -> None:
+    write_challenges(repo, *week(1, 2, 3), challenge(4, day_of(4), OTHER))
 
     assert errors(check_repo(repo)) == []
 
 
-def test_a_new_challenge_for_a_day_that_has_passed_is_refused(repo: Path) -> None:
-    git(repo.parents[1], "rm", "-q", str(repo / "challenges" / "002.json"))
+def test_a_future_challenge_can_be_deleted(repo: Path) -> None:
+    write_challenges(repo, *week(1, 2, 3))
+
+    assert errors(check_repo(repo)) == []
+
+
+def test_todays_challenge_is_released_and_frozen(repo: Path) -> None:
+    """A Challenge is released at 00:00 UTC on its own Day, so today's can't change."""
+    write_challenges(repo, *week(1, 2), challenge(3, day_of(3), OTHER), *week(4))
+
+    assert errors(check_repo(repo)) == [
+        "#3: changed since HEAD, but its Day (2026-01-03) has begun: a released Daily "
+        "Challenge is frozen",
+    ]
+
+
+@pytest.mark.parametrize(
+    ("now", "frozen"),
+    [
+        (datetime(2026, 1, 3, 23, 59, 59, tzinfo=UTC), False),
+        (datetime(2026, 1, 4, 0, 0, 0, tzinfo=UTC), True),
+    ],
+)
+def test_a_challenge_freezes_at_midnight_utc_on_its_day(
+    repo: Path, now: datetime, frozen: bool
+) -> None:
+    """#4 (2026-01-04) is editable until 23:59:59 UTC the Day before, and frozen from 00:00."""
+    write_challenges(repo, *week(1, 2, 3), challenge(4, day_of(4), OTHER))
+
+    found = [e.split(":")[0] for e in errors(check_repo(repo, today=now.astimezone(UTC).date()))]
+
+    assert found == (["#4"] if frozen else [])
+
+
+@pytest.mark.parametrize("number", [2, 3])
+def test_a_new_challenge_for_a_day_that_has_begun_is_refused(repo: Path, number: int) -> None:
+    """Earlier Days and today alike: a Day that had no Challenge at 00:00 UTC has none."""
+    git(repo.parents[1], "rm", "-q", str(repo / "challenges" / f"{number:03}.json"))
     commit(repo.parents[1])
     write_challenges(repo, *week(1, 2, 3, 4))
 
     assert errors(check_repo(repo)) == [
-        "#2: written for 2026-01-02, a Day that has passed: a Day with no Challenge written has "
-        "no Challenge",
+        f"#{number}: written for {day_of(number)}, a Day that has begun: a Day with no Challenge "
+        "written has no Challenge",
     ]
 
 

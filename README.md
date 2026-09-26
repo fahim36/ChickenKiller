@@ -123,9 +123,9 @@ In Claude Code, from the repo root:
 /write-challenges agentic-ai-engineer 7
 ```
 
-It reads the Stack's whole Question Bank, researches the field, and writes the next 7 Upcoming Challenges: `content/<stack>/challenges/<number>.json`, each with its number, UTC date and three Questions (two multiple choice, one written). New Questions go into the Question Bank with Sources fetched in the run, preferring Concepts the bank doesn't test yet. The first run for a Stack writes its launch Day (today, UTC). It passes the content check before it finishes. Review the files, then commit and import them. The steps are in [.claude/skills/write-challenges/SKILL.md](.claude/skills/write-challenges/SKILL.md).
+It reads the Stack's whole Question Bank, researches the field, and writes the next 7 Upcoming Challenges: `content/<stack>/challenges/<number>.json`, each with its number, UTC date and three Questions (two multiple choice, one written). New Questions go into the Question Bank with Sources fetched in the run, preferring Concepts the bank doesn't test yet. The first run for a Stack writes its launch Day (tomorrow, UTC). It passes the content check before it finishes. Review the files, then commit and import them. The steps are in [.claude/skills/write-challenges/SKILL.md](.claude/skills/write-challenges/SKILL.md).
 
-A Challenge can be edited until its Day; once the Day has passed it is frozen, and the content check refuses any change. A Day with no Challenge written has no Challenge, so keep a few Days ahead: the content check and the Admin's **Upcoming Challenges** page (Settings → Admin) show "Challenges written through <date> (<n> Days left)" per Stack, and warn when fewer than three Days are left.
+A Challenge can be edited until its Day begins; from 00:00 UTC on its Day it is released and frozen, and the content check refuses any change. A Day with no Challenge written has no Challenge, so keep a few Days ahead: the content check and the Admin's **Upcoming Challenges** page (Settings → Admin) show "Challenges written through <date> (<n> Days left)" per Stack, and warn when fewer than three Days are left.
 
 It never asks questions, so it also runs headless, for example from a scheduled task:
 
@@ -149,7 +149,7 @@ This checks every Stack version against the format and the Question Bank rules:
 - permanent IDs unique across every kind of item, and never reused as another kind in a later version;
 - every Material reference exists;
 - a version that follows another has a changelog that lists every added, changed and removed Lesson, with sources;
-- Daily Challenges numbered and dated from the launch, with two multiple-choice Questions and one written, and never changed once their Day has passed.
+- Daily Challenges numbered and dated from the launch, with two multiple-choice Questions and one written, and never changed once their Day has begun.
 
 Each error names the file and the item, such as the Question. Add `--links` to also check that every Material URL loads. The rules are in [docs/content-format.md](docs/content-format.md).
 

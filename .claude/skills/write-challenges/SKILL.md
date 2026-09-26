@@ -21,11 +21,11 @@ Read first: `docs/content-format.md` (the Daily Challenge and Question Bank form
 
 - Today is the UTC date: `date -u +%Y-%m-%d`. Every Day is a UTC Day (ADR-0005).
 - `content/$stack/challenges/launch.json` holds the launch Day; `content/$stack/challenges/<number>.json` are the Challenges written so far. Challenge #n is on the launch Day plus n - 1 Days.
-- **No `challenges/` folder: this run launches the Stack's Challenges.** Write `launch.json` with today's UTC date as `launch`, and start at #1.
-- Otherwise the next Challenge is the first number after the last one written. If its Day has already passed (the Stack ran out of Challenges), skip ahead to today's number: a Day that has passed never gets a Challenge, and the check refuses one.
+- **No `challenges/` folder: this run launches the Stack's Challenges.** Write `launch.json` with **tomorrow's** UTC date as `launch` (today has already begun, so it can't get a Challenge), and start at #1.
+- Otherwise the next Challenge is the first number after the last one written. If its Day is today or earlier (the Stack ran out of Challenges), skip ahead to tomorrow's number: a Challenge is released at 00:00 UTC on its Day, so a Day that has begun never gets one, and the check refuses it.
 - Run `git status --porcelain content/$stack`. Untracked Challenge files are a run already in progress: keep them, and carry on after the last one.
 
-Done when you know the numbers and Days you will write: `$days` of them, consecutive, the first on today or later.
+Done when you know the numbers and Days you will write: `$days` of them, consecutive, the first on tomorrow or later.
 
 ## 2. Read the whole Question Bank
 
@@ -75,7 +75,7 @@ For each Day write `content/$stack/challenges/<number>.json` (zero-padded to thr
 }
 ```
 
-2-space indent, UTF-8, a final newline. Never edit a Challenge whose Day has passed, and never delete one: it is frozen.
+2-space indent, UTF-8, a final newline. Never edit or delete a Challenge whose Day is today or earlier: it is released and frozen. Only future Days are editable.
 
 ## 6. Check
 

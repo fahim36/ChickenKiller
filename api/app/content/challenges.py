@@ -1,7 +1,7 @@
 """The Daily Challenge rules shared by the content check, the importer and the Admin page.
 
-All Days are UTC Days (ADR-0005). An Upcoming Challenge can be edited until its Day; a Challenge
-whose Day has passed is released and frozen. A Day with no Challenge written has no Challenge.
+All Days are UTC Days (ADR-0005). An Upcoming Challenge can be edited until its Day begins; from
+00:00 UTC on its Day it is released and frozen. A Day with no Challenge written has no Challenge.
 """
 
 from collections.abc import Iterable
@@ -18,9 +18,10 @@ def challenge_day(launch: date, number: int) -> date:
 
 
 def is_frozen(day: date, today: date) -> bool:
-    """A Challenge whose Day is before `today` (UTC) is released: it never changes again, and a
-    Day that has passed can't get one."""
-    return day < today
+    """A Challenge is released at 00:00 UTC on its Day, so one whose Day is `today` (UTC) or
+    earlier is frozen: it never changes again, and a Day that has begun can't get one. Only
+    future Days are editable."""
+    return day <= today
 
 
 @dataclass(frozen=True)

@@ -67,16 +67,18 @@ def test_an_upcoming_challenge_can_change_or_go(session: Session, folder: Path) 
     import_folder(session, folder, today=date(2026, 1, 1))
     write_challenges(folder.parent, *(challenge(n) for n in (1, 2)), challenge(3, questions=OTHER))
 
-    result = import_folder(session, folder, today=date(2026, 1, 3))
+    result = import_folder(session, folder, today=date(2026, 1, 2))  # the Day before #3
 
     assert (result.challenges.updated, result.challenges.removed) == ([3], [4])
     assert [(n, q) for n, _, q in stored(session)][2:] == [(3, OTHER)]
 
 
 @pytest.mark.parametrize("change", ["edit", "delete"])
+@pytest.mark.parametrize("today", [date(2026, 1, 2), date(2026, 1, 3)])
 def test_a_released_challenge_is_refused_if_it_changed(
-    session: Session, folder: Path, change: str
+    session: Session, folder: Path, change: str, today: date
 ) -> None:
+    """#2 (2026-01-02) is released from 00:00 UTC on its own Day, and frozen from then on."""
     import_folder(session, folder, today=date(2026, 1, 1))
     session.commit()
     before = stored(session)
@@ -84,7 +86,7 @@ def test_a_released_challenge_is_refused_if_it_changed(
     write_challenges(folder.parent, challenge(1), *edited, challenge(3), challenge(4))
 
     with pytest.raises(ContentError) as refused:
-        import_folder(session, folder, today=date(2026, 1, 3))
+        import_folder(session, folder, today=today)
 
     [problem] = refused.value.problems
     assert problem.item == "#2"
