@@ -1,6 +1,6 @@
 import logging
 import uuid
-from datetime import UTC
+from datetime import UTC, date
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException
 
@@ -494,6 +494,141 @@ def answer_retake(
         else _quiz_question(result.next_question),
         pending=result.pending,
         lesson_completed=result.lesson_completed,
+    )
+
+
+# --- Daily Challenges ------------------------------------------------------------------------
+
+CHALLENGE_NOT_TODAY = {
+    "code": "challenge_not_today",
+    "message": "This isn't today's Daily Challenge.",
+}
+QUESTION_RETIRED = {
+    "code": "question_retired",
+    "message": "This Question was retired, so it can't be answered. It isn't scored.",
+}
+CHALLENGE_GRADING_FAILED = {
+    "code": "grading_failed",
+    "message": "Your answer couldn't be graded just now. Nothing was counted: submit again.",
+}
+
+
+def challenge_label(stack_name: str, number: int, day: date) -> str:
+    """How a Daily Challenge is named, with its number and UTC Day: "Agentic AI Engineer #40 ·
+    26 Sep" (ADR-0005)."""
+    return f"{stack_name} #{number} · {day.day} {_MONTHS[day.month - 1]}"
+
+
+# Not `%b`, which follows the server's locale.
+_MONTHS = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split()
+
+
+def _challenge_out(stack_name: str, state: challenges.ChallengeState) -> schemas.ChallengeOut:
+    """A Challenge as the Learner has played it: each Question's answer, Explanation and Sources
+    only once it has a first answer."""
+    c, play = state.challenge, state.play
+    finished = play is not None and play.finished_at is not None
+    return schemas.ChallengeOut(
+        number=c.number,
+        day=c.day,
+        label=challenge_label(stack_name, c.number, c.day),
+        status=state.status,
+        score=play.score if finished and play else None,
+        out_of=play.out_of if finished and play else None,
+        max_answer_chars=grading.MAX_ANSWER_CHARS,
+        questions=[_challenge_question(q) for q in state.questions],
+    )
+
+
+def _challenge_question(asked: challenges.ChallengeQuestion) -> schemas.ChallengeQuestionOut:
+    q, first = asked.question, asked.first_try
+    unanswerable = q.retired and first is None
+    return schemas.ChallengeQuestionOut(
+        id=q.id,
+        type="written" if q.type == "written" else "multiple_choice",
+        prompt=q.prompt,
+        choices=[]
+        if unanswerable
+        else [schemas.ChoiceOut(id=c["id"], text=c["text"]) for c in q.choices or []],
+        retired=q.retired,
+        outcome=None if first is None else challenges.outcome(first.correct),
+        answered=None if first is None else _answered_question(q, first.response, first.feedback),
+    )
+
+
+@router.get("/stacks/{stack_id}/challenges/today")
+def get_todays_challenge(
+    active: ActiveStackInPath, session: SessionDep, now: Now
+) -> schemas.TodaysChallengeOut:
+    """This Active Stack's Daily Challenge for today (UTC): the one dated today, released at
+    00:00 UTC, the same for every Learner. `challenge` is null when none is written for today.
+
+    Its Questions come without their answers until the Learner has answered them; each answered
+    one carries its first try's outcome, the correct answer, Explanation and Sources."""
+    stack = active.stack
+    challenge = challenges.todays_challenge(session, stack.id, now)
+    state = (
+        None if challenge is None else challenges.challenge_state(session, active, challenge, now)
+    )
+    return schemas.TodaysChallengeOut(
+        stack_id=stack.id,
+        stack_name=stack.name,
+        day=review.utc_day(now),
+        challenge=None if state is None else _challenge_out(stack.name, state),
+    )
+
+
+@router.post("/stacks/{stack_id}/challenges/{number}/answers")
+def answer_challenge_question(
+    number: int,
+    body: schemas.ChallengeAnswerIn,
+    active: ActiveStackInPath,
+    session: SessionDep,
+    grader: GraderDep,
+    now: Now,
+) -> schemas.ChallengeAnswerOut:
+    """Answer one Question of Daily Challenge #`number`: a choice ID, a written answer, or null.
+    Scoring is the server's. Only the first answer to each Question counts (`counted`); a wrong
+    one is a Missed Question. Any later answer, such as a replay after finishing, is marked and
+    shown but changes no score, Streak or Missed Question. The result carries the correct
+    answer or Model Answer, the grader's feedback (written), the Explanation and every Source,
+    and the Challenge after it.
+
+    A written first answer that can't be graded is recorded as ungraded (`outcome`): it earns no
+    point, and the Learner can resubmit for feedback only.
+
+    404 for a Challenge that doesn't exist or isn't released yet; 409 `challenge_not_today` for
+    a past one the Learner never started (the Archive's, #19); 409 `question_retired`; 422
+    `question_not_in_challenge`, `not_a_choice` or `answer_too_long`; 503 `grading_failed` when
+    an answer that doesn't count can't be graded. In each of those nothing is recorded.
+    """
+    try:
+        result = challenges.answer(
+            session, active, number, body.question_id, body.answer, grader, now
+        )
+    except challenges.ChallengeNotFound as error:
+        raise HTTPException(404, "Daily Challenge not found") from error
+    except challenges.ChallengeNotToday as error:
+        raise HTTPException(409, CHALLENGE_NOT_TODAY) from error
+    except challenges.QuestionRetired as error:
+        raise HTTPException(409, QUESTION_RETIRED) from error
+    except challenges.QuestionNotInChallenge as error:
+        detail = {
+            "code": "question_not_in_challenge",
+            "message": f"Not a Question of this Daily Challenge: {error.question_id}",
+        }
+        raise HTTPException(422, detail) from error
+    except marking.NotAChoice as error:
+        raise _not_a_choice(error) from error
+    except marking.AnswerTooLong as error:
+        raise _answer_too_long(error) from error
+    except grading.GradingFailed as error:
+        raise HTTPException(503, CHALLENGE_GRADING_FAILED) from error
+    return schemas.ChallengeAnswerOut(
+        counted=result.counted,
+        outcome=result.outcome,
+        question=_answered_question(result.question, result.response, result.feedback),
+        challenge=_challenge_out(active.stack.name, result.state),
     )
 
 

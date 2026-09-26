@@ -1,6 +1,7 @@
 import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import { NEW_LEARNER, ONBOARDED_TWICE, stubApi } from "@/test/stubApi";
+import type { DailyChallenge, TodaysChallenge } from "@/lib/api";
+import { NEW_LEARNER, ONBOARDED, ONBOARDED_TWICE, stubApi } from "@/test/stubApi";
 import Home from "./page";
 
 vi.mock("next/server", () => ({ connection: async () => {} }));
@@ -38,6 +39,74 @@ it("gives each Active Stack its own card, linking to its Week map", async () => 
   expect(screen.getByRole("link", { name: "Add or drop Stacks" }).getAttribute("href")).toBe(
     "/settings",
   );
+});
+
+function today(
+  stackId: string,
+  stackName: string,
+  challenge: Partial<DailyChallenge> | null,
+): TodaysChallenge {
+  return {
+    stack_id: stackId,
+    stack_name: stackName,
+    day: "2026-09-27",
+    challenge: challenge && {
+      number: 1,
+      day: "2026-09-27",
+      label: `${stackName} #1 · 27 Sep`,
+      status: "not_started",
+      score: null,
+      out_of: null,
+      max_answer_chars: 4000,
+      questions: [],
+      ...challenge,
+    },
+  };
+}
+
+it("shows each Active Stack's Challenge for today, or says there is none", async () => {
+  stubApi({
+    "/me": ONBOARDED_TWICE,
+    "/stacks/agentic-ai-engineer/challenges/today": today(
+      "agentic-ai-engineer",
+      "Agentic AI Engineer",
+      {},
+    ),
+    "/stacks/data-engineer/challenges/today": today("data-engineer", "Data Engineer", null),
+  });
+
+  render(await Home());
+
+  const agentic = screen.getByRole("region", { name: "Agentic AI Engineer" });
+  expect(within(agentic).getByText("Agentic AI Engineer #1 · 27 Sep")).toBeTruthy();
+  expect(within(agentic).getByRole("link", { name: "Play" }).getAttribute("href")).toBe(
+    "/stacks/agentic-ai-engineer/challenge",
+  );
+  const data = screen.getByRole("region", { name: "Data Engineer" });
+  expect(within(data).getByText("No Challenge today")).toBeTruthy();
+  expect(within(data).queryByRole("link", { name: "Play" })).toBeNull();
+});
+
+it.each([
+  [{ status: "in_progress" }, "Continue", null],
+  [{ status: "finished", score: 2, out_of: 3 }, "Replay", "Played: 2/3"],
+] as const)("offers to continue or replay today's Challenge", async (challenge, link, played) => {
+  stubApi({
+    "/me": ONBOARDED,
+    "/stacks/agentic-ai-engineer/challenges/today": today(
+      "agentic-ai-engineer",
+      "Agentic AI Engineer",
+      challenge,
+    ),
+  });
+
+  render(await Home());
+
+  const card = screen.getByRole("region", { name: "Agentic AI Engineer" });
+  expect(within(card).getByRole("link", { name: link }).getAttribute("href")).toBe(
+    "/stacks/agentic-ai-engineer/challenge",
+  );
+  if (played) expect(within(card).getByText(played, { exact: false })).toBeTruthy();
 });
 
 it("links to Review, one page across every Active Stack", async () => {

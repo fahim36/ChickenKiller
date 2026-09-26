@@ -250,6 +250,62 @@ export interface ReviewAnswerResult {
   question: AnsweredQuestion;
 }
 
+/**
+ * How a Daily Challenge Question went: the first try's outcome, or a later answer's mark.
+ * "ungraded" means grading that written first answer failed: it earns no point, ever.
+ */
+export type ChallengeOutcome = "correct" | "wrong" | "ungraded";
+
+/**
+ * A Question of a Daily Challenge. Until the Learner's first answer, `answered` is null and
+ * nothing about its answer is sent. A Retired Question can't be answered and has no choices.
+ */
+export interface ChallengeQuestion extends QuizQuestion {
+  retired: boolean;
+  /** The first try's outcome; null until answered. */
+  outcome: ChallengeOutcome | null;
+  /** The first answer, with the correct answer, Explanation, Sources and Materials. */
+  answered: AnsweredQuestion | null;
+}
+
+/**
+ * A released Daily Challenge as the Learner has played it. `label` names it by number and UTC
+ * Day: "Agentic AI Engineer #40 · 26 Sep". `score` / `out_of` are set once finished; after that
+ * it can be replayed for learning, which changes nothing.
+ */
+export interface DailyChallenge {
+  number: number;
+  /** Its UTC Day, as YYYY-MM-DD. */
+  day: string;
+  label: string;
+  status: "not_started" | "in_progress" | "finished";
+  score: number | null;
+  out_of: number | null;
+  /** The longest written answer the API accepts. */
+  max_answer_chars: number;
+  questions: ChallengeQuestion[];
+}
+
+/** An Active Stack's Daily Challenge for today (UTC), or null when none is written for it. */
+export interface TodaysChallenge {
+  stack_id: string;
+  stack_name: string;
+  day: string;
+  challenge: DailyChallenge | null;
+}
+
+/**
+ * A marked answer to a Daily Challenge Question. Only the first answer to each Question is
+ * `counted`; a later one (a resubmission after a grading failure, or a replay) is marked for
+ * learning and changes nothing. `challenge` is the Challenge after this answer.
+ */
+export interface ChallengeAnswerResult {
+  counted: boolean;
+  outcome: ChallengeOutcome;
+  question: AnsweredQuestion;
+  challenge: DailyChallenge;
+}
+
 /** One of the Learner's Active Stacks, and when they first started studying it. */
 export interface ActiveStack {
   id: string;

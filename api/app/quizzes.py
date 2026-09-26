@@ -249,9 +249,8 @@ def recorded_answers(session: Session, learner_id: int, stack_id: str) -> list[A
 
 def seen_question_ids(session: Session, learner_id: int, stack_id: str) -> set[str]:
     """Permanent IDs of the Questions the Learner has seen on the Stack: every Question they have
-    an `Answer` to, in any context (Lesson Quiz, Retake, Review). A Daily Challenge answer
-    counts too once #17 records it as an `Answer` with its own context. Unanswered Questions of
-    a submitted quiz count: they were shown."""
+    an `Answer` to, in any context (Lesson Quiz, Retake, Review, a Daily Challenge's first
+    answers). Unanswered Questions of a submitted quiz count: they were shown."""
     return set(
         session.scalars(
             select(Answer.question_id)
@@ -264,7 +263,8 @@ def seen_question_ids(session: Session, learner_id: int, stack_id: str) -> set[s
 @dataclass(frozen=True)
 class MissedQuestion:
     """A Question the Learner has answered wrongly or left unanswered at least once, anywhere:
-    a Lesson Quiz, a Retake (a wrong sibling is a Missed Question too) or Review."""
+    a Lesson Quiz, a Retake (a wrong sibling is a Missed Question too), Review, or a first try
+    in a Daily Challenge (never a replay, nor an ungraded one)."""
 
     question_id: str
     """Permanent ID."""

@@ -16,10 +16,10 @@ differ by one added, one changed and one removed Lesson:
 Every Lesson has a bank of eight Questions: six multiple choice (choice "a" is right) and two
 written (the fake grader passes an answer saying "right"). The clock is the test's.
 
-Streaks and Daily Challenge results must survive an import too. They don't exist yet: #17
-(Daily Challenge plays) and #18 (Streaks) add their tables to `PROGRESS_TABLES`, so
-`test_an_import_changes_no_learner_data` covers them, and play a Challenge in the `learner`
-fixture."""
+Streaks and Daily Challenge results must survive an import too. The Learner plays the Stack's
+Daily Challenge #1 in the `learner` fixture, and its plays (#17) are in `PROGRESS_TABLES`, so
+`test_an_import_changes_no_learner_data` covers them. Streaks don't exist yet: #18 adds its
+table there."""
 
 import copy
 from collections.abc import Iterator
@@ -35,6 +35,7 @@ from app import updated_lessons
 from app.content.importer import import_folder
 from app.models import (
     Answer,
+    ChallengePlay,
     CompletedLesson,
     LearnerStack,
     Lesson,
@@ -45,18 +46,29 @@ from app.models import (
     Syllabus,
 )
 from tests.conftest import (
+    CHALLENGE_MIX,
     ClientFactory,
     ContentFactory,
     FakeClock,
     as_version,
+    challenge,
     changelog_entry,
     complete_lessons,
     make_bank,
     make_changelog,
     onboard,
     source,
+    write_challenges,
 )
-from tests.test_lesson_quiz import answer_all, code, learner_id, lesson_states, start, submit
+from tests.test_lesson_quiz import (
+    RIGHT,
+    answer_all,
+    code,
+    learner_id,
+    lesson_states,
+    start,
+    submit,
+)
 from tests.test_review import answer, answer_right, asked, review_set
 
 V1, V2 = "v2026-01-01", "v2026-02-01"
@@ -160,6 +172,8 @@ V2_CHANGELOG = make_changelog(
 
 # 09:00 UTC on 26 September.
 MORNING = datetime(2026, 9, 26, 9, 0, tzinfo=UTC)
+CHALLENGE_DAY = "2026-09-26"
+"""The Stack's launch, the Day of its Daily Challenge #1."""
 
 
 def import_version_2(
@@ -176,13 +190,22 @@ def import_version_2(
 def learner(
     session: Session, api: TestClient, make_content: ContentFactory, clock: FakeClock
 ) -> Iterator[TestClient]:
-    """A Learner on version 1 who has completed w01-l01, completed w01-l02 after missing a
+    """A Learner on version 1 who has completed w01-l01, played the Stack's Daily Challenge #1
+    (on 26 September, three of w01-l01's Questions), completed w01-l02 after missing a
     Question and retaking it, ticked w01-m01, and started (not submitted) the Lesson Quiz of
     their Unlocked Lesson, w01-l03."""
     clock.set(MORNING)
-    import_folder(session, make_content(as_version(V1, version_1), extra_banks=V1_BANKS))
+    folder = make_content(as_version(V1, version_1), extra_banks=V1_BANKS)
+    write_challenges(folder.parent, challenge(1, day=CHALLENGE_DAY), launch=CHALLENGE_DAY)
+    import_folder(session, folder)
     onboard(api)
     complete_lessons(session, "w01-l01")
+    for question_id, given in zip(CHALLENGE_MIX, ["a", "a", RIGHT], strict=True):
+        played = api.post(
+            f"{STACK}/challenges/1/answers", json={"question_id": question_id, "answer": given}
+        )
+        assert played.json()["counted"] is True, played.text
+    assert played.json()["challenge"]["status"] == "finished"
 
     quiz = start(api, quiz_url("w01-l02"))
     result = submit(api, quiz, answer_all(quiz, wrong=1), quiz_url("w01-l02")).json()
@@ -217,8 +240,16 @@ def missed_in(session: Session, lesson: str) -> list[str]:
     )
 
 
-PROGRESS_TABLES = (LearnerStack, CompletedLesson, MilestoneTick, LessonQuizAttempt, Retake, Answer)
-"""Every table of Learner data. An import writes none of them: #17 and #18 add theirs."""
+PROGRESS_TABLES = (
+    LearnerStack,
+    CompletedLesson,
+    MilestoneTick,
+    LessonQuizAttempt,
+    Retake,
+    Answer,
+    ChallengePlay,
+)
+"""Every table of Learner data. An import writes none of them: #18 adds its own."""
 
 
 def learner_data(session: Session) -> dict[str, list[tuple[Any, ...]]]:
@@ -240,10 +271,11 @@ def learner_data(session: Session) -> dict[str, list[tuple[Any, ...]]]:
 def test_an_import_changes_no_learner_data(
     session: Session, make_content: ContentFactory, learner: TestClient
 ) -> None:
-    """Completed Lessons, Milestone ticks, quiz attempts, Retakes and every answer (so every
-    Missed Question) are exactly as they were."""
+    """Completed Lessons, Milestone ticks, quiz attempts, Retakes, Daily Challenge plays and
+    every answer (so every Missed Question) are exactly as they were."""
     before = learner_data(session)
     assert before["completed_lessons"] and before["milestone_ticks"] and before["retakes"]
+    assert before["challenge_plays"]
     assert missed_in(session, "w01-l02")
 
     import_version_2(session, make_content)

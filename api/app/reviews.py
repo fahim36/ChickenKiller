@@ -11,7 +11,8 @@ one at a time. The rules (what is due, in what order) are the plain functions in
   2. the new Questions of the Learner's Updated Lessons they haven't answered yet
      (`updated_lessons.updated_question_ids`, #13);
   3. spaced repeats: the Questions of Completed Lessons and of played Daily Challenges
-     (`_played_challenge_question_ids`, empty until #17), each with when it was last answered.
+     (`_played_challenge_question_ids`, finished plays only), each with when it was last
+     answered.
 - **Every Question Review can ask** comes from `review_bank`, both for drawing and for
   answering: the Stack's Question Bank without its Retired Questions (#15), which are never
   drawn nor accepted.
@@ -32,7 +33,7 @@ from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from app import progress, quizzes, review, updated_lessons
+from app import challenges, progress, quizzes, review, updated_lessons
 from app.grading import Grader
 from app.marking import AnswerTooLong, GradingFailed, NotAChoice, mark
 from app.models import Answer, LearnerStack, Lesson, Question, Stack
@@ -204,6 +205,6 @@ def _sources(
 
 
 def _played_challenge_question_ids(session: Session, learner_id: int, stack_id: str) -> list[str]:
-    """The Questions of the Daily Challenges the Learner has played on the Stack: a source of
-    spaced repeats. Empty until Daily Challenges exist (#17 fills it)."""
-    return []
+    """The Questions of the Daily Challenges the Learner has finished on the Stack: a source of
+    spaced repeats (#17). A replay stores nothing, so it neither adds one nor answers one."""
+    return challenges.played_question_ids(session, learner_id, stack_id)
