@@ -5,15 +5,19 @@ stores what they decide.
 
 - **Starting** draws the Questions from the Lesson's Question Bank in the Stack's current
   Syllabus and pins the attempt to that version. Starting again before submitting resumes the
-  same attempt, so a reload never redraws.
+  same attempt, so a reload never redraws. After an attempt below the Pass Mark, the fresh one
+  avoids that attempt's Questions as far as the bank allows; after a pass whose Retakes are
+  still pending, starting is refused (`RetakesPending`).
 - **Submitting** marks the answers against the attempt's own Questions from its pinned version,
   so a quiz in progress when a new version is imported finishes on the old one (#13). Every
-  Question drawn gets an `Answer` row, unanswered ones included, and a pass makes the Lesson a
-  Completed Lesson (`progress.complete_lesson`).
+  Question drawn gets an `Answer` row, unanswered ones included. A pass with no Missed
+  Question makes the Lesson a Completed Lesson (`progress.complete_lesson`); a pass with Missed
+  Questions leaves it to their Retakes (`app/retakes.py`, which the caller opens next).
+- **Missed Questions** are read back with `missed_questions` / `missed_question_ids`, the
+  record the Daily Review uses (#9, #10).
 
 #6 draws multiple-choice Questions only. #7 adds written ones: `_mark` grades them, and a grading
-failure leaves `correct` null so the attempt can be resubmitted. #8 adds Retakes: a pass with
-Missed Questions then waits for them instead of completing the Lesson here.
+failure leaves `correct` null so the attempt can be resubmitted.
 """
 
 import random
@@ -35,6 +39,15 @@ LESSON_QUIZ = "lesson_quiz"
 
 class QuizUnavailable(Exception):
     """The Lesson's Question Bank has no Question the quiz can draw."""
+
+
+class RetakesPending(Exception):
+    """The Lesson's last attempt passed, and its Retakes are still pending: they, not a new
+    quiz, complete the Lesson."""
+
+    def __init__(self, attempt_id: uuid.UUID) -> None:
+        super().__init__(str(attempt_id))
+        self.attempt_id = attempt_id
 
 
 class AttemptNotFound(Exception):
@@ -70,16 +83,36 @@ class QuizResult:
     score: quiz.Score
     correct: dict[str, bool]
     """Each Question's result, by permanent ID, in the order they were asked."""
+    questions: list[Question]
+    """The attempt's Questions, from its pinned version, in the order they were asked."""
+    responses: dict[str, str | None]
+    """The Learner's response to each Question, None for unanswered."""
+    lesson_completed: bool
+    """True when the quiz passed with no Missed Question. A pass with Missed Questions
+    completes the Lesson once every Retake is correct."""
+
+    @property
+    def missed(self) -> list[Question]:
+        """The Missed Questions, in the order they were asked."""
+        return [q for q in self.questions if self.correct[q.id] is False]
 
 
 def start_lesson_quiz(
     session: Session, record: LearnerStack, lesson: Lesson, rng: random.Random, now: datetime
 ) -> StartedQuiz:
     """Start a Lesson Quiz on `lesson` (a Lesson of the current Syllabus the caller has checked
-    is the Unlocked Lesson), or resume the Learner's unsubmitted attempt at it."""
+    is the Unlocked Lesson), or resume the Learner's unsubmitted attempt at it.
+
+    Raises RetakesPending if the last attempt passed and waits for its Retakes, and
+    QuizUnavailable if the bank has nothing to draw.
+    """
     attempt = _open_attempt(session, record, lesson.id)
     if attempt is not None:
         return StartedQuiz(attempt, _questions(session, attempt))
+    previous = _last_submitted_attempt(session, record, lesson.id)
+    if previous is not None and previous.passed:
+        # Only reachable while the Lesson isn't Completed yet: its Retakes are pending.
+        raise RetakesPending(previous.id)
 
     bank = session.scalars(
         select(Question)
@@ -87,7 +120,11 @@ def start_lesson_quiz(
         .options(joinedload(Question.concept))
         .order_by(Question.position)
     ).all()
-    drawn = quiz.draw_questions([quiz.BankQuestion(q.id, q.concept.id) for q in bank], rng)
+    drawn = quiz.draw_questions(
+        [quiz.BankQuestion(q.id, q.concept.id) for q in bank],
+        rng,
+        avoid=previous.question_ids if previous is not None else (),
+    )
     if not drawn:
         raise QuizUnavailable(lesson.id)
     version = session.scalars(
@@ -125,8 +162,9 @@ def submit_lesson_quiz(
     now: datetime,
 ) -> QuizResult:
     """Mark and record the answers to an attempt, keyed by Question ID. A Question left out, or
-    answered with None, is a Missed Question. At or above the Pass Mark the Lesson becomes a
-    Completed Lesson.
+    answered with None, is a Missed Question. At or above the Pass Mark with no Missed Question
+    the Lesson becomes a Completed Lesson; with Missed Questions, the caller opens their Retakes
+    (`retakes.open_retakes`), which complete it.
 
     Raises AttemptNotFound, AlreadySubmitted, QuestionNotInQuiz or NotAChoice; nothing is
     recorded then.
@@ -149,7 +187,8 @@ def submit_lesson_quiz(
     if unknown:
         raise QuestionNotInQuiz(unknown)
 
-    correct = {q.id: _mark(q, responses.get(q.id)) for q in _questions(session, attempt)}
+    questions = _questions(session, attempt)
+    correct = {q.id: _mark(q, responses.get(q.id)) for q in questions}
     for question_id, is_correct in correct.items():
         session.add(
             Answer(
@@ -168,11 +207,13 @@ def submit_lesson_quiz(
     attempt.submitted_at = now
     attempt.correct_count = result.correct
     attempt.passed = result.passed
-    if result.passed:
+    completed = result.passed and all(correct.values())
+    if completed:
         progress.complete_lesson(session, record, lesson_id, now)  # commits
     else:
-        session.commit()
-    return QuizResult(attempt, result, correct)
+        session.commit()  # a pass with Missed Questions waits for its Retakes
+    answered = {q.id: responses.get(q.id) for q in questions}
+    return QuizResult(attempt, result, correct, questions, answered, completed)
 
 
 def recorded_answers(session: Session, learner_id: int, stack_id: str) -> list[Answer]:
@@ -183,6 +224,66 @@ def recorded_answers(session: Session, learner_id: int, stack_id: str) -> list[A
             .where(Answer.learner_id == learner_id, Answer.stack_id == stack_id)
             .order_by(Answer.answered_at, Answer.id)
         )
+    )
+
+
+@dataclass(frozen=True)
+class MissedQuestion:
+    """A Question the Learner has answered wrongly or left unanswered at least once, anywhere:
+    a Lesson Quiz, a Retake (a wrong sibling is a Missed Question too) or, later, a Review
+    Round."""
+
+    question_id: str
+    """Permanent ID."""
+    syllabus_version: str
+    """The version it was last missed on."""
+    first_missed_at: datetime
+    last_missed_at: datetime
+
+
+def missed_questions(session: Session, learner_id: int, stack_id: str) -> list[MissedQuestion]:
+    """The Learner's Missed Questions on the Stack, first missed first. This is the record the
+    Daily Review draws on (#9). A later correct answer doesn't remove one: #10 decides when a
+    Missed Question leaves the rotation (correct on three different days), from `answers`."""
+    rows = session.execute(
+        select(Answer.question_id, Answer.syllabus_version, Answer.answered_at)
+        .where(
+            Answer.learner_id == learner_id,
+            Answer.stack_id == stack_id,
+            Answer.correct.is_(False),
+        )
+        .order_by(Answer.answered_at, Answer.id)
+    ).all()
+    missed: dict[str, MissedQuestion] = {}
+    for question_id, version, answered_at in rows:
+        first = missed.get(question_id)
+        missed[question_id] = MissedQuestion(
+            question_id,
+            version,
+            first.first_missed_at if first else answered_at,
+            answered_at,
+        )
+    return list(missed.values())
+
+
+def missed_question_ids(session: Session, learner_id: int, stack_id: str) -> list[str]:
+    """Permanent IDs of `missed_questions`, first missed first."""
+    return [m.question_id for m in missed_questions(session, learner_id, stack_id)]
+
+
+def _last_submitted_attempt(
+    session: Session, record: LearnerStack, lesson_id: str
+) -> LessonQuizAttempt | None:
+    return session.scalar(
+        select(LessonQuizAttempt)
+        .where(
+            LessonQuizAttempt.learner_id == record.learner_id,
+            LessonQuizAttempt.stack_id == record.stack_id,
+            LessonQuizAttempt.lesson_id == lesson_id,
+            LessonQuizAttempt.submitted_at.is_not(None),
+        )
+        .order_by(LessonQuizAttempt.submitted_at.desc())
+        .limit(1)
     )
 
 

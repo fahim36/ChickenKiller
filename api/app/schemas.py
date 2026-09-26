@@ -197,9 +197,52 @@ class QuestionResultOut(BaseModel):
     correct: bool
 
 
+class ModelAnswerOut(BaseModel):
+    summary: str
+    key_points: list[str]
+
+
+class AnsweredQuestionOut(BaseModel):
+    """A Question the Learner has answered, with everything shown afterwards: their response,
+    the correct answer (a choice ID) or Model Answer, the Explanation and the Materials. Only
+    ever sent after the answer is submitted."""
+
+    id: str
+    type: Literal["multiple_choice", "written"]
+    prompt: str
+    choices: list[ChoiceOut]
+    """Empty for a written Question."""
+    response: str | None
+    """The Learner's choice ID or written answer; null for unanswered."""
+    answer: str | None
+    """The correct choice ID, for multiple choice."""
+    model_answer: ModelAnswerOut | None
+    """For a written Question."""
+    explanation: str
+    materials: list[MaterialOut]
+
+
+class RetakeOut(BaseModel):
+    """A pending Retake: the sibling Question to answer for one Missed Question."""
+
+    id: uuid.UUID
+    missed_question_id: str
+    question: QuizQuestionOut
+
+
+NextStep = Literal["completed", "retakes", "fresh_quiz"]
+
+
 class LessonQuizResultOut(BaseModel):
-    """A submitted Lesson Quiz's score. `passed` means it met the Pass Mark, which made the
-    Lesson a Completed Lesson. Explanations and correct answers come with #8."""
+    """A submitted Lesson Quiz's score and what comes next.
+
+    - `passed` means it met the Pass Mark. With no Missed Question that made the Lesson a
+      Completed Lesson (`next_step` "completed"); with Missed Questions the Lesson waits for
+      `retakes` ("retakes").
+    - Below the Pass Mark (`next_step` "fresh_quiz") the Learner reads the Explanations and
+      takes a fresh Lesson Quiz.
+    - `missed` details each Missed Question, in the order asked.
+    """
 
     attempt_id: uuid.UUID
     lesson_id: str
@@ -210,3 +253,36 @@ class LessonQuizResultOut(BaseModel):
     pass_mark: int
     questions: list[QuestionResultOut]
     """In the order they were asked."""
+    missed: list[AnsweredQuestionOut]
+    next_step: NextStep
+    lesson_completed: bool
+    retakes: list[RetakeOut]
+    """Pending Retakes, in the order their Missed Questions were asked."""
+
+
+class RetakesOut(BaseModel):
+    """A passed attempt's pending Retakes. Empty once `lesson_completed`."""
+
+    attempt_id: uuid.UUID
+    lesson_id: str
+    lesson_completed: bool
+    retakes: list[RetakeOut]
+
+
+class RetakeAnswerIn(BaseModel):
+    """A choice ID, or null for unanswered (which counts as wrong)."""
+
+    answer: str | None
+
+
+class RetakeResultOut(BaseModel):
+    """An answered Retake. Wrong: `question` shows its Explanation and `next_question` is
+    another sibling to try. Correct: the Retake is done, and when `pending` reaches 0 the
+    Lesson is a Completed Lesson and the next one is Unlocked."""
+
+    retake_id: uuid.UUID
+    correct: bool
+    question: AnsweredQuestionOut
+    next_question: QuizQuestionOut | None
+    pending: int
+    lesson_completed: bool

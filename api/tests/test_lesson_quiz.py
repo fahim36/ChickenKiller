@@ -160,12 +160,14 @@ def test_the_server_scores_the_quiz_against_the_pass_mark(
     ]
 
 
-def test_passing_completes_the_lesson_and_unlocks_the_next_on_the_week_map(
+def test_passing_with_no_miss_completes_the_lesson_and_unlocks_the_next_on_the_week_map(
     learner: TestClient,
 ) -> None:
+    # A pass with Missed Questions completes the Lesson only after their Retakes (#8,
+    # test_retakes.py).
     quiz = start(learner)
 
-    submit(learner, quiz, answer_all(quiz, wrong=1))
+    submit(learner, quiz, answer_all(quiz))
 
     assert lesson_states(learner) == {"w01-l01": "completed", "w01-l02": "unlocked"}
     assert learner.post("/stacks/mini-stack/lessons/w01-l02/quiz").status_code == 200

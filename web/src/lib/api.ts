@@ -103,6 +103,39 @@ export interface LessonQuiz {
 /** The Learner's answers by Question ID. A Question left out is unanswered, so missed. */
 export type QuizAnswers = Record<string, string | null>;
 
+/**
+ * A Question after the Learner answered it: their response, the correct answer or Model
+ * Answer, the Explanation and the Materials. Only sent once the answer is submitted.
+ */
+export interface AnsweredQuestion {
+  id: string;
+  type: "multiple_choice" | "written";
+  prompt: string;
+  /** Empty for a written Question. */
+  choices: { id: string; text: string }[];
+  /** The Learner's choice ID or written answer; null when left unanswered. */
+  response: string | null;
+  /** The correct choice ID, for multiple choice. */
+  answer: string | null;
+  model_answer: { summary: string; key_points: string[] } | null;
+  explanation: string;
+  materials: Material[];
+}
+
+/** A pending Retake: a sibling Question on the Missed Question's Concept. */
+export interface Retake {
+  id: string;
+  missed_question_id: string;
+  question: QuizQuestion;
+}
+
+/**
+ * What follows a submitted Lesson Quiz: "completed" (passed with no Missed Question),
+ * "retakes" (passed with Missed Questions: the Lesson completes once every Retake is
+ * correct) or "fresh_quiz" (below the Pass Mark).
+ */
+export type NextStep = "completed" | "retakes" | "fresh_quiz";
+
 /** A submitted Lesson Quiz, scored by the API. */
 export interface LessonQuizResult {
   attempt_id: string;
@@ -110,10 +143,35 @@ export interface LessonQuizResult {
   correct: number;
   total: number;
   percent: number;
-  /** Met the Pass Mark, so the Lesson is now a Completed Lesson. */
+  /** Met the Pass Mark. The Lesson is Completed only once every Retake is correct too. */
   passed: boolean;
   pass_mark: number;
   questions: { id: string; correct: boolean }[];
+  /** Each Missed Question, in the order asked. */
+  missed: AnsweredQuestion[];
+  next_step: NextStep;
+  lesson_completed: boolean;
+  /** Pending Retakes, when `next_step` is "retakes". */
+  retakes: Retake[];
+}
+
+/** A passed attempt's pending Retakes. */
+export interface Retakes {
+  attempt_id: string;
+  lesson_id: string;
+  lesson_completed: boolean;
+  retakes: Retake[];
+}
+
+/** An answered Retake. Wrong: its Explanation and `next_question`, another sibling to try. */
+export interface RetakeResult {
+  retake_id: string;
+  correct: boolean;
+  question: AnsweredQuestion;
+  next_question: QuizQuestion | null;
+  /** Retakes still waiting for a correct answer. At 0 the Lesson is Completed. */
+  pending: number;
+  lesson_completed: boolean;
 }
 
 export interface ActiveStack {

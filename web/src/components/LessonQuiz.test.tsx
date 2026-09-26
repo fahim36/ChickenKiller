@@ -1,6 +1,12 @@
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import type { LessonQuiz as Quiz, LessonQuizResult, QuizAnswers } from "@/lib/api";
+import type {
+  AnsweredQuestion,
+  LessonQuiz as Quiz,
+  LessonQuizResult,
+  QuizAnswers,
+  RetakeResult,
+} from "@/lib/api";
 import { LessonQuiz } from "./LessonQuiz";
 
 const quiz: Quiz = {
@@ -19,23 +25,59 @@ const quiz: Quiz = {
   })),
 };
 
+function missed(n: number): AnsweredQuestion {
+  return {
+    ...quiz.questions[n - 1],
+    response: "b",
+    answer: "a",
+    model_answer: null,
+    explanation: `Because of ${n}.`,
+    materials: [],
+  };
+}
+
+/** The API's result with the first `correct` Questions right and the rest missed. */
 function result(correct: number): LessonQuizResult {
+  const passed = correct >= 5;
+  const missedNumbers = [1, 2, 3, 4, 5, 6].slice(correct);
   return {
     attempt_id: quiz.attempt_id,
     lesson_id: "w01-l01",
     correct,
     total: 6,
     percent: Math.round((correct / 6) * 100),
-    passed: correct >= 5,
+    passed,
     pass_mark: 80,
     questions: quiz.questions.map((q, i) => ({ id: q.id, correct: i < correct })),
+    missed: missedNumbers.map(missed),
+    next_step: !passed ? "fresh_quiz" : correct === 6 ? "completed" : "retakes",
+    lesson_completed: correct === 6,
+    retakes: passed
+      ? missedNumbers.map((n) => ({
+          id: `retake-${n}`,
+          missed_question_id: `w01-l01-q0${n}`,
+          question: { ...quiz.questions[0], id: "w01-l01-q09", prompt: `Sibling of ${n}?` },
+        }))
+      : [],
   };
 }
 
 afterEach(cleanup);
 
-function renderQuiz(submitAction: (answers: QuizAnswers) => Promise<LessonQuizResult>) {
-  render(<LessonQuiz quiz={quiz} stackId="agentic-ai-engineer" submitAction={submitAction} />);
+type AnswerRetake = (retakeId: string, answer: string | null) => Promise<RetakeResult>;
+
+function renderQuiz(
+  submitAction: (answers: QuizAnswers) => Promise<LessonQuizResult>,
+  answerRetakeAction: AnswerRetake = vi.fn(),
+) {
+  render(
+    <LessonQuiz
+      quiz={quiz}
+      stackId="agentic-ai-engineer"
+      submitAction={submitAction}
+      answerRetakeAction={answerRetakeAction}
+    />,
+  );
 }
 
 function choose(n: number, text: string) {
@@ -71,14 +113,14 @@ it("submits the chosen answers, leaving unanswered Questions out", async () => {
   );
 });
 
-it("shows a pass with the score and a way back to the Week map", async () => {
-  renderQuiz(vi.fn(async () => result(5)));
+it("shows a pass with no misses as a Completed Lesson with a way back to the Week map", async () => {
+  renderQuiz(vi.fn(async () => result(6)));
 
   fireEvent.click(submitButton());
 
   const status = await screen.findByRole("status");
-  expect(status.textContent).toContain("5 of 6 (83%)");
-  expect(status.textContent).toContain("Passed");
+  expect(status.textContent).toContain("6 of 6 (100%)");
+  expect(status.textContent).toContain("Passed: this Lesson is Completed");
   expect(
     screen.getByRole("link", { name: "Back to the Week map" }).getAttribute("href"),
   ).toBe("/stacks/agentic-ai-engineer");
@@ -93,6 +135,7 @@ it("shows a fail against the Pass Mark and offers a fresh quiz", async () => {
   const status = await screen.findByRole("status");
   expect(status.textContent).toContain("4 of 6 (67%)");
   expect(status.textContent).toContain("Not passed: the Pass Mark is 80%");
+  expect(screen.queryByRole("heading", { name: "Retakes" })).toBeNull();
   expect(
     screen.getByRole("link", { name: "Take a fresh Lesson Quiz" }).getAttribute("href"),
   ).toBe("/stacks/agentic-ai-engineer/lessons/w01-l01/quiz");
@@ -126,4 +169,41 @@ it("says so and lets the Learner try again when submitting fails", async () => {
   );
   fireEvent.click(submitButton());
   expect((await screen.findByRole("status")).textContent).toContain("6 of 6 (100%)");
+});
+
+it("after submitting shows each Missed Question's Explanation", async () => {
+  renderQuiz(vi.fn(async () => result(4)));
+
+  fireEvent.click(submitButton());
+
+  expect(await screen.findByRole("heading", { name: "Missed Questions" })).toBeTruthy();
+  const explained = screen.getAllByRole("article").map((a) => a.querySelector("h3")?.textContent);
+  expect(explained).toEqual(["Question 5?", "Question 6?"]);
+  expect(screen.getByText("Because of 5.")).toBeTruthy();
+});
+
+it("a pass with a Missed Question goes on to its Retake, and a correct one completes the Lesson", async () => {
+  const answerRetake = vi.fn<AnswerRetake>(async () => ({
+    retake_id: "retake-6",
+    correct: true,
+    question: { ...missed(6), response: "a" },
+    next_question: null,
+    pending: 0,
+    lesson_completed: true,
+  }));
+  renderQuiz(vi.fn(async () => result(5)), answerRetake);
+
+  fireEvent.click(submitButton());
+
+  expect((await screen.findByRole("status")).textContent).toContain(
+    "Retake each Missed Question to complete this Lesson",
+  );
+  const sibling = screen.getByRole("group", { name: "Sibling of 6?" });
+  fireEvent.click(within(sibling).getByRole("radio", { name: "Right 1" }));
+  fireEvent.click(screen.getByRole("button", { name: "Submit Retake" }));
+
+  await vi.waitFor(() => expect(answerRetake).toHaveBeenCalledWith("retake-6", "a"));
+  expect(
+    (await screen.findByText(/Every Retake is correct/)).textContent,
+  ).toContain("this Lesson is Completed and the next one is Unlocked");
 });

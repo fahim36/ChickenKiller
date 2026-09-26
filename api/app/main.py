@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException
 
-from app import learners, lessons, onboarding, progress, quiz, quizzes, schemas
+from app import learners, lessons, onboarding, progress, quiz, quizzes, retakes, schemas
 from app.auth import TokenVerifier
 from app.deps import (
     ActiveStack,
@@ -16,7 +16,7 @@ from app.deps import (
     VerifierDep,
     get_current_learner,
 )
-from app.models import Learner
+from app.models import Learner, Question
 
 # Everything except the health check: only a signed-in, invited Learner gets in (app/deps.py).
 router = APIRouter(dependencies=[Depends(get_current_learner)])
@@ -167,6 +167,46 @@ QUIZ_SUBMITTED = {
     "code": "quiz_submitted",
     "message": "This Lesson Quiz has already been submitted.",
 }
+RETAKE_DONE = {
+    "code": "retake_done",
+    "message": "You've already answered this Retake correctly.",
+}
+
+
+def _quiz_question(q: Question) -> schemas.QuizQuestionOut:
+    """A Question to answer: never its answer, Model Answer or Explanation."""
+    return schemas.QuizQuestionOut(
+        id=q.id,
+        type="multiple_choice",
+        prompt=q.prompt,
+        choices=[schemas.ChoiceOut(id=c["id"], text=c["text"]) for c in q.choices or []],
+    )
+
+
+def _answered_question(q: Question, response: str | None) -> schemas.AnsweredQuestionOut:
+    """A Question after it was answered, with its answer, Explanation and Materials."""
+    return schemas.AnsweredQuestionOut(
+        id=q.id,
+        type="written" if q.type == "written" else "multiple_choice",
+        prompt=q.prompt,
+        choices=[schemas.ChoiceOut(id=c["id"], text=c["text"]) for c in q.choices or []],
+        response=response,
+        answer=q.answer,
+        model_answer=None if q.model_answer is None else schemas.ModelAnswerOut(**q.model_answer),
+        explanation=q.explanation,
+        materials=[schemas.MaterialOut.model_validate(m) for m in q.materials],
+    )
+
+
+def _retakes_out(pending: list[retakes.PendingRetake]) -> list[schemas.RetakeOut]:
+    return [
+        schemas.RetakeOut(
+            id=p.retake.id,
+            missed_question_id=p.retake.missed_question_id,
+            question=_quiz_question(p.question),
+        )
+        for p in pending
+    ]
 
 
 @router.post("/stacks/{stack_id}/lessons/{lesson_id}/quiz")
@@ -178,26 +218,27 @@ def start_lesson_quiz(
 
     The guard (`UnlockedLesson`) is final: the backend refuses a Locked Lesson's quiz whatever
     the browser shows. 409 `quiz_unavailable` if the Lesson's Question Bank has no Questions to
-    draw.
+    draw; 409 `retakes_pending` (with the passed `attempt_id`) if the last attempt passed and
+    its Retakes, not a new quiz, will complete the Lesson. After an attempt below the Pass Mark
+    the new quiz avoids that attempt's Questions as far as the bank allows.
     """
     try:
         started = quizzes.start_lesson_quiz(session, active, lesson, rng, datetime.now(UTC))
     except quizzes.QuizUnavailable as error:
         raise HTTPException(409, QUIZ_UNAVAILABLE) from error
+    except quizzes.RetakesPending as error:
+        detail = {
+            "code": "retakes_pending",
+            "message": "Finish the Retakes of your Missed Questions to complete this Lesson.",
+            "attempt_id": str(error.attempt_id),
+        }
+        raise HTTPException(409, detail) from error
     return schemas.LessonQuizOut(
         attempt_id=started.attempt.id,
         lesson_id=started.attempt.lesson_id,
         version=started.attempt.syllabus_version,
         pass_mark=PASS_MARK_PERCENT,
-        questions=[
-            schemas.QuizQuestionOut(
-                id=q.id,
-                type="multiple_choice",
-                prompt=q.prompt,
-                choices=[schemas.ChoiceOut(id=c["id"], text=c["text"]) for c in q.choices or []],
-            )
-            for q in started.questions
-        ],
+        questions=[_quiz_question(q) for q in started.questions],
     )
 
 
@@ -208,9 +249,12 @@ def submit_lesson_quiz(
     body: schemas.LessonQuizAnswersIn,
     active: ActiveStackInPath,
     session: SessionDep,
+    rng: QuizRandom,
 ) -> schemas.LessonQuizResultOut:
-    """Submit a Lesson Quiz's answers and get its score. Scoring is the server's: a pass makes
-    the Lesson a Completed Lesson and unlocks the next one.
+    """Submit a Lesson Quiz's answers and get its score, each Missed Question's answer,
+    Explanation and Materials, and what comes next (`next_step`). Scoring is the server's:
+    a pass with no Missed Question makes the Lesson a Completed Lesson and unlocks the next one;
+    a pass with Missed Questions opens their Retakes; below the Pass Mark comes a fresh quiz.
 
     Not guarded by `UnlockedLesson`: a quiz already started can always be finished (#9's
     Pending Review Round). 404 for an attempt that isn't the Learner's; 409 `quiz_submitted`
@@ -238,6 +282,15 @@ def submit_lesson_quiz(
             "message": f"That isn't one of the choices for {error.question_id}.",
         }
         raise HTTPException(422, detail) from error
+    completed, pending = result.lesson_completed, []
+    if result.score.passed and not completed:
+        state = retakes.open_retakes(
+            session, active, lesson_id, attempt_uuid, rng, datetime.now(UTC)
+        )
+        completed, pending = state.lesson_completed, state.pending
+    next_step: schemas.NextStep = (
+        "fresh_quiz" if not result.score.passed else "completed" if completed else "retakes"
+    )
     return schemas.LessonQuizResultOut(
         attempt_id=result.attempt.id,
         lesson_id=result.attempt.lesson_id,
@@ -249,6 +302,87 @@ def submit_lesson_quiz(
         questions=[
             schemas.QuestionResultOut(id=qid, correct=ok) for qid, ok in result.correct.items()
         ],
+        missed=[_answered_question(q, result.responses[q.id]) for q in result.missed],
+        next_step=next_step,
+        lesson_completed=completed,
+        retakes=_retakes_out(pending),
+    )
+
+
+@router.get("/stacks/{stack_id}/lessons/{lesson_id}/quiz/{attempt_id}/retakes")
+def get_retakes(
+    lesson_id: str,
+    attempt_id: str,
+    active: ActiveStackInPath,
+    session: SessionDep,
+    rng: QuizRandom,
+) -> schemas.RetakesOut:
+    """A submitted attempt's pending Retakes, each with the sibling Question to answer (without
+    its answer). Where `retakes_pending` points. Empty for an attempt below the Pass Mark, or
+    once the Lesson is Completed.
+
+    Not guarded by `UnlockedLesson`, like submitting. 404 for an attempt that isn't the
+    Learner's or isn't submitted.
+    """
+    try:
+        state = retakes.open_retakes(
+            session, active, lesson_id, uuid.UUID(attempt_id), rng, datetime.now(UTC)
+        )
+    except (ValueError, retakes.RetakeNotFound) as error:
+        raise HTTPException(404, "Lesson Quiz not found") from error
+    return schemas.RetakesOut(
+        attempt_id=state.attempt.id,
+        lesson_id=state.attempt.lesson_id,
+        lesson_completed=state.lesson_completed,
+        retakes=_retakes_out(state.pending),
+    )
+
+
+@router.post("/stacks/{stack_id}/lessons/{lesson_id}/retakes/{retake_id}/answers")
+def answer_retake(
+    lesson_id: str,
+    retake_id: str,
+    body: schemas.RetakeAnswerIn,
+    active: ActiveStackInPath,
+    session: SessionDep,
+    rng: QuizRandom,
+) -> schemas.RetakeResultOut:
+    """Answer a Retake's sibling Question. Wrong: its Explanation, and another sibling to try.
+    Correct: the Retake is done; the last one done completes the Lesson and unlocks the next.
+
+    Not guarded by `UnlockedLesson`: Retakes under way can always be finished. 404 for a
+    Retake that isn't the Learner's; 409 `retake_done` once answered correctly; 422
+    `not_a_choice`, and then nothing is recorded.
+    """
+    try:
+        result = retakes.answer_retake(
+            session,
+            active,
+            lesson_id,
+            uuid.UUID(retake_id),
+            body.answer,
+            rng,
+            datetime.now(UTC),
+        )
+    except (ValueError, retakes.RetakeNotFound) as error:
+        raise HTTPException(404, "Retake not found") from error
+    except retakes.RetakeDone as error:
+        raise HTTPException(409, RETAKE_DONE) from error
+    except quizzes.NotAChoice as error:
+        detail = {
+            "code": "not_a_choice",
+            "message": f"That isn't one of the choices for {error.question_id}.",
+        }
+        raise HTTPException(422, detail) from error
+    return schemas.RetakeResultOut(
+        retake_id=result.retake.id,
+        correct=result.correct,
+        question=_answered_question(result.question, result.response),
+        next_question=None
+        if result.next_question is None
+        else _quiz_question(result.next_question),
+        pending=result.pending,
+        lesson_completed=result.lesson_completed,
     )
 
 

@@ -251,6 +251,10 @@ class Question(Base):
         order_by=QuestionMaterial.position, cascade="all, delete-orphan"
     )
 
+    @property
+    def materials(self) -> list[Material]:
+        return [link.material for link in self.material_links]
+
 
 # --- People ----------------------------------------------------------------------------------
 
@@ -385,15 +389,49 @@ class LessonQuizAttempt(Base):
     passed: Mapped[bool | None] = mapped_column(Boolean, comment="Set on submission.")
 
 
+class Retake(Base):
+    """The Retakes of one Missed Question of a passed Lesson Quiz attempt (#8). Read and written
+    through app/retakes.py.
+
+    Each Retake asks a sibling Question (same Concept, never the missed one) from the attempt's
+    pinned Syllabus version. `asked_question_ids` lists the siblings asked so far, in order; the
+    last is the one waiting for an answer. Each answer is an `Answer` with `context='retake'`.
+    `done_at` is set by the first correct one; once every Retake of the attempt is done the
+    Lesson is a Completed Lesson.
+    """
+
+    __tablename__ = "retakes"
+    __table_args__ = (
+        _of_learner_stack(),
+        UniqueConstraint("lesson_quiz_attempt_id", "missed_question_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    learner_id: Mapped[int] = mapped_column(Integer)
+    stack_id: Mapped[str] = mapped_column(ID)
+    lesson_quiz_attempt_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("lesson_quiz_attempts.id", ondelete="CASCADE"), index=True
+    )
+    missed_question_id: Mapped[str] = mapped_column(ID, comment="Permanent ID.")
+    asked_question_ids: Mapped[list[str]] = mapped_column(
+        JSONB, comment="Permanent IDs of the siblings asked, in order; the last is waiting."
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    done_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), comment="When a Retake was answered correctly."
+    )
+
+
 class Answer(Base):
     """One answer a Learner gave to one Question, wherever it was asked.
 
     Missed Questions (`correct` is false) and the Daily Review are read from here (#8, #9), so a
     Question is named by permanent ID plus the Syllabus version it was asked from.
+    `quizzes.missed_questions` is the reading of it the Daily Review uses.
 
-    - `context` says where it was asked. Each context has its own nullable link column and the
-      check constraint requires the matching one: `lesson_quiz` uses `lesson_quiz_attempt_id`.
-      Retakes and Review Rounds add theirs (#8, #9).
+    - `context` says where it was asked. Each context has its own nullable link column and a
+      check constraint requires the matching one: `lesson_quiz` uses `lesson_quiz_attempt_id`,
+      `retake` uses `retake_id`. Review Rounds add theirs (#9).
     - `response` is the choice ID or the written answer; null means left unanswered.
     - `correct` is null while a written answer waits for grading (#7).
     """
@@ -406,6 +444,7 @@ class Answer(Base):
             "context <> 'lesson_quiz' OR lesson_quiz_attempt_id IS NOT NULL",
             name="context_link",
         ),
+        CheckConstraint("context <> 'retake' OR retake_id IS NOT NULL", name="retake_link"),
         Index("ix_answers_learner_question", "learner_id", "stack_id", "question_id"),
     )
 
@@ -417,6 +456,9 @@ class Answer(Base):
     context: Mapped[str] = mapped_column(String(20), comment="lesson_quiz, for now")
     lesson_quiz_attempt_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("lesson_quiz_attempts.id", ondelete="CASCADE")
+    )
+    retake_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("retakes.id", ondelete="CASCADE"), index=True
     )
     response: Mapped[str | None] = mapped_column(Text)
     correct: Mapped[bool | None] = mapped_column(Boolean)

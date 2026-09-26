@@ -1,12 +1,14 @@
-"""The Lesson Quiz rules: the Pass Mark, scoring, and drawing Questions from a Question Bank.
+"""The Lesson Quiz rules: the Pass Mark, scoring, drawing Questions from a Question Bank, and
+picking a Retake's sibling Question.
 
 Plain functions with no database or HTTP, tested directly (tests/test_lesson_quiz_rules.py).
-Randomness is passed in (`rng`), so a test can seed it. `app/quizzes.py` stores attempts and
-answers and calls these.
+Randomness is passed in (`rng`), so a test can seed it. `app/quizzes.py` and `app/retakes.py`
+store attempts, Retakes and answers and call these.
 """
 
 import random
-from collections.abc import Iterable, Sequence
+from collections import Counter
+from collections.abc import Collection, Iterable, Sequence
 from dataclasses import dataclass
 from fractions import Fraction
 from typing import NamedTuple
@@ -51,27 +53,59 @@ class BankQuestion(NamedTuple):
 
 
 def draw_questions(
-    bank: Sequence[BankQuestion], rng: random.Random, size: int = QUIZ_SIZE
+    bank: Sequence[BankQuestion],
+    rng: random.Random,
+    size: int = QUIZ_SIZE,
+    avoid: Collection[str] = (),
 ) -> list[str]:
     """Draw `size` distinct Questions (their permanent IDs) for a quiz, in the order they are
     asked.
 
-    Concepts are covered as evenly as possible: no Concept is used twice while an unused one
-    remains, and so on for a third use. A bank with fewer than `size` Questions gives them all.
-    The caller picks which Questions may be drawn (#6: multiple choice only).
-    """
-    by_concept: dict[str, list[str]] = {}
-    for question in bank:
-        by_concept.setdefault(question.concept, []).append(question.id)
-    queues = list(by_concept.values())
-    for queue in queues:
-        rng.shuffle(queue)
-    rng.shuffle(queues)
+    - Questions in `avoid` (a previous attempt's, #8) are drawn only once every other Question
+      is used, so a fresh quiz repeats as few of them as the bank allows.
+    - Within that, Concepts are covered as evenly as possible: no Concept is used twice while
+      an unused one remains, and so on for a third use.
 
+    A bank with fewer than `size` Questions gives them all. The caller picks which Questions may
+    be drawn (#6: multiple choice only).
+    """
+    avoided = set(avoid)
+    pool = list(bank)
+    rng.shuffle(pool)
+    uses: Counter[str] = Counter()
     drawn: list[str] = []
-    while len(drawn) < size and any(queues):
-        for queue in queues:
-            if queue and len(drawn) < size:
-                drawn.append(queue.pop())
+    while pool and len(drawn) < size:
+        # `min` keeps the first of equals, so the shuffle breaks ties at random.
+        best = min(pool, key=lambda q: (q.id in avoided, uses[q.concept]))
+        pool.remove(best)
+        uses[best.concept] += 1
+        drawn.append(best.id)
     rng.shuffle(drawn)
     return drawn
+
+
+def pick_sibling(
+    concept_questions: Sequence[str],
+    original: str,
+    asked: Sequence[str],
+    rng: random.Random,
+) -> str | None:
+    """The Question (permanent ID) for the next Retake of the Missed Question `original`.
+
+    `concept_questions` are the Questions on its Concept that a Retake may ask (the original may
+    be among them); `asked` are the siblings already asked for this Missed Question, in order.
+
+    - Never the original. None if the Concept has no other Question (the content check requires
+      two per Concept, so that means no Question of a type Retakes can ask yet).
+    - An unused sibling while one remains; once all are used they cycle again, never asking the
+      same one twice in a row. A Concept with exactly two Questions has one sibling, so every
+      Retake of it asks that sibling again.
+    """
+    siblings = sorted(set(concept_questions) - {original})
+    if not siblings:
+        return None
+    unused = [q for q in siblings if q not in asked]
+    if unused:
+        return rng.choice(unused)
+    others = [q for q in siblings if not asked or q != asked[-1]]
+    return rng.choice(others or siblings)

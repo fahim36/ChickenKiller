@@ -1,6 +1,6 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import type { LessonQuiz } from "@/lib/api";
+import type { LessonQuiz, Retakes } from "@/lib/api";
 import LessonQuizPage from "./page";
 
 vi.mock("next/server", () => ({ connection: async () => {} }));
@@ -48,6 +48,37 @@ it("starts (or resumes) the Lesson's quiz and shows its Questions", async () => 
   );
   expect(screen.getByRole("group", { name: "What does is compare?" })).toBeTruthy();
   expect(screen.getByText(/Pass Mark is 80%/)).toBeTruthy();
+});
+
+it("shows the pending Retakes when the last quiz passed with Missed Questions", async () => {
+  const detail = { code: "retakes_pending", message: "Finish the Retakes.", attempt_id: "attempt-1" };
+  const pending: Retakes = {
+    attempt_id: "attempt-1",
+    lesson_id: "w01-l01",
+    lesson_completed: false,
+    retakes: [
+      {
+        id: "retake-1",
+        missed_question_id: "w01-l01-q01",
+        question: { ...quiz.questions[0], id: "w01-l01-q02", prompt: "Sibling?" },
+      },
+    ],
+  };
+  const fetch = vi.fn(async (url: string, init?: RequestInit) =>
+    init?.method === "POST"
+      ? Response.json({ detail }, { status: 409 })
+      : Response.json(pending),
+  );
+  vi.stubGlobal("fetch", fetch);
+
+  await renderQuizPage();
+
+  expect(fetch).toHaveBeenCalledWith(
+    "http://localhost:8000/stacks/agentic-ai-engineer/lessons/w01-l01/quiz/attempt-1/retakes",
+    expect.objectContaining({ method: "GET" }),
+  );
+  expect(screen.getByRole("heading", { name: "Retakes", level: 1 })).toBeTruthy();
+  expect(screen.getByRole("group", { name: "Sibling?" })).toBeTruthy();
 });
 
 it("explains why when the quiz can't be started", async () => {
