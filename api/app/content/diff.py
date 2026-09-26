@@ -1,7 +1,8 @@
-"""What one Syllabus version added, changed and removed compared with another, by permanent ID.
+"""What one Syllabus version added, changed and removed compared with another, by permanent ID,
+and what the Stack's Question Bank added, retired and re-tagged since it was committed.
 
-    content-diff <old-folder> <new-folder> [--json]
-    content-diff <new-folder> [--json]      (compares with the version before it)
+    content-diff <old-folder> <new-folder> [--json] [--baseline REF]
+    content-diff <new-folder> [--json] [--baseline REF]   (compares with the version before it)
 
 An item is matched across versions by its permanent ID alone; the `version` string itself is not
 a change. So a new version that was copied and left alone has an empty diff.
@@ -9,9 +10,12 @@ a change. So a new version that was copied and left alone has an empty diff.
 - A **Lesson** is changed when its own fields change (title, topics, exercise, minutes,
   materials), or when it moves to another Week. Its place within the Week is not a change.
 - A **Week** is changed when its own fields change, or its list of Lessons or Milestones does.
-- Only the Syllabus is compared. The Question Bank is the Stack's, not a version's (ADR-0004), so
-  Concepts and Questions never appear here: the content check holds the bank to git instead, and
-  each Question carries its own Sources and retirement reason.
+- The Question Bank is the Stack's, not a version's (ADR-0004), so Concepts and Questions are not
+  in the version diff. They are listed separately (`bank_changes`), against the bank as committed
+  at the git `--baseline` (default `HEAD`, which is what a Syllabus Update in progress needs):
+  each Question added, retired or re-tagged to another Lesson, by permanent ID. That list is for
+  review; the changelog doesn't repeat it, since each Question carries its own Sources and each
+  retirement its reason.
 
 The Syllabus Update writes its changelog from this list, and the content check holds the changelog
 to it (`app.content.check`). The importer stores each Lesson's `lesson_fingerprints`, so the app
@@ -27,8 +31,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
 
+from app.content.baseline import BadBaseline, BaselineUnavailable, read_baseline
 from app.content.format import ItemKind
-from app.content.loader import ContentFolder, read_folder
+from app.content.loader import ContentFolder, read_bank, read_folder
 from app.content.versions import earlier_versions
 
 ChangeType = Literal["added", "changed", "removed"]
@@ -136,6 +141,60 @@ def diff_contents(old: ContentFolder | None, new: ContentFolder) -> list[Change]
     return sorted(changes, key=lambda c: (_KIND_ORDER.index(c.kind), _CHANGE_ORDER.index(c.change)))
 
 
+BankChangeType = Literal["added", "retired", "re-tagged"]
+_BANK_ORDER: tuple[BankChangeType, ...] = ("added", "retired", "re-tagged")
+
+
+@dataclass(frozen=True)
+class BankChange:
+    """One Question the bank added, retired or re-tagged since the baseline."""
+
+    id: str
+    change: BankChangeType
+    lesson: str | None  # its Lesson tag now
+    was: str | None = None  # for "re-tagged": the Lesson it was tagged to
+    replaced_by: str | None = None  # for "retired"
+
+    def __str__(self) -> str:
+        if self.change == "re-tagged":
+            note = f"{self.was or 'no Lesson'} -> {self.lesson or 'no Lesson'}"
+        elif self.change == "retired":
+            note = f"replaced by {self.replaced_by}" if self.replaced_by else "no replacement"
+        else:
+            note = self.lesson or "no Lesson"
+        return f"{self.change:9} Question   {self.id}  ({note})"
+
+    def as_json(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "change": self.change,
+            "lesson": self.lesson,
+            "was": self.was,
+            "replaced_by": self.replaced_by,
+        }
+
+
+def bank_changes(stack_dir: Path, baseline: str = "HEAD") -> list[BankChange]:
+    """The Questions added, retired or re-tagged in the Stack's Question Bank since `baseline`,
+    added first, then retired, then re-tagged, each in bank order. A Question both retired and
+    re-tagged is listed as retired. Raises `BaselineUnavailable` or `BadBaseline` (from
+    `app.content.baseline`), and `ValueError` if the bank can't be read."""
+    bank, problems = read_bank(stack_dir)
+    if errors := [p for p in problems if p.level == "error"]:
+        raise ValueError(f"can't read {bank.path}: " + "; ".join(str(p) for p in errors))
+    committed = read_baseline(stack_dir, baseline).questions
+    changes: list[BankChange] = []
+    for _, q in bank.questions():
+        old = committed.get(q.id)
+        if old is None:
+            changes.append(BankChange(q.id, "added", q.lesson))
+        elif q.retired is not None and old.retired is None:
+            changes.append(BankChange(q.id, "retired", q.lesson, replaced_by=q.retired.replaced_by))
+        elif q.lesson != old.lesson:
+            changes.append(BankChange(q.id, "re-tagged", q.lesson, was=old.lesson))
+    return sorted(changes, key=lambda c: _BANK_ORDER.index(c.change))
+
+
 def diff_versions(old: Path | None, new: Path) -> list[Change]:
     """`diff_contents` for two version folders. Raises `ValueError` if either can't be read."""
     return diff_contents(_read(old) if old is not None else None, _read(new))
@@ -154,6 +213,11 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("folders", nargs="+", type=Path, metavar="folder", help="[old] new")
     parser.add_argument("--json", action="store_true", help="print the changes as JSON")
+    parser.add_argument(
+        "--baseline",
+        default="HEAD",
+        help="the git ref the Question Bank is compared with (default HEAD)",
+    )
     args = parser.parse_args(argv)
     if len(args.folders) > 2:
         parser.error("give at most two folders: [old] new")
@@ -171,9 +235,25 @@ def main(argv: list[str] | None = None) -> int:
         print(f"ERROR   {e}")
         return 1
 
+    bank: list[BankChange] | None
+    try:
+        bank = bank_changes(new.parent, args.baseline)
+        bank_note = None
+    except (BaselineUnavailable, BadBaseline, ValueError) as e:
+        bank, bank_note = None, str(e)
+
     old_name = old.name if old is not None else None
     if args.json:
-        doc = {"old": old_name, "new": new.name, "changes": [c.as_json() for c in changes]}
+        doc = {
+            "old": old_name,
+            "new": new.name,
+            "changes": [c.as_json() for c in changes],
+            "bank": {
+                "baseline": args.baseline,
+                "changes": [c.as_json() for c in bank] if bank is not None else None,
+                "error": bank_note,
+            },
+        }
         print(json.dumps(doc, indent=2))
         return 0
     print(f"{old if old is not None else '(nothing: first version)'} -> {new}")
@@ -181,6 +261,15 @@ def main(argv: list[str] | None = None) -> int:
         print(change)
     counts = {kind: sum(c.change == kind for c in changes) for kind in _CHANGE_ORDER}
     print(", ".join(f"{n} {kind}" for kind, n in counts.items()))
+    print()
+    print(f"Question Bank since {args.baseline}:")
+    if bank is None:
+        print(f"  can't compare: {bank_note}")
+        return 0
+    for bank_change in bank:
+        print(bank_change)
+    bank_counts = {kind: sum(c.change == kind for c in bank) for kind in _BANK_ORDER}
+    print(", ".join(f"{n} {kind}" for kind, n in bank_counts.items()))
     return 0
 
 

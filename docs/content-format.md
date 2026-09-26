@@ -20,7 +20,7 @@ A version is named for the day it was made: `v2026-09-26`. More versions on the 
 - The newest version is the Stack's current Syllabus.
 - A version never changes once it is committed: the importer refuses changed content under a version it has already imported. A change is a new version.
 
-`uv run --project api content-new-version <stack>` starts one. It copies the newest version's `syllabus.json` to a folder with the next version name and changes only its `version`; the Question Bank stays where it is. It also starts a `changelog.json` naming the version it follows. `uv run --project api content-diff [<old>] <new>` lists what a version added, changed and removed (see [the changelog](#changelog-changelogjson)).
+`uv run --project api content-new-version <stack>` starts one. It copies the newest version's `syllabus.json` to a folder with the next version name and changes only its `version`; the Question Bank stays where it is. It also starts a `changelog.json` naming the version it follows. `uv run --project api content-diff [<old>] <new>` lists what a version added, changed and removed (see [the changelog](#changelog-changelogjson)), then what the Question Bank added, retired and re-tagged since git `HEAD` (`--baseline <ref>` for another ref).
 
 ## Where it is defined
 
@@ -118,6 +118,7 @@ The database stores the correct answers, but the API never sends them to the bro
 - **A committed Question never changes**, except by adding `retired` or changing its `lesson`. Anything else (its prompt, answer, Concept, Materials, Sources) is an error naming the fields. A retirement is final: it is never edited or undone.
 - **A new Question's Sources are from this run**: every `accessed` date is today or yesterday in UTC (by `--today`), so a run that crosses 00:00 UTC still passes. Committed Questions keep their dates.
 - **A new Question on a Concept that committed Questions already test is a warning**, naming one of them. A repeat is allowed; the warning makes it deliberate.
+- **A new multiple-choice Question whose correct choice is clearly the longest is a warning**: more than 25% and at least 8 characters longer than every wrong choice, since length gives the answer away. Committed Questions can't be edited, so they aren't warned about.
 
 Outside a git repository (a test folder, say) there is no baseline: these rules are skipped, with a warning that says so. A Stack new since the baseline has an empty one, so all its Questions are new. A baseline in the old layout (before #15) is read from its version folders, newest version winning, with each Question tagged to its file's Lesson; those Questions may gain Sources once, and an edit to one is a warning rather than an error, since nothing had been released before the move.
 
@@ -144,14 +145,16 @@ When `agentic-ai-engineer` was migrated, writing its Sources turned up factual s
 
 ## Changelog (`changelog.json`)
 
-Every version that follows another has a changelog: what changed in the Syllabus since the version before, why, and the sources behind it. Questions aren't listed: each carries its own Sources and retirement reason, and the check holds the bank to git instead. The Admin reads it when reviewing a Syllabus Update. A Stack's first version may have one too.
+Every version that follows another has a changelog: what changed in the Syllabus since the version before, why, and the sources behind it. The Admin reads it when reviewing a Syllabus Update. A Stack's first version may have one too.
+
+Questions get no entries. Each new Question carries its own Sources, and each retirement its reason and replacement; a re-tag usually follows a Lesson change the changelog lists. What a Syllabus Update did to the bank is listed by `content-diff`, against git, for review, and the `summary` gives its counts. The bank's changes can't be held to a version once committed (the check compares the bank with git, not with a version), so listing them in a version's changelog would be a second record nothing keeps true. A version that changes only the bank has an empty `changes`.
 
 | Field | Contents |
 |---|---|
 | `schema_version` | Always `1` |
 | `version` | This version, the same as `syllabus.json`'s |
 | `previous_version` | The version before this one, or `null` for a Stack's first version |
-| `summary` | What this version changes and why, in a few sentences |
+| `summary` | What this version changes and why, in a few sentences, with the Question Bank's counts (added, retired, re-tagged) |
 | `changes` | One entry per change: `{kind, id, change, what, why, sources[]}` |
 
 In each entry:

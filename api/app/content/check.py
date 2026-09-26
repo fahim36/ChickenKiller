@@ -18,7 +18,10 @@ request's base), read by `app.content.baseline`:
   changing its Lesson tag; a retirement is never undone or edited;
 - a Question new since the baseline has every Source accessed in the current run: today or
   yesterday in UTC, by the `today` passed in, so a run that crosses 00:00 UTC still passes;
-- a new Question whose Concept already has committed Questions is a warning naming one of them.
+- a new Question whose Concept already has committed Questions is a warning naming one of them;
+- a new multiple-choice Question whose correct choice is clearly the longest (`LONGEST_ANSWER`)
+  is a warning: length gives the answer away. Committed Questions can't be edited, so only new
+  ones are warned about.
 
 With no git baseline (content outside a git repository) those rules are skipped, with a warning
 that says so.
@@ -73,6 +76,22 @@ __all__ = [
 LESSON_MIN = 8
 QUIZ_MULTIPLE_CHOICE, QUIZ_WRITTEN = 4, 2
 MIN_QUESTIONS_PER_CONCEPT = 2
+
+# The correct choice is "clearly the longest" when it is more than 25% and at least 8 characters
+# longer than every wrong choice.
+LONGEST_ANSWER_RATIO, LONGEST_ANSWER_MARGIN = 1.25, 8
+
+
+def correct_choice_stands_out(question: MultipleChoiceQuestion) -> bool:
+    """True when the correct choice is clearly longer than every wrong one."""
+    right = [len(c.text) for c in question.choices if c.id == question.answer]
+    wrong = [len(c.text) for c in question.choices if c.id != question.answer]
+    if not right or not wrong:
+        return False
+    return (
+        right[0] > LONGEST_ANSWER_RATIO * max(wrong)
+        and right[0] - max(wrong) >= LONGEST_ANSWER_MARGIN
+    )
 
 
 def _duplicates(ids: Iterable[str]) -> list[str]:
@@ -487,6 +506,16 @@ def _check_against_baseline(
                         q.id,
                         f"tests the Concept '{q.concept}', which {sibling} already tests: a "
                         "repeat is allowed, but make sure it is deliberate",
+                    )
+                )
+            if isinstance(q, MultipleChoiceQuestion) and correct_choice_stands_out(q):
+                problems.append(
+                    Problem(
+                        "warning",
+                        file,
+                        q.id,
+                        f"the correct choice ({q.answer}) is clearly the longest, which gives it "
+                        "away: make a wrong choice as long, or the correct one shorter",
                     )
                 )
             continue
