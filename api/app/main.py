@@ -344,7 +344,7 @@ def submit_lesson_quiz(
 
     Written answers are graded against their Model Answers (app/grading.py), and each result
     carries the grader's one-line `feedback`. 503 `grading_failed` when grading fails (a timeout,
-    an API error, or no ANTHROPIC_API_KEY): nothing is recorded, the attempt stays open, and
+    a CLI error, or no Claude Code CLI): nothing is recorded, the attempt stays open, and
     the Learner submits again without penalty.
     """
     try:
@@ -637,11 +637,11 @@ def create_app(
     verifier: TokenVerifier | None = None, grader: grading.Grader | None = None
 ) -> FastAPI:
     """The API. Session tokens are checked by `verifier`, by default the one CLERK_* configures;
-    written answers are graded by `grader`, by default Claude with ANTHROPIC_API_KEY."""
+    written answers are graded by `grader`, by default the Claude Code CLI (CLAUDE_BIN)."""
     _configure_logging()
     app = FastAPI(title="Learning App API")
     app.state.verifier = verifier or TokenVerifier.from_config()
-    app.state.grader = grader or grading.grader_from_config(config.ANTHROPIC_API_KEY)
+    app.state.grader = grader or grading.grader_from_config(config.CLAUDE_BIN)
 
     @app.get("/health")
     def health() -> dict[str, str]:

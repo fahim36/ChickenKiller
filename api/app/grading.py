@@ -3,41 +3,46 @@ allows. It only judges an answer; it never creates or changes content.
 
 - `Grader` is the interface the rest of the app uses (`grade(...) -> Grade`). The API gets one
   through the `GraderDep` dependency (app/deps.py); tests swap in a fake.
-- `AnthropicGrader` is the real one: one Messages API call per answer, with a JSON-schema
-  structured output of `{passed, feedback}`. Every call's token use and cost is logged.
-- `UnconfiguredGrader` stands in when `ANTHROPIC_API_KEY` isn't set, so the app still starts:
-  every grading then fails with `GradingFailed`, which the API turns into 503
-  `grading_failed` and the Learner can resubmit.
+- `ClaudeCodeGrader` is the real one (ADR-0006): it runs the Claude Code CLI headless
+  (`claude -p`) on the API's own machine, so grading uses the Claude plan signed in there. One
+  run per answer, with a JSON-schema structured output of `{passed, feedback}`. Every run's
+  token use and cost is logged. Without the CLI (`find_claude` finds none) every grading fails
+  with `GradingFailed`, which the API turns into 503 `grading_failed` and the Learner can
+  resubmit.
 
-The model, its price, the prompt and the limits are the constants below: change them here.
+The model, the prompt, the command's flags and the limits are the constants below: change them
+here.
 
 The Learner's answer is untrusted text. `build_prompt` puts it between `<learner_answer>` tags
 (neutralising any such tag inside it), the system prompt tells the model to treat it as data
-only, and answers are bounded by `MAX_ANSWER_CHARS` before any call (app/marking.py).
+only, and answers are bounded by `MAX_ANSWER_CHARS` before any call (app/marking.py). The CLI
+runs with no tools at all, so the model can't act on anything whatever the answer says.
 """
 
 import json
 import logging
+import os
 import re
+import shutil
+import subprocess
+import tempfile
 from collections.abc import Mapping
 from dataclasses import dataclass
-from decimal import Decimal
 from typing import Any, Protocol
-
-import anthropic
-from anthropic.types import Message, Usage
 
 logger = logging.getLogger(__name__)
 
 MODEL = "claude-haiku-4-5"
 """A small, low-cost model: grading is a short yes/no judgement against a checklist."""
 
-PRICE_PER_MILLION_TOKENS = {"input": Decimal("1.00"), "output": Decimal("5.00")}
-"""USD per million tokens for `MODEL` (Anthropic list price), for the cost log."""
+EFFORT = "low"
+"""Little thinking is needed for a checklist, and less is faster and cheaper."""
 
-MAX_TOKENS = 400
-TIMEOUT_SECONDS = 20.0
-MAX_RETRIES = 1
+TIMEOUT_SECONDS = 45.0
+"""The whole CLI run, start-up included (a run takes roughly 10 s)."""
+
+MAX_BUDGET_USD = "0.05"
+"""The CLI stops a run that would cost more than this (a normal run is well under $0.01)."""
 
 MAX_ANSWER_CHARS = 4000
 """The longest written answer accepted. Longer ones are refused (422) before any call."""
@@ -79,8 +84,9 @@ class Grade:
 
 
 class GradingFailed(Exception):
-    """The answer couldn't be graded (no API key, a timeout, an API error, or an unusable
-    reply). Nothing about the answer is known: the caller must not count it as missed."""
+    """The answer couldn't be graded (no Claude Code CLI, a timeout, a CLI or API error such
+    as not being signed in, or an unusable reply). Nothing about the answer is known: the
+    caller must not count it as missed."""
 
 
 class Grader(Protocol):
@@ -107,85 +113,161 @@ def build_prompt(prompt: str, model_answer: Mapping[str, Any], answer: str) -> s
     )
 
 
-def cost_usd(usage: Usage) -> Decimal:
-    """What one call cost, from its token use and `PRICE_PER_MILLION_TOKENS`."""
-    million = Decimal(1_000_000)
-    return (
-        usage.input_tokens * PRICE_PER_MILLION_TOKENS["input"]
-        + usage.output_tokens * PRICE_PER_MILLION_TOKENS["output"]
-    ) / million
+def command(claude: str) -> list[str]:
+    """The CLI run for one grading. The prompt itself goes in on stdin."""
+    return [
+        claude,
+        "-p",
+        "--model",
+        MODEL,
+        "--effort",
+        EFFORT,
+        "--system-prompt",
+        SYSTEM_PROMPT,
+        "--output-format",
+        "json",
+        "--json-schema",
+        json.dumps(OUTPUT_SCHEMA),
+        # No tools at all, and none of this repo's or the user's CLAUDE.md, settings, hooks,
+        # MCP servers, skills or plugins. Nothing is saved to resume.
+        "--tools",
+        "",
+        "--setting-sources",
+        "",
+        "--safe-mode",
+        "--strict-mcp-config",
+        "--disable-slash-commands",
+        "--no-session-persistence",
+        "--max-budget-usd",
+        MAX_BUDGET_USD,
+    ]
 
 
-def parse_grade(message: Message) -> Grade:
-    """The Grade in a structured-output reply. Raises GradingFailed for a refusal, a truncated
-    reply or anything that doesn't match `OUTPUT_SCHEMA`."""
-    if message.stop_reason != "end_turn":
-        raise GradingFailed(f"stop_reason={message.stop_reason}")
-    text = next((b.text for b in message.content if b.type == "text"), None)
+class Runner(Protocol):
+    """Runs a command to completion: `run_cli`, or a fake in tests."""
+
+    def __call__(
+        self, args: list[str], *, input: str, cwd: str, timeout: float
+    ) -> subprocess.CompletedProcess[str]: ...
+
+
+def run_cli(
+    args: list[str], *, input: str, cwd: str, timeout: float
+) -> subprocess.CompletedProcess[str]:
+    """Raises subprocess.TimeoutExpired (after killing the run) or OSError (it can't start)."""
+    return subprocess.run(
+        args,
+        input=input,
+        cwd=cwd,
+        timeout=timeout,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+
+
+def read_output(stdout: str) -> dict[str, Any] | None:
+    """The result object `--output-format json` prints, or None if there isn't one."""
     try:
-        data = json.loads(text or "")
-        passed, feedback = data["passed"], data["feedback"]
-    except (ValueError, KeyError, TypeError) as error:
-        raise GradingFailed("unparseable reply") from error
+        result = json.loads(stdout)
+    except ValueError:
+        return None
+    return result if isinstance(result, dict) else None
+
+
+def parse_grade(returncode: int, result: dict[str, Any] | None) -> Grade:
+    """The Grade in a CLI run's result. Raises GradingFailed for a failed run, an error result
+    or a structured output that doesn't match `OUTPUT_SCHEMA`."""
+    if returncode != 0:
+        raise GradingFailed(f"claude exit {returncode}")
+    if result is None:
+        raise GradingFailed("unparseable output")
+    if result.get("is_error") is not False:
+        raise GradingFailed("claude reported an error")
+    data = result.get("structured_output")
+    if not isinstance(data, dict):
+        raise GradingFailed("no structured output")
+    passed, feedback = data.get("passed"), data.get("feedback")
     if not isinstance(passed, bool) or not isinstance(feedback, str):
-        raise GradingFailed("reply doesn't match the schema")
+        raise GradingFailed("output doesn't match the schema")
     line = " ".join(feedback.split())[:MAX_FEEDBACK_CHARS]
     return Grade(passed=passed, feedback=line)
 
 
-class AnthropicGrader:
-    """Grades with one Claude call per answer. `client` is an `anthropic.Anthropic`."""
+_WINDOWS = os.name == "nt"
 
-    def __init__(self, client: anthropic.Anthropic) -> None:
-        self._client = client
 
-    @classmethod
-    def from_api_key(cls, api_key: str) -> "AnthropicGrader":
-        return cls(
-            anthropic.Anthropic(api_key=api_key, timeout=TIMEOUT_SECONDS, max_retries=MAX_RETRIES)
-        )
+def find_claude(claude_bin: str) -> str | None:
+    """The Claude Code CLI to run: `claude_bin` (`CLAUDE_BIN`) if set, else `claude` on the
+    PATH; None if there is none. On Windows only a native `claude.exe` is used: a `claude.cmd`
+    shim (an npm install) runs through cmd.exe, which would mangle the arguments."""
+    if not _WINDOWS:
+        return claude_bin or shutil.which("claude")
+    path = claude_bin or shutil.which("claude.exe")
+    return path if path and path.lower().endswith(".exe") else None
+
+
+class ClaudeCodeGrader:
+    """Grades with one `claude -p` run per answer, in an empty temporary directory. `claude` is
+    the CLI's path (`find_claude`); with None every grading fails. `run` is the seam tests fake."""
+
+    def __init__(self, claude: str | None, run: Runner = run_cli) -> None:
+        self._claude = claude
+        self._run = run
 
     def grade(self, prompt: str, model_answer: Mapping[str, Any], answer: str) -> Grade:
+        if self._claude is None:
+            _log_failure({"error": "no_cli"})
+            raise GradingFailed("no Claude Code CLI on this server: install it or set CLAUDE_BIN")
+        args, user_prompt = command(self._claude), build_prompt(prompt, model_answer, answer)
+        with tempfile.TemporaryDirectory(prefix="grading-", ignore_cleanup_errors=True) as cwd:
+            try:
+                done = self._run(args, input=user_prompt, cwd=cwd, timeout=TIMEOUT_SECONDS)
+            except subprocess.TimeoutExpired as error:
+                _log_failure({"error": "timeout"})
+                raise GradingFailed(f"claude timed out after {TIMEOUT_SECONDS:g} s") from error
+            except OSError as error:
+                _log_failure({"error": type(error).__name__})
+                raise GradingFailed(f"claude couldn't start: {type(error).__name__}") from error
+        result = read_output(done.stdout)
+        if result is not None:
+            _log_cost(result)
         try:
-            message = self._client.messages.create(
-                model=MODEL,
-                max_tokens=MAX_TOKENS,
-                system=SYSTEM_PROMPT,
-                messages=[{"role": "user", "content": build_prompt(prompt, model_answer, answer)}],
-                output_config={"format": {"type": "json_schema", "schema": OUTPUT_SCHEMA}},
-            )
-        except anthropic.APIStatusError as error:
-            logger.warning("grading_failed %s", json.dumps({"status": error.status_code}))
-            raise GradingFailed(f"API error {error.status_code}") from error
-        except anthropic.APIConnectionError as error:  # includes APITimeoutError
-            logger.warning("grading_failed %s", json.dumps({"error": type(error).__name__}))
-            raise GradingFailed(type(error).__name__) from error
-        except anthropic.AnthropicError as error:
-            logger.warning("grading_failed %s", json.dumps({"error": type(error).__name__}))
-            raise GradingFailed(type(error).__name__) from error
-        _log_cost(message)
-        return parse_grade(message)
+            return parse_grade(done.returncode, result)
+        except GradingFailed as error:
+            _log_failure({"error": str(error), "message": _error_message(result, done.stderr)})
+            raise
 
 
-def _log_cost(message: Message) -> None:
+def _log_cost(result: Mapping[str, Any]) -> None:
+    usage = result.get("usage") or {}
     fields = {
-        "model": message.model,
-        "input_tokens": message.usage.input_tokens,
-        "output_tokens": message.usage.output_tokens,
-        "cost_usd": str(cost_usd(message.usage)),
-        "stop_reason": message.stop_reason,
-        "request_id": getattr(message, "_request_id", None),
+        "model": next(iter(result.get("modelUsage") or {}), MODEL),
+        "input_tokens": usage.get("input_tokens"),
+        "output_tokens": usage.get("output_tokens"),
+        "cache_read_input_tokens": usage.get("cache_read_input_tokens"),
+        "cache_creation_input_tokens": usage.get("cache_creation_input_tokens"),
+        "cost_usd": str(result.get("total_cost_usd")),
+        "duration_ms": result.get("duration_ms"),
+        "num_turns": result.get("num_turns"),
+        "is_error": result.get("is_error"),
     }
     logger.info("grading_call %s", json.dumps(fields), extra={"grading": fields})
 
 
-class UnconfiguredGrader:
-    """Used when `ANTHROPIC_API_KEY` isn't set: every grading fails, so it can be resubmitted
-    once the server is configured."""
-
-    def grade(self, prompt: str, model_answer: Mapping[str, Any], answer: str) -> Grade:
-        raise GradingFailed("ANTHROPIC_API_KEY isn't set on this server")
+def _log_failure(fields: Mapping[str, Any]) -> None:
+    logger.warning("grading_failed %s", json.dumps(fields))
 
 
-def grader_from_config(api_key: str) -> Grader:
-    return AnthropicGrader.from_api_key(api_key) if api_key else UnconfiguredGrader()
+def _error_message(result: Mapping[str, Any] | None, stderr: str) -> str:
+    """What the CLI said went wrong (such as not being signed in), cut short. The model's own
+    reply is left out: it may quote the Learner's answer."""
+    if result is not None and result.get("is_error"):
+        return str(result.get("result", ""))[:200]
+    return stderr.strip()[-200:]
+
+
+def grader_from_config(claude_bin: str) -> Grader:
+    return ClaudeCodeGrader(find_claude(claude_bin))

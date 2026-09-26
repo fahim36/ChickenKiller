@@ -30,7 +30,6 @@ You need a GitHub account with access to `fahim36/InterviewCrackerAssistant`, an
      | `learning-api` | `CLERK_ISSUER` | The Clerk Frontend API URL |
      | `learning-api` | `CLERK_AUTHORIZED_PARTIES` | A placeholder such as `https://example.com` for now |
      | `learning-api` | `ADMIN_EMAILS` | Your own email address |
-     | `learning-api` | `ANTHROPIC_API_KEY` | An Anthropic API key for grading written answers (see [Grading written answers](#grading-written-answers)) |
      | `learning-web` | `API_URL` | A placeholder such as `https://example.com` for now |
      | `learning-web` | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | The Clerk publishable key (`pk_...`) |
      | `learning-web` | `CLERK_SECRET_KEY` | The Clerk secret key (`sk_...`) |
@@ -93,15 +92,21 @@ If you use Vercel for the web app, set the two web variables there as well.
 
 ## Grading written answers
 
-The API grades each written answer against its Model Answer with one Claude call (ADR-0001's only runtime Claude call). The model (Claude Haiku 4.5), its price, the prompt and the limits are constants in `api/app/grading.py`.
+The API grades each written answer against its Model Answer by running the Claude Code CLI headless on its own machine (ADR-0006), so grading uses the Claude plan signed in there. The model (Claude Haiku 4.5), the prompt, the command's flags and the limits are constants in `api/app/grading.py`. The command is:
+
+```
+claude -p --model claude-haiku-4-5 --effort low --system-prompt <grading rules> --output-format json --json-schema <{passed, feedback}> --tools "" --setting-sources "" --safe-mode --strict-mcp-config --disable-slash-commands --no-session-persistence --max-budget-usd 0.05
+```
+
+It runs in an empty temporary directory with the prompt on stdin, and is stopped after 45 s.
+
+**On Render (or any host without Claude Code) written answers can't be graded.** The app still starts and multiple-choice answers still score, but a submission with a written answer answers 503 `grading_failed`: nothing is recorded, and the Learner can submit again. Grading works when the API runs on a machine where Claude Code is installed and signed in, such as running it locally.
 
 | Service | Variable | What it is |
 |---|---|---|
-| API | `ANTHROPIC_API_KEY` | An Anthropic API key. Without it the app still starts and multiple-choice answers still score, but a submission with a written answer answers 503 `grading_failed`: nothing is recorded, and the Learner can submit again once the key is set. |
+| API | `CLAUDE_BIN` | Optional. The Claude Code CLI to run. By default `claude` on the PATH; on Windows only a native `claude.exe` is used (an npm `claude.cmd` shim is refused). |
 
-One-time setup (a human does this): create a key at https://console.anthropic.com/settings/keys (a workspace with a spend limit is a good idea), then set it on `learning-api` → **Environment** in Render. Never put it in a file in the repository.
-
-Each grading call is logged on one line, such as `INFO: app.grading grading_call {"model": "claude-haiku-4-5", "input_tokens": 420, "output_tokens": 28, "cost_usd": "0.00056", ...}`, so the cost per graded answer can be read from the Render log. A timeout or API error is logged as `grading_failed`.
+Each grading call is logged on one line, such as `INFO: app.grading grading_call {"model": "claude-haiku-4-5", "input_tokens": 1643, "output_tokens": 562, "cost_usd": "0.004453", "duration_ms": 7015, ...}`. The cost is what the CLI reports at list price; on a Claude plan it counts toward the plan's usage limits rather than being billed. A timeout, a CLI error (such as not being signed in) or an unusable reply is logged as `grading_failed`.
 
 ## Deploying the web app to Vercel instead (optional)
 
