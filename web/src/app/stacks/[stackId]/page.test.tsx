@@ -46,6 +46,7 @@ const syllabus: Syllabus = {
     },
   ],
   daily_review: null,
+  removed_lessons: [],
 };
 
 afterEach(() => {
@@ -132,4 +133,57 @@ it("shows today's pending Review Round and says which Lesson waits for it", asyn
   );
   const iterators = screen.getByRole("link", { name: "Iterators" }).closest("li");
   expect(iterators?.textContent).toBe("Locked Iterators · Finish your Review Round to unlock");
+});
+
+it("marks Updated Lessons, which a Syllabus Update changed or added behind the Learner", async () => {
+  const [first, second] = syllabus.weeks[0].lessons;
+  await renderWeekMap({
+    ...syllabus,
+    weeks: [
+      {
+        ...syllabus.weeks[0],
+        lessons: [
+          { ...first, state: "updated" },
+          { ...noReview, id: "w01-new", title: "Generators", minutes: 30, state: "updated" },
+          second,
+        ],
+      },
+      syllabus.weeks[1],
+    ],
+  });
+
+  const lessons = within(within(week(1)).getByRole("list", { name: "Lessons" }))
+    .getAllByRole("listitem")
+    .map((li) => li.textContent);
+  expect(lessons).toEqual([
+    "Updated Names and objects",
+    "Updated Generators",
+    "Unlocked Iterators",
+  ]);
+});
+
+it("keeps Completed Lessons a Syllabus Update removed in the Learner's history", async () => {
+  await renderWeekMap({
+    ...syllabus,
+    removed_lessons: [
+      {
+        id: "w01-l00",
+        title: "Old `setup.py` packaging",
+        completed_at: "2026-09-20T10:00:00Z",
+        version: "v2026-09-01",
+      },
+    ],
+  });
+
+  const history = screen.getByRole("region", { name: "Completed, no longer in the Syllabus" });
+  expect(within(history).getAllByRole("listitem").map((li) => li.textContent)).toEqual([
+    "Old setup.py packaging · Syllabus v2026-09-01",
+  ]);
+  expect(within(history).queryByRole("link")).toBeNull();
+});
+
+it("shows no history section when no Completed Lesson was removed", async () => {
+  await renderWeekMap();
+
+  expect(screen.queryByRole("region", { name: "Completed, no longer in the Syllabus" })).toBeNull();
 });

@@ -9,10 +9,11 @@ functions in `app/review.py`; this module stores what they decide.
   `ReviewDay` and open nothing. A Learner with no Completed Lesson at that moment owes nothing
   that day, even if they complete a Lesson later the same day.
 - **Round 1** asks up to ten Questions (`review.pick_round_questions`): the Learner's Missed
-  Questions first (`quizzes.missed_question_ids`, first missed first), then Questions of their
-  Completed Lessons at random. Both come from the Stack's current Syllabus version, which the
-  round is pinned to, so a round in progress when a new version is imported finishes on the
-  old one (#13).
+  Questions first (`quizzes.missed_question_ids`, first missed first), then the new Questions
+  of their Updated Lessons they haven't answered yet (`updated_lessons.updated_question_ids`,
+  #13), then Questions of their Completed Lessons at random. All come from the Stack's current
+  Syllabus version, which the round is pinned to, so a round in progress when a new version is
+  imported finishes on the old one (#13).
 - **Answering** is one Question at a time (`answer_question`), marked by `marking.mark` like a
   Lesson Quiz: a written answer is graded against its Model Answer, and if grading fails
   nothing is recorded and the Learner answers again. Every answer is an `Answer` with
@@ -27,8 +28,7 @@ functions in `app/review.py`; this module stores what they decide.
 Not built yet: Rounds 2 and 3 and carry-over (#10: open them in `start_day`'s place on each
 request, and lead with the dropped rounds' unanswered Questions), leaving the rotation (#10:
 filter `missed_ids` by correct answers on three different days), the Streak (#11: read
-`ReviewDay`s and their rounds in day order), and Updated Lessons' new Questions (#13: put
-them after the Missed Questions in `_round_1_questions`).
+`ReviewDay`s and their rounds in day order).
 """
 
 import random
@@ -41,7 +41,7 @@ from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
-from app import progress, quizzes, review
+from app import progress, quizzes, review, updated_lessons
 from app.grading import Grader
 from app.marking import AnswerTooLong, GradingFailed, NotAChoice, mark
 from app.models import (
@@ -276,7 +276,8 @@ def _round_1_questions(
         if q in in_version  # a Question a later version removed has left the rotation
     ]
     from_completed = [question_id for question_id, lesson_id in bank if lesson_id in completed]
-    picked = review.pick_round_questions(missed, from_completed, rng)
+    owed = updated_lessons.updated_question_ids(session, record.learner_id, record.stack_id)
+    picked = review.pick_round_questions(missed + owed, from_completed, rng)
     return (syllabus.version, picked) if picked else None
 
 

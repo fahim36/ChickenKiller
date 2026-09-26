@@ -49,7 +49,7 @@ A hands-on task in a Week, such as a build or a job-hunt action. The Learner tic
 _Avoid_: Project, assignment, task
 
 **Updated Lesson**:
-A Lesson a Syllabus Update added or changed after the Learner had already passed it. The Learner's progress on it is kept; its new Questions go into the Learner's Daily Review.
+A Lesson a Syllabus Update added or changed after the Learner had already passed it: a Completed Lesson that differs from the version it was completed in, or a new Lesson behind the Learner's position. The Learner's progress on it is kept; its new Questions (ones the version they completed it in didn't have) go into the Learner's Daily Review. It never locks anything.
 _Avoid_: Changed lesson, outdated lesson
 
 **Material**:
@@ -135,5 +135,5 @@ One of the Concepts the Learner has missed most often, shown with a link to the 
 _Avoid_: Gap, weakness, problem area
 
 **Unlocked Lesson**:
-The next Lesson after the Learner's last Completed Lesson, available when there is no Pending Review Round. Pacing is set only by completion, never by the calendar.
+The next Lesson after the Learner's last Completed Lesson, available when there is no Pending Review Round. Pacing is set only by completion, never by the calendar. If a Syllabus Update removes that Completed Lesson, it is the next Lesson after it that is still in the Syllabus.
 _Avoid_: Available, open, scheduled

@@ -153,6 +153,13 @@ class Lesson(Base):
     topics: Mapped[list[str]] = mapped_column(JSONB)
     exercise: Mapped[str | None] = mapped_column(Text)
     minutes: Mapped[int] = mapped_column(Integer)
+    content_hash: Mapped[str | None] = mapped_column(
+        String(64),
+        comment=(
+            "The Lesson's content as content-diff compares it (fields, Week, Question Bank). "
+            "Equal across versions means unchanged."
+        ),
+    )
 
     week: Mapped[Week] = relationship(back_populates="lessons")
     material_links: Mapped[list[LessonMaterial]] = relationship(
@@ -327,7 +334,12 @@ def _of_learner_stack() -> ForeignKeyConstraint:
 
 
 class CompletedLesson(Base):
-    """A Completed Lesson: its Lesson Quiz met the Pass Mark and every Retake was correct."""
+    """A Completed Lesson: its Lesson Quiz met the Pass Mark and every Retake was correct.
+
+    `syllabus_version` is the version the Learner was quizzed on (the attempt's pinned one). A
+    later version that changed the Lesson makes it an Updated Lesson, whose new Questions are
+    the ones that version's Question Bank didn't have (app/updated_lessons.py, #13).
+    """
 
     __tablename__ = "completed_lessons"
     __table_args__ = (_of_learner_stack(),)
@@ -336,6 +348,9 @@ class CompletedLesson(Base):
     stack_id: Mapped[str] = mapped_column(ID, primary_key=True)
     lesson_id: Mapped[str] = mapped_column(ID, primary_key=True, comment="Permanent ID.")
     completed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    syllabus_version: Mapped[str] = mapped_column(
+        String(20), comment="The version the Lesson was completed in."
+    )
 
 
 class MilestoneTick(Base):

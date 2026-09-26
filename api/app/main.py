@@ -17,6 +17,7 @@ from app import (
     review,
     reviews,
     schemas,
+    updated_lessons,
 )
 from app.auth import TokenVerifier
 from app.deps import (
@@ -109,7 +110,9 @@ def get_week_map(
     Milestones (and whether they're ticked), in Syllabus order, for the signed-in Learner.
 
     `daily_review` is today's Daily Review (null when nothing is owed today). While a round is
-    pending, the Lesson it locks has `waiting_for_review`, so the page can say why."""
+    pending, the Lesson it locks has `waiting_for_review`, so the page can say why.
+    `removed_lessons` are the Learner's Completed Lessons that a Syllabus Update removed: no
+    longer on the path, kept as history (#13)."""
     syllabus = lessons.current_syllabus(session, stack_id)
     if syllabus is None:
         raise HTTPException(404, "Stack not found")
@@ -155,6 +158,12 @@ def get_week_map(
             for week in syllabus.weeks
         ],
         daily_review=_daily_review(today) if today is not None and today.rounds else None,
+        removed_lessons=[
+            schemas.RemovedLessonOut(
+                id=r.id, title=r.title, completed_at=r.completed_at, version=r.syllabus_version
+            )
+            for r in updated_lessons.removed_completed_lessons(session, learner.id, stack_id)
+        ],
     )
 
 

@@ -47,6 +47,12 @@ export default async function LessonPage({
           unlock this Lesson&apos;s quiz.
         </p>
       )}
+      {lesson.state === "updated" && (
+        <p role="note" className="small">
+          A Syllabus Update added or changed this Lesson after you&apos;d passed it. Its new
+          Questions come in your Daily Review.
+        </p>
+      )}
       {lesson.state === "locked" && !lesson.waiting_for_review && (
         <p role="note" className="small">
           You can read ahead. The Lesson Quiz opens once you&apos;ve completed the Lessons before
