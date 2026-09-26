@@ -91,7 +91,7 @@ In Claude Code, from the repo root:
 /update-syllabus agentic-ai-engineer
 ```
 
-It researches the Stack's field against primary sources and writes a new version folder, `content/<stack>/<version>/`. The folder holds the Syllabus, a Question Bank for every Lesson, and a `changelog.json` of what changed, why, and its sources. It passes the content check before the command finishes. A Stack that doesn't exist yet is created. Review the folder, then commit and import it. The steps are in [.claude/skills/update-syllabus/SKILL.md](.claude/skills/update-syllabus/SKILL.md).
+It researches the Stack's field against primary sources and writes a new Syllabus version, `content/<stack>/<version>/`, with a `changelog.json` of what changed in the Syllabus, why, and its sources. In the Stack's Question Bank, `content/<stack>/question-bank/`, it adds new Questions (each with the Sources it fetched), retires out-of-date ones with a reason and a replacement, and re-tags Questions to another Lesson; it never edits or deletes a committed Question. It reads the whole bank first, and the whole Stack passes the content check before it finishes. When its research finds nothing to change, it writes nothing and reports "no change". A Stack that doesn't exist yet is created. Review the new version and the bank's diff, then commit and import them. The steps are in [.claude/skills/update-syllabus/SKILL.md](.claude/skills/update-syllabus/SKILL.md).
 
 It never asks questions, so it also runs headless, for example from a scheduled task:
 
@@ -111,7 +111,7 @@ The content tools it relies on also work by hand, from the repo root:
 | Command | What it does |
 |---|---|
 | `uv run --project api content-new-version <stack>` | Copies the newest version to a new folder named for today, and starts its changelog. Items you don't touch keep their IDs because they are copies. |
-| `uv run --project api content-diff [<old>] <new>` | Lists what was added, changed and removed, by permanent ID, per kind. With one folder, it compares with the version before it. `--json` for scripts. |
+| `uv run --project api content-diff [<old>] <new>` | Lists what the Syllabus added, changed and removed, by permanent ID, per kind. With one folder, it compares with the version before it. Then lists the Questions the Question Bank added, retired and re-tagged since git `HEAD` (`--baseline <ref>` for another). `--json` for scripts. |
 
 ## Checks
 
@@ -120,8 +120,8 @@ cd api && uv run content-check ../content
 ```
 
 This checks every Stack version against the format and the Question Bank rules:
-- 8–12 Questions per bank, and at least 2 per Concept;
-- enough Questions for a Lesson Quiz;
+- at least 8 Questions per Lesson that aren't retired, enough for a Lesson Quiz, and at least 2 per Concept;
+- every Question has Sources, and the Question Bank is append-only against git: never edited or deleted, only retired or re-tagged;
 - permanent IDs unique across every kind of item, and never reused as another kind in a later version;
 - every Material reference exists;
 - a version that follows another has a changelog that lists every added, changed and removed Lesson, with sources.
