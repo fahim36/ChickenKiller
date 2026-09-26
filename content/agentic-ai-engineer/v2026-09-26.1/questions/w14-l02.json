@@ -1,0 +1,320 @@
+{
+  "schema_version": 1,
+  "lesson_id": "w14-l02",
+  "concepts": [
+    {
+      "id": "w14-l02-agent-loop",
+      "name": "The agent loop, turns and the result message"
+    },
+    {
+      "id": "w14-l02-custom-tools-mcp",
+      "name": "Custom tools through an in-process MCP server"
+    },
+    {
+      "id": "w14-l02-permissions",
+      "name": "Allowed tools, disallowed tools and permission modes"
+    },
+    {
+      "id": "w14-l02-hooks",
+      "name": "Hooks that allow, deny or change tool calls"
+    },
+    {
+      "id": "w14-l02-subagents",
+      "name": "Subagents and what they inherit"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w14-l02-q01",
+      "concept": "w14-l02-agent-loop",
+      "type": "multiple_choice",
+      "prompt": "In the Claude Agent SDK, when does the agent loop end on its own?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "After 10 turns, the default `max_turns`, whatever Claude is doing"
+        },
+        {
+          "id": "b",
+          "text": "After each tool call, when control returns to your code to continue"
+        },
+        {
+          "id": "c",
+          "text": "When Claude replies with no tool calls; the SDK then yields a `ResultMessage`"
+        },
+        {
+          "id": "d",
+          "text": "When the context window is full and no more messages can be added"
+        }
+      ],
+      "answer": "c",
+      "explanation": "The loop repeats: Claude responds, the SDK runs any requested tools and feeds the results back. It ends when Claude produces a response with no tool calls, followed by a `ResultMessage` with the final text, usage, cost and session ID. `max_turns` has no limit by default, and when the context fills up the SDK compacts it instead of stopping.",
+      "materials": [
+        "claude-agent-sdk-agent-loop"
+      ]
+    },
+    {
+      "id": "w14-l02-q02",
+      "concept": "w14-l02-agent-loop",
+      "type": "multiple_choice",
+      "prompt": "You set `max_turns=5` and the task needs more. What does the SDK give you?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A `ResultMessage` with `subtype` `\"error_max_turns\"` and no `result` text"
+        },
+        {
+          "id": "b",
+          "text": "A `ResultMessage` with `subtype` `\"success\"` and a partial `result`"
+        },
+        {
+          "id": "c",
+          "text": "Nothing: it pauses and waits for you to raise the limit"
+        },
+        {
+          "id": "d",
+          "text": "A `MaxTurnsExceeded` exception before any result message"
+        }
+      ],
+      "answer": "a",
+      "explanation": "When a limit is hit the SDK returns a `ResultMessage` with an error subtype, `error_max_turns` or `error_max_budget_usd`. The `result` field exists only on `success`, so check `subtype` first. A single-shot `query()` then also raises after yielding that result, so wrap the loop in `try`. The session ID is still there, so you can resume.",
+      "materials": [
+        "claude-agent-sdk-agent-loop"
+      ]
+    },
+    {
+      "id": "w14-l02-q03",
+      "concept": "w14-l02-custom-tools-mcp",
+      "type": "multiple_choice",
+      "prompt": "You register an in-process server with `mcp_servers={\"files\": server}`. It has a tool named `move_file`. What do you put in `allowed_tools` so it runs without a permission prompt?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`\"move_file\"`"
+        },
+        {
+          "id": "b",
+          "text": "`\"files.move_file\"`"
+        },
+        {
+          "id": "c",
+          "text": "`\"mcp_files_move_file\"`"
+        },
+        {
+          "id": "d",
+          "text": "`\"mcp__files__move_file\"`"
+        }
+      ],
+      "answer": "d",
+      "explanation": "Tools from an MCP server are named `mcp__{server_name}__{tool_name}`, and the server name is the key you used in `mcp_servers`. So the tool is `mcp__files__move_file`. To approve every tool on that server you can use `mcp__files__*`.",
+      "materials": [
+        "claude-agent-sdk-custom-tools"
+      ]
+    },
+    {
+      "id": "w14-l02-q04",
+      "concept": "w14-l02-custom-tools-mcp",
+      "type": "multiple_choice",
+      "prompt": "Your custom tool's handler raises an uncaught `FileNotFoundError`. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The whole `query()` call raises `FileNotFoundError` and the agent loop stops"
+        },
+        {
+          "id": "b",
+          "text": "It becomes an error result with the raw message; Claude sees it and the loop continues"
+        },
+        {
+          "id": "c",
+          "text": "The SDK retries the tool call three times with exponential backoff, then ends the agent loop"
+        },
+        {
+          "id": "d",
+          "text": "The SDK swallows it and returns an empty successful result to Claude"
+        }
+      ],
+      "answer": "b",
+      "explanation": "A handler error doesn't stop the loop: the SDK's in-process MCP server catches it and returns it as an error result carrying the raw exception message. Catching it yourself and returning `\"is_error\": True` with a composed message is better, because you can tell Claude what failed and what to try instead.",
+      "materials": [
+        "claude-agent-sdk-custom-tools"
+      ]
+    },
+    {
+      "id": "w14-l02-q05",
+      "concept": "w14-l02-custom-tools-mcp",
+      "type": "written",
+      "prompt": "For your file-organising agent, explain how you would add a custom `classify_file` tool, let it run without prompting, and report a missing file so Claude can recover.",
+      "model_answer": {
+        "summary": "Define it with `@tool` and an async handler, wrap it in `create_sdk_mcp_server`, pass the server in `mcp_servers`, and list `mcp__<server>__classify_file` in `allowed_tools`. For a missing file, return a clear message with `is_error` set rather than raising.",
+        "key_points": [
+          "`@tool` takes a name, a description and an input schema, and decorates an async handler",
+          "The handler returns a dict with a `content` list of blocks such as `{\"type\": \"text\", \"text\": ...}`",
+          "`create_sdk_mcp_server` wraps the tools in a server that runs in your own process, passed through `mcp_servers`",
+          "Adding `mcp__<server>__classify_file` to `allowed_tools` approves it without a prompt",
+          "Returning `\"is_error\": True` with a composed message lets Claude read what went wrong and try something else"
+        ]
+      },
+      "explanation": "These steps come straight from the custom-tools guide. The description matters because Claude reads it to decide when to call the tool. An error result is part of the loop, not the end of it: Claude can retry, try a different tool or explain the failure.",
+      "materials": [
+        "claude-agent-sdk-custom-tools"
+      ]
+    },
+    {
+      "id": "w14-l02-q06",
+      "concept": "w14-l02-permissions",
+      "type": "multiple_choice",
+      "prompt": "You set `allowed_tools=[\"Read\"]` and `permission_mode=\"bypassPermissions\"`. Can Claude run `Bash`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "No: only the tools listed in `allowed_tools` are available to Claude at all"
+        },
+        {
+          "id": "b",
+          "text": "Only after your `canUseTool` callback approves it, since `Bash` isn't pre-approved"
+        },
+        {
+          "id": "c",
+          "text": "Yes: unlisted tools fall through to the permission mode, and `bypassPermissions` approves them"
+        },
+        {
+          "id": "d",
+          "text": "No: `bypassPermissions` is ignored whenever `allowed_tools` is set, so only `Read` can ever run"
+        }
+      ],
+      "answer": "c",
+      "explanation": "The docs warn that `allowed_tools` does not constrain `bypassPermissions`. Unlisted tools are still available; their calls fall through to the permission mode, which approves them. To keep a tool away while bypassing prompts, list it in `disallowed_tools`. Deny rules and hooks are checked before the mode, so they still apply.",
+      "materials": [
+        "claude-agent-sdk-permissions"
+      ]
+    },
+    {
+      "id": "w14-l02-q07",
+      "concept": "w14-l02-permissions",
+      "type": "multiple_choice",
+      "prompt": "You want Claude never even to attempt `Bash`. Which option does that?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`disallowed_tools=[\"Bash\"]`, which removes the tool from Claude's context"
+        },
+        {
+          "id": "b",
+          "text": "Leaving `Bash` out of `allowed_tools`, so it's never offered to Claude"
+        },
+        {
+          "id": "c",
+          "text": "`permission_mode=\"acceptEdits\"`, which blocks every tool other than file edits"
+        },
+        {
+          "id": "d",
+          "text": "`disallowed_tools=[\"Bash(*)\"]`, a wildcard rule matching every Bash command"
+        }
+      ],
+      "answer": "a",
+      "explanation": "A bare tool name in `disallowed_tools` removes the tool from Claude's context, so Claude can't see or attempt it. Leaving a tool out of `allowed_tools` only means its calls go through the normal permission flow. A scoped rule like `Bash(rm *)` keeps the tool visible and denies only matching calls.",
+      "materials": [
+        "claude-agent-sdk-permissions"
+      ]
+    },
+    {
+      "id": "w14-l02-q08",
+      "concept": "w14-l02-hooks",
+      "type": "multiple_choice",
+      "prompt": "Two `PreToolUse` hooks match the same tool call. One returns `permissionDecision: \"allow\"`, the other `\"deny\"`. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The call runs, because the first hook to finish decides the final outcome"
+        },
+        {
+          "id": "b",
+          "text": "The call runs, because an explicit `allow` overrides any `deny`"
+        },
+        {
+          "id": "c",
+          "text": "Claude is asked to choose between the two conflicting decisions"
+        },
+        {
+          "id": "d",
+          "text": "The call is blocked: `deny` takes priority over every other decision"
+        }
+      ],
+      "answer": "d",
+      "explanation": "Matching hooks run in parallel and the most restrictive result applies: `deny` beats `defer`, which beats `ask`, which beats `allow`. A single `deny` blocks the call whatever the other hooks return. Because completion order isn't fixed, each hook should work on its own.",
+      "materials": [
+        "claude-agent-sdk-hooks"
+      ]
+    },
+    {
+      "id": "w14-l02-q09",
+      "concept": "w14-l02-hooks",
+      "type": "written",
+      "prompt": "Your file-organising agent must never move files outside `~/Downloads/inbox`. Explain where you would enforce this and why a hook is safer than relying on `allowed_tools` or a `canUseTool` callback.",
+      "model_answer": {
+        "summary": "Use a `PreToolUse` hook, matched to the tools that move or write files, that returns `permissionDecision: \"deny\"` when a path is outside the folder. Hooks run before every other permission step and a hook deny holds even in `bypassPermissions`, while `canUseTool` is skipped for auto-approved calls.",
+        "key_points": [
+          "A `PreToolUse` hook with a `matcher` for the file tools (for example your `mcp__files__move_file`, or `Write|Edit`) sees each call's `tool_input`",
+          "It returns `permissionDecision: \"deny\"` with a reason when the path is outside the allowed folder",
+          "Hooks run first in the permission order, and a hook deny applies even in `bypassPermissions` mode",
+          "`allowed_tools` only pre-approves tools and doesn't restrict their arguments",
+          "`canUseTool` is never called for a call already approved by an allow rule or the permission mode"
+        ]
+      },
+      "explanation": "The permissions page puts hooks at the top of the evaluation order and says that auto-approved calls never reach `canUseTool`, so checks placed there can be silently bypassed. For a check that must run on every call, it recommends a `PreToolUse` hook. The denial goes back to Claude as the tool result, so the agent can try another path.",
+      "materials": [
+        "claude-agent-sdk-hooks",
+        "claude-agent-sdk-permissions"
+      ]
+    },
+    {
+      "id": "w14-l02-q10",
+      "concept": "w14-l02-subagents",
+      "type": "multiple_choice",
+      "prompt": "A programmatic subagent (not a fork) is started through the `Agent` tool. What does it receive from the parent?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The parent's full conversation history and tool results, so it can pick up where it left off"
+        },
+        {
+          "id": "b",
+          "text": "Its `AgentDefinition.prompt` and the prompt passed to the `Agent` tool; no parent history"
+        },
+        {
+          "id": "c",
+          "text": "The parent's system prompt and tool list, but none of the conversation so far"
+        },
+        {
+          "id": "d",
+          "text": "Nothing up front: it must read the parent's transcript file to learn its task"
+        }
+      ],
+      "answer": "b",
+      "explanation": "A non-fork subagent starts with a fresh context: its own system prompt from `AgentDefinition.prompt`, the prompt string the parent passed to the `Agent` tool, its tool definitions and project CLAUDE.md if settings load it. It does not get the parent's history or system prompt, so put any file paths or decisions it needs in that prompt. (The tool was named `Task` in older Claude Code versions.)",
+      "materials": [
+        "claude-agent-sdk-subagents"
+      ]
+    },
+    {
+      "id": "w14-l02-q11",
+      "concept": "w14-l02-subagents",
+      "type": "written",
+      "prompt": "Your agent must scan 500 files and sort them into folders. Explain why you would hand the scan to a subagent, what you must put in the delegation prompt, and how you would limit what the subagent can do.",
+      "model_answer": {
+        "summary": "A subagent keeps the scan's many tool calls in its own context and returns only its final message, so the main conversation stays small. Because the delegation prompt is its only input from the parent, it must carry the paths and rules, and the `tools` field limits it to what it needs.",
+        "key_points": [
+          "Context isolation: intermediate tool calls and results stay in the subagent; only its final message returns to the parent",
+          "The `Agent` tool's prompt is the only thing passed from parent to subagent, so include folder paths, rules and decisions in it",
+          "`AgentDefinition.tools` restricts the subagent to the listed tools, such as `Read`, `Glob` and `Grep`",
+          "The `description` tells Claude when to use the subagent, so it should be specific"
+        ]
+      },
+      "explanation": "The subagents guide lists context isolation, parallel runs, specialised instructions and tool restrictions as the benefits. A tool left out of `tools` isn't in the subagent's session at all. Subagents can spawn their own subagents, and the budget cap (`max_budget_usd`) counts their spend too.",
+      "materials": [
+        "claude-agent-sdk-subagents"
+      ]
+    }
+  ]
+}

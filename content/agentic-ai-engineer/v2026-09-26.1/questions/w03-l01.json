@@ -1,0 +1,297 @@
+{
+  "schema_version": 1,
+  "lesson_id": "w03-l01",
+  "concepts": [
+    {
+      "id": "w03-l01-amortised-and-average-cost",
+      "name": "Amortised and average-case cost of `list` and `dict`"
+    },
+    {
+      "id": "w03-l01-set-membership",
+      "name": "An O(1) set lookup vs an O(n) list scan"
+    },
+    {
+      "id": "w03-l01-counting-and-anagram-keys",
+      "name": "Counting characters and anagram keys"
+    },
+    {
+      "id": "w03-l01-two-sum-hash-map",
+      "name": "Two Sum with a hash map"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w03-l01-q01",
+      "concept": "w03-l01-amortised-and-average-cost",
+      "type": "multiple_choice",
+      "prompt": "Why is `list.append` in CPython called amortised O(1) rather than simply O(1)?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Appending is O(1) only while the list holds fewer than 1,000 items; after that it's O(n)"
+        },
+        {
+          "id": "b",
+          "text": "Every append copies the whole list, but the copy is done in fast C code, so it's cheap"
+        },
+        {
+          "id": "c",
+          "text": "Occasional appends resize the array, but averaged over many appends each is O(1)"
+        },
+        {
+          "id": "d",
+          "text": "Python lists are linked lists, so each append has to walk to the end to attach the item"
+        }
+      ],
+      "answer": "c",
+      "explanation": "A CPython list is a contiguous array of references. When it fills up it grows with room to spare, so the next several appends need no resize. The resizing append costs O(n), but n appends cost O(n) in total, which is what amortised O(1) means. Indexing `a[i]` is O(1) because the array is contiguous; lists are not linked lists.",
+      "materials": [
+        "python-docs-design-faq",
+        "python-wiki-time-complexity"
+      ]
+    },
+    {
+      "id": "w03-l01-q02",
+      "concept": "w03-l01-amortised-and-average-cost",
+      "type": "multiple_choice",
+      "prompt": "What is the time complexity of `key in d` for a Python `dict` with n keys?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "O(1) on average, O(n) in the worst case when many keys collide"
+        },
+        {
+          "id": "b",
+          "text": "O(log n), because dict keys are kept in a balanced tree"
+        },
+        {
+          "id": "c",
+          "text": "O(1) always, because every key gets its own slot"
+        },
+        {
+          "id": "d",
+          "text": "O(n), because a dict keeps its keys in insertion order"
+        }
+      ],
+      "answer": "a",
+      "explanation": "A dict is a resizable hash table: the key's hash picks a slot, so a lookup takes constant time on average. If many keys land on the same slots, a lookup has to probe past them, and the Python wiki lists O(n) as the worst case. Keeping insertion order (guaranteed since Python 3.7) doesn't make lookups linear.",
+      "materials": [
+        "python-docs-design-faq",
+        "python-wiki-time-complexity",
+        "tech-interview-handbook-hash-table"
+      ]
+    },
+    {
+      "id": "w03-l01-q03",
+      "concept": "w03-l01-set-membership",
+      "type": "multiple_choice",
+      "prompt": "A Contains Duplicate solution: `seen = []`, then for each `x` in `nums`: `if x in seen: return True`, then `seen.append(x)`. What is its time complexity, and what change makes it O(n)?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "O(n) already: `x in seen` is O(1) for any built-in collection"
+        },
+        {
+          "id": "b",
+          "text": "O(n log n): the list stays sorted, so `in` uses binary search"
+        },
+        {
+          "id": "c",
+          "text": "O(n²): sort `nums` first so that each `in` check is O(1)"
+        },
+        {
+          "id": "d",
+          "text": "O(n²): make `seen` a set and use `seen.add(x)`"
+        }
+      ],
+      "answer": "d",
+      "explanation": "`x in list` scans the list, O(n), and it runs once per element, so the loop is O(n²) in the worst case (no duplicates). A set is a hash table, so `x in seen` is O(1) on average and the solution becomes O(n) time with O(n) extra space. A one-line version is `len(set(nums)) < len(nums)`.",
+      "materials": [
+        "python-wiki-time-complexity",
+        "neetcode-150-practice-list"
+      ]
+    },
+    {
+      "id": "w03-l01-q04",
+      "concept": "w03-l01-set-membership",
+      "type": "written",
+      "prompt": "Give three ways to solve Contains Duplicate, with the time and extra space of each. Which would you choose in an interview, and why?",
+      "model_answer": {
+        "summary": "Comparing every pair is O(n²) time and O(1) space; sorting and comparing neighbours is O(n log n) time; a hash set is O(n) time and O(n) space and is usually the one to choose.",
+        "key_points": [
+          "Brute force: compare every pair of elements, O(n²) time and O(1) extra space",
+          "Sort, then compare each element with its neighbour: O(n log n) time, dominated by the sort",
+          "Hash set: add each element and return `True` when it is already present, O(n) average time and O(n) extra space",
+          "The hash set is usually the answer because it's linear; it trades O(n) memory for time, so sorting is the fallback when memory is tight"
+        ]
+      },
+      "explanation": "Saying the complexity out loud before coding, as the exercise asks, is how you show the trade-off: each step down in time costs memory. Interviewers expect the hash-set answer and an explanation of why a list would make it quadratic.",
+      "materials": [
+        "neetcode-150-practice-list",
+        "python-wiki-time-complexity"
+      ]
+    },
+    {
+      "id": "w03-l01-q05",
+      "concept": "w03-l01-counting-and-anagram-keys",
+      "type": "multiple_choice",
+      "prompt": "Valid Anagram: `s` and `t` contain only lowercase English letters. You count the letters of each with a dict (or `Counter`) and compare the counts. What are the time and extra space?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "O(n log n) time and O(n) space, because the counts are sorted"
+        },
+        {
+          "id": "b",
+          "text": "O(n) time and O(1) space, because there are at most 26 distinct keys"
+        },
+        {
+          "id": "c",
+          "text": "O(n²) time, because each letter is counted by rescanning the string"
+        },
+        {
+          "id": "d",
+          "text": "O(n) time and O(n) space, because every character gets its own entry"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Each string is read once, and each count update is an O(1) dict operation, so the time is O(n). The dict has one entry per distinct letter, never more than 26 here, so the extra space is constant. Sorting both strings and comparing also works but costs O(n log n). If the input could be any Unicode text, as LeetCode's follow-up asks, the number of keys is no longer bounded by 26.",
+      "materials": [
+        "neetcode-150-practice-list",
+        "neetcode-roadmap-with-video-solutions"
+      ]
+    },
+    {
+      "id": "w03-l01-q06",
+      "concept": "w03-l01-counting-and-anagram-keys",
+      "type": "multiple_choice",
+      "prompt": "For Group Anagrams you need a dict key that is equal for any two anagrams and different otherwise. Which works?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`sorted(word)`, the list of the word's letters in order"
+        },
+        {
+          "id": "b",
+          "text": "`set(word)`, the letters the word contains"
+        },
+        {
+          "id": "c",
+          "text": "`tuple(sorted(word))` or `\"\".join(sorted(word))`"
+        },
+        {
+          "id": "d",
+          "text": "`hash(word)`, the word's hash value"
+        }
+      ],
+      "answer": "c",
+      "explanation": "Sorted letters are the same for all anagrams, but a dict key must be hashable, and `sorted` returns a list, which raises `TypeError: unhashable type: 'list'`; turn it into a tuple or a string. `set(word)` drops the counts, so `\"aab\"` and `\"abb\"` would share a key. `hash(word)` is computed from the exact string, so anagrams almost always get different values.",
+      "materials": [
+        "python-docs-design-faq",
+        "neetcode-150-practice-list"
+      ]
+    },
+    {
+      "id": "w03-l01-q07",
+      "concept": "w03-l01-counting-and-anagram-keys",
+      "type": "written",
+      "prompt": "Describe two ways to build the key in Group Anagrams, with the time complexity of each for n words of length up to k.",
+      "model_answer": {
+        "summary": "Sort each word's letters (O(k log k) per word, O(n·k log k) in total) or count its 26 letters into a tuple (O(k) per word, O(n·k) in total); either key is hashable and equal exactly for anagrams.",
+        "key_points": [
+          "Group the words in a dict from key to a list of words, and return the dict's values",
+          "Sorted-letters key, such as `tuple(sorted(word))`: O(k log k) per word, O(n·k log k) in total",
+          "Letter-count key: a tuple of 26 counts, O(k) per word, O(n·k) in total",
+          "The key must be hashable, which is why it's a tuple or a string rather than a list"
+        ]
+      },
+      "explanation": "Both keys map every anagram to the same value and everything else to different values. The count key avoids the sort, which matters when words are long; for short words the sorted key is simpler and fast enough.",
+      "materials": [
+        "neetcode-150-practice-list",
+        "neetcode-roadmap-with-video-solutions",
+        "python-docs-design-faq"
+      ]
+    },
+    {
+      "id": "w03-l01-q08",
+      "concept": "w03-l01-two-sum-hash-map",
+      "type": "multiple_choice",
+      "prompt": "This Two Sum inserts before it checks: for each `i, x`, first `seen[x] = i`, then `if target - x in seen: return [seen[target - x], i]`. What does it return for `nums = [3, 2, 4]`, `target = 6`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`[0, 0]`: it pairs the 3 with itself"
+        },
+        {
+          "id": "b",
+          "text": "`[1, 2]`: the correct answer"
+        },
+        {
+          "id": "c",
+          "text": "`[0, 2]`: the first and last elements"
+        },
+        {
+          "id": "d",
+          "text": "Nothing: it finds no pair and returns `None`"
+        }
+      ],
+      "answer": "a",
+      "explanation": "At `i = 0`, `x = 3` is stored first, so `target - x = 3` is found straight away and the function returns `[0, 0]`, using one element twice. Checking for the complement before storing the current element means `seen` only holds earlier indices, and the correct version returns `[1, 2]`.",
+      "materials": [
+        "neetcode-150-practice-list",
+        "neetcode-roadmap-with-video-solutions"
+      ]
+    },
+    {
+      "id": "w03-l01-q09",
+      "concept": "w03-l01-two-sum-hash-map",
+      "type": "written",
+      "prompt": "Explain the one-pass hash-map solution to Two Sum: what the map holds, what invariant makes it correct, and its time and space complexity.",
+      "model_answer": {
+        "summary": "The map goes from each value already seen to its index; for each element you look up `target - x` before adding `x`, so every pair is found when its second element is reached, in O(n) time and O(n) space.",
+        "key_points": [
+          "The map stores value → index for every element before the current position",
+          "For each element `x`, check whether `target - x` is in the map before inserting `x`, which stops an element pairing with itself",
+          "If the complement is there, return its stored index and the current index",
+          "Any valid pair is found when its later element is reached, because the earlier element is already in the map",
+          "O(n) average time, since each lookup and insert is O(1) on average, and O(n) extra space for the map"
+        ]
+      },
+      "explanation": "The invariant, \"`seen` holds exactly the elements to my left\", is what you should say out loud in the interview. It explains both why no pair is missed and why checking before inserting matters.",
+      "materials": [
+        "neetcode-150-practice-list",
+        "neetcode-roadmap-with-video-solutions"
+      ]
+    },
+    {
+      "id": "w03-l01-q10",
+      "concept": "w03-l01-two-sum-hash-map",
+      "type": "multiple_choice",
+      "prompt": "Compared with checking every pair, what does the hash-map solution to Two Sum trade?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It saves memory, but it needs the input sorted first"
+        },
+        {
+          "id": "b",
+          "text": "It is O(n log n) time, but it needs only O(1) extra space"
+        },
+        {
+          "id": "c",
+          "text": "It has the same O(n²) time, but it is simpler to write"
+        },
+        {
+          "id": "d",
+          "text": "It uses O(n) extra space to cut the time from O(n²) to O(n)"
+        }
+      ],
+      "answer": "d",
+      "explanation": "Checking every pair uses no extra memory but O(n²) time. The map remembers each value seen so far, O(n) extra space, so each complement lookup is O(1) on average and one pass is enough: O(n). Spending memory to save time like this is the pattern behind most hash-map solutions.",
+      "materials": [
+        "neetcode-150-practice-list",
+        "python-wiki-time-complexity"
+      ]
+    }
+  ]
+}

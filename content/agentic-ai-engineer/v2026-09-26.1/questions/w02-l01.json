@@ -66,15 +66,15 @@
         },
         {
           "id": "b",
-          "text": "Nothing: by default mypy doesn't type-check the body of a function without annotations"
+          "text": "Nothing: by default mypy skips the bodies of unannotated functions"
         },
         {
           "id": "c",
-          "text": "A warning that the function returns `Any`"
+          "text": "A warning that `count_tokens` implicitly returns `Any` and needs annotations"
         },
         {
           "id": "d",
-          "text": "It refuses to run until every function is annotated"
+          "text": "An error that `count_tokens` is missing the type annotations mypy requires"
         }
       ],
       "answer": "b",
@@ -120,11 +120,11 @@
       "choices": [
         {
           "id": "a",
-          "text": "Nothing: `| None` is only documentation"
+          "text": "Nothing: `| None` is only documentation, and mypy assumes the call always succeeds"
         },
         {
           "id": "b",
-          "text": "An error that `None` has no attribute `name`; check `if user is None:` first so mypy narrows the type to `User`"
+          "text": "An error that `None` has no attribute `name`; check `is None` first to narrow it"
         },
         {
           "id": "c",
@@ -132,7 +132,7 @@
         },
         {
           "id": "d",
-          "text": "An error only under `--strict`"
+          "text": "An error, but only under `--strict`; the default settings allow it"
         }
       ],
       "answer": "b",
@@ -150,19 +150,19 @@
       "choices": [
         {
           "id": "a",
-          "text": "A `TypedDict`"
+          "text": "A `TypedDict` built with `Args(**json.loads(s))`"
         },
         {
           "id": "b",
-          "text": "A `@dataclass`"
+          "text": "A `@dataclass` built with `Args(**json.loads(s))`"
         },
         {
           "id": "c",
-          "text": "A `Protocol`"
+          "text": "A `Protocol` checked with `isinstance(obj, Args)`"
         },
         {
           "id": "d",
-          "text": "A Pydantic model, with `model_validate_json`"
+          "text": "A Pydantic model's `model_validate_json`"
         }
       ],
       "answer": "d",
@@ -180,19 +180,19 @@
       "choices": [
         {
           "id": "a",
-          "text": "`spec` is a plain `dict` holding `42`; only a type checker would flag it"
+          "text": "`spec` is a plain `dict` holding `42`; only a type checker flags it"
         },
         {
           "id": "b",
-          "text": "`TypeError` is raised because `42` isn't a `str`"
+          "text": "`TypeError` is raised, because the constructor checks that `42` isn't a `str`"
         },
         {
           "id": "c",
-          "text": "`spec` is a `ToolSpec` object, so `spec.name` works"
+          "text": "`spec` is a `ToolSpec` instance, so `spec.name` and `spec.description` work"
         },
         {
           "id": "d",
-          "text": "`description` is converted to `\"42\"`"
+          "text": "`description` is quietly converted to the string `\"42\"`"
         }
       ],
       "answer": "a",
@@ -230,19 +230,19 @@
       "choices": [
         {
           "id": "a",
-          "text": "No: `FakeClient` must inherit from `LLMClient`"
+          "text": "No: `FakeClient` must list `LLMClient` as a base class to count as one"
         },
         {
           "id": "b",
-          "text": "Yes: a class matches a Protocol when it has all its members with compatible types"
+          "text": "Yes: matching members with compatible types are enough for a Protocol"
         },
         {
           "id": "c",
-          "text": "Only if `LLMClient` is decorated with `@runtime_checkable`"
+          "text": "Only if `LLMClient` is decorated with `@runtime_checkable` so mypy sees it"
         },
         {
           "id": "d",
-          "text": "Only if `FakeClient` is registered with `LLMClient.register`"
+          "text": "Only if `FakeClient` is first registered with `LLMClient.register(FakeClient)`"
         }
       ],
       "answer": "b",
@@ -259,19 +259,19 @@
       "choices": [
         {
           "id": "a",
-          "text": "`True`: the runtime check only looks for the members, not their signatures or types"
+          "text": "`True`: it only checks that the members exist, not their signatures"
         },
         {
           "id": "b",
-          "text": "`False`, because the signature doesn't match"
+          "text": "`False`, because the runtime check compares the method's signature too"
         },
         {
           "id": "c",
-          "text": "It raises `TypeError`"
+          "text": "It raises `TypeError`, because the signatures don't match"
         },
         {
           "id": "d",
-          "text": "`True` only if mypy passes on the class"
+          "text": "`True` only if mypy has also accepted the class"
         }
       ],
       "answer": "a",

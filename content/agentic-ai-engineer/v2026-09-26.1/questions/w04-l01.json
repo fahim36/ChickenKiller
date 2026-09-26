@@ -1,0 +1,293 @@
+{
+  "schema_version": 1,
+  "lesson_id": "w04-l01",
+  "concepts": [
+    {
+      "id": "w04-l01-idempotent-methods",
+      "name": "Safe and idempotent methods, and why they matter for retries"
+    },
+    {
+      "id": "w04-l01-status-codes",
+      "name": "Choosing the right status code"
+    },
+    {
+      "id": "w04-l01-common-headers",
+      "name": "`Content-Type`, `Authorization`, `Cache-Control` and `Retry-After`"
+    },
+    {
+      "id": "w04-l01-cors",
+      "name": "CORS is enforced by the browser"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w04-l01-q01",
+      "concept": "w04-l01-idempotent-methods",
+      "type": "multiple_choice",
+      "prompt": "A client's request times out and it can't tell whether the server applied it. Which request can it resend without risking a different end result?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`POST /orders` with a new order in the body"
+        },
+        {
+          "id": "b",
+          "text": "`PUT /users/42` with the full new user record"
+        },
+        {
+          "id": "c",
+          "text": "`PATCH /counters/7` with `{\"op\": \"increment\"}`"
+        },
+        {
+          "id": "d",
+          "text": "`POST /emails/send` with the message to send"
+        }
+      ],
+      "answer": "b",
+      "explanation": "RFC 9110 defines PUT, DELETE and the safe methods (GET, HEAD, OPTIONS, TRACE) as idempotent: sending the same request twice has the same intended effect as sending it once. A PUT replaces the resource with the enclosed state, so a repeat changes nothing. POST is not idempotent, so a resent order or email may be created twice. PATCH is not idempotent either (RFC 5789), and an \"increment\" patch shows why: each repeat adds one more.",
+      "materials": [
+        "rfc-9110-http-semantics",
+        "mdn-overview-of-http"
+      ]
+    },
+    {
+      "id": "w04-l01-q02",
+      "concept": "w04-l01-idempotent-methods",
+      "type": "written",
+      "prompt": "Explain what it means for an HTTP method to be idempotent. Which of GET, PUT, PATCH, POST and DELETE are idempotent, and why does this matter when a client retries?",
+      "model_answer": {
+        "summary": "A method is idempotent when repeating the same request has the same intended effect on the server as sending it once. GET, PUT and DELETE are; POST and PATCH are not, so only the first group is safe to retry blindly.",
+        "key_points": [
+          "Idempotent means several identical requests have the same intended effect on server state as one request",
+          "GET, PUT and DELETE are idempotent (GET is also safe: it doesn't change state)",
+          "POST is not idempotent, and PATCH is not guaranteed to be",
+          "After a timeout or dropped connection a client can safely resend an idempotent request, because a duplicate does no extra harm",
+          "Retrying a POST can create duplicates, so it needs something extra, such as a client-supplied key the server uses to deduplicate"
+        ]
+      },
+      "explanation": "RFC 9110 (section 9.2.2) defines idempotency by the effect on the server, not by the response, and notes that clients can automatically retry idempotent requests after a connection failure. RFC 5789 states that PATCH is neither safe nor idempotent. This is why an agent API that retries model or tool calls must know which of its endpoints are safe to repeat.",
+      "materials": [
+        "rfc-9110-http-semantics",
+        "mdn-overview-of-http"
+      ]
+    },
+    {
+      "id": "w04-l01-q03",
+      "concept": "w04-l01-idempotent-methods",
+      "type": "multiple_choice",
+      "prompt": "The first `DELETE /items/5` returns `204`. An identical second request returns `404`. Is DELETE still idempotent here?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Yes: idempotency is about the effect on the server, and the item is gone either way"
+        },
+        {
+          "id": "b",
+          "text": "No: the second response differs from the first, so the method isn't idempotent"
+        },
+        {
+          "id": "c",
+          "text": "Only if the server returns `204` for both requests instead of `404`"
+        },
+        {
+          "id": "d",
+          "text": "No: only safe methods such as GET and HEAD can be idempotent"
+        }
+      ],
+      "answer": "a",
+      "explanation": "RFC 9110 defines idempotency by the intended effect on the server of repeating the request. After one or many deletes the state is the same: item 5 does not exist. The status code of the repeat may differ, and that's fine. Idempotent is also wider than safe: PUT and DELETE change state, yet both are idempotent.",
+      "materials": [
+        "rfc-9110-http-semantics"
+      ]
+    },
+    {
+      "id": "w04-l01-q04",
+      "concept": "w04-l01-status-codes",
+      "type": "multiple_choice",
+      "prompt": "A request carries a valid token, so the server knows who the caller is, but that caller isn't allowed to perform the action. Which status code matches RFC 9110?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`401 Unauthorized`"
+        },
+        {
+          "id": "b",
+          "text": "`403 Forbidden`"
+        },
+        {
+          "id": "c",
+          "text": "`409 Conflict`"
+        },
+        {
+          "id": "d",
+          "text": "`422 Unprocessable Content`"
+        }
+      ],
+      "answer": "b",
+      "explanation": "403 means the server understood the request but refuses to fulfil it, which is what happens when an authenticated caller lacks permission. 401 is for a request that lacks valid authentication credentials; the server sends a `WWW-Authenticate` header saying how to authenticate. Re-authenticating won't help with a 403.",
+      "materials": [
+        "rfc-9110-http-semantics",
+        "mdn-http-status-codes"
+      ]
+    },
+    {
+      "id": "w04-l01-q05",
+      "concept": "w04-l01-status-codes",
+      "type": "multiple_choice",
+      "prompt": "A client is sending too many requests. Which response is the standard way to say so and to tell it when to try again?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`503 Service Unavailable` with `Cache-Control: no-store`"
+        },
+        {
+          "id": "b",
+          "text": "`409 Conflict` with `Retry-After: 30`"
+        },
+        {
+          "id": "c",
+          "text": "`429 Too Many Requests` with `Retry-After: 30`"
+        },
+        {
+          "id": "d",
+          "text": "`400 Bad Request` with a `Location` header"
+        }
+      ],
+      "answer": "c",
+      "explanation": "429 (RFC 6585) means the user has sent too many requests in a given amount of time, and the response may include `Retry-After` to say how long to wait. `Retry-After` takes either a number of seconds or an HTTP date. 503 means the server itself is temporarily unable to cope, not that this client is over its limit. 409 is for a conflict with the current state of a resource.",
+      "materials": [
+        "mdn-http-status-codes",
+        "rfc-9110-http-semantics"
+      ]
+    },
+    {
+      "id": "w04-l01-q06",
+      "concept": "w04-l01-status-codes",
+      "type": "written",
+      "prompt": "Your agent API runs behind a reverse proxy. Explain what `500`, `502` and `503` each tell a client, and which of them suggests that waiting and retrying may work.",
+      "model_answer": {
+        "summary": "500 means the application hit an error it couldn't handle; 502 means a gateway or proxy got an invalid response from the server behind it; 503 means the server is temporarily unable to handle requests. 503 is explicitly temporary, often with `Retry-After`.",
+        "key_points": [
+          "`500 Internal Server Error`: the server met an unexpected condition, such as an unhandled exception in your code",
+          "`502 Bad Gateway`: the proxy or gateway received an invalid response from the upstream server, for example because the app crashed",
+          "`503 Service Unavailable`: the server is temporarily overloaded or down for maintenance",
+          "503 is defined as temporary and may carry `Retry-After`, so the client should wait and retry, with backoff",
+          "Automatic retries are safest for idempotent requests; retrying a POST risks doing the work twice"
+        ]
+      },
+      "explanation": "RFC 9110 defines 502 as a gateway receiving an invalid response from an inbound server and 503 as a temporary inability to handle the request, for which the server may send `Retry-After`. A 500 usually means a bug, so an immediate retry often fails the same way.",
+      "materials": [
+        "rfc-9110-http-semantics",
+        "mdn-http-status-codes"
+      ]
+    },
+    {
+      "id": "w04-l01-q07",
+      "concept": "w04-l01-common-headers",
+      "type": "multiple_choice",
+      "prompt": "A response carries `Cache-Control: no-cache`. What may a cache do with it?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Nothing: the response must never be stored in any cache"
+        },
+        {
+          "id": "b",
+          "text": "Serve it from the cache for 60 seconds before asking the origin"
+        },
+        {
+          "id": "c",
+          "text": "Store it only in the browser, never in a shared proxy"
+        },
+        {
+          "id": "d",
+          "text": "Store it, but revalidate with the origin server before each reuse"
+        }
+      ],
+      "answer": "d",
+      "explanation": "`no-cache` does not mean \"don't cache\". It allows caches to store the response but requires them to revalidate it with the origin before every reuse (RFC 9111). If you want nothing stored at all, for example for a response with personal data, use `no-store`. Keeping a response out of shared caches only is what `private` does.",
+      "materials": [
+        "mdn-cache-control-header",
+        "mdn-overview-of-http"
+      ]
+    },
+    {
+      "id": "w04-l01-q08",
+      "concept": "w04-l01-common-headers",
+      "type": "multiple_choice",
+      "prompt": "A client sends `POST /chat` with a JSON body. Which request header tells the server how to parse that body?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`Content-Type: application/json`"
+        },
+        {
+          "id": "b",
+          "text": "`Accept: application/json`"
+        },
+        {
+          "id": "c",
+          "text": "`Authorization: application/json`"
+        },
+        {
+          "id": "d",
+          "text": "`Cache-Control: application/json`"
+        }
+      ],
+      "answer": "a",
+      "explanation": "`Content-Type` describes the media type of the body being sent. `Accept` says which media types the client wants back in the response, so it is the tempting wrong answer. `Authorization` carries credentials such as `Bearer <token>`, and `Cache-Control` carries caching directives.",
+      "materials": [
+        "mdn-overview-of-http"
+      ]
+    },
+    {
+      "id": "w04-l01-q09",
+      "concept": "w04-l01-cors",
+      "type": "multiple_choice",
+      "prompt": "A page at `https://app.example.com` calls `fetch()` to POST JSON (`Content-Type: application/json`) to `https://api.example.com`. What does the browser do first?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It sends the POST, then blocks it if the server has no CORS middleware"
+        },
+        {
+          "id": "b",
+          "text": "Nothing special: both hosts are under `example.com`, so the request is same-origin"
+        },
+        {
+          "id": "c",
+          "text": "It sends an `OPTIONS` preflight: `application/json` isn't CORS-safelisted"
+        },
+        {
+          "id": "d",
+          "text": "It shows the user a prompt to approve the cross-origin request first"
+        }
+      ],
+      "answer": "c",
+      "explanation": "An origin is the scheme, host and port, so two subdomains are different origins. A request is \"simple\" (no preflight) only if it uses GET, HEAD or POST with safelisted headers, and a `Content-Type` of `application/x-www-form-urlencoded`, `multipart/form-data` or `text/plain`. JSON isn't on that list, so the browser first sends `OPTIONS` with `Access-Control-Request-Method` and `Access-Control-Request-Headers`, and sends the POST only if the server's reply allows it.",
+      "materials": [
+        "mdn-cors-guide"
+      ]
+    },
+    {
+      "id": "w04-l01-q10",
+      "concept": "w04-l01-cors",
+      "type": "written",
+      "prompt": "A teammate says: \"We configured CORS to allow only our frontend's origin, so nobody else can call our API.\" Explain what's wrong with that claim, and what actually protects the API.",
+      "model_answer": {
+        "summary": "CORS is enforced by browsers: it tells a browser which other origins' scripts may read responses. It does nothing against curl, scripts or other servers, so the API still needs real authentication and authorisation.",
+        "key_points": [
+          "The browser enforces CORS; the server only sends headers such as `Access-Control-Allow-Origin`",
+          "CORS limits which web pages' JavaScript can read responses in a browser; it is not access control",
+          "Non-browser clients such as curl, Postman or a Python script ignore CORS entirely",
+          "Protecting the API needs authentication and authorisation (API keys, tokens) checked on the server",
+          "For credentialed requests the server can't use the `*` wildcard and must name the allowed origin"
+        ]
+      },
+      "explanation": "MDN describes CORS as a header-based mechanism that lets a server tell a browser which origins it should permit. The same-origin policy is a browser rule, so a request from outside a browser never meets it. Treat CORS as a way to relax the browser's rule for your own frontend, never as a security boundary.",
+      "materials": [
+        "mdn-cors-guide"
+      ]
+    }
+  ]
+}

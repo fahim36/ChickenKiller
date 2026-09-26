@@ -1,0 +1,326 @@
+{
+  "schema_version": 1,
+  "lesson_id": "w10-l03",
+  "concepts": [
+    {
+      "id": "w10-l03-sse-vs-websockets",
+      "name": "Server-sent events vs WebSockets"
+    },
+    {
+      "id": "w10-l03-sse-format-reconnect",
+      "name": "The SSE event format and reconnection"
+    },
+    {
+      "id": "w10-l03-backpressure-timeouts",
+      "name": "Backpressure and idle timeouts"
+    },
+    {
+      "id": "w10-l03-client-disconnects",
+      "name": "Handling client disconnects"
+    },
+    {
+      "id": "w10-l03-tool-progress-events",
+      "name": "Streaming tool-call progress to the UI"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w10-l03-q01",
+      "concept": "w10-l03-sse-vs-websockets",
+      "type": "multiple_choice",
+      "prompt": "A chat UI sends each user message with a normal HTTP POST and needs the answer streamed back token by token. Which transport fits best, and why?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "WebSockets, because server-sent events can't carry JSON"
+        },
+        {
+          "id": "b",
+          "text": "Server-sent events, because the stream only flows from server to client and SSE runs over plain HTTP"
+        },
+        {
+          "id": "c",
+          "text": "WebSockets, because server-sent events never reconnect after a dropped connection"
+        },
+        {
+          "id": "d",
+          "text": "Long polling, because streaming responses don't work through proxies"
+        }
+      ],
+      "answer": "b",
+      "explanation": "SSE is one-way, from server to client, which is exactly a streamed answer. It is plain HTTP with `Content-Type: text/event-stream`, and the browser's `EventSource` reconnects on its own. `data:` lines can carry any text, including JSON. WebSockets are for two-way sessions where the client also sends a stream of messages.",
+      "materials": [
+        "mdn-server-sent-events",
+        "mdn-websockets-api"
+      ]
+    },
+    {
+      "id": "w10-l03-q02",
+      "concept": "w10-l03-sse-vs-websockets",
+      "type": "multiple_choice",
+      "prompt": "Your app opens one `EventSource` per browser tab over HTTP/1.1. Users with many tabs open say the seventh tab's stream never starts. Why?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`EventSource` allows only one connection per page, and later ones wait in a queue"
+        },
+        {
+          "id": "b",
+          "text": "The server's `retry` field is too low, so the new tab gives up before connecting"
+        },
+        {
+          "id": "c",
+          "text": "Browsers cap HTTP/1.1 at about 6 connections per domain; each SSE stream holds one"
+        },
+        {
+          "id": "d",
+          "text": "SSE streams time out after six minutes, and the seventh tab starts too late"
+        }
+      ],
+      "answer": "c",
+      "explanation": "MDN warns that without HTTP/2, SSE hits the browser's limit of 6 open connections per browser and domain, shared across all tabs, and browsers have marked this 'won't fix'. Over HTTP/2 the default is about 100 concurrent streams. Serve over HTTP/2, or share one stream between tabs.",
+      "materials": [
+        "mdn-server-sent-events"
+      ]
+    },
+    {
+      "id": "w10-l03-q03",
+      "concept": "w10-l03-sse-vs-websockets",
+      "type": "written",
+      "prompt": "Compare server-sent events and WebSockets for streaming an agent's answer to a browser. When would you choose WebSockets instead?",
+      "model_answer": {
+        "summary": "SSE is a one-way stream over ordinary HTTP with built-in reconnection, which fits streamed answers. WebSockets are a two-way channel, worth it when the client must also send a continuous stream of messages.",
+        "key_points": [
+          "SSE: one-way (server to client) over plain HTTP with `text/event-stream`, so it works with ordinary HTTP servers and proxies",
+          "SSE: the browser's `EventSource` reconnects automatically and sends `Last-Event-ID`, so the server can resume",
+          "`EventSource` only makes GET requests and only takes a `withCredentials` option, so no custom headers or body; a `fetch`-based reader can stream a POST response instead",
+          "WebSockets: a two-way interactive session, for cases like the user interrupting mid-stream, voice, or live collaboration",
+          "The classic `WebSocket` API has no backpressure: messages that arrive faster than you handle them get buffered"
+        ]
+      },
+      "explanation": "Most chat UIs send a request and stream a response, so SSE (or a streamed HTTP response) is the simpler choice. Reach for WebSockets when the traffic really is two-way.",
+      "materials": [
+        "mdn-server-sent-events",
+        "mdn-websockets-api"
+      ]
+    },
+    {
+      "id": "w10-l03-q04",
+      "concept": "w10-l03-sse-format-reconnect",
+      "type": "multiple_choice",
+      "prompt": "Which bytes make one valid SSE message with the event name `tool` and a JSON payload?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`event: tool`, then `data: {\"name\": \"search\"}`, then a blank line"
+        },
+        {
+          "id": "b",
+          "text": "`{\"event\": \"tool\", \"data\": {\"name\": \"search\"}}` on a single line"
+        },
+        {
+          "id": "c",
+          "text": "`type: tool`, then `data: {\"name\": \"search\"}`, then a blank line"
+        },
+        {
+          "id": "d",
+          "text": "`event: tool`, then `data: {\"name\": \"search\"}`, with no blank line until the stream closes"
+        }
+      ],
+      "answer": "a",
+      "explanation": "An SSE message is a set of `field: value` lines ended by a blank line (two newlines). `event` sets the name, which the client handles with `addEventListener(\"tool\", ...)`; `data` carries the payload. There is no `type` field, and without the blank line the browser doesn't dispatch the message yet.",
+      "materials": [
+        "mdn-server-sent-events"
+      ]
+    },
+    {
+      "id": "w10-l03-q05",
+      "concept": "w10-l03-sse-format-reconnect",
+      "type": "multiple_choice",
+      "prompt": "The connection drops halfway through a streamed answer and `EventSource` reconnects. How can the server continue without resending tokens the client already has?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Put the number of tokens sent so far in the `retry` field of each event"
+        },
+        {
+          "id": "b",
+          "text": "Nothing is needed: `EventSource` buffers and replays the events it had already received"
+        },
+        {
+          "id": "c",
+          "text": "Send an HTTP 204 so the browser resumes the stream from where it stopped"
+        },
+        {
+          "id": "d",
+          "text": "Give each event an `id:`; on reconnect the browser sends it back as `Last-Event-ID`"
+        }
+      ],
+      "answer": "d",
+      "explanation": "The `id` field sets the stream's last event ID, and the browser sends it as `Last-Event-ID` when it reconnects. The server can then skip what the client already has. `retry` only sets the reconnection delay in milliseconds, and an HTTP 204 response tells the browser to stop reconnecting.",
+      "materials": [
+        "mdn-server-sent-events",
+        "fastapi-server-sent-events"
+      ]
+    },
+    {
+      "id": "w10-l03-q06",
+      "concept": "w10-l03-backpressure-timeouts",
+      "type": "multiple_choice",
+      "prompt": "What does backpressure mean in a stream?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The consumer signals up the chain so the producer slows down instead of filling a buffer"
+        },
+        {
+          "id": "b",
+          "text": "The server resends chunks the client didn't acknowledge, pushing them back into the stream"
+        },
+        {
+          "id": "c",
+          "text": "The client compresses chunks when the network is slow, to relieve the pressure on it"
+        },
+        {
+          "id": "d",
+          "text": "The producer sends chunks faster to empty its queue before the consumer falls behind"
+        }
+      ],
+      "answer": "a",
+      "explanation": "MDN's Streams API describes backpressure as a stream later in the chain telling earlier ones to slow delivery when it isn't ready for more. Without it, a fast producer and a slow consumer mean an ever-growing buffer, and memory runs out. MDN notes that the classic `WebSocket` API has no backpressure for this reason.",
+      "materials": [
+        "mdn-streams-api-concepts",
+        "mdn-websockets-api"
+      ]
+    },
+    {
+      "id": "w10-l03-q07",
+      "concept": "w10-l03-backpressure-timeouts",
+      "type": "multiple_choice",
+      "prompt": "A proxy closes connections that are idle for 60 seconds. Your agent spends 90 seconds inside a tool call without sending any tokens, and the stream dies. What's the usual fix?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Set the SSE `retry` field to 90000 so the proxy waits longer"
+        },
+        {
+          "id": "b",
+          "text": "Respond with HTTP 204 while the tool runs, then resume the stream"
+        },
+        {
+          "id": "c",
+          "text": "Send a comment line such as `: ping` every few seconds while idle"
+        },
+        {
+          "id": "d",
+          "text": "Raise the `EventSource` timeout option in the browser to 120 seconds"
+        }
+      ],
+      "answer": "c",
+      "explanation": "Lines starting with `:` are SSE comments: the client ignores them, but they keep bytes flowing so proxies don't see the connection as idle. FastAPI's `EventSourceResponse` (FastAPI 0.135+) sends such a ping every 15 seconds on its own. `retry` only changes the reconnect delay, 204 ends the stream, and `EventSource` has no timeout option.",
+      "materials": [
+        "mdn-server-sent-events",
+        "fastapi-server-sent-events"
+      ]
+    },
+    {
+      "id": "w10-l03-q08",
+      "concept": "w10-l03-client-disconnects",
+      "type": "multiple_choice",
+      "prompt": "A user closes the tab halfway through a long streamed answer. What should your server do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Nothing: the model provider stops generating as soon as the browser disconnects"
+        },
+        {
+          "id": "b",
+          "text": "Stop producing events and cancel the upstream model and tool calls, so you stop paying for tokens nobody will read"
+        },
+        {
+          "id": "c",
+          "text": "Keep streaming to the closed socket until the model finishes, so the answer is complete in the logs"
+        },
+        {
+          "id": "d",
+          "text": "Send HTTP 204 so the browser knows not to reconnect"
+        }
+      ],
+      "answer": "b",
+      "explanation": "The provider only sees your server's connection to it, which stays open until your code closes it. Starlette notices the client's `http.disconnect` and stops the streaming response; your generator should then cancel the upstream request and clean up (in a `finally` block). An HTTP 204 is how a server tells a reconnecting client to stop; it can't reach a closed tab.",
+      "materials": [
+        "fastapi-server-sent-events",
+        "mdn-server-sent-events"
+      ]
+    },
+    {
+      "id": "w10-l03-q09",
+      "concept": "w10-l03-client-disconnects",
+      "type": "written",
+      "prompt": "Explain how a FastAPI SSE endpoint should handle a client that disconnects mid-stream, and why it matters for an LLM app.",
+      "model_answer": {
+        "summary": "Detect the disconnect, stop the stream, and cancel the work behind it, because an upstream model call keeps costing money until your server cancels it.",
+        "key_points": [
+          "The server notices the disconnect (an ASGI `http.disconnect` message; Starlette stops the streaming response)",
+          "The generator stops producing, and cleanup runs in `finally`: cancel the upstream model request and any running tool calls",
+          "Otherwise the model keeps generating tokens that are billed but never read, and holds a connection and worker",
+          "Record the run as cancelled with the tokens used so far, rather than as an error or a success"
+        ]
+      },
+      "explanation": "The browser's connection and your server's connection to the model are separate. Closing the first doesn't close the second: your code has to.",
+      "materials": [
+        "fastapi-server-sent-events"
+      ]
+    },
+    {
+      "id": "w10-l03-q10",
+      "concept": "w10-l03-tool-progress-events",
+      "type": "multiple_choice",
+      "prompt": "Your agent should show \"calling search...\" while a tool runs, and keep streaming answer tokens on the same connection. Which design works best?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Open a second SSE connection just for tool events, alongside the token stream"
+        },
+        {
+          "id": "b",
+          "text": "Insert the words \"calling search...\" into the text tokens so the client shows them"
+        },
+        {
+          "id": "c",
+          "text": "Poll a status endpoint once a second from the browser while the stream runs"
+        },
+        {
+          "id": "d",
+          "text": "Send typed events on one stream: token events for text, tool events for status"
+        }
+      ],
+      "answer": "d",
+      "explanation": "One stream with typed events keeps everything in order and costs one connection. Named SSE events (`event: token`, `event: tool`) or typed JSON parts let the client render each kind differently; the AI SDK's UI message stream uses parts such as `text-delta`, `tool-input-available` and `tool-output-available`. Mixing status into the text pollutes the answer, and a second stream or polling loses ordering and adds connections.",
+      "materials": [
+        "mdn-server-sent-events",
+        "ai-sdk-stream-protocols"
+      ]
+    },
+    {
+      "id": "w10-l03-q11",
+      "concept": "w10-l03-tool-progress-events",
+      "type": "written",
+      "prompt": "Design the events your server streams for one agent turn that calls one tool and then answers. What does each event carry?",
+      "model_answer": {
+        "summary": "Send typed events in order: tool started, tool finished, text deltas, then a finish or error event, with an ID that ties each tool's start and end together.",
+        "key_points": [
+          "A tool-start event with the tool name and a tool-call ID, sent before the tool runs, so the UI can show \"calling X...\"",
+          "A tool-end event with the same ID and a status (success or error), and optionally a short result",
+          "Text-delta events carrying the answer tokens as they arrive",
+          "A final finish event (or an error event) so the client knows the turn is over"
+        ]
+      },
+      "explanation": "The call ID is what lets the UI match a tool's start to its end when several tools run. The AI SDK's UI message stream protocol is a worked example: `tool-input-start`, `tool-input-available`, `tool-output-available`, `text-delta` and `finish` parts over SSE.",
+      "materials": [
+        "ai-sdk-stream-protocols",
+        "mdn-server-sent-events"
+      ]
+    }
+  ]
+}

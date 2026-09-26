@@ -1,0 +1,326 @@
+{
+  "schema_version": 1,
+  "lesson_id": "w04-l03",
+  "concepts": [
+    {
+      "id": "w04-l03-select-evaluation-order",
+      "name": "How `SELECT`, `WHERE`, `ORDER BY` and `LIMIT` are evaluated"
+    },
+    {
+      "id": "w04-l03-inner-vs-left-join",
+      "name": "`INNER JOIN` vs `LEFT JOIN`"
+    },
+    {
+      "id": "w04-l03-group-by-having",
+      "name": "`GROUP BY`, `HAVING` and aggregates"
+    },
+    {
+      "id": "w04-l03-subqueries-and-ctes",
+      "name": "Subqueries and CTEs (`WITH`)"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w04-l03-q01",
+      "concept": "w04-l03-select-evaluation-order",
+      "type": "multiple_choice",
+      "prompt": "Schema: `conversations(id, user_id, title, created_at)` and `messages(id, conversation_id, role, content, tokens, created_at)`. Which query returns the 10 most recent messages?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`SELECT * FROM messages LIMIT 10`"
+        },
+        {
+          "id": "b",
+          "text": "`SELECT * FROM messages ORDER BY created_at LIMIT 10`"
+        },
+        {
+          "id": "c",
+          "text": "`SELECT * FROM messages LIMIT 10 ORDER BY created_at DESC`"
+        },
+        {
+          "id": "d",
+          "text": "`SELECT * FROM messages ORDER BY created_at DESC LIMIT 10`"
+        }
+      ],
+      "answer": "d",
+      "explanation": "Sort newest first, then keep 10 rows: `ORDER BY created_at DESC LIMIT 10`. Without `ORDER BY` the rows come back in whatever order is fastest, so `LIMIT` gives an unpredictable subset. Ascending order gives the 10 oldest. `LIMIT` must come after `ORDER BY`; the other way round is a syntax error.",
+      "materials": [
+        "postgresql-docs-queries",
+        "sqlbolt-interactive-sql-lessons"
+      ]
+    },
+    {
+      "id": "w04-l03-q02",
+      "concept": "w04-l03-select-evaluation-order",
+      "type": "multiple_choice",
+      "prompt": "Why does PostgreSQL reject `SELECT content, length(content) AS len FROM messages WHERE len > 100`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`WHERE` runs before the select list, so `len` doesn't exist yet"
+        },
+        {
+          "id": "b",
+          "text": "`length()` can't be called inside a `WHERE` clause, only in the select list"
+        },
+        {
+          "id": "c",
+          "text": "The query needs a `GROUP BY` because it calls a function on a column"
+        },
+        {
+          "id": "d",
+          "text": "`len` is a reserved word in PostgreSQL, so it can't be an alias"
+        }
+      ],
+      "answer": "a",
+      "explanation": "PostgreSQL evaluates `FROM`, then `WHERE`, then grouping, and only then computes the output columns. An output column's name can be used in `ORDER BY` and `GROUP BY` but not in `WHERE` or `HAVING`, so this fails with `column \"len\" does not exist`. Write `WHERE length(content) > 100` instead. Functions are fine in `WHERE`, and `length` is not an aggregate.",
+      "materials": [
+        "postgresql-docs-queries",
+        "postgresql-tutorial"
+      ]
+    },
+    {
+      "id": "w04-l03-q03",
+      "concept": "w04-l03-inner-vs-left-join",
+      "type": "multiple_choice",
+      "prompt": "There are 3 conversations. Two have 2 messages each; one has none. How many rows does `SELECT c.id, m.id FROM conversations c LEFT JOIN messages m ON m.conversation_id = c.id` return?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "3"
+        },
+        {
+          "id": "b",
+          "text": "4"
+        },
+        {
+          "id": "c",
+          "text": "5"
+        },
+        {
+          "id": "d",
+          "text": "7"
+        }
+      ],
+      "answer": "c",
+      "explanation": "A `LEFT JOIN` first does the inner join (2 + 2 = 4 rows), then adds one row, with nulls for the `messages` columns, for each conversation that matched nothing. That gives 5. An `INNER JOIN` would return 4, and 3 would mean one row per conversation, which a join doesn't do.",
+      "materials": [
+        "postgresql-docs-queries",
+        "sqlbolt-interactive-sql-lessons"
+      ]
+    },
+    {
+      "id": "w04-l03-q04",
+      "concept": "w04-l03-inner-vs-left-join",
+      "type": "multiple_choice",
+      "prompt": "You want every conversation with its number of `user` messages, including conversations that have none (count 0). Which query is right?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`SELECT c.id, COUNT(m.id) FROM conversations c LEFT JOIN messages m ON m.conversation_id = c.id AND m.role = 'user' GROUP BY c.id`"
+        },
+        {
+          "id": "b",
+          "text": "`SELECT c.id, COUNT(m.id) FROM conversations c LEFT JOIN messages m ON m.conversation_id = c.id WHERE m.role = 'user' GROUP BY c.id`"
+        },
+        {
+          "id": "c",
+          "text": "`SELECT c.id, COUNT(*) FROM conversations c LEFT JOIN messages m ON m.conversation_id = c.id AND m.role = 'user' GROUP BY c.id`"
+        },
+        {
+          "id": "d",
+          "text": "`SELECT c.id, COUNT(m.id) FROM conversations c JOIN messages m ON m.conversation_id = c.id AND m.role = 'user' GROUP BY c.id`"
+        }
+      ],
+      "answer": "a",
+      "explanation": "A condition in `ON` is applied before the outer join, so conversations with no user messages survive with null `m` columns. `COUNT(m.id)` ignores nulls and reports 0 for them. Putting `m.role = 'user'` in `WHERE` runs after the join and throws away those null rows. `COUNT(*)` counts the null-padded row and reports 1. An inner join drops the conversations entirely.",
+      "materials": [
+        "postgresql-docs-queries",
+        "postgresql-tutorial"
+      ]
+    },
+    {
+      "id": "w04-l03-q05",
+      "concept": "w04-l03-inner-vs-left-join",
+      "type": "written",
+      "prompt": "Explain the difference between `INNER JOIN` and `LEFT JOIN`, and why a `WHERE` condition on the right-hand table can make a `LEFT JOIN` behave like an inner join.",
+      "model_answer": {
+        "summary": "An inner join keeps only rows that match on both sides; a left join also keeps every left row that has no match, filling the right side with nulls. A `WHERE` test on a right-hand column runs after the join and discards those null-filled rows.",
+        "key_points": [
+          "`INNER JOIN` returns only pairs of rows that satisfy the join condition",
+          "`LEFT JOIN` returns every row from the left table at least once; unmatched rows get nulls for the right table's columns",
+          "Conditions in `ON` are applied before the join; conditions in `WHERE` are applied after it",
+          "A `WHERE` test such as `m.role = 'user'` is not true for a null row, so the unmatched left rows are dropped",
+          "To keep unmatched rows, put the right-table filter in the `ON` clause"
+        ]
+      },
+      "explanation": "The PostgreSQL docs make this point directly: a restriction in `ON` is processed before the join, a restriction in `WHERE` after it, and that matters a lot for outer joins.",
+      "materials": [
+        "postgresql-docs-queries",
+        "sqlbolt-interactive-sql-lessons"
+      ]
+    },
+    {
+      "id": "w04-l03-q06",
+      "concept": "w04-l03-group-by-having",
+      "type": "multiple_choice",
+      "prompt": "Which query lists the conversations that have more than 20 messages?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`SELECT conversation_id FROM messages WHERE COUNT(*) > 20 GROUP BY conversation_id`"
+        },
+        {
+          "id": "b",
+          "text": "`SELECT conversation_id FROM messages GROUP BY conversation_id HAVING COUNT(*) > 20`"
+        },
+        {
+          "id": "c",
+          "text": "`SELECT conversation_id FROM messages GROUP BY conversation_id ORDER BY COUNT(*) DESC LIMIT 20`"
+        },
+        {
+          "id": "d",
+          "text": "`SELECT conversation_id, COUNT(*) > 20 FROM messages GROUP BY conversation_id`"
+        }
+      ],
+      "answer": "b",
+      "explanation": "`HAVING` filters groups after the aggregates are computed, so it can test `COUNT(*)`. `WHERE` runs before grouping, and PostgreSQL rejects it with \"aggregate functions are not allowed in WHERE\". The `ORDER BY ... LIMIT 20` query returns the top 20 conversations whatever their size. The last query returns every conversation with a true or false column.",
+      "materials": [
+        "postgresql-docs-queries",
+        "sqlbolt-interactive-sql-lessons"
+      ]
+    },
+    {
+      "id": "w04-l03-q07",
+      "concept": "w04-l03-group-by-having",
+      "type": "multiple_choice",
+      "prompt": "What does `SELECT SUM(tokens) FROM messages WHERE conversation_id = 999` return when no messages match?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "One row containing `0`"
+        },
+        {
+          "id": "b",
+          "text": "No rows at all"
+        },
+        {
+          "id": "c",
+          "text": "One row containing `NULL`"
+        },
+        {
+          "id": "d",
+          "text": "An error, because `SUM` needs at least one row"
+        }
+      ],
+      "answer": "c",
+      "explanation": "An aggregate without `GROUP BY` always returns exactly one row. The PostgreSQL docs point out that every aggregate except `count` returns null, not zero, when no rows are selected. Use `COALESCE(SUM(tokens), 0)` if you want 0.",
+      "materials": [
+        "postgresql-docs-queries",
+        "postgresql-tutorial"
+      ]
+    },
+    {
+      "id": "w04-l03-q08",
+      "concept": "w04-l03-group-by-having",
+      "type": "written",
+      "prompt": "Explain the difference between `WHERE` and `HAVING`, and give a query about conversations or messages that needs both.",
+      "model_answer": {
+        "summary": "`WHERE` filters individual rows before they are grouped; `HAVING` filters whole groups after the aggregates are computed. A query that restricts rows and then tests an aggregate needs both.",
+        "key_points": [
+          "`WHERE` is applied to rows before `GROUP BY`, so it can't use aggregate functions",
+          "`HAVING` is applied to groups after `GROUP BY`, so it can test aggregates such as `COUNT(*)`",
+          "Filtering rows early in `WHERE` also means less data to group",
+          "A valid example, such as: users with more than 5 conversations created this year: `WHERE created_at >= '2026-01-01' GROUP BY user_id HAVING COUNT(*) > 5`"
+        ]
+      },
+      "explanation": "PostgreSQL's order of evaluation is `FROM`, `WHERE`, `GROUP BY` and aggregates, `HAVING`, then the select list, `ORDER BY` and `LIMIT`. Where each clause sits in that order is what decides what it can see.",
+      "materials": [
+        "postgresql-docs-queries",
+        "sqlbolt-interactive-sql-lessons"
+      ]
+    },
+    {
+      "id": "w04-l03-q09",
+      "concept": "w04-l03-subqueries-and-ctes",
+      "type": "multiple_choice",
+      "prompt": "What does this return?\n\n```sql\nWITH per_conv AS (\n  SELECT conversation_id, COUNT(*) AS n\n  FROM messages\n  GROUP BY conversation_id\n)\nSELECT AVG(n) FROM per_conv;\n```",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The average number of messages across all conversations, counting empty ones as 0"
+        },
+        {
+          "id": "b",
+          "text": "The total number of messages in the table"
+        },
+        {
+          "id": "c",
+          "text": "An error, because an aggregate can't be applied to a CTE's output"
+        },
+        {
+          "id": "d",
+          "text": "The average number of messages per conversation that has at least one message"
+        }
+      ],
+      "answer": "d",
+      "explanation": "The CTE builds one row per `conversation_id` that appears in `messages`, with its count. `AVG(n)` averages those rows. A conversation with no messages never appears in `messages`, so it isn't in `per_conv` and isn't counted as 0. To include it, start from `conversations` and `LEFT JOIN` the messages.",
+      "materials": [
+        "postgresql-docs-queries",
+        "postgresql-tutorial"
+      ]
+    },
+    {
+      "id": "w04-l03-q10",
+      "concept": "w04-l03-subqueries-and-ctes",
+      "type": "multiple_choice",
+      "prompt": "Which query finds conversations that have no messages?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`SELECT id FROM conversations c WHERE NOT EXISTS (SELECT 1 FROM messages m WHERE m.conversation_id = c.id)`"
+        },
+        {
+          "id": "b",
+          "text": "`SELECT id FROM conversations WHERE id NOT IN (SELECT id FROM messages)`"
+        },
+        {
+          "id": "c",
+          "text": "`SELECT c.id FROM conversations c JOIN messages m ON m.conversation_id = c.id WHERE m.id IS NULL`"
+        },
+        {
+          "id": "d",
+          "text": "`SELECT c.id FROM conversations c LEFT JOIN messages m ON m.conversation_id = c.id GROUP BY c.id HAVING COUNT(*) = 0`"
+        }
+      ],
+      "answer": "a",
+      "explanation": "The correlated `NOT EXISTS` subquery checks, for each conversation, whether any message points at it. The `NOT IN` version compares conversation IDs with message IDs, which is the wrong column. The inner join never produces a null `m.id`, so it returns nothing. In the last query `COUNT(*)` counts the null-padded row, so it is never 0; `COUNT(m.id) = 0` would work.",
+      "materials": [
+        "postgresql-docs-queries",
+        "postgresql-tutorial"
+      ]
+    },
+    {
+      "id": "w04-l03-q11",
+      "concept": "w04-l03-subqueries-and-ctes",
+      "type": "written",
+      "prompt": "Compare a CTE (`WITH`) with an inline subquery. When would you reach for `WITH`, and does PostgreSQL always compute a CTE separately from the main query?",
+      "model_answer": {
+        "summary": "A CTE names an auxiliary query for one statement, which makes multi-step queries readable and lets you refer to a step more than once. Since PostgreSQL 12, a simple CTE used once is folded into the main query, so it isn't always computed separately.",
+        "key_points": [
+          "A CTE is a named temporary result that exists only for the one statement it is attached to",
+          "Use `WITH` to break a query into readable steps, or to reuse one intermediate result several times",
+          "PostgreSQL 12+: a non-recursive, side-effect-free CTE referenced once is inlined into the parent query and optimised with it",
+          "A CTE referenced more than once is computed once (materialised) by default; `MATERIALIZED` and `NOT MATERIALIZED` override the choice",
+          "`WITH RECURSIVE` lets a CTE refer to its own output, for hierarchies such as threads of replies"
+        ]
+      },
+      "explanation": "Before PostgreSQL 12 every CTE was an optimisation fence, and older blog posts still say so. The current docs describe the inlining rule and the `MATERIALIZED` / `NOT MATERIALIZED` keywords.",
+      "materials": [
+        "postgresql-docs-queries",
+        "postgresql-tutorial"
+      ]
+    }
+  ]
+}

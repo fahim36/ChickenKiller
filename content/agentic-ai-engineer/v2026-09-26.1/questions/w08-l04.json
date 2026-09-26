@@ -1,0 +1,351 @@
+{
+  "schema_version": 1,
+  "lesson_id": "w08-l04",
+  "concepts": [
+    {
+      "id": "w08-l04-host-client-server",
+      "name": "Host, client and server roles"
+    },
+    {
+      "id": "w08-l04-server-primitives",
+      "name": "Tools, resources and prompts, and who controls each"
+    },
+    {
+      "id": "w08-l04-client-features",
+      "name": "Elicitation and sampling: a server asking the client for input"
+    },
+    {
+      "id": "w08-l04-json-rpc-messages",
+      "name": "JSON-RPC 2.0 messages and per-request metadata"
+    },
+    {
+      "id": "w08-l04-transports",
+      "name": "Transports: stdio vs Streamable HTTP"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w08-l04-q01",
+      "concept": "w08-l04-host-client-server",
+      "type": "multiple_choice",
+      "prompt": "Claude Desktop is connected to a GitHub MCP server and a Postgres MCP server. How many MCP clients are involved?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "One: Claude Desktop is the client for every server"
+        },
+        {
+          "id": "b",
+          "text": "None: the model connects to the servers directly"
+        },
+        {
+          "id": "c",
+          "text": "Two: the host creates one client per server"
+        },
+        {
+          "id": "d",
+          "text": "Three: one per server plus one for the model"
+        }
+      ],
+      "answer": "c",
+      "explanation": "In MCP the host (the application, here Claude Desktop) creates and manages client instances, and each client communicates with exactly one server. Two servers means two clients. The host coordinates them and the model; the model itself never talks MCP.",
+      "materials": [
+        "mcp-specification",
+        "model-context-protocol-documentation"
+      ]
+    },
+    {
+      "id": "w08-l04-q02",
+      "concept": "w08-l04-host-client-server",
+      "type": "multiple_choice",
+      "prompt": "According to MCP's design principles, what can a connected server see of the user's conversation?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Only the context it needs; servers can't see the full conversation or each other"
+        },
+        {
+          "id": "b",
+          "text": "The whole conversation, so it can choose which tools to offer the model"
+        },
+        {
+          "id": "c",
+          "text": "The whole conversation, but not the tool results from other servers"
+        },
+        {
+          "id": "d",
+          "text": "Everything the other connected servers have returned, so their tools can cooperate"
+        }
+      ],
+      "answer": "a",
+      "explanation": "The spec says servers should not be able to read the whole conversation, nor see into other servers. Servers get only the context each request carries; the host keeps the full history and controls any cross-server interaction. That isolation is a security boundary, not just a convenience.",
+      "materials": [
+        "mcp-specification"
+      ]
+    },
+    {
+      "id": "w08-l04-q03",
+      "concept": "w08-l04-server-primitives",
+      "type": "multiple_choice",
+      "prompt": "A server offers a `summarise-pr` template that users choose from a slash-command menu. Which MCP primitive is it, and who controls when it's used?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A tool, controlled by the model"
+        },
+        {
+          "id": "b",
+          "text": "A prompt, controlled by the user"
+        },
+        {
+          "id": "c",
+          "text": "A resource, controlled by the application"
+        },
+        {
+          "id": "d",
+          "text": "A prompt, controlled by the model"
+        }
+      ],
+      "answer": "b",
+      "explanation": "The spec's control hierarchy: prompts are user-controlled templates (slash commands, menu options), resources are application-controlled context (file contents, git history), and tools are model-controlled functions the model decides to call.",
+      "materials": [
+        "mcp-specification"
+      ]
+    },
+    {
+      "id": "w08-l04-q04",
+      "concept": "w08-l04-server-primitives",
+      "type": "multiple_choice",
+      "prompt": "Your `book_flight` tool is called with a departure date in the past. How should the server report this?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A JSON-RPC protocol error with code `-32602`, since the tool's arguments are invalid"
+        },
+        {
+          "id": "b",
+          "text": "Throw an exception so the client restarts the server and retries"
+        },
+        {
+          "id": "c",
+          "text": "Return an empty result and log the invalid date to stderr"
+        },
+        {
+          "id": "d",
+          "text": "A normal tool result with `isError: true` saying the date must be in the future"
+        }
+      ],
+      "answer": "d",
+      "explanation": "MCP separates protocol errors (unknown tool, malformed request) from tool execution errors (API failures, bad input values, business rules). Execution errors go in the result with `isError: true` so the client can show them to the model, which can correct the date and retry. A JSON-RPC error is less likely to lead to recovery.",
+      "materials": [
+        "mcp-specification"
+      ]
+    },
+    {
+      "id": "w08-l04-q05",
+      "concept": "w08-l04-server-primitives",
+      "type": "written",
+      "prompt": "Explain the difference between MCP tools, resources and prompts. For a GitHub server, give one example of each and say who decides when it's used.",
+      "model_answer": {
+        "summary": "Tools are functions the model chooses to call, resources are data the application attaches as context, and prompts are templates the user picks.",
+        "key_points": [
+          "Tools are model-controlled: the model decides to call them, for example `create_issue`",
+          "Resources are application-controlled context identified by a URI, for example a file's contents or the repository's README",
+          "Prompts are user-controlled templates, for example a `review-pr` slash command",
+          "The spec says there should be a human in the loop who can deny tool calls, since tools can take actions"
+        ]
+      },
+      "explanation": "The primitives differ in who is in control, which shapes the UI and the risk. A tool can act on the world when the model decides, so hosts show and confirm tool calls; resources and prompts only add context, chosen by the application or the user.",
+      "materials": [
+        "mcp-specification",
+        "model-context-protocol-documentation"
+      ]
+    },
+    {
+      "id": "w08-l04-q06",
+      "concept": "w08-l04-client-features",
+      "type": "multiple_choice",
+      "prompt": "During a tool call, your server needs the user's third-party API key. Under the MCP spec, how must it ask for it?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "With URL-mode elicitation, so the key never passes through the client"
+        },
+        {
+          "id": "b",
+          "text": "With form-mode elicitation, using a `password` field to mask the key"
+        },
+        {
+          "id": "c",
+          "text": "With sampling, asking the model to supply the key from context"
+        },
+        {
+          "id": "d",
+          "text": "By adding an `api_key` argument to the tool's input schema"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Servers must not use form-mode elicitation for sensitive information such as passwords, API keys, access tokens or payment details; they must use URL mode. The user enters the secret on the server's own page, and it never enters the client, the model's context or intermediate servers. A tool argument would put the key in the model's context.",
+      "materials": [
+        "mcp-specification"
+      ]
+    },
+    {
+      "id": "w08-l04-q07",
+      "concept": "w08-l04-client-features",
+      "type": "multiple_choice",
+      "prompt": "In MCP revision 2026-07-28, a server needs the user to answer a question before it can finish a `tools/call`. How does it ask?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It sends its own `elicitation/create` JSON-RPC request to the client and waits for the response"
+        },
+        {
+          "id": "b",
+          "text": "It returns an error, and the client resends the call with a `userInput` field"
+        },
+        {
+          "id": "c",
+          "text": "It returns `input_required` with `inputRequests`; the client retries with `inputResponses`"
+        },
+        {
+          "id": "d",
+          "text": "It opens a `subscriptions/listen` stream and pushes the question as a notification"
+        }
+      ],
+      "answer": "c",
+      "explanation": "Revision 2026-07-28 replaced server-initiated requests with Multi Round-Trip Requests: the server returns an `InputRequiredResult` whose `inputRequests` hold the `elicitation/create` (or sampling, or roots) requests, and the client retries the original request, with a new JSON-RPC `id`, carrying `inputResponses` and any `requestState`. Sending its own JSON-RPC request is how servers did it up to 2025-11-25. Sampling is deprecated in 2026-07-28; new servers should call an LLM provider directly.",
+      "materials": [
+        "mcp-specification"
+      ]
+    },
+    {
+      "id": "w08-l04-q08",
+      "concept": "w08-l04-json-rpc-messages",
+      "type": "multiple_choice",
+      "prompt": "Which of these is a valid MCP notification?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`{\"jsonrpc\": \"2.0\", \"id\": null, \"method\": \"notifications/progress\"}`"
+        },
+        {
+          "id": "b",
+          "text": "`{\"jsonrpc\": \"2.0\", \"method\": \"notifications/cancelled\", \"params\": {\"requestId\": 3}}`"
+        },
+        {
+          "id": "c",
+          "text": "`{\"jsonrpc\": \"2.0\", \"id\": 7, \"result\": {\"resultType\": \"complete\"}}`"
+        },
+        {
+          "id": "d",
+          "text": "`{\"jsonrpc\": \"2.0\", \"id\": 8, \"method\": \"tools/list\"}`"
+        }
+      ],
+      "answer": "b",
+      "explanation": "A notification is a one-way message with a `method` and no `id`, and the receiver must not respond to it. (a) is invalid because notifications must not include an `id`, and MCP also forbids `null` IDs on requests. (c) is a result response and (d) is a request.",
+      "materials": [
+        "mcp-specification"
+      ]
+    },
+    {
+      "id": "w08-l04-q09",
+      "concept": "w08-l04-json-rpc-messages",
+      "type": "multiple_choice",
+      "prompt": "MCP revision 2026-07-28 removed the `initialize` handshake. How does a server now learn the client's protocol version and capabilities?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "From the first request on the connection, which it remembers for the rest of the connection"
+        },
+        {
+          "id": "b",
+          "text": "It doesn't; servers assume every client supports every feature"
+        },
+        {
+          "id": "c",
+          "text": "From a `Mcp-Session-Id` header it assigns on the first response"
+        },
+        {
+          "id": "d",
+          "text": "Every request carries them in `_meta` (`io.modelcontextprotocol/protocolVersion` and `.../clientCapabilities`)"
+        }
+      ],
+      "answer": "d",
+      "explanation": "In 2026-07-28 MCP is stateless: each request must include `io.modelcontextprotocol/protocolVersion` and `io.modelcontextprotocol/clientCapabilities` in `_meta`, and servers must not rely on earlier requests on the same connection. A version the server doesn't support gets an `UnsupportedProtocolVersionError` (`-32022`) listing the versions it does. Clients may call `server/discover` to learn the server's versions and capabilities. Sessions and `Mcp-Session-Id` were removed in this revision.",
+      "materials": [
+        "mcp-specification"
+      ]
+    },
+    {
+      "id": "w08-l04-q10",
+      "concept": "w08-l04-json-rpc-messages",
+      "type": "written",
+      "prompt": "Describe the message sequence when Claude calls a tool on your MCP server over Streamable HTTP, under revision 2026-07-28. Say what each step carries, and what an older (2025-11-25) client would have sent first.",
+      "model_answer": {
+        "summary": "The client lists the tools, the model picks one, the client sends `tools/call` as an HTTP POST with per-request metadata, and the server's result goes back to the model; older clients first ran an `initialize` handshake.",
+        "key_points": [
+          "The client may call `server/discover` for versions and capabilities, then sends `tools/list` to get the tool names, descriptions and input schemas",
+          "The host gives the tools to the model; when the model picks one, the client sends a `tools/call` request with `name` and `arguments`",
+          "Each request is its own HTTP POST carrying `_meta` protocol version and client capabilities, plus the `MCP-Protocol-Version`, `Mcp-Method` and `Mcp-Name` headers",
+          "The server replies with a result (`content`, optional `isError`, `resultType: \"complete\"`) as JSON or an SSE stream, and the host passes it to the model",
+          "Clients on 2025-11-25 and earlier first sent `initialize` and a `notifications/initialized` notification"
+        ]
+      },
+      "explanation": "This is the lesson's exercise. Each call is a self-contained JSON-RPC request, which is what lets any server instance handle it. The model never talks to the server: the host and client sit in between and decide whether a call is allowed.",
+      "materials": [
+        "mcp-specification",
+        "model-context-protocol-documentation"
+      ]
+    },
+    {
+      "id": "w08-l04-q11",
+      "concept": "w08-l04-transports",
+      "type": "multiple_choice",
+      "prompt": "Your stdio MCP server calls `print(\"debug: loaded config\")` at startup, and the client can't talk to it. Why, and what's the fix?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "stdio servers may not produce any output before the first request; move the print later"
+        },
+        {
+          "id": "b",
+          "text": "stdout carries only MCP messages, so the stray line corrupts the stream; log to stderr instead"
+        },
+        {
+          "id": "c",
+          "text": "The client treats any stderr output as a crash; remove all logging"
+        },
+        {
+          "id": "d",
+          "text": "Debug output needs the `logging/setLevel` request first"
+        }
+      ],
+      "answer": "b",
+      "explanation": "In the stdio transport, the server must not write anything to stdout that isn't a valid MCP message; messages are newline-delimited JSON-RPC. Logging belongs on stderr, which clients may capture or ignore and should not treat as an error. `logging/setLevel` was removed in 2026-07-28.",
+      "materials": [
+        "mcp-specification"
+      ]
+    },
+    {
+      "id": "w08-l04-q12",
+      "concept": "w08-l04-transports",
+      "type": "written",
+      "prompt": "Choose stdio or Streamable HTTP for (a) a server that reads files on the user's laptop, used from Claude Desktop, and (b) a company-wide server that 200 employees use from different machines. Explain each choice.",
+      "model_answer": {
+        "summary": "stdio for the local file server, because the client launches it and only that client can reach it; Streamable HTTP for the shared server, because it runs independently, serves many clients and supports OAuth.",
+        "key_points": [
+          "With stdio the client launches the server as a subprocess and talks to it over stdin and stdout, so only that client can reach it",
+          "A stdio server gets credentials from its environment rather than the HTTP authorization flow",
+          "Streamable HTTP runs the server as an independent process with one POST endpoint that many clients can use over the network",
+          "A remote HTTP server should use MCP's OAuth-based authorization and must validate the `Origin` header",
+          "In 2026-07-28 there are no protocol sessions, so HTTP requests don't need to stick to one server instance behind a load balancer"
+        ]
+      },
+      "explanation": "The transport follows where the server runs and who uses it. A local process for one user fits stdio, which also avoids exposing a port. A shared service needs a network endpoint, authentication and the ability to scale, which is what Streamable HTTP provides.",
+      "materials": [
+        "mcp-specification"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,348 @@
+{
+  "schema_version": 1,
+  "lesson_id": "w11-l04",
+  "concepts": [
+    {
+      "id": "w11-l04-app-router",
+      "name": "The Next.js app router: pages, layouts, Server and Client Components"
+    },
+    {
+      "id": "w11-l04-route-handlers",
+      "name": "Route handlers"
+    },
+    {
+      "id": "w11-l04-use-chat",
+      "name": "The `useChat` hook"
+    },
+    {
+      "id": "w11-l04-custom-backend-stream",
+      "name": "Connecting `useChat` to a custom backend"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w11-l04-q01",
+      "concept": "w11-l04-app-router",
+      "type": "multiple_choice",
+      "prompt": "In a Next.js app router project, which file renders the page at `/dashboard/settings`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`app/dashboard/settings/page.tsx`"
+        },
+        {
+          "id": "b",
+          "text": "`pages/dashboard/settings.tsx`"
+        },
+        {
+          "id": "c",
+          "text": "`app/dashboard/settings/route.tsx`"
+        },
+        {
+          "id": "d",
+          "text": "`app/dashboard/settings/layout.tsx`"
+        }
+      ],
+      "answer": "a",
+      "explanation": "The app router uses the file system: folders are route segments and a `page` file makes the route public. A `layout` wraps pages and keeps its state on navigation, but isn't the page itself. `route` files are route handlers, and `pages/` is the older Pages Router.",
+      "materials": [
+        "nextjs-layouts-and-pages",
+        "next-js-learn-course"
+      ]
+    },
+    {
+      "id": "w11-l04-q02",
+      "concept": "w11-l04-app-router",
+      "type": "multiple_choice",
+      "prompt": "Your `app/page.tsx` calls `useChat()` and `useState()`, and Next.js errors when rendering it. What's the fix?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Rename the file to `page.client.tsx` so that Next.js renders it in the browser"
+        },
+        {
+          "id": "b",
+          "text": "Move the component into `components/`, which Next.js renders on the client"
+        },
+        {
+          "id": "c",
+          "text": "Add `'use client'` at the top, since pages are Server Components by default"
+        },
+        {
+          "id": "d",
+          "text": "Make the component `async` so its hooks run after the server render"
+        }
+      ],
+      "answer": "c",
+      "explanation": "In the app router, layouts and pages are Server Components by default. State, event handlers, effects, browser APIs and custom hooks like `useChat` need a Client Component, which you mark with `'use client'`. Keep the directive on the smallest component that needs it.",
+      "materials": [
+        "nextjs-server-and-client-components"
+      ]
+    },
+    {
+      "id": "w11-l04-q03",
+      "concept": "w11-l04-route-handlers",
+      "type": "multiple_choice",
+      "prompt": "Where do you put a handler for `POST /api/chat` in a Next.js app router project?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`app/api/chat/page.tsx`, exporting a `POST` function"
+        },
+        {
+          "id": "b",
+          "text": "`app/api/chat/route.ts`, exporting a `POST` function"
+        },
+        {
+          "id": "c",
+          "text": "`app/api/chat.ts`, with a default export handling the request"
+        },
+        {
+          "id": "d",
+          "text": "`app/api/chat/layout.ts`, exporting a `POST` function"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Route handlers live in a `route.ts` file and export one function per HTTP method (`GET`, `POST` and so on) that takes a Web `Request` and returns a `Response`. They're the app router's equivalent of API routes. A default export in a plain file is not a route handler.",
+      "materials": [
+        "nextjs-route-handlers"
+      ]
+    },
+    {
+      "id": "w11-l04-q04",
+      "concept": "w11-l04-route-handlers",
+      "type": "multiple_choice",
+      "prompt": "What happens if a folder contains both `page.tsx` and `route.ts`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The page handles `GET` and the route handler handles the other methods"
+        },
+        {
+          "id": "b",
+          "text": "The route handler wins, and the page is ignored"
+        },
+        {
+          "id": "c",
+          "text": "Both run and their output is combined"
+        },
+        {
+          "id": "d",
+          "text": "It's a conflict: a `route` file can't be at the same route segment as a `page` file"
+        }
+      ],
+      "answer": "d",
+      "explanation": "Each `route` or `page` file takes over all HTTP verbs for its route, so the two can't share a segment. Put API handlers under their own path, such as `app/api/chat/route.ts`, next to `app/page.tsx`.",
+      "materials": [
+        "nextjs-route-handlers"
+      ]
+    },
+    {
+      "id": "w11-l04-q05",
+      "concept": "w11-l04-route-handlers",
+      "type": "written",
+      "prompt": "What is a Next.js route handler, and would your chat UI need one if the agent itself runs in FastAPI?",
+      "model_answer": {
+        "summary": "A route handler is a `route.ts` file that answers HTTP requests with the Web `Request`/`Response` APIs. With a FastAPI backend you either call FastAPI directly or add a thin route handler (or a rewrite) that forwards to it.",
+        "key_points": [
+          "A `route.ts` file in `app/` exports one function per HTTP method and uses the Web `Request` and `Response` APIs",
+          "It's the lowest-level routing primitive: it doesn't take part in layouts, and can't share a segment with a `page`",
+          "Route handlers aren't cached by default; only `GET` can opt in, and `POST` is never cached",
+          "With FastAPI you can call it directly (setting up CORS if the origin differs), or proxy through a route handler or `rewrites`, which can also keep secrets on the server"
+        ]
+      },
+      "explanation": "A thin route handler in front of FastAPI keeps the browser talking to one origin and lets the Next.js server add credentials the browser should never see.",
+      "materials": [
+        "nextjs-route-handlers",
+        "nextjs-rewrites"
+      ]
+    },
+    {
+      "id": "w11-l04-q06",
+      "concept": "w11-l04-use-chat",
+      "type": "multiple_choice",
+      "prompt": "With `useChat()` from `@ai-sdk/react` and no options, where are messages sent?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "An HTTP POST to `/api/chat`, via `DefaultChatTransport`"
+        },
+        {
+          "id": "b",
+          "text": "A WebSocket opened to `/api/chat` when the component mounts"
+        },
+        {
+          "id": "c",
+          "text": "Straight from the browser to the model provider's API"
+        },
+        {
+          "id": "d",
+          "text": "An HTTP GET to `/chat`, with the messages in the query string"
+        }
+      ],
+      "answer": "a",
+      "explanation": "The default transport is `DefaultChatTransport` with `api: '/api/chat'`, which POSTs the messages. Pass your own `DefaultChatTransport` to change the URL, headers, body or credentials, or a custom transport for other protocols.",
+      "materials": [
+        "ai-sdk-chatbot",
+        "vercel-ai-sdk-documentation"
+      ]
+    },
+    {
+      "id": "w11-l04-q07",
+      "concept": "w11-l04-use-chat",
+      "type": "multiple_choice",
+      "prompt": "Why does the AI SDK recommend rendering `message.parts` rather than a single content string?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`parts` lets React re-render only the words that changed, so it's faster"
+        },
+        {
+          "id": "b",
+          "text": "`parts` holds typed pieces like text and tool calls, so each renders differently"
+        },
+        {
+          "id": "c",
+          "text": "A content string is only filled in after the whole stream has ended and been parsed"
+        },
+        {
+          "id": "d",
+          "text": "`parts` is required for messages to be serialised from Server Components"
+        }
+      ],
+      "answer": "b",
+      "explanation": "UI messages carry a `parts` array, and each part has a `type`: `text`, tool parts, reasoning and so on. Rendering by part type is how a chat UI shows \"calling search...\" or a tool's result inline, not only the text.",
+      "materials": [
+        "ai-sdk-chatbot"
+      ]
+    },
+    {
+      "id": "w11-l04-q08",
+      "concept": "w11-l04-use-chat",
+      "type": "multiple_choice",
+      "prompt": "`useChat` returns `status`. Which value means the response is actively arriving, which is when you show a Stop button?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`submitted`"
+        },
+        {
+          "id": "b",
+          "text": "`ready`"
+        },
+        {
+          "id": "c",
+          "text": "`error`"
+        },
+        {
+          "id": "d",
+          "text": "`streaming`"
+        }
+      ],
+      "answer": "d",
+      "explanation": "`submitted` means the message was sent and you're waiting for the stream to start; `streaming` means chunks are arriving; `ready` means the response is complete and a new message can be sent; `error` means the request failed. `stop()` aborts the current response.",
+      "materials": [
+        "ai-sdk-chatbot"
+      ]
+    },
+    {
+      "id": "w11-l04-q09",
+      "concept": "w11-l04-use-chat",
+      "type": "written",
+      "prompt": "Explain what happens between calling `sendMessage` from `useChat` and the answer appearing word by word on screen.",
+      "model_answer": {
+        "summary": "`useChat` adds the user message, POSTs the conversation through its transport, and updates the assistant message's parts as each stream chunk arrives. `status` tracks each stage.",
+        "key_points": [
+          "`sendMessage` adds the user's message to `messages` and sends the conversation to the endpoint through the transport (by default a POST to `/api/chat`)",
+          "`status` is `submitted` until the response stream starts, then `streaming`",
+          "Each chunk of the stream updates the assistant message's `parts`, and React re-renders, so text appears as it arrives",
+          "`status` becomes `ready` when the response is complete, or `error` if it failed; `stop()` aborts it"
+        ]
+      },
+      "explanation": "Knowing these stages is what lets you build a good streaming UI: a spinner while `submitted`, a Stop button while `streaming`, and the input enabled when `ready`.",
+      "materials": [
+        "ai-sdk-chatbot"
+      ]
+    },
+    {
+      "id": "w11-l04-q10",
+      "concept": "w11-l04-custom-backend-stream",
+      "type": "multiple_choice",
+      "prompt": "Your FastAPI endpoint streams SSE, but `useChat` (default transport) shows nothing. What does a custom backend need to send?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Plain text chunks with `Content-Type: text/plain` and no SSE framing at all"
+        },
+        {
+          "id": "b",
+          "text": "One `application/json` body holding the full message once generation ends"
+        },
+        {
+          "id": "c",
+          "text": "SSE `event:` lines naming each token, sent with the `Content-Type: text/event-stream` header"
+        },
+        {
+          "id": "d",
+          "text": "SSE `data:` lines of JSON parts, the `x-vercel-ai-ui-message-stream: v1` header, a final `[DONE]`"
+        }
+      ],
+      "answer": "d",
+      "explanation": "The default data stream protocol is SSE carrying typed JSON parts, such as `start`, `text-start`, `text-delta`, `text-end`, tool parts and `finish`. A custom backend must set `x-vercel-ai-ui-message-stream: v1`, and the stream ends with a literal `[DONE]`.",
+      "materials": [
+        "ai-sdk-stream-protocols"
+      ]
+    },
+    {
+      "id": "w11-l04-q11",
+      "concept": "w11-l04-custom-backend-stream",
+      "type": "multiple_choice",
+      "prompt": "Your FastAPI endpoint only streams plain text chunks. How do you connect `useChat` to it, and what do you give up?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Use `TextStreamChatTransport`; you get text only, with no tool-call or data parts"
+        },
+        {
+          "id": "b",
+          "text": "Use the default transport; it detects plain text on its own"
+        },
+        {
+          "id": "c",
+          "text": "Use `TextStreamChatTransport`; you keep tool parts, but lose reconnection"
+        },
+        {
+          "id": "d",
+          "text": "It can't be done: `useChat` needs a Node.js backend"
+        }
+      ],
+      "answer": "a",
+      "explanation": "The text stream protocol appends plain-text chunks into one reply, and `useChat` uses it through `TextStreamChatTransport`. It only carries text, so to stream tool calls or custom data parts you must implement the UI message (data) stream protocol instead.",
+      "materials": [
+        "ai-sdk-stream-protocols"
+      ]
+    },
+    {
+      "id": "w11-l04-q12",
+      "concept": "w11-l04-custom-backend-stream",
+      "type": "written",
+      "prompt": "Describe how you connect a Next.js `useChat` UI to your FastAPI SSE endpoint. What does each side have to do?",
+      "model_answer": {
+        "summary": "Point `useChat`'s transport at the FastAPI endpoint (directly or through a proxy), and have FastAPI read the posted messages and stream the AI SDK's UI message protocol back.",
+        "key_points": [
+          "Mark the chat component `'use client'` and configure `useChat` with a `DefaultChatTransport` whose `api` is the FastAPI URL, or a Next.js route handler or rewrite that proxies to it",
+          "FastAPI reads the POSTed JSON body, including the `messages` array whose messages carry `parts`",
+          "FastAPI streams `text/event-stream` with `data:` lines of JSON parts (text deltas, tool parts, finish) and the header `x-vercel-ai-ui-message-stream: v1`, ending with `data: [DONE]`",
+          "If the backend only streams plain text, use `TextStreamChatTransport` and accept text-only messages",
+          "If the browser calls FastAPI on another origin, FastAPI must allow it with CORS"
+        ]
+      },
+      "explanation": "The protocol page exists for exactly this case: a backend in another language, such as Python, serving an AI SDK UI. The AI SDK repository has a Next.js plus FastAPI example.",
+      "materials": [
+        "ai-sdk-stream-protocols",
+        "ai-sdk-chatbot",
+        "nextjs-route-handlers"
+      ]
+    }
+  ]
+}

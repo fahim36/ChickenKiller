@@ -1,0 +1,322 @@
+{
+  "schema_version": 1,
+  "lesson_id": "w12-l01",
+  "concepts": [
+    {
+      "id": "w12-l01-billing-alarm",
+      "name": "Regions, accounts and billing alarms"
+    },
+    {
+      "id": "w12-l01-users-vs-roles",
+      "name": "IAM users vs IAM roles"
+    },
+    {
+      "id": "w12-l01-policy-evaluation",
+      "name": "How IAM evaluates policies: implicit deny, explicit deny wins"
+    },
+    {
+      "id": "w12-l01-least-privilege",
+      "name": "Least privilege in IAM policies"
+    },
+    {
+      "id": "w12-l01-shared-responsibility",
+      "name": "The shared responsibility model"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w12-l01-q01",
+      "concept": "w12-l01-billing-alarm",
+      "type": "multiple_choice",
+      "prompt": "Your console is set to Asia Pacific (Singapore). You open CloudWatch to create a $5 billing alarm, but there is no **Billing** namespace or `EstimatedCharges` metric. What is the most likely reason?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Billing metrics are only published once the account has a paid AWS Support plan"
+        },
+        {
+          "id": "b",
+          "text": "Billing metrics are published per Region, and Singapore has no charges to report on yet"
+        },
+        {
+          "id": "c",
+          "text": "Billing data is only in US East (N. Virginia), and billing alerts must be enabled first"
+        },
+        {
+          "id": "d",
+          "text": "The metric appears only after the account's first monthly invoice has been issued"
+        }
+      ],
+      "answer": "c",
+      "explanation": "CloudWatch stores billing metric data in US East (N. Virginia), and it covers your charges worldwide. You also have to enable billing alerts in Billing preferences before the metric exists; it takes about 15 minutes to appear. The metric is not split per Region, so switching to `us-east-1` is the fix, not waiting for charges in Singapore.",
+      "materials": [
+        "aws-cloudwatch-billing-alarm"
+      ]
+    },
+    {
+      "id": "w12-l01-q02",
+      "concept": "w12-l01-billing-alarm",
+      "type": "multiple_choice",
+      "prompt": "On the 3rd of the month your account has spent $2, but usage is on track for $40 by month end. You have a CloudWatch billing alarm on `EstimatedCharges` greater than $5. When does it go into `ALARM`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Only once the estimated charges so far actually exceed $5"
+        },
+        {
+          "id": "b",
+          "text": "Now, because the projected month-end total is above $5"
+        },
+        {
+          "id": "c",
+          "text": "At month end, when the invoice for $40 is generated"
+        },
+        {
+          "id": "d",
+          "text": "Never, because billing alarms only watch free-tier usage"
+        }
+      ],
+      "answer": "a",
+      "explanation": "A CloudWatch billing alarm triggers only when current estimated charges exceed the threshold; it does not use projections. If you want a warning based on the forecast, use AWS Budgets, which can notify on forecasted spend. Neither stops spending by itself, and both lag real usage by hours.",
+      "materials": [
+        "aws-cloudwatch-billing-alarm"
+      ]
+    },
+    {
+      "id": "w12-l01-q03",
+      "concept": "w12-l01-billing-alarm",
+      "type": "written",
+      "prompt": "Why should you set up a billing alarm on the first day you use AWS, and how does a CloudWatch billing alarm differ from an AWS Budgets alert?",
+      "model_answer": {
+        "summary": "A billing alarm catches a forgotten or runaway resource before it becomes a large bill. A CloudWatch billing alarm fires on actual estimated charges, while AWS Budgets can also alert on forecasted spend and trigger actions.",
+        "key_points": [
+          "A mistake such as a forgotten instance or a loop calling a paid API keeps costing money until someone notices, so the alarm should exist before you build anything",
+          "A CloudWatch billing alarm watches the `EstimatedCharges` metric, which lives in US East (N. Virginia), after you enable billing alerts",
+          "The CloudWatch alarm triggers only when current charges pass the threshold, not on projections",
+          "AWS Budgets can notify on forecasted as well as actual spend, and can apply actions such as an IAM policy that blocks new resources",
+          "Both are delayed by hours and neither is a hard spending cap, so you still have to act on the alert"
+        ]
+      },
+      "explanation": "The point of a day-one alarm is to limit the damage from mistakes. CloudWatch billing data is updated several times a day and the alarm compares current charges to the threshold. AWS Budgets updates up to three times a day and can look at forecasts. AWS warns that charges can keep growing after a notification, which is why neither tool is a cap.",
+      "materials": [
+        "aws-cloudwatch-billing-alarm",
+        "aws-skill-builder-cloud-practitioner-essentials"
+      ]
+    },
+    {
+      "id": "w12-l01-q04",
+      "concept": "w12-l01-users-vs-roles",
+      "type": "multiple_choice",
+      "prompt": "Your `agent-api` container runs on ECS Fargate and needs to read objects from an S3 bucket. What is the recommended way to give it AWS credentials?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Create an IAM user, generate access keys, and pass them in environment variables"
+        },
+        {
+          "id": "b",
+          "text": "Copy an access key file into the image at build time"
+        },
+        {
+          "id": "c",
+          "text": "Store the root user's access keys in Secrets Manager and fetch them at startup"
+        },
+        {
+          "id": "d",
+          "text": "Attach an IAM task role; the AWS SDK picks up its temporary credentials automatically"
+        }
+      ],
+      "answer": "d",
+      "explanation": "AWS recommends that workloads use IAM roles with temporary credentials. On AWS compute (EC2, Lambda, ECS) AWS delivers the role's credentials to the resource, and the SDK finds them, so there are no long-lived keys to leak or rotate. IAM user access keys work, but they are long-term credentials and AWS reserves them for cases where roles can't be used.",
+      "materials": [
+        "aws-iam-user-guide"
+      ]
+    },
+    {
+      "id": "w12-l01-q05",
+      "concept": "w12-l01-users-vs-roles",
+      "type": "written",
+      "prompt": "Explain the difference between an IAM user and an IAM role. Which would you use for (a) your application running on AWS and (b) a developer signing in to the console, and why?",
+      "model_answer": {
+        "summary": "A user is one identity with long-term credentials; a role has no long-term credentials and hands out temporary ones to whoever is allowed to assume it. Use a role for the application, and federation into roles (for example IAM Identity Center) for people.",
+        "key_points": [
+          "An IAM user is tied to one person or workload and can have long-term credentials such as a password or access keys",
+          "An IAM role has no long-term credentials; assuming it returns temporary security credentials for a session",
+          "A role's trust policy says who may assume it, such as an AWS service, another account, or a federated user",
+          "For an application on AWS, attach a role to the compute resource so it gets short-lived credentials automatically",
+          "For people, AWS recommends federation with an identity provider so humans also use temporary credentials; IAM users are for cases that can't use roles, such as some third-party tools or emergency access"
+        ]
+      },
+      "explanation": "The IAM user guide describes a role as assumable by anyone who needs it, with temporary credentials instead of a password or access keys. AWS best practice is temporary credentials for both humans and workloads, which limits the damage when credentials leak because they expire.",
+      "materials": [
+        "aws-iam-user-guide"
+      ]
+    },
+    {
+      "id": "w12-l01-q06",
+      "concept": "w12-l01-policy-evaluation",
+      "type": "multiple_choice",
+      "prompt": "A role's identity-based policy allows `s3:*` on `arn:aws:s3:::reports/*`. The `reports` bucket (same account) has a bucket policy that denies `s3:DeleteObject` to all principals. What happens when the role calls `DeleteObject` on `reports/q3.pdf`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Allowed, because the identity-based policy names the bucket explicitly"
+        },
+        {
+          "id": "b",
+          "text": "Denied, because an explicit deny in any applicable policy overrides an allow"
+        },
+        {
+          "id": "c",
+          "text": "Allowed, because identity-based policies are evaluated before resource-based ones"
+        },
+        {
+          "id": "d",
+          "text": "It depends on which of the two policies was attached most recently"
+        }
+      ],
+      "answer": "b",
+      "explanation": "AWS looks for an explicit `Deny` in every applicable policy first: identity-based, resource-based, permissions boundaries, SCPs and session policies. If it finds one, the decision is Deny, whatever the allows say. Order of attachment and how specific the allow is do not matter.",
+      "materials": [
+        "aws-iam-policy-evaluation-logic"
+      ]
+    },
+    {
+      "id": "w12-l01-q07",
+      "concept": "w12-l01-policy-evaluation",
+      "type": "multiple_choice",
+      "prompt": "You create a new IAM role with a trust policy but attach no permissions policies. Code running with the role calls `s3:GetObject` on a bucket in the same account that has no bucket policy. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Allowed, because roles can read every bucket in their own account by default"
+        },
+        {
+          "id": "b",
+          "text": "Allowed read-only, because only write actions need an explicit allow"
+        },
+        {
+          "id": "c",
+          "text": "Denied, because every request is implicitly denied unless a policy allows it"
+        },
+        {
+          "id": "d",
+          "text": "The call fails because a role without policies cannot be assumed"
+        }
+      ],
+      "answer": "c",
+      "explanation": "By default all requests are implicitly denied (the root user is the only exception). A request succeeds only if some applicable policy explicitly allows it. The role can still be assumed, since that is governed by its trust policy, but it has no permissions until you attach some.",
+      "materials": [
+        "aws-iam-policy-evaluation-logic"
+      ]
+    },
+    {
+      "id": "w12-l01-q08",
+      "concept": "w12-l01-least-privilege",
+      "type": "multiple_choice",
+      "prompt": "Your app only needs to read files under `s3://agent-docs/uploads/`. Which permissions policy statement best follows least privilege?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`\"Action\": \"s3:GetObject\"` on `\"Resource\": \"arn:aws:s3:::agent-docs/uploads/*\"`"
+        },
+        {
+          "id": "b",
+          "text": "The AWS managed policy `AmazonS3ReadOnlyAccess`, which only allows reads"
+        },
+        {
+          "id": "c",
+          "text": "`\"Action\": \"s3:*\"` on `\"Resource\": \"arn:aws:s3:::agent-docs/*\"`"
+        },
+        {
+          "id": "d",
+          "text": "`\"Action\": \"s3:GetObject\"` on `\"Resource\": \"*\"`"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Least privilege means only the actions needed, on only the resources needed. Option a allows one action on one prefix. The AWS managed read-only policy is tempting, but it allows reading every bucket in the account; AWS notes that managed policies are written for all customers and may not be least privilege for your case. The other two options allow too many actions or too many resources.",
+      "materials": [
+        "aws-iam-user-guide"
+      ]
+    },
+    {
+      "id": "w12-l01-q09",
+      "concept": "w12-l01-least-privilege",
+      "type": "written",
+      "prompt": "This Lesson's exercise asks you to create an IAM role for your app. Describe how you would set it up so it follows least privilege, and how you would tighten it over time.",
+      "model_answer": {
+        "summary": "Create a role that only the app's compute service can assume, grant only the specific actions and resource ARNs the app uses, then use access data to remove anything it doesn't use.",
+        "key_points": [
+          "The trust policy allows only the service that runs the app (for example ECS tasks or Lambda) to assume the role",
+          "The permissions policy lists specific actions on specific resource ARNs, not `*`",
+          "Conditions can narrow access further, for example requiring TLS",
+          "IAM Access Analyzer can generate a policy from the role's actual activity in CloudTrail, and last-accessed information shows permissions that are never used",
+          "Unused permissions are removed as the app matures, and any broad AWS managed policy used at the start is replaced by a customer managed one"
+        ]
+      },
+      "explanation": "AWS's IAM best practices describe exactly this path: it's fine to start broad while you explore, but move toward least privilege with customer managed policies, conditions, Access Analyzer policy generation, and regular review of unused permissions.",
+      "materials": [
+        "aws-iam-user-guide"
+      ]
+    },
+    {
+      "id": "w12-l01-q10",
+      "concept": "w12-l01-shared-responsibility",
+      "type": "multiple_choice",
+      "prompt": "Under the AWS shared responsibility model, who is responsible for applying security patches to the operating system of an EC2 instance that runs your agent?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "AWS, because it owns the hardware the instance runs on"
+        },
+        {
+          "id": "b",
+          "text": "AWS for critical security patches, you for everything else"
+        },
+        {
+          "id": "c",
+          "text": "Nobody, because EC2 instances are replaced automatically every few hours"
+        },
+        {
+          "id": "d",
+          "text": "You, because the guest operating system is security in the cloud"
+        }
+      ],
+      "answer": "d",
+      "explanation": "AWS is responsible for security of the cloud: facilities, hardware, networking and the software that runs its services. You are responsible for security in the cloud. For EC2 that includes the guest operating system and its patches, the software you install, and security group rules.",
+      "materials": [
+        "aws-shared-responsibility-model",
+        "aws-skill-builder-cloud-practitioner-essentials"
+      ]
+    },
+    {
+      "id": "w12-l01-q11",
+      "concept": "w12-l01-shared-responsibility",
+      "type": "multiple_choice",
+      "prompt": "You move file storage from a self-managed server on EC2 to Amazon S3. Which responsibility is still yours?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Patching the operating system of the servers that run S3"
+        },
+        {
+          "id": "b",
+          "text": "Deciding who can access the data and whether it's encrypted"
+        },
+        {
+          "id": "c",
+          "text": "Replacing failed disks in the S3 data centres"
+        },
+        {
+          "id": "d",
+          "text": "None: with a managed service AWS takes on all security"
+        }
+      ],
+      "answer": "b",
+      "explanation": "With managed services like S3, AWS runs the infrastructure and platform, so your share shrinks, but it never reaches zero. You still manage your data: its classification, encryption choices, and the IAM and bucket policies that decide who can read it. Most S3 data leaks come from permissions the customer set.",
+      "materials": [
+        "aws-shared-responsibility-model"
+      ]
+    }
+  ]
+}

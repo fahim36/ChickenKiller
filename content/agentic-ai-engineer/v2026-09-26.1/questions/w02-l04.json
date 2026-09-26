@@ -1,0 +1,355 @@
+{
+  "schema_version": 1,
+  "lesson_id": "w02-l04",
+  "concepts": [
+    {
+      "id": "w02-l04-semaphore",
+      "name": "Capping concurrency with `asyncio.Semaphore`"
+    },
+    {
+      "id": "w02-l04-timeouts",
+      "name": "`asyncio.timeout` and `asyncio.wait_for`"
+    },
+    {
+      "id": "w02-l04-cancellation-cleanup",
+      "name": "Cancellation, `CancelledError` and cleanup"
+    },
+    {
+      "id": "w02-l04-taskgroup",
+      "name": "`TaskGroup` and exception groups"
+    },
+    {
+      "id": "w02-l04-httpx-client",
+      "name": "`httpx.AsyncClient` timeouts and connection pooling"
+    },
+    {
+      "id": "w02-l04-retry-backoff",
+      "name": "Retries with exponential backoff"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w02-l04-q01",
+      "concept": "w02-l04-semaphore",
+      "type": "multiple_choice",
+      "prompt": "You start 50 tasks, and each makes its request inside `async with sem:`, where one `sem = asyncio.Semaphore(5)` is shared by all of them. What does that give you?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Only 5 of the 50 tasks are created; the rest are dropped"
+        },
+        {
+          "id": "b",
+          "text": "Batches: 5 requests start, all 5 finish, then the next 5 start"
+        },
+        {
+          "id": "c",
+          "text": "At most 5 requests in flight; a new one starts as soon as one ends"
+        },
+        {
+          "id": "d",
+          "text": "At most 5 requests per second, spread evenly over time"
+        }
+      ],
+      "answer": "c",
+      "explanation": "A semaphore holds a counter: each `acquire` (entering `async with`) decrements it and waits while it is zero, and each `release` increments it. All 50 tasks exist, but only 5 can be inside the block at once, and a waiting task goes in the moment another comes out, not in fixed batches. It limits concurrency, not rate: it says nothing about requests per second.",
+      "materials": [
+        "python-docs-asyncio-synchronization-primitives"
+      ]
+    },
+    {
+      "id": "w02-l04-q02",
+      "concept": "w02-l04-semaphore",
+      "type": "multiple_choice",
+      "prompt": "A fetcher meant to allow 5 requests at a time: `async def fetch(url): sem = asyncio.Semaphore(5); async with sem: return await client.get(url)`. Gathering it over 50 URLs, how many requests can be in flight at once?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "All 50: each call makes its own semaphore, so none ever waits"
+        },
+        {
+          "id": "b",
+          "text": "5: the semaphore limits every call to `fetch`"
+        },
+        {
+          "id": "c",
+          "text": "1: a new semaphore starts at zero and blocks the first call"
+        },
+        {
+          "id": "d",
+          "text": "None: it raises `RuntimeError` because the semaphore isn't shared"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Each call creates a fresh `Semaphore(5)` with its own counter, so every task acquires its own and nobody ever waits. A limit only works when all the tasks share one semaphore: create it once, outside `fetch`, and pass it in or keep it on an object. `Semaphore(5)` starts its counter at 5, not 0.",
+      "materials": [
+        "python-docs-asyncio-synchronization-primitives"
+      ]
+    },
+    {
+      "id": "w02-l04-q03",
+      "concept": "w02-l04-timeouts",
+      "type": "multiple_choice",
+      "prompt": "`async with asyncio.timeout(10): await call_llm()` (Python 3.11+). Where do you catch the timeout, and as what exception?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Inside the block, as `asyncio.CancelledError` raised by `call_llm`"
+        },
+        {
+          "id": "b",
+          "text": "Inside the block, as `TimeoutError` raised by `call_llm`"
+        },
+        {
+          "id": "c",
+          "text": "Nowhere: `timeout` returns `None` instead of raising"
+        },
+        {
+          "id": "d",
+          "text": "Outside the block, as `TimeoutError`, around the `async with`"
+        }
+      ],
+      "answer": "d",
+      "explanation": "When the deadline passes, `asyncio.timeout` cancels the current task, so `call_llm` sees `CancelledError` at its current `await`. The context manager catches that on the way out and turns it into `TimeoutError`, which is why the docs say it can only be caught outside the context manager. Code inside should let the `CancelledError` pass after any cleanup.",
+      "materials": [
+        "python-docs-coroutines-and-tasks"
+      ]
+    },
+    {
+      "id": "w02-l04-q04",
+      "concept": "w02-l04-timeouts",
+      "type": "multiple_choice",
+      "prompt": "`result = await asyncio.wait_for(task, timeout=5)`, and `task` is still running after 5 s. What happens (Python 3.11+)?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`wait_for` raises `TimeoutError`, and `task` keeps running in the background"
+        },
+        {
+          "id": "b",
+          "text": "`wait_for` cancels `task` and raises `TimeoutError`"
+        },
+        {
+          "id": "c",
+          "text": "`wait_for` returns `None`, and `task` is cancelled"
+        },
+        {
+          "id": "d",
+          "text": "`wait_for` raises `asyncio.CancelledError` in the caller"
+        }
+      ],
+      "answer": "b",
+      "explanation": "On timeout, `wait_for` cancels the awaitable and raises `TimeoutError`. Since Python 3.11 that is the built-in `TimeoutError`, and `asyncio.TimeoutError` is an alias of it. If the work must keep running past the deadline, protect it with `asyncio.shield`. `asyncio.timeout` is the newer context-manager form of the same idea.",
+      "materials": [
+        "python-docs-coroutines-and-tasks",
+        "python-docs-asyncio"
+      ]
+    },
+    {
+      "id": "w02-l04-q05",
+      "concept": "w02-l04-cancellation-cleanup",
+      "type": "multiple_choice",
+      "prompt": "A task runs `try: await asyncio.sleep(10)`, then `except Exception: print(\"error\")`, then `finally: print(\"cleanup\")`. Another task calls `task.cancel()` during the sleep. What is printed, and how does the task end?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`error` then `cleanup`; the task finishes normally"
+        },
+        {
+          "id": "b",
+          "text": "`error` only; `finally` is skipped when a task is cancelled"
+        },
+        {
+          "id": "c",
+          "text": "`cleanup` only; the task ends cancelled"
+        },
+        {
+          "id": "d",
+          "text": "Nothing; a cancelled task stops without running any handlers"
+        }
+      ],
+      "answer": "c",
+      "explanation": "`cancel()` raises `CancelledError` inside the coroutine at its current `await`. Since Python 3.8, `CancelledError` subclasses `BaseException`, not `Exception`, so `except Exception` doesn't catch it. The `finally` block always runs, then the error propagates and the task ends cancelled. That is why cleanup belongs in `finally` or in an `async with`.",
+      "materials": [
+        "python-docs-coroutines-and-tasks",
+        "python-docs-asyncio"
+      ]
+    },
+    {
+      "id": "w02-l04-q06",
+      "concept": "w02-l04-cancellation-cleanup",
+      "type": "written",
+      "prompt": "Your tool wrapper catches `asyncio.CancelledError` to close a connection. What should it do after the cleanup, and why does it matter?",
+      "model_answer": {
+        "summary": "Re-raise the `CancelledError` once the cleanup is done, because timeouts and task groups use cancellation internally and misbehave if a coroutine swallows it.",
+        "key_points": [
+          "Cleanup belongs in `finally`, or in an `except asyncio.CancelledError:` block that ends with a bare `raise`",
+          "After cleanup the `CancelledError` should propagate, so the task really ends cancelled",
+          "`asyncio.timeout()` and `TaskGroup` are implemented with cancellation, so swallowing it can stop a timeout from firing or a task group from shutting down",
+          "If suppressing the cancellation is truly intended, the docs say you must also call `uncancel()` to clear the cancellation state"
+        ]
+      },
+      "explanation": "Cancellation is how asyncio stops work from the outside. A coroutine that catches `CancelledError` and carries on breaks that contract: the caller asked it to stop, and structured-concurrency tools rely on it stopping. Clean up, then let it go.",
+      "materials": [
+        "python-docs-coroutines-and-tasks"
+      ]
+    },
+    {
+      "id": "w02-l04-q07",
+      "concept": "w02-l04-taskgroup",
+      "type": "multiple_choice",
+      "prompt": "Inside `async with asyncio.TaskGroup() as tg:` you create three tasks. One raises `ValueError` while the other two are still running. What happens (Python 3.11+)?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The others are cancelled, then an `ExceptionGroup` holding the `ValueError` is raised"
+        },
+        {
+          "id": "b",
+          "text": "The `ValueError` propagates at once, and the other two tasks keep running in the background"
+        },
+        {
+          "id": "c",
+          "text": "The other two run to completion normally, then the bare `ValueError` is re-raised"
+        },
+        {
+          "id": "d",
+          "text": "The error is logged, and the group returns the results of the other two tasks"
+        }
+      ],
+      "answer": "a",
+      "explanation": "When a task in the group fails with an exception other than `CancelledError`, the group cancels the remaining tasks, waits for them, and raises the failures together in an `ExceptionGroup`. Catch it with `except* ValueError`. Choice b describes `gather`, where the first exception propagates and the other awaitables keep running.",
+      "materials": [
+        "python-docs-coroutines-and-tasks"
+      ]
+    },
+    {
+      "id": "w02-l04-q08",
+      "concept": "w02-l04-taskgroup",
+      "type": "written",
+      "prompt": "Compare `asyncio.gather` and `asyncio.TaskGroup` for running several tool calls at once. What happens to the other tasks when one fails, and which would you use in new code?",
+      "model_answer": {
+        "summary": "With `gather`'s defaults the first exception propagates and the other tasks keep running unsupervised; a `TaskGroup` cancels the rest and raises every failure in an `ExceptionGroup`, which makes it the safer default in Python 3.11+.",
+        "key_points": [
+          "`gather` with `return_exceptions=False` propagates the first exception to the awaiter, and the other awaitables are not cancelled",
+          "`gather(..., return_exceptions=True)` returns exceptions in the results list instead of raising",
+          "A `TaskGroup` cancels the remaining tasks when one fails, waits for them, and raises an `ExceptionGroup`, handled with `except*`",
+          "`TaskGroup` needs Python 3.11+ and is the better default, because no task outlives the `async with` block"
+        ]
+      },
+      "explanation": "The difference is who owns the tasks after a failure. With `gather`, the survivors run on with nobody awaiting them. A task group guarantees that when the block exits, every task in it has finished or been cancelled, so a failed agent step can't leave stray tool calls running.",
+      "materials": [
+        "python-docs-coroutines-and-tasks"
+      ]
+    },
+    {
+      "id": "w02-l04-q09",
+      "concept": "w02-l04-httpx-client",
+      "type": "multiple_choice",
+      "prompt": "`httpx.AsyncClient(timeout=10.0)`. A server sends its response one byte every 5 seconds for two minutes. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`ReadTimeout` after 10 s, since the whole response takes longer"
+        },
+        {
+          "id": "b",
+          "text": "`ConnectTimeout` after 10 s, since the request is still open"
+        },
+        {
+          "id": "c",
+          "text": "`PoolTimeout` after 10 s, since the connection is held too long"
+        },
+        {
+          "id": "d",
+          "text": "No timeout: each chunk arrives within 10 s, so the read timeout never fires"
+        }
+      ],
+      "answer": "d",
+      "explanation": "HTTPX timeouts are per operation, not per request: the read timeout is the longest wait for a chunk of data, and every chunk here arrives within 10 s. For a deadline on the whole call, wrap it in `asyncio.timeout(...)`. With no `timeout` argument, HTTPX raises after 5 seconds of network inactivity.",
+      "materials": [
+        "httpx-timeouts"
+      ]
+    },
+    {
+      "id": "w02-l04-q10",
+      "concept": "w02-l04-httpx-client",
+      "type": "multiple_choice",
+      "prompt": "Your fetcher runs `async with httpx.AsyncClient() as client: return await client.get(url)` inside the function called for each of 50 URLs. What's the problem?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`AsyncClient` can't be used with `async with`; you must call `aclose()`"
+        },
+        {
+          "id": "b",
+          "text": "A new client per request throws away connection pooling; create one and share it"
+        },
+        {
+          "id": "c",
+          "text": "Each client allows only one request, so the other 49 raise `PoolTimeout`"
+        },
+        {
+          "id": "d",
+          "text": "Nothing: HTTPX shares one global pool across all client instances"
+        }
+      ],
+      "answer": "b",
+      "explanation": "A client keeps a pool of connections so later requests to the same host reuse them instead of opening new TCP and TLS connections. The HTTPX docs warn against creating clients in a hot loop: open one `AsyncClient` for the whole run and pass it to each task. Its default pool allows up to 100 connections, 20 of them kept alive, and `httpx.Limits` changes that.",
+      "materials": [
+        "httpx-async-client",
+        "httpx-resource-limits"
+      ]
+    },
+    {
+      "id": "w02-l04-q11",
+      "concept": "w02-l04-retry-backoff",
+      "type": "multiple_choice",
+      "prompt": "You retry a failed request at most 3 times with exponential backoff: base delay 1 s, doubling each time, no jitter. How many attempts can there be, and what are the waits?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "3 attempts, with waits of 1 s and 2 s"
+        },
+        {
+          "id": "b",
+          "text": "3 attempts, with waits of 2 s, 4 s and 8 s"
+        },
+        {
+          "id": "c",
+          "text": "4 attempts, with waits of 1 s, 2 s and 4 s"
+        },
+        {
+          "id": "d",
+          "text": "4 attempts, with waits of 1 s, 1 s and 1 s"
+        }
+      ],
+      "answer": "c",
+      "explanation": "Three retries follow the first attempt, so there can be four attempts in all. The delay doubles before each retry: 1 s, 2 s, then 4 s, 7 s of waiting in total. In Tenacity that limit is `stop=stop_after_attempt(4)`, because `stop_after_attempt` counts the first attempt too.",
+      "materials": [
+        "tenacity-retries-in-python"
+      ]
+    },
+    {
+      "id": "w02-l04-q12",
+      "concept": "w02-l04-retry-backoff",
+      "type": "written",
+      "prompt": "Why add random jitter to exponential backoff, and which failures should your fetcher retry?",
+      "model_answer": {
+        "summary": "Jitter spreads out the retries of many clients so they don't all hit the server again at the same moment; retry only failures that may succeed next time, such as timeouts, connection errors, 429 and 5xx responses.",
+        "key_points": [
+          "Without jitter, clients that failed together retry together, and the synchronised bursts collide again; random jitter spreads them out",
+          "Retry transient failures: timeouts, connection errors, HTTP 429 Too Many Requests and 5xx server errors such as 503",
+          "Don't retry client errors such as 400 Bad Request: the same request will fail the same way",
+          "Honour a `Retry-After` header when the server sends one, since it says how long to wait"
+        ]
+      },
+      "explanation": "Backoff gives a struggling server room to recover, and jitter stops a crowd of clients from turning that room into a new spike. Tenacity's docs note that exponentially increasing jitter helps minimise collisions. RFC 6585 lets a 429 response carry `Retry-After`, and RFC 9110 defines 4xx as client errors and 5xx as the server failing an apparently valid request.",
+      "materials": [
+        "tenacity-retries-in-python",
+        "rfc-6585-additional-http-status-codes",
+        "rfc-9110-http-semantics"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,322 @@
+{
+  "schema_version": 1,
+  "lesson_id": "w05-l05",
+  "concepts": [
+    {
+      "id": "w05-l05-bfs-level-order",
+      "name": "BFS with a queue and level-order traversal"
+    },
+    {
+      "id": "w05-l05-validate-bst",
+      "name": "The BST property and how to validate it"
+    },
+    {
+      "id": "w05-l05-bst-inorder-kth-smallest",
+      "name": "In-order traversal of a BST is sorted (Kth Smallest)"
+    },
+    {
+      "id": "w05-l05-bst-lowest-common-ancestor",
+      "name": "Lowest common ancestor in a BST"
+    },
+    {
+      "id": "w05-l05-bfs-vs-dfs-memory",
+      "name": "Memory use of BFS vs DFS"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w05-l05-q01",
+      "concept": "w05-l05-bfs-level-order",
+      "type": "multiple_choice",
+      "prompt": "Binary Tree Level Order Traversal must return a list per level, such as `[[3], [9, 20], [15, 7]]`. With a `deque`, how do you know where one level ends?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Pop nodes until the queue is empty; everything popped belongs to one level"
+        },
+        {
+          "id": "b",
+          "text": "Before each level, record `len(queue)` and pop exactly that many nodes"
+        },
+        {
+          "id": "c",
+          "text": "Start a new level whenever a popped node has no children"
+        },
+        {
+          "id": "d",
+          "text": "Store the nodes in a stack and start a new level each time it empties"
+        }
+      ],
+      "answer": "b",
+      "explanation": "When a level starts, the queue holds exactly that level's nodes, because their children are appended behind them. Taking `size = len(queue)` and popping `size` nodes processes the level and leaves the next level queued. Popping until empty would mix all levels into one list. A leaf can appear in the middle of a level, so it doesn't mark the end.",
+      "materials": [
+        "python-docs-collections",
+        "neetcode-150-practice-list"
+      ]
+    },
+    {
+      "id": "w05-l05-q02",
+      "concept": "w05-l05-bfs-level-order",
+      "type": "multiple_choice",
+      "prompt": "Why use `collections.deque` rather than a `list` as the BFS queue in Python?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`deque.popleft()` is O(1), while `list.pop(0)` is O(n)"
+        },
+        {
+          "id": "b",
+          "text": "`deque` keeps its items in sorted order"
+        },
+        {
+          "id": "c",
+          "text": "A `list` can't hold tree node objects"
+        },
+        {
+          "id": "d",
+          "text": "`deque` uses less memory per item than a `list`"
+        }
+      ],
+      "answer": "a",
+      "explanation": "BFS removes from the front and appends at the back. The Python docs say a `deque` supports O(1) appends and pops at either end, while a list incurs O(n) memory movement for `pop(0)`, because every remaining item shifts left. On a tree with many nodes, `list.pop(0)` turns an O(n) traversal into O(n²).",
+      "materials": [
+        "python-docs-collections",
+        "python-wiki-time-complexity"
+      ]
+    },
+    {
+      "id": "w05-l05-q03",
+      "concept": "w05-l05-validate-bst",
+      "type": "multiple_choice",
+      "prompt": "A validator checks only that each node's children are on the right side of it (`left.val < node.val < right.val`, skipping missing children). Run it on this tree: root `5`, left `4`, right `6`, and `6` has children `3` (left) and `7` (right). What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It says invalid, which is correct, because `3 < 6` is out of order"
+        },
+        {
+          "id": "b",
+          "text": "It crashes, because `4` has no children to compare"
+        },
+        {
+          "id": "c",
+          "text": "It says valid, and it's right: every parent-child pair is in order"
+        },
+        {
+          "id": "d",
+          "text": "It says valid, wrongly: `3` sits in `5`'s right subtree but is less than 5"
+        }
+      ],
+      "answer": "d",
+      "explanation": "Every parent-child pair passes: 4 < 5 < 6, and 3 < 6 < 7. But the BST property covers whole subtrees: everything in the right subtree of `5` must be greater than 5, and `3` isn't. The fix is to pass bounds down the recursion, so the node `3` is checked against the range (5, 6).",
+      "materials": [
+        "neetcode-150-practice-list"
+      ]
+    },
+    {
+      "id": "w05-l05-q04",
+      "concept": "w05-l05-validate-bst",
+      "type": "written",
+      "prompt": "Explain how to check correctly whether a binary tree is a valid binary search tree, and why checking each node against its children isn't enough.",
+      "model_answer": {
+        "summary": "The BST property applies to whole subtrees, not just children, so pass an allowed `(low, high)` range down the recursion and check every node against it. Or do an in-order traversal and check the values are strictly increasing.",
+        "key_points": [
+          "Every value in a node's left subtree must be strictly less than the node, and every value in its right subtree strictly greater",
+          "Comparing only with the direct children misses deeper violations, such as a small value deep in a right subtree",
+          "Recurse with bounds: the left child gets `(low, node.val)`, the right child gets `(node.val, high)`, starting from `(-inf, inf)`",
+          "Alternative: an in-order traversal of a valid BST is strictly increasing, so compare each value with the previous one",
+          "Both take O(n) time and O(h) stack"
+        ]
+      },
+      "explanation": "LeetCode's definition uses strict inequalities, so a duplicate value makes the tree invalid. Using `float('-inf')` and `float('inf')` as the starting bounds avoids trouble with values at the integer limits.",
+      "materials": [
+        "neetcode-150-practice-list"
+      ]
+    },
+    {
+      "id": "w05-l05-q05",
+      "concept": "w05-l05-bst-inorder-kth-smallest",
+      "type": "multiple_choice",
+      "prompt": "Which traversal solves Kth Smallest Element in a BST most directly?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Level order, returning the k-th node dequeued"
+        },
+        {
+          "id": "b",
+          "text": "Pre-order, returning the k-th node visited"
+        },
+        {
+          "id": "c",
+          "text": "In-order, stopping at the k-th node visited"
+        },
+        {
+          "id": "d",
+          "text": "Post-order, returning the k-th node visited"
+        }
+      ],
+      "answer": "c",
+      "explanation": "In-order visits the left subtree, then the node, then the right subtree. In a BST that means values come out in ascending order, so the k-th value visited is the k-th smallest, and an iterative in-order can stop there without visiting the rest. The other orders don't follow value order.",
+      "materials": [
+        "neetcode-150-practice-list"
+      ]
+    },
+    {
+      "id": "w05-l05-q06",
+      "concept": "w05-l05-bst-inorder-kth-smallest",
+      "type": "multiple_choice",
+      "prompt": "The BST `[5, 3, 6, 2, 4, null, null, 1]` has root `5`; `3` and `6` are its children, `2` and `4` are the children of `3`, and `1` is the left child of `2`. What is the 3rd smallest value?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`2`"
+        },
+        {
+          "id": "b",
+          "text": "`4`"
+        },
+        {
+          "id": "c",
+          "text": "`5`"
+        },
+        {
+          "id": "d",
+          "text": "`3`"
+        }
+      ],
+      "answer": "d",
+      "explanation": "An in-order traversal visits `1, 2, 3, 4, 5, 6`, and the third value is `3`. Picking `4` or `5` usually comes from counting in the order the nodes appear in the array, which is level order, not value order.",
+      "materials": [
+        "neetcode-150-practice-list"
+      ]
+    },
+    {
+      "id": "w05-l05-q07",
+      "concept": "w05-l05-bst-lowest-common-ancestor",
+      "type": "multiple_choice",
+      "prompt": "In the BST `[6, 2, 8, 0, 4, 7, 9, null, null, 3, 5]` (so `4` has children `3` and `5`), what is the lowest common ancestor of `3` and `5`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`6`"
+        },
+        {
+          "id": "b",
+          "text": "`2`"
+        },
+        {
+          "id": "c",
+          "text": "`4`"
+        },
+        {
+          "id": "d",
+          "text": "`5`"
+        }
+      ],
+      "answer": "c",
+      "explanation": "Start at the root: 3 and 5 are both less than 6, so go left to 2. Both are greater than 2, so go right to 4. At 4 they split, 3 to the left and 5 to the right, so 4 is the lowest node that has both as descendants. `6` and `2` are common ancestors, but not the lowest.",
+      "materials": [
+        "neetcode-150-practice-list"
+      ]
+    },
+    {
+      "id": "w05-l05-q08",
+      "concept": "w05-l05-bst-lowest-common-ancestor",
+      "type": "multiple_choice",
+      "prompt": "Walking down a BST to find the LCA of `p` and `q`, when do you stop and return the current node?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "When `p` and `q` are not both smaller and not both larger than it"
+        },
+        {
+          "id": "b",
+          "text": "When the current node is a leaf"
+        },
+        {
+          "id": "c",
+          "text": "Only when the current node's value equals `p.val`"
+        },
+        {
+          "id": "d",
+          "text": "When `p` and `q` are both smaller than the current node"
+        }
+      ],
+      "answer": "a",
+      "explanation": "If both values are smaller, the LCA is in the left subtree; if both are larger, it is in the right. Otherwise they split here, or one of them is this node, and the current node is the LCA. The problem lets a node be a descendant of itself, which is why LCA(2, 4) is 2. Both being smaller is the signal to go left, not to stop.",
+      "materials": [
+        "neetcode-150-practice-list"
+      ]
+    },
+    {
+      "id": "w05-l05-q09",
+      "concept": "w05-l05-bst-lowest-common-ancestor",
+      "type": "written",
+      "prompt": "Explain the algorithm for Lowest Common Ancestor of a Binary Search Tree, its time and space cost, and why it doesn't work on an ordinary binary tree.",
+      "model_answer": {
+        "summary": "Walk down from the root, going left while both values are smaller and right while both are larger; the first node where they split (or that equals one of them) is the LCA. It takes O(h) time and O(1) space iteratively, but depends on the BST ordering.",
+        "key_points": [
+          "If both `p` and `q` are less than the node, go left; if both are greater, go right",
+          "Otherwise the current node is the LCA (they split here, or the node is `p` or `q`)",
+          "It follows one root-to-node path: O(h) time, and O(1) space as a loop",
+          "It relies on the BST property to know which side each value is on",
+          "In an ordinary binary tree you must search both subtrees, which is O(n)"
+        ]
+      },
+      "explanation": "The BST ordering lets you decide at each node where both targets must be without looking. That's the same reason search in a balanced BST is O(log n).",
+      "materials": [
+        "neetcode-150-practice-list"
+      ]
+    },
+    {
+      "id": "w05-l05-q10",
+      "concept": "w05-l05-bfs-vs-dfs-memory",
+      "type": "written",
+      "prompt": "Compare how much memory BFS and DFS need on (a) a wide, shallow tree such as a complete binary tree, and (b) a deep, narrow tree such as a long chain. Which would you pick for each?",
+      "model_answer": {
+        "summary": "BFS's queue holds up to a whole level, so its memory is O(width); DFS's stack holds one root-to-node path, so its memory is O(height). On a wide tree DFS uses far less; on a deep chain BFS does.",
+        "key_points": [
+          "BFS memory is O(w), the maximum number of nodes on one level, because the queue holds a level at a time",
+          "DFS memory is O(h), the height, because the stack holds the current path from the root",
+          "Complete tree: the last level has about n/2 nodes, so BFS needs O(n) while DFS needs O(log n); prefer DFS",
+          "Chain of n nodes: width is 1, so BFS needs O(1) while DFS needs O(n); prefer BFS or an iterative DFS",
+          "In Python, a recursive DFS on a deep tree also hits the default recursion limit of 1000"
+        ]
+      },
+      "explanation": "This is the exercise for the lesson. Both traversals take O(n) time; the difference is only which shape of tree makes their working set large.",
+      "materials": [
+        "neetcode-150-practice-list"
+      ]
+    },
+    {
+      "id": "w05-l05-q11",
+      "concept": "w05-l05-bfs-vs-dfs-memory",
+      "type": "multiple_choice",
+      "prompt": "A perfect binary tree has 20 levels (2^20 − 1, about 1 million, nodes). Roughly how many nodes does each traversal hold at its peak: the BFS queue, and the recursive DFS call stack?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "BFS about 524,000; DFS about 20"
+        },
+        {
+          "id": "b",
+          "text": "BFS about 20; DFS about 524,000"
+        },
+        {
+          "id": "c",
+          "text": "Both about 20"
+        },
+        {
+          "id": "d",
+          "text": "Both about 1,000,000"
+        }
+      ],
+      "answer": "a",
+      "explanation": "The last level of a perfect tree holds 2^19 = 524,288 nodes, and BFS has them all in its queue at once. DFS only holds the current path from the root, which is at most 20 nodes deep. So on a wide, shallow tree DFS uses far less memory, and on a deep, narrow tree the reverse is true.",
+      "materials": [
+        "neetcode-150-practice-list"
+      ]
+    }
+  ]
+}

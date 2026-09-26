@@ -1,0 +1,288 @@
+{
+  "schema_version": 1,
+  "lesson_id": "w03-l04",
+  "concepts": [
+    {
+      "id": "w03-l04-window-mechanics",
+      "name": "Fixed vs variable windows: grow the right edge, shrink the left"
+    },
+    {
+      "id": "w03-l04-buy-and-sell-stock",
+      "name": "Best Time to Buy and Sell Stock"
+    },
+    {
+      "id": "w03-l04-longest-substring",
+      "name": "Longest Substring Without Repeating Characters"
+    },
+    {
+      "id": "w03-l04-character-replacement",
+      "name": "Longest Repeating Character Replacement"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w03-l04-q01",
+      "concept": "w03-l04-window-mechanics",
+      "type": "multiple_choice",
+      "prompt": "You need the largest sum of any 3 consecutive elements, a fixed-size window. Once you have the first window's sum, how do you get the next one in O(1)?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Recompute the sum of the 3 new elements with `sum()`"
+        },
+        {
+          "id": "b",
+          "text": "Add the element entering on the right and subtract the one leaving on the left"
+        },
+        {
+          "id": "c",
+          "text": "Double the previous sum and subtract the first element"
+        },
+        {
+          "id": "d",
+          "text": "Sort the array once, then read the sums off the sorted order"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Neighbouring windows share all but two elements, so each slide changes the sum by the entering value minus the leaving one. That makes the whole scan O(n), instead of O(n·k) for summing each window afresh. Sorting would destroy the \"consecutive\" part of the question.",
+      "materials": [
+        "tech-interview-handbook-array",
+        "neetcode-150-practice-list"
+      ]
+    },
+    {
+      "id": "w03-l04-q02",
+      "concept": "w03-l04-window-mechanics",
+      "type": "written",
+      "prompt": "The exercise: explain why each pointer in a sliding-window solution only moves forward, and why that makes it O(n).",
+      "model_answer": {
+        "summary": "The right pointer moves from 0 to n − 1 once, and the left pointer only moves forward and never passes it, so together they make at most 2n moves; with O(1) work per move, the total is O(n).",
+        "key_points": [
+          "The right pointer advances one step per outer-loop iteration, n steps in total",
+          "The left pointer only moves forward and never passes the right pointer, so it moves at most n times over the whole run",
+          "The inner loop that shrinks the window can run many times in one iteration, but its total across the whole run is at most n",
+          "With O(1) work per pointer move (a count or hash-map update), the total is O(n), not O(n²)"
+        ]
+      },
+      "explanation": "Nested loops don't automatically mean O(n²): what matters is the total number of steps. Because neither pointer ever goes back, each element enters the window once and leaves at most once, so each is visited at most twice.",
+      "materials": [
+        "tech-interview-handbook-array"
+      ]
+    },
+    {
+      "id": "w03-l04-q03",
+      "concept": "w03-l04-buy-and-sell-stock",
+      "type": "multiple_choice",
+      "prompt": "What does Best Time to Buy and Sell Stock return for `prices = [7, 1, 5, 3, 6, 4]`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "6: sell at the highest price, 7, after buying at the lowest, 1"
+        },
+        {
+          "id": "b",
+          "text": "3: buy at 1 on day 2 and sell at 4 on the last day"
+        },
+        {
+          "id": "c",
+          "text": "7: add up every rise, 4 + 3"
+        },
+        {
+          "id": "d",
+          "text": "5: buy at 1 on day 2 and sell at 6 on day 5"
+        }
+      ],
+      "answer": "d",
+      "explanation": "You must buy before you sell, and 7 comes first, so it can't be the sale after buying at 1. Keep the lowest price so far and, each day, the profit from selling that day: the best is 6 − 1 = 5. Adding up every rise answers a different problem, where you may trade many times.",
+      "materials": [
+        "neetcode-150-practice-list"
+      ]
+    },
+    {
+      "id": "w03-l04-q04",
+      "concept": "w03-l04-buy-and-sell-stock",
+      "type": "multiple_choice",
+      "prompt": "The one-pass solution keeps `min_price` and `best`, with `best` starting at 0. What does it return for `prices = [7, 6, 4, 3, 1]`, and why?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "0: the price only falls, so no trade makes a profit"
+        },
+        {
+          "id": "b",
+          "text": "-1: the smallest loss, buying at 4 and selling at 3"
+        },
+        {
+          "id": "c",
+          "text": "6: the difference between the highest and lowest prices"
+        },
+        {
+          "id": "d",
+          "text": "1: the lowest price, since that's the best day to buy"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Every day here sets a new `min_price`, so every candidate profit, `price - min_price`, is 0. The problem says to return 0 when no profit is possible, which starting `best` at 0 gives for free. It's O(n) time and O(1) space: a window whose left edge jumps to each new minimum.",
+      "materials": [
+        "neetcode-150-practice-list"
+      ]
+    },
+    {
+      "id": "w03-l04-q05",
+      "concept": "w03-l04-longest-substring",
+      "type": "multiple_choice",
+      "prompt": "What does Longest Substring Without Repeating Characters return for `\"pwwkew\"`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "4, for `\"pwke\"`, taking the letters in order"
+        },
+        {
+          "id": "b",
+          "text": "2, for `\"pw\"`, stopping at the first repeat"
+        },
+        {
+          "id": "c",
+          "text": "3, for `\"wke\"`"
+        },
+        {
+          "id": "d",
+          "text": "6: the whole string, counting each letter once"
+        }
+      ],
+      "answer": "c",
+      "explanation": "The answer must be a substring, a contiguous run, so `\"pwke\"` doesn't count; it's a subsequence. The window grows to `\"pw\"`, meets the second `w`, shrinks past the first `w`, then grows to `\"wke\"`, length 3, before the next `w` shrinks it again.",
+      "materials": [
+        "neetcode-150-practice-list"
+      ]
+    },
+    {
+      "id": "w03-l04-q06",
+      "concept": "w03-l04-longest-substring",
+      "type": "multiple_choice",
+      "prompt": "A solution stores each character's last index in `last` and, on a repeat, sets `left = last[c] + 1`. On `\"abba\"` it returns 3 instead of 2. What's the fix?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Use `left = max(left, last[c] + 1)`, so `left` never moves back"
+        },
+        {
+          "id": "b",
+          "text": "Use `left = last[c]`, dropping the `+ 1` that skips one too far"
+        },
+        {
+          "id": "c",
+          "text": "Clear `last` whenever the window shrinks, so old indices are forgotten"
+        },
+        {
+          "id": "d",
+          "text": "Only update `last[c]` the first time `c` is seen, never on a repeat"
+        }
+      ],
+      "answer": "a",
+      "explanation": "At the second `b`, `left` jumps to 2. At the final `a`, `last['a']` is 0, an index already outside the window, so `left = 0 + 1` moves the left edge back to 1 and `\"bba\"` wrongly counts as valid. Taking the max keeps the left pointer moving only forward, which is also what keeps the algorithm O(n).",
+      "materials": [
+        "neetcode-150-practice-list"
+      ]
+    },
+    {
+      "id": "w03-l04-q07",
+      "concept": "w03-l04-longest-substring",
+      "type": "written",
+      "prompt": "Describe the sliding-window solution to Longest Substring Without Repeating Characters: what the window holds, when it grows and shrinks, and its complexity.",
+      "model_answer": {
+        "summary": "The window `s[left:right + 1]` never contains a repeated character: move `right` forward each step, and when the new character is already in the window, move `left` forward past its earlier occurrence; the answer is the largest window seen, found in O(n) time.",
+        "key_points": [
+          "Invariant: the window between `left` and `right` has no repeated characters",
+          "Each step moves `right` forward to add one character",
+          "If that character is already in the window, `left` moves forward until it isn't (or jumps to one past its last index, never moving back)",
+          "After each step, update the best length with `right - left + 1`",
+          "Both pointers only move forward, so it's O(n) time, with extra space for the set or map of the characters in the window"
+        ]
+      },
+      "explanation": "Stating the invariant first makes the rest follow: growing may break it, and shrinking from the left restores it. That is the general shape of a variable-size window.",
+      "materials": [
+        "neetcode-150-practice-list",
+        "tech-interview-handbook-array"
+      ]
+    },
+    {
+      "id": "w03-l04-q08",
+      "concept": "w03-l04-character-replacement",
+      "type": "multiple_choice",
+      "prompt": "In Longest Repeating Character Replacement, when is the window `s[left:right + 1]` valid, given at most `k` replacements?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "When it contains at most `k + 1` distinct letters: one kept, `k` replaced"
+        },
+        {
+          "id": "b",
+          "text": "When its length minus its most frequent letter's count is at most `k`"
+        },
+        {
+          "id": "c",
+          "text": "When its most frequent letter appears at least `k` times in the window"
+        },
+        {
+          "id": "d",
+          "text": "When its length is at most `k`, so every letter could be replaced"
+        }
+      ],
+      "answer": "b",
+      "explanation": "The cheapest way to make a window one letter is to keep its most frequent letter and replace everything else, which takes `length - max_count` operations. If that's at most `k`, the window can be made uniform. When it exceeds `k`, move `left` forward and decrement the count of the letter that leaves.",
+      "materials": [
+        "neetcode-150-practice-list"
+      ]
+    },
+    {
+      "id": "w03-l04-q09",
+      "concept": "w03-l04-character-replacement",
+      "type": "multiple_choice",
+      "prompt": "What does Longest Repeating Character Replacement return for `s = \"AABABBA\"`, `k = 1`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "3, for `\"AAB\"` turned into `\"AAA\"`"
+        },
+        {
+          "id": "b",
+          "text": "5, for `\"AABAB\"`, replacing both `B`s"
+        },
+        {
+          "id": "c",
+          "text": "7: with one replacement the whole string becomes one letter"
+        },
+        {
+          "id": "d",
+          "text": "4, for example `\"AABA\"` turned into `\"AAAA\"`"
+        }
+      ],
+      "answer": "d",
+      "explanation": "`\"AABA\"` (indices 0 to 3) has three `A`s and one `B`: 4 − 3 = 1 replacement, which `k = 1` allows. Every window of length 5 needs 2 replacements, such as `\"AABAB\"`, so 4 is the maximum. `\"BABB\"` turned into `\"BBBB\"` is another length-4 answer.",
+      "materials": [
+        "neetcode-150-practice-list"
+      ]
+    },
+    {
+      "id": "w03-l04-q10",
+      "concept": "w03-l04-character-replacement",
+      "type": "written",
+      "prompt": "Explain the validity check in Longest Repeating Character Replacement and how the window moves. What are the time and space complexity?",
+      "model_answer": {
+        "summary": "Keep letter counts for the window and grow it one character at a time; while `window length - max count > k`, shrink it from the left; the longest valid window is the answer, in O(n) time and O(1) space for 26 letters.",
+        "key_points": [
+          "Keep a count of each letter in the window, and the highest count, `max_count`",
+          "The window needs `length - max_count` replacements to become one letter, so it is valid while that is at most `k`",
+          "Move `right` forward each step; when the window becomes invalid, move `left` forward and decrement the count of the letter that leaves",
+          "Record the largest valid window length",
+          "O(n) time, because both pointers only move forward, and O(1) extra space, because there are only 26 uppercase letters"
+        ]
+      },
+      "explanation": "The trick is turning \"at most `k` replacements\" into a check you can maintain in O(1) per step: the letters you'd replace are exactly the ones that aren't the majority letter.",
+      "materials": [
+        "neetcode-150-practice-list"
+      ]
+    }
+  ]
+}

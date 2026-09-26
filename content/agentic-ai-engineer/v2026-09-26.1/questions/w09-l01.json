@@ -1,0 +1,291 @@
+{
+  "schema_version": 1,
+  "lesson_id": "w09-l01",
+  "concepts": [
+    {
+      "id": "w09-l01-requirements-first",
+      "name": "Clarify requirements and scale before designing"
+    },
+    {
+      "id": "w09-l01-back-of-envelope",
+      "name": "Back-of-envelope estimates"
+    },
+    {
+      "id": "w09-l01-api-and-data-model",
+      "name": "API, data model and high-level diagram"
+    },
+    {
+      "id": "w09-l01-short-code-design",
+      "name": "Designing a URL shortener's short codes"
+    },
+    {
+      "id": "w09-l01-bottlenecks-tradeoffs",
+      "name": "Deep dive: bottlenecks and trade-offs"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w09-l01-q01",
+      "concept": "w09-l01-requirements-first",
+      "type": "multiple_choice",
+      "prompt": "The interviewer says \"Design a URL shortener.\" What should you do first?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Draw the load balancer, web servers and database, then ask what's missing"
+        },
+        {
+          "id": "b",
+          "text": "Pick the database first, since the schema and every other component depend on that choice"
+        },
+        {
+          "id": "c",
+          "text": "Ask who uses it, how many links per month, and the read-to-write ratio"
+        },
+        {
+          "id": "d",
+          "text": "Write the code that hashes a long URL into a short code, since that's the core feature"
+        }
+      ],
+      "answer": "c",
+      "explanation": "The System Design Primer's first step is to outline use cases, constraints and assumptions: who uses it, how many users, how much data, how many requests per second, and the read-to-write ratio. Those numbers decide the rest, such as whether you need caching or sharding, so a design drawn before them is a guess.",
+      "materials": [
+        "system-design-primer"
+      ]
+    },
+    {
+      "id": "w09-l01-q02",
+      "concept": "w09-l01-requirements-first",
+      "type": "written",
+      "prompt": "Name the functional and non-functional requirements you would clarify for a URL shortener, and for each say how the answer would change the design.",
+      "model_answer": {
+        "summary": "Clarify what the product must do (create, redirect, expiry, custom aliases, analytics) and how well (scale, read-to-write ratio, latency, availability), because each answer adds or removes components.",
+        "key_points": [
+          "Functional: create a short link and redirect to the long URL; ask whether links expire, whether custom aliases are allowed, and whether clicks are counted",
+          "Expiry needs an expiry field and a way to clean up or ignore expired links",
+          "Scale: new links per month and the read-to-write ratio set storage size and requests per second",
+          "A read-heavy ratio points to caching popular links in front of the database",
+          "Redirect latency and availability targets decide how much you replicate and cache"
+        ]
+      },
+      "explanation": "Requirements turn a vague prompt into a problem with numbers. Interviewers expect you to ask, and to use the answers: each requirement should point to a piece of the design, not sit in a list.",
+      "materials": [
+        "system-design-primer"
+      ]
+    },
+    {
+      "id": "w09-l01-q03",
+      "concept": "w09-l01-back-of-envelope",
+      "type": "multiple_choice",
+      "prompt": "The service creates 100 million short links a month. Using the rule of thumb that a month has about 2.5 million seconds, roughly how many writes per second is that on average?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "About 4"
+        },
+        {
+          "id": "b",
+          "text": "About 40"
+        },
+        {
+          "id": "c",
+          "text": "About 400"
+        },
+        {
+          "id": "d",
+          "text": "About 4,000"
+        }
+      ],
+      "answer": "b",
+      "explanation": "100,000,000 / 2,500,000 = 40 writes per second on average. The Primer's handy conversion is that 1 request per second is about 2.5 million requests a month, so 40 per second is 100 million a month. Peaks are higher than the average, so say that out loud too.",
+      "materials": [
+        "system-design-primer"
+      ]
+    },
+    {
+      "id": "w09-l01-q04",
+      "concept": "w09-l01-back-of-envelope",
+      "type": "multiple_choice",
+      "prompt": "Each short link record takes about 500 bytes. At 100 million new links a month, about how much storage do you need for 5 years?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "About 36 GB"
+        },
+        {
+          "id": "b",
+          "text": "About 300 GB"
+        },
+        {
+          "id": "c",
+          "text": "About 30 TB"
+        },
+        {
+          "id": "d",
+          "text": "About 3 TB"
+        }
+      ],
+      "answer": "d",
+      "explanation": "100 million x 500 bytes = 50 GB a month. Five years is 60 months, and 60 x 50 GB = 3,000 GB, about 3 TB. That fits comfortably in one database with replicas, which tells you sharding isn't the first problem to solve.",
+      "materials": [
+        "system-design-primer"
+      ]
+    },
+    {
+      "id": "w09-l01-q05",
+      "concept": "w09-l01-api-and-data-model",
+      "type": "multiple_choice",
+      "prompt": "What is the best primary key for the URL shortener's main table?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The short code, because every redirect looks a link up by it"
+        },
+        {
+          "id": "b",
+          "text": "The long URL, because it's unique per link"
+        },
+        {
+          "id": "c",
+          "text": "The creation timestamp, so rows are stored in order"
+        },
+        {
+          "id": "d",
+          "text": "An auto-increment ID, with no index on the short code"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Design the data model around the hot query. Redirects vastly outnumber creations and always look up by short code, so the Primer's similar Pastebin design makes the 7-character shortlink the primary key. Long URLs aren't necessarily unique, and a table without an index on the short code would scan on every redirect.",
+      "materials": [
+        "system-design-primer"
+      ]
+    },
+    {
+      "id": "w09-l01-q06",
+      "concept": "w09-l01-api-and-data-model",
+      "type": "written",
+      "prompt": "Sketch the API, the data model and the high-level components of a URL shortener, and explain how a redirect request flows through them.",
+      "model_answer": {
+        "summary": "Two endpoints (create and redirect), one table keyed by short code, and stateless web servers behind a load balancer with a cache in front of the database.",
+        "key_points": [
+          "A `POST` endpoint takes the long URL (and optional expiry) and returns the short code",
+          "A `GET /{code}` endpoint looks up the code and redirects to the long URL",
+          "The table is keyed by short code and stores the long URL, creation time and expiry",
+          "Clients reach stateless web servers through a load balancer",
+          "A redirect checks the cache first and reads the database only on a miss"
+        ]
+      },
+      "explanation": "This matches the Primer's second and third steps: a high-level design with the important components, then the core pieces in detail. Keep the diagram tied to the numbers: the cache is there because reads dominate.",
+      "materials": [
+        "system-design-primer"
+      ]
+    },
+    {
+      "id": "w09-l01-q07",
+      "concept": "w09-l01-short-code-design",
+      "type": "multiple_choice",
+      "prompt": "Short codes are 7 characters of Base62 (`a-z`, `A-Z`, `0-9`). About how many distinct codes is that?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "434 (62 x 7)"
+        },
+        {
+          "id": "b",
+          "text": "About 57 billion"
+        },
+        {
+          "id": "c",
+          "text": "About 3.5 trillion"
+        },
+        {
+          "id": "d",
+          "text": "About 7 quadrillion"
+        }
+      ],
+      "answer": "c",
+      "explanation": "Each position has 62 options, so there are 62^7 = 3,521,614,606,208 codes, about 3.5 trillion. 57 billion is 62^6. At 100 million links a month, 3.5 trillion lasts thousands of years, so 7 characters is plenty.",
+      "materials": [
+        "system-design-primer"
+      ]
+    },
+    {
+      "id": "w09-l01-q08",
+      "concept": "w09-l01-short-code-design",
+      "type": "multiple_choice",
+      "prompt": "You make short codes by taking an MD5 hash, Base62-encoding it and keeping the first 7 characters. What must you still handle?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Collisions: a truncated hash can repeat, so detect the duplicate key on insert and retry"
+        },
+        {
+          "id": "b",
+          "text": "Nothing: MD5 is collision-free, so the first 7 characters of it are always unique too"
+        },
+        {
+          "id": "c",
+          "text": "Decoding: you must be able to reverse the code back into the long URL without a lookup"
+        },
+        {
+          "id": "d",
+          "text": "Case: Base62 codes must be lowercased before storing, or lookups will miss mixed-case codes"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Keeping only 7 characters of a hash throws most of it away, so different inputs can end up with the same code. With the short code as the primary key, a duplicate insert fails, and you retry with a changed input (for example adding a salt or timestamp). Codes are looked up, never decoded, and Base62 relies on case to reach 62 symbols.",
+      "materials": [
+        "system-design-primer"
+      ]
+    },
+    {
+      "id": "w09-l01-q09",
+      "concept": "w09-l01-bottlenecks-tradeoffs",
+      "type": "multiple_choice",
+      "prompt": "The shortener sees 100 reads for every write, and the database is the bottleneck. What is the most effective first change?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Shard the database by the first letter of the code"
+        },
+        {
+          "id": "b",
+          "text": "Move from SQL to a NoSQL database"
+        },
+        {
+          "id": "c",
+          "text": "Make the short codes longer"
+        },
+        {
+          "id": "d",
+          "text": "Cache popular codes in memory and add read replicas for the rest"
+        }
+      ],
+      "answer": "d",
+      "explanation": "The Primer's fourth step is to find the bottleneck given the constraints. With reads 100 times more common than writes and a few links very popular, a cache in front of the database absorbs most redirects, and read replicas spread the remaining reads. 3 TB doesn't yet call for sharding, which adds much more complexity.",
+      "materials": [
+        "system-design-primer"
+      ]
+    },
+    {
+      "id": "w09-l01-q10",
+      "concept": "w09-l01-bottlenecks-tradeoffs",
+      "type": "written",
+      "prompt": "Compare generating short codes by hashing with generating them from an incrementing counter encoded in Base62. When would you choose each?",
+      "model_answer": {
+        "summary": "Hashing needs no shared state but must handle collisions; a counter never collides but produces guessable codes and needs coordination across servers.",
+        "key_points": [
+          "Hashing can run on any server with no shared state",
+          "Truncated hashes can collide, so inserts must check for duplicates and retry",
+          "A counter gives every link a unique number, so its Base62 codes never collide",
+          "Counter-based codes are sequential, so anyone can guess and enumerate other links",
+          "A single counter is a coordination point; servers can each reserve ranges of numbers to avoid it"
+        ]
+      },
+      "explanation": "Interviewers want the trade-off, not a winner. If links may be private, guessable codes are a real problem and favour hashing or random codes; if simplicity and zero collisions matter more, a counter with pre-allocated ranges is fine.",
+      "materials": [
+        "system-design-primer"
+      ]
+    }
+  ]
+}

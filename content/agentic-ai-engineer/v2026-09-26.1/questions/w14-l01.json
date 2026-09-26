@@ -1,0 +1,321 @@
+{
+  "schema_version": 1,
+  "lesson_id": "w14-l01",
+  "concepts": [
+    {
+      "id": "w14-l01-runner-loop",
+      "name": "The Runner's agent loop and final output"
+    },
+    {
+      "id": "w14-l01-handoffs-vs-as-tool",
+      "name": "Handoffs vs agents as tools"
+    },
+    {
+      "id": "w14-l01-guardrails",
+      "name": "Input, output and tool guardrails"
+    },
+    {
+      "id": "w14-l01-tracing",
+      "name": "Built-in tracing and trace processors"
+    },
+    {
+      "id": "w14-l01-compare-langgraph",
+      "name": "Porting to and comparing with LangGraph"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w14-l01-q01",
+      "concept": "w14-l01-runner-loop",
+      "type": "multiple_choice",
+      "prompt": "In the OpenAI Agents SDK, when does `Runner.run` treat the model's response as the final output and end the loop?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "After the first model call, whatever the response contains or requests next"
+        },
+        {
+          "id": "b",
+          "text": "When the response is text of the agent's `output_type` and has no tool calls"
+        },
+        {
+          "id": "c",
+          "text": "As soon as any tool returns a value, which then becomes the agent's final output"
+        },
+        {
+          "id": "d",
+          "text": "When the agent calls a built-in tool named `final_answer` with its result"
+        }
+      ],
+      "answer": "b",
+      "explanation": "The docs define the rule: the output is final when it is text of the desired type and there are no tool calls. If the model asks for tools, the Runner runs them and calls the model again; if it asks for a handoff, the current agent changes and the loop runs again. A tool result is fed back to the model, it does not end the run.",
+      "materials": [
+        "openai-agents-sdk-running-agents"
+      ]
+    },
+    {
+      "id": "w14-l01-q02",
+      "concept": "w14-l01-runner-loop",
+      "type": "multiple_choice",
+      "prompt": "An agent keeps calling tools and never produces a final output. The run goes past the `max_turns` you passed to `Runner.run`. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The Runner returns a result whose `final_output` is `None`"
+        },
+        {
+          "id": "b",
+          "text": "The Runner hands the conversation back to the first agent and starts again"
+        },
+        {
+          "id": "c",
+          "text": "The Runner raises a `MaxTurnsExceeded` exception"
+        },
+        {
+          "id": "d",
+          "text": "The Runner silently keeps going until the model stops calling tools"
+        }
+      ],
+      "answer": "c",
+      "explanation": "The running-agents docs say that if the run exceeds `max_turns`, the SDK raises `MaxTurnsExceeded`. It does not return a partial result, so catch the exception if you want to degrade gracefully. A turn is one model invocation, including the tool calls it makes.",
+      "materials": [
+        "openai-agents-sdk-running-agents"
+      ]
+    },
+    {
+      "id": "w14-l01-q03",
+      "concept": "w14-l01-handoffs-vs-as-tool",
+      "type": "multiple_choice",
+      "prompt": "A triage agent has a handoff to an agent named `Refund Agent`. How does the model see this handoff?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "As a tool named `transfer_to_refund_agent`"
+        },
+        {
+          "id": "b",
+          "text": "As a system message listing the agents it may call"
+        },
+        {
+          "id": "c",
+          "text": "As a special `handoff` field it must fill in its final output"
+        },
+        {
+          "id": "d",
+          "text": "It doesn't: the Runner picks the agent by keyword matching"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Handoffs are represented to the model as tools, named `transfer_to_<agent_name>` by default, so `Refund Agent` becomes `transfer_to_refund_agent`. You can rename it with `tool_name_override` in `handoff()`. The model decides to hand off by calling that tool, not through a system message or keyword routing.",
+      "materials": [
+        "openai-agents-sdk-handoffs"
+      ]
+    },
+    {
+      "id": "w14-l01-q04",
+      "concept": "w14-l01-handoffs-vs-as-tool",
+      "type": "multiple_choice",
+      "prompt": "A planner agent must ask a translation specialist for a translation and then keep going itself, combining the result with other work. Which SDK feature fits?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A handoff, so the specialist sees the whole conversation"
+        },
+        {
+          "id": "b",
+          "text": "An input guardrail on the specialist"
+        },
+        {
+          "id": "c",
+          "text": "Two separate `Runner.run` calls chained by `to_input_list()`"
+        },
+        {
+          "id": "d",
+          "text": "`translator.as_tool(...)` passed in the planner's `tools`"
+        }
+      ],
+      "answer": "d",
+      "explanation": "With a handoff, control transfers completely: the receiving agent takes over the conversation for the rest of the run. `Agent.as_tool()` keeps the calling agent in control; the specialist runs like a tool call and its output comes back to the planner. The docs recommend `as_tool` when you want a nested specialist without transferring the conversation.",
+      "materials": [
+        "openai-agents-sdk-handoffs",
+        "openai-agents-sdk"
+      ]
+    },
+    {
+      "id": "w14-l01-q05",
+      "concept": "w14-l01-handoffs-vs-as-tool",
+      "type": "written",
+      "prompt": "Explain what the receiving agent sees after a handoff by default, how you can change that, and how this differs from calling the same agent with `as_tool()`.",
+      "model_answer": {
+        "summary": "After a handoff the new agent takes over the run and, by default, sees the entire previous conversation; an input filter can change that. With `as_tool()` the caller keeps control and only gets the specialist's output back.",
+        "key_points": [
+          "A handoff transfers control to the receiving agent for the rest of the run",
+          "By default the receiving agent sees the entire previous conversation history",
+          "An `input_filter` on `handoff()` (or the run config's handoff-history setting) changes what history it receives",
+          "With `as_tool()` the original agent stays in control and receives the specialist's output as a tool result"
+        ]
+      },
+      "explanation": "The docs describe a handoff as the new agent taking over the conversation and seeing all of it. `input_filter` receives the handoff data and can trim or rewrite the history. `as_tool()` is the pattern for a central agent that orchestrates specialists without handing off control.",
+      "materials": [
+        "openai-agents-sdk-handoffs"
+      ]
+    },
+    {
+      "id": "w14-l01-q06",
+      "concept": "w14-l01-guardrails",
+      "type": "multiple_choice",
+      "prompt": "A workflow runs `triage` → hands off to `billing` → hands off to `writer`. You attach an input guardrail to `billing`. When does that guardrail check the user's input?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Never: input guardrails run only for the first agent in a run"
+        },
+        {
+          "id": "b",
+          "text": "Each time `billing` is handed control, on the input it receives"
+        },
+        {
+          "id": "c",
+          "text": "Before every tool call `billing` makes, on that call's arguments"
+        },
+        {
+          "id": "d",
+          "text": "After `writer` produces the final output, on the original input"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Input guardrails are meant for user input, so an agent's input guardrails run only if that agent is the first agent in the run. Output guardrails mirror this: they run only on the last agent. To check each call of a particular tool, the SDK has tool guardrails, which wrap a function tool.",
+      "materials": [
+        "openai-agents-sdk-guardrails"
+      ]
+    },
+    {
+      "id": "w14-l01-q07",
+      "concept": "w14-l01-guardrails",
+      "type": "multiple_choice",
+      "prompt": "By default, input guardrails run in parallel with the agent. What risk does that create, and what is the fix?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "None: the SDK waits for parallel guardrails to finish before the model's first call starts"
+        },
+        {
+          "id": "b",
+          "text": "The guardrail can't see the user input in parallel mode; pass it through `RunConfig`"
+        },
+        {
+          "id": "c",
+          "text": "The agent may already be running when it trips; use blocking mode so the guardrail finishes first"
+        },
+        {
+          "id": "d",
+          "text": "The guardrail's result is ignored in parallel mode; call `Runner.run` twice to apply it"
+        }
+      ],
+      "answer": "c",
+      "explanation": "In the default parallel mode the guardrail runs concurrently with the agent, so the agent can start (and spend tokens or call tools) before the check finishes. Blocking execution makes the guardrail run and complete before the agent starts. Either way, a tripped input guardrail raises `InputGuardrailTripwireTriggered`.",
+      "materials": [
+        "openai-agents-sdk-guardrails"
+      ]
+    },
+    {
+      "id": "w14-l01-q08",
+      "concept": "w14-l01-tracing",
+      "type": "multiple_choice",
+      "prompt": "Which statement about tracing in the OpenAI Agents SDK is correct?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Tracing is off until you wrap each run in `trace()`"
+        },
+        {
+          "id": "b",
+          "text": "Tracing only records LLM calls, not tool calls or handoffs"
+        },
+        {
+          "id": "c",
+          "text": "Tracing works the same for every organisation, including those under Zero Data Retention"
+        },
+        {
+          "id": "d",
+          "text": "Tracing is on by default; `OPENAI_AGENTS_DISABLE_TRACING=1` or `RunConfig.tracing_disabled` turns it off"
+        }
+      ],
+      "answer": "d",
+      "explanation": "The docs say tracing is enabled by default and list three ways to disable it: the `OPENAI_AGENTS_DISABLE_TRACING=1` environment variable, `set_tracing_disabled(True)`, or `RunConfig.tracing_disabled=True`. By default it records agent runs, generations, tool calls, guardrails and handoffs. It is not available to organisations under a Zero Data Retention policy.",
+      "materials": [
+        "openai-agents-sdk-tracing"
+      ]
+    },
+    {
+      "id": "w14-l01-q09",
+      "concept": "w14-l01-tracing",
+      "type": "multiple_choice",
+      "prompt": "You want the SDK's traces to go only to your own backend, not to OpenAI's. Which function do you call?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`add_trace_processor()`, which replaces the default processor"
+        },
+        {
+          "id": "b",
+          "text": "`set_trace_processors()`, which replaces the default processors"
+        },
+        {
+          "id": "c",
+          "text": "`set_tracing_disabled(True)`, then log spans yourself"
+        },
+        {
+          "id": "d",
+          "text": "`RunConfig(workflow_name=...)`, which picks the backend"
+        }
+      ],
+      "answer": "b",
+      "explanation": "`add_trace_processor()` adds a processor alongside the default one, so traces still go to OpenAI too. `set_trace_processors()` replaces the defaults, which is what you want for another backend only. Disabling tracing would stop the spans from being produced at all.",
+      "materials": [
+        "openai-agents-sdk-tracing"
+      ]
+    },
+    {
+      "id": "w14-l01-q10",
+      "concept": "w14-l01-compare-langgraph",
+      "type": "written",
+      "prompt": "For your comparison note: when would you choose LangGraph over the OpenAI Agents SDK, and when the other way round?",
+      "model_answer": {
+        "summary": "The Agents SDK gives you a ready-made loop with handoffs, guardrails and tracing, so a tool-and-handoff agent needs little code. LangGraph is a low-level orchestration runtime where you define the control flow as a graph and get persistence for long-running, resumable, human-in-the-loop work.",
+        "key_points": [
+          "The Agents SDK's `Runner` runs the model–tool–handoff loop for you; you declare agents, tools and handoffs",
+          "The Agents SDK includes guardrails and tracing that is on by default",
+          "In LangGraph you define control flow explicitly as a `StateGraph` of nodes and edges, mixing deterministic code with LLM decisions",
+          "LangGraph's persistence lets an agent resume after a failure and lets a human inspect or change its state",
+          "Pick LangGraph when you need explicit, durable or human-in-the-loop control flow; pick the Agents SDK for quick tool-and-handoff agents"
+        ]
+      },
+      "explanation": "Both docs describe these trade-offs in their own terms: LangGraph calls itself a low-level orchestration framework and runtime for long-running, stateful agents, while the Agents SDK builds the loop, handoffs, guardrails and tracing in. A good note names the requirement that decides the choice rather than calling one framework better.",
+      "materials": [
+        "openai-agents-sdk",
+        "langgraph-documentation"
+      ]
+    },
+    {
+      "id": "w14-l01-q11",
+      "concept": "w14-l01-compare-langgraph",
+      "type": "written",
+      "prompt": "You port a small LangGraph workflow in which a router function sends a ticket to either a `billing` node or a `tech` node. Describe how you would express it in the OpenAI Agents SDK and what changes about who makes the routing decision.",
+      "model_answer": {
+        "summary": "Make a triage agent with `handoffs=[billing_agent, tech_agent]` and run it with `Runner.run`. The model now chooses the route by calling a `transfer_to_...` tool, where before your router code chose it.",
+        "key_points": [
+          "Each LangGraph node becomes an `Agent` with its own instructions (and tools)",
+          "The router becomes a triage agent whose `handoffs` list the two specialists",
+          "The model routes by calling a handoff tool such as `transfer_to_billing_agent`",
+          "The routing decision moves from deterministic code to the model, so keep a code check or a test set if the route must be exact"
+        ]
+      },
+      "explanation": "In LangGraph the conditional edge is your own function, so routing is deterministic. In the Agents SDK handoffs are tools, so the LLM decides when and where to hand off. That is less code, but the route is only as reliable as the model's choice, which is worth saying in the comparison note.",
+      "materials": [
+        "openai-agents-sdk-handoffs",
+        "langgraph-documentation"
+      ]
+    }
+  ]
+}

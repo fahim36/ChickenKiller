@@ -1,0 +1,351 @@
+{
+  "schema_version": 1,
+  "lesson_id": "w08-l03",
+  "concepts": [
+    {
+      "id": "w08-l03-uv-lockfile",
+      "name": "`uv.lock` and reproducible installs"
+    },
+    {
+      "id": "w08-l03-uv-build-publish",
+      "name": "Building and publishing a package with uv"
+    },
+    {
+      "id": "w08-l03-pre-commit-hooks",
+      "name": "pre-commit hooks"
+    },
+    {
+      "id": "w08-l03-semantic-versioning",
+      "name": "Semantic versioning"
+    },
+    {
+      "id": "w08-l03-readme",
+      "name": "A README that sells the project"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w08-l03-q01",
+      "concept": "w08-l03-uv-lockfile",
+      "type": "multiple_choice",
+      "prompt": "`pyproject.toml` requires `httpx>=0.27` and `uv.lock` pins `httpx` 0.28.1. A newer `httpx` is released. What does `uv sync` install?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The newest release, because it satisfies `>=0.27` and uv prefers the latest"
+        },
+        {
+          "id": "b",
+          "text": "0.28.1, the locked version, until you run `uv lock --upgrade-package httpx`"
+        },
+        {
+          "id": "c",
+          "text": "Nothing: uv refuses to sync until you upgrade the outdated lockfile"
+        },
+        {
+          "id": "d",
+          "text": "0.27.0, the lowest version the `>=0.27` constraint allows"
+        }
+      ],
+      "answer": "b",
+      "explanation": "uv keeps the locked versions unless the project's constraints stop allowing them. New releases on PyPI don't make the lockfile outdated, so every machine keeps installing 0.28.1 until someone upgrades on purpose with `uv lock --upgrade-package httpx` (or `--upgrade` for everything).",
+      "materials": [
+        "uv-python-projects-and-publishing"
+      ]
+    },
+    {
+      "id": "w08-l03-q02",
+      "concept": "w08-l03-uv-lockfile",
+      "type": "multiple_choice",
+      "prompt": "In CI you want the build to fail if someone changed the dependencies in `pyproject.toml` but didn't commit an updated `uv.lock`. Which command do you run?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`uv sync`"
+        },
+        {
+          "id": "b",
+          "text": "`uv sync --frozen`"
+        },
+        {
+          "id": "c",
+          "text": "`uv lock --upgrade`"
+        },
+        {
+          "id": "d",
+          "text": "`uv sync --locked`"
+        }
+      ],
+      "answer": "d",
+      "explanation": "`--locked` raises an error if the lockfile is out of date instead of updating it. Plain `uv sync` would quietly re-lock on the runner, and `--frozen` uses the lockfile without checking it at all, so neither catches the mistake. `uv lock --check` is another way to test only the lockfile.",
+      "materials": [
+        "uv-python-projects-and-publishing"
+      ]
+    },
+    {
+      "id": "w08-l03-q03",
+      "concept": "w08-l03-uv-lockfile",
+      "type": "written",
+      "prompt": "Explain the difference between the dependencies in `pyproject.toml` and `uv.lock`, and why you commit `uv.lock` even though you develop on Windows and CI runs on Linux.",
+      "model_answer": {
+        "summary": "`pyproject.toml` states the ranges the project accepts; `uv.lock` records the exact resolved versions. It is universal across platforms, so one committed lockfile gives every machine the same install.",
+        "key_points": [
+          "`pyproject.toml` lists broad requirements, such as `httpx>=0.27`",
+          "`uv.lock` records the exact versions resolved from those requirements",
+          "`uv.lock` is universal: it covers every operating system, architecture and Python version, so one file works on Windows and Linux",
+          "Committing it gives reproducible installs on every machine and in CI",
+          "It's managed by uv and should not be edited by hand"
+        ]
+      },
+      "explanation": "Ranges keep the project flexible; the lockfile makes installs repeatable. Without a committed lockfile, CI resolves on its own and may install versions nobody tested locally. Because uv's lockfile captures all platform markers, you don't need one per OS.",
+      "materials": [
+        "uv-python-projects-and-publishing"
+      ]
+    },
+    {
+      "id": "w08-l03-q04",
+      "concept": "w08-l03-uv-build-publish",
+      "type": "multiple_choice",
+      "prompt": "What does `uv build` produce by default for a project?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A single `.whl` file in the project root"
+        },
+        {
+          "id": "b",
+          "text": "A Docker image tagged with the project version"
+        },
+        {
+          "id": "c",
+          "text": "A source distribution and a wheel in the `dist/` folder"
+        },
+        {
+          "id": "d",
+          "text": "An updated `uv.lock` with the project pinned"
+        }
+      ],
+      "answer": "c",
+      "explanation": "`uv build` writes both a source distribution (sdist) and a binary distribution (wheel) to `dist/`. `uv publish` then uploads them. The uv docs suggest `uv build --no-sources` before publishing, to check the package builds without uv-only source overrides.",
+      "materials": [
+        "uv-python-projects-and-publishing"
+      ]
+    },
+    {
+      "id": "w08-l03-q05",
+      "concept": "w08-l03-uv-build-publish",
+      "type": "multiple_choice",
+      "prompt": "You want a GitHub Actions workflow to publish your package to PyPI without storing a long-lived PyPI API token as a secret. What do you use?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Your PyPI username and password stored as repository secrets instead"
+        },
+        {
+          "id": "b",
+          "text": "Trusted publishing: PyPI swaps the workflow's OIDC token for a short-lived one"
+        },
+        {
+          "id": "c",
+          "text": "The workflow's `GITHUB_TOKEN`, which PyPI accepts directly for uploads"
+        },
+        {
+          "id": "d",
+          "text": "The token in a plain environment variable, which doesn't count as a secret"
+        }
+      ],
+      "answer": "b",
+      "explanation": "With trusted publishing you register the repository and workflow as a trusted publisher on PyPI. The workflow presents an OpenID Connect identity token, and PyPI exchanges it for an API token that expires after 15 minutes. `uv publish` supports this from GitHub Actions with no stored credentials.",
+      "materials": [
+        "pypi-trusted-publishers",
+        "uv-python-projects-and-publishing"
+      ]
+    },
+    {
+      "id": "w08-l03-q06",
+      "concept": "w08-l03-pre-commit-hooks",
+      "type": "multiple_choice",
+      "prompt": "After `pre-commit install`, you run `git commit` with some files staged and other edits left unstaged. What do the hooks check?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Every tracked file in the repository, staged or not"
+        },
+        {
+          "id": "b",
+          "text": "Staged and unstaged changes together, as the files are on disk"
+        },
+        {
+          "id": "c",
+          "text": "Nothing until you run `git push`, when the hooks fire"
+        },
+        {
+          "id": "d",
+          "text": "Only the staged content; unstaged edits are stashed meanwhile"
+        }
+      ],
+      "answer": "d",
+      "explanation": "`pre-commit install` adds a Git `pre-commit` hook. pre-commit then checks only what you're about to commit, temporarily stashing unstaged changes, because checking them would give false passes and false failures. `pre-commit run --all-files` checks the whole repository.",
+      "materials": [
+        "pre-commit-hooks"
+      ]
+    },
+    {
+      "id": "w08-l03-q07",
+      "concept": "w08-l03-pre-commit-hooks",
+      "type": "multiple_choice",
+      "prompt": "Why should `.pre-commit-config.yaml` pin a hook repository with `rev: v0.6.9` rather than `rev: main`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A tag or SHA is immutable, so every machine runs the same hook version"
+        },
+        {
+          "id": "b",
+          "text": "pre-commit can't clone branches, only tags published as releases"
+        },
+        {
+          "id": "c",
+          "text": "A branch makes the hooks run on every file instead of staged files"
+        },
+        {
+          "id": "d",
+          "text": "Tags make the hooks run faster, because they skip the install step"
+        }
+      ],
+      "answer": "a",
+      "explanation": "pre-commit caches each hook by its `rev`, so the docs ask for an immutable ref such as a tag or commit SHA. A branch name can point at different code on different days and machines. To move to newer releases deliberately, run `pre-commit autoupdate`, which bumps each hook to its latest tag.",
+      "materials": [
+        "pre-commit-hooks"
+      ]
+    },
+    {
+      "id": "w08-l03-q08",
+      "concept": "w08-l03-pre-commit-hooks",
+      "type": "written",
+      "prompt": "Your repository has pre-commit hooks for Ruff. Why should CI still run the same checks?",
+      "model_answer": {
+        "summary": "Hooks are a local convenience that each developer must install and can skip, while CI checks every pull request on a clean machine and can be made a merge requirement.",
+        "key_points": [
+          "Hooks only run on a clone where someone ran `pre-commit install`",
+          "Anyone can skip them, for example with `git commit --no-verify`",
+          "By default hooks check only staged files, not the whole repository",
+          "CI runs on every pull request, and branch protection can require it to pass",
+          "CI can run the same hooks with `pre-commit run --all-files`"
+        ]
+      },
+      "explanation": "pre-commit gives fast feedback before code leaves the laptop; CI is the gate nobody can skip. Running `pre-commit run --all-files` in CI keeps the two in step, because both use the same configuration file.",
+      "materials": [
+        "pre-commit-hooks",
+        "github-docs-about-protected-branches"
+      ]
+    },
+    {
+      "id": "w08-l03-q09",
+      "concept": "w08-l03-semantic-versioning",
+      "type": "multiple_choice",
+      "prompt": "Your library is at 1.4.2. You add a new optional parameter to a public function; existing calls keep working. What is the next version under Semantic Versioning?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "1.4.3"
+        },
+        {
+          "id": "b",
+          "text": "2.0.0"
+        },
+        {
+          "id": "c",
+          "text": "1.5.0"
+        },
+        {
+          "id": "d",
+          "text": "1.5.2"
+        }
+      ],
+      "answer": "c",
+      "explanation": "SemVer bumps MINOR for functionality added in a backward-compatible way, and PATCH resets to 0 when MINOR goes up. PATCH alone is for backward-compatible bug fixes, and MAJOR is for incompatible API changes. So 1.4.2 becomes 1.5.0.",
+      "materials": [
+        "semantic-versioning-2-0-0"
+      ]
+    },
+    {
+      "id": "w08-l03-q10",
+      "concept": "w08-l03-semantic-versioning",
+      "type": "multiple_choice",
+      "prompt": "Your package is at 0.3.1 and you need to make a breaking change to its API. What does Semantic Versioning say?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "You must release 1.0.0 first, since breaking changes need a major bump"
+        },
+        {
+          "id": "b",
+          "text": "Major version 0 is initial development: anything may change at any time"
+        },
+        {
+          "id": "c",
+          "text": "Breaking changes aren't allowed before 1.0.0, so the API is frozen"
+        },
+        {
+          "id": "d",
+          "text": "You must release it as 0.3.2, because only the patch number may change in 0.x"
+        }
+      ],
+      "answer": "b",
+      "explanation": "SemVer's rule for 0.y.z is that anything may change at any time and the public API should not be considered stable. Version 1.0.0 is where you define the public API and promise to follow the MAJOR/MINOR/PATCH rules. So users of a 0.x package should pin it tightly.",
+      "materials": [
+        "semantic-versioning-2-0-0"
+      ]
+    },
+    {
+      "id": "w08-l03-q11",
+      "concept": "w08-l03-readme",
+      "type": "written",
+      "prompt": "Outline the README for your published MCP server so that a hiring manager who spends two minutes on it comes away convinced. Name the sections in order and what each must show.",
+      "model_answer": {
+        "summary": "Lead with the problem and proof it works, then make it easy to try, then show how it's built and how well it performs.",
+        "key_points": [
+          "Problem: one or two sentences on what the server does and why it's useful",
+          "Demo: a GIF, screenshot or transcript showing it working",
+          "Quickstart: the few commands that install and run it, which a reader can copy",
+          "Architecture: a diagram or short description of the main parts and how they connect",
+          "Metrics: measured results, such as eval scores, latency or cost, with how they were measured"
+        ]
+      },
+      "explanation": "GitHub's own guidance is that a README says what the project does, why it's useful and how to get started. For a portfolio project the demo and metrics matter just as much: they turn \"I built this\" into evidence a reviewer can check quickly.",
+      "materials": [
+        "github-docs-about-readmes"
+      ]
+    },
+    {
+      "id": "w08-l03-q12",
+      "concept": "w08-l03-readme",
+      "type": "multiple_choice",
+      "prompt": "Your repository has a `README.md` in the root and another in `.github/`. Which one does GitHub show on the repository's main page?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The root one, because a root README always takes priority"
+        },
+        {
+          "id": "b",
+          "text": "Both, shown one after the other on the main page"
+        },
+        {
+          "id": "c",
+          "text": "Whichever of the two files was changed most recently"
+        },
+        {
+          "id": "d",
+          "text": "The `.github/` one, which GitHub checks before the root"
+        }
+      ],
+      "answer": "d",
+      "explanation": "GitHub looks for a README in the `.github` directory first, then the repository root, then `docs`, and shows the first one it finds. A forgotten `.github/README.md` can therefore hide the README you actually maintain.",
+      "materials": [
+        "github-docs-about-readmes"
+      ]
+    }
+  ]
+}

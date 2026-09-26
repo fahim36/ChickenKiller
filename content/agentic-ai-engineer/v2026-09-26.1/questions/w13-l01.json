@@ -1,0 +1,323 @@
+{
+  "schema_version": 1,
+  "lesson_id": "w13-l01",
+  "concepts": [
+    {
+      "id": "w13-l01-traffic-and-cost",
+      "name": "Traffic estimates and cost per conversation"
+    },
+    {
+      "id": "w13-l01-rag-tools-handoff",
+      "name": "RAG, tools and handoff to humans"
+    },
+    {
+      "id": "w13-l01-evals-from-real-data",
+      "name": "Evals built from real conversations"
+    },
+    {
+      "id": "w13-l01-monitoring-and-rollout",
+      "name": "Monitoring and a staged rollout"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w13-l01-q01",
+      "concept": "w13-l01-traffic-and-cost",
+      "type": "multiple_choice",
+      "prompt": "A support agent handles 10,000 conversations a day. Each conversation makes 5 model calls, and peak traffic is 5× the daily average. Roughly how many model calls per second must you handle at peak?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "About 0.1 per second"
+        },
+        {
+          "id": "b",
+          "text": "About 30 per second"
+        },
+        {
+          "id": "c",
+          "text": "About 3 per second"
+        },
+        {
+          "id": "d",
+          "text": "About 580 per second"
+        }
+      ],
+      "answer": "c",
+      "explanation": "10,000 × 5 = 50,000 calls a day. A day has 86,400 seconds, so the average is about 0.58 calls per second, and 5× that is about 2.9, so about 3 per second. 0.1 is conversations (not calls) per second at average load; 580 is off by a factor of 1,000. The point for the interview: this is modest traffic, and the real constraints are cost, latency per call and provider rate limits.",
+      "materials": [
+        "system-design-primer"
+      ]
+    },
+    {
+      "id": "w13-l01-q02",
+      "concept": "w13-l01-traffic-and-cost",
+      "type": "multiple_choice",
+      "prompt": "Each conversation makes 5 calls of 3,000 input and 250 output tokens. At a hypothetical $1 per million input tokens and $5 per million output tokens, what is the cost per conversation and per day at 10,000 conversations?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "About $0.021 per conversation, about $212 a day"
+        },
+        {
+          "id": "b",
+          "text": "About $0.21 per conversation, about $2,125 a day"
+        },
+        {
+          "id": "c",
+          "text": "About $0.015 per conversation, about $150 a day"
+        },
+        {
+          "id": "d",
+          "text": "About $0.0021 per conversation, about $21 a day"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Input: 5 × 3,000 = 15,000 tokens × $1/M = $0.015. Output: 5 × 250 = 1,250 tokens × $5/M = $0.00625. Total about $0.021 per conversation, and × 10,000 = about $212.50 a day. Option c counts input only. Always show the arithmetic out loud; interviewers care more about the method than the prices.",
+      "materials": [
+        "chip-huyen-building-a-generative-ai"
+      ]
+    },
+    {
+      "id": "w13-l01-q03",
+      "concept": "w13-l01-traffic-and-cost",
+      "type": "written",
+      "prompt": "In a support-agent design interview you're asked: \"What does one conversation cost, and how would you bring it down?\" Explain how you'd estimate it and which levers you'd pull.",
+      "model_answer": {
+        "summary": "Multiply calls per conversation by tokens per call and prices, noting that input usually dominates because each call resends the history and retrieved context; then cut it with caching, routing and trimming.",
+        "key_points": [
+          "Cost per conversation = sum over calls of input tokens × input price + output tokens × output price",
+          "Input grows each turn because the whole history, system prompt and retrieved chunks are sent again, so input usually dominates",
+          "Prompt caching of the stable prefix (tools and system prompt) cuts the cost of repeated input",
+          "Routing simple intents to a smaller model, and escalating only when needed, cuts the price per call",
+          "Trimming old turns and sending fewer retrieved chunks cuts tokens per call; eval results confirm quality holds"
+        ]
+      },
+      "explanation": "A strong answer ties each lever to the part of the formula it changes. Chip Huyen's platform post covers the prompt cache and routing to cheaper models; Week 12's cost-optimisation Lesson covers the arithmetic.",
+      "materials": [
+        "chip-huyen-building-a-generative-ai",
+        "anthropic-docs-prompt-caching"
+      ]
+    },
+    {
+      "id": "w13-l01-q04",
+      "concept": "w13-l01-rag-tools-handoff",
+      "type": "multiple_choice",
+      "prompt": "A customer asks two questions: \"What is your refund policy?\" and \"Where is my order #1234?\" How should the agent get what it needs for each?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Both through RAG over the help centre, which should include recent orders"
+        },
+        {
+          "id": "b",
+          "text": "Refund policy by RAG over help-centre articles; order status by calling an order-lookup tool"
+        },
+        {
+          "id": "c",
+          "text": "Refund policy by an order-lookup tool; order status by RAG over past tickets"
+        },
+        {
+          "id": "d",
+          "text": "Both from the model's own knowledge, fine-tuned on last year's tickets"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Stable, shared knowledge such as policies suits retrieval over documents. Live, per-customer data such as an order's status must come from the system of record through a tool call, because it changes by the minute and belongs to one customer. Anthropic describes support agents exactly this way: tools pull customer data and order history, plus knowledge base articles.",
+      "materials": [
+        "anthropic-building-effective-agents"
+      ]
+    },
+    {
+      "id": "w13-l01-q05",
+      "concept": "w13-l01-rag-tools-handoff",
+      "type": "multiple_choice",
+      "prompt": "Which is the best set of triggers for handing a conversation to a human agent?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Never hand off; escalating means the agent failed, and full automation is the goal"
+        },
+        {
+          "id": "b",
+          "text": "Hand off after a fixed 20 turns, since long conversations are the ones that go wrong"
+        },
+        {
+          "id": "c",
+          "text": "Whenever the model's reply sounds unsure or hedged, since a hedging tone reliably signals a wrong answer"
+        },
+        {
+          "id": "d",
+          "text": "The customer asks for a person, the action is high-impact (a large refund), or checks keep failing"
+        }
+      ],
+      "answer": "d",
+      "explanation": "Handoff should follow clear rules: an explicit request, actions whose impact needs human approval (OWASP recommends a human approve high-impact actions), or repeated failures such as no grounded answer or output checks failing. Chip Huyen lists human handoff as one way to manage output-guardrail failures. Pass the conversation and a summary along so the customer doesn't repeat themselves.",
+      "materials": [
+        "chip-huyen-building-a-generative-ai",
+        "owasp-top-10-for-llm-applications"
+      ]
+    },
+    {
+      "id": "w13-l01-q06",
+      "concept": "w13-l01-rag-tools-handoff",
+      "type": "written",
+      "prompt": "Explain how retrieval, tools and human handoff divide the work in your support agent design, and where guardrails sit.",
+      "model_answer": {
+        "summary": "Retrieval supplies policy and how-to knowledge, tools read and change per-customer data, and humans take over when rules say so; guardrails check inputs and outputs around the model.",
+        "key_points": [
+          "RAG over help-centre articles and policies answers general questions, with answers grounded in retrieved text",
+          "Tools read live customer data (orders, account status) and perform actions such as creating a ticket or issuing a small refund",
+          "Tools act with the customer's own permissions, and high-impact actions need human approval",
+          "Handoff to a human happens on request, for high-impact cases, or after repeated failures, with a summary passed along",
+          "Input guardrails (such as detecting sensitive data or off-topic requests) and output guardrails (such as checking for unsupported claims or malformed replies) wrap the model calls"
+        ]
+      },
+      "explanation": "This is the core of the design. Interviewers look for the split between static knowledge and live data, for permission limits on tools, and for a defined path to a human. Applied-llms.org's advice to add guardrails rather than trust the model alone applies directly.",
+      "materials": [
+        "anthropic-building-effective-agents",
+        "chip-huyen-building-a-generative-ai",
+        "what-we-learned-from-a-year"
+      ]
+    },
+    {
+      "id": "w13-l01-q07",
+      "concept": "w13-l01-evals-from-real-data",
+      "type": "multiple_choice",
+      "prompt": "Before launching the support agent, where should your first eval cases come from?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Real anonymised support tickets and transcripts, each with assertions a good reply must meet"
+        },
+        {
+          "id": "b",
+          "text": "A public general-knowledge benchmark, which covers far more topics than your own tickets would"
+        },
+        {
+          "id": "c",
+          "text": "Questions the engineering team writes, since they know the product and its edge cases best"
+        },
+        {
+          "id": "d",
+          "text": "The model's own ratings of its past answers, which scale better than any human labelling"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Applied-llms.org recommends assertion-based tests built from real input and output samples. Real tickets carry the wording, typos and edge cases your users actually produce; invented or benchmark questions test something else. Assertions (\"mentions the 30-day window\", \"doesn't promise a refund\") make the evals checkable.",
+      "materials": [
+        "what-we-learned-from-a-year",
+        "hamel-husain-your-ai-product-needs"
+      ]
+    },
+    {
+      "id": "w13-l01-q08",
+      "concept": "w13-l01-evals-from-real-data",
+      "type": "multiple_choice",
+      "prompt": "You want an LLM judge to compare two prompt versions of the support agent. Which setup does applied-llms.org say tends to give more stable results?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Score each reply on its own from 1 to 10, then compare the averages"
+        },
+        {
+          "id": "b",
+          "text": "Ask the model that wrote each reply to grade its own answer"
+        },
+        {
+          "id": "c",
+          "text": "Show the judge both replies to the same ticket and ask which is better"
+        },
+        {
+          "id": "d",
+          "text": "Have the judge rewrite each reply and measure how much it changed"
+        }
+      ],
+      "answer": "c",
+      "explanation": "Applied-llms.org notes that pairwise comparisons tend to be more stable than asking a judge to score single outputs on a scale. Scores on a 1 to 10 scale drift and bunch together. Either way, check the judge against a sample of human labels before trusting it.",
+      "materials": [
+        "what-we-learned-from-a-year",
+        "hamel-husain-using-llm-as-a"
+      ]
+    },
+    {
+      "id": "w13-l01-q09",
+      "concept": "w13-l01-monitoring-and-rollout",
+      "type": "multiple_choice",
+      "prompt": "Which rollout order is safest for the new support agent?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Launch to all users at once, then fix whatever the complaints and ratings reveal"
+        },
+        {
+          "id": "b",
+          "text": "Offline evals, shadow mode on real traffic, a small share of users, then a monitored ramp-up"
+        },
+        {
+          "id": "c",
+          "text": "A small share of users first, then offline evals once there's real traffic to build them from"
+        },
+        {
+          "id": "d",
+          "text": "Offline evals, then straight to all users with monitoring, since passing evals shows it's ready"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Each stage catches problems the previous one can't: offline evals catch known failures, shadow mode shows behaviour on real inputs with no user impact, and a small share of real users limits the blast radius of what's left. Applied-llms.org's advice to build trust by starting small, and its shadow-pipeline idea for new models, both point to this order.",
+      "materials": [
+        "what-we-learned-from-a-year"
+      ]
+    },
+    {
+      "id": "w13-l01-q10",
+      "concept": "w13-l01-monitoring-and-rollout",
+      "type": "multiple_choice",
+      "prompt": "Your provider releases a new version of the model your support agent uses. What does applied-llms.org recommend?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Use the provider's \"latest\" alias so production upgrades automatically"
+        },
+        {
+          "id": "b",
+          "text": "Switch at once, because newer versions are always at least as good"
+        },
+        {
+          "id": "c",
+          "text": "Never upgrade, because any change risks breaking the agent"
+        },
+        {
+          "id": "d",
+          "text": "Pin the current version in production and test the new one in a shadow pipeline first"
+        }
+      ],
+      "answer": "d",
+      "explanation": "Applied-llms.org says to version and pin your models so behaviour doesn't change under you, and to consider a shadow pipeline that mirrors production with the newer model to validate it before switching. A new version can be better overall and still break your prompts or output format.",
+      "materials": [
+        "what-we-learned-from-a-year"
+      ]
+    },
+    {
+      "id": "w13-l01-q11",
+      "concept": "w13-l01-monitoring-and-rollout",
+      "type": "written",
+      "prompt": "What would you monitor once the support agent is live, and what would make you roll back?",
+      "model_answer": {
+        "summary": "Track outcome, quality, cost and latency metrics plus a daily read of real transcripts, and roll back on a pre-agreed threshold such as a jump in handoffs, failed checks or complaints.",
+        "key_points": [
+          "Outcome metrics: resolution rate, handoff rate and customer feedback",
+          "Quality signals: guardrail and output-check failure rates, and scores from online evals or an LLM judge on sampled conversations",
+          "Cost per conversation and latency per turn, from traces",
+          "Someone reads a sample of real conversations every day to spot new failure modes",
+          "A written rollback trigger (for example handoff rate or check failures above a set level after a release) and a quick way to return to the previous prompt or model version"
+        ]
+      },
+      "explanation": "Applied-llms.org stresses looking at samples of inputs and outputs every day and watching for drift between development and production. Monitoring is only useful with a decision attached, which is why the rollback trigger belongs in the design.",
+      "materials": [
+        "what-we-learned-from-a-year",
+        "langfuse-tracing-evals-self-hosting"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,288 @@
+{
+  "schema_version": 1,
+  "lesson_id": "w14-l04",
+  "concepts": [
+    {
+      "id": "w14-l04-reproduce-with-a-test",
+      "name": "Reproduce each bug with a failing test before fixing it"
+    },
+    {
+      "id": "w14-l04-pytest-narrowing",
+      "name": "Narrowing failures quickly with pytest options"
+    },
+    {
+      "id": "w14-l04-git-bisect",
+      "name": "Finding the commit that introduced a bug with `git bisect`"
+    },
+    {
+      "id": "w14-l04-bug-report",
+      "name": "Writing the report: steps, expected and actual results"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w14-l04-q01",
+      "concept": "w14-l04-reproduce-with-a-test",
+      "type": "multiple_choice",
+      "prompt": "In the drill you suspect a bug in `parse_tool_call()`. What is the most useful first step before you edit it?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Rewrite the function cleanly from scratch, so the bug disappears along with the mess"
+        },
+        {
+          "id": "b",
+          "text": "Write a small test that fails because of the bug, then fix the code until it passes"
+        },
+        {
+          "id": "c",
+          "text": "Read the whole repository top to bottom first, so you understand every caller"
+        },
+        {
+          "id": "d",
+          "text": "Add print statements across the codebase and run the whole app to watch it fail"
+        }
+      ],
+      "answer": "b",
+      "explanation": "A failing test proves you have actually reproduced the bug, and the same test proves the fix when it turns green. It then stays as a regression test. Rewriting blind can hide the bug without showing you understood it, and reading everything first burns the 90 minutes.",
+      "materials": [
+        "pytest-get-started",
+        "mozilla-bug-writing-guidelines"
+      ]
+    },
+    {
+      "id": "w14-l04-q02",
+      "concept": "w14-l04-reproduce-with-a-test",
+      "type": "written",
+      "prompt": "Explain why writing a failing test for each planted bug is worth the minutes it costs in a 90-minute take-home.",
+      "model_answer": {
+        "summary": "The test confirms you really triggered the bug, shows the fix works (red before, green after), and stays as a regression test. It also gives the reviewer exact steps to reproduce.",
+        "key_points": [
+          "It confirms that you reproduced the bug rather than guessing at it",
+          "The same test verifies the fix: it fails before the change and passes after",
+          "It stays in the suite as a regression test if the bug comes back",
+          "It gives the reviewer reproducible steps, the most important part of a bug report"
+        ]
+      },
+      "explanation": "Mozilla's guidelines call steps to reproduce the most important part of a bug report, because a developer who can't reproduce a bug can't tell whether it is fixed. A test is a reproduction you can run. In a take-home, it is also visible evidence of how you work.",
+      "materials": [
+        "mozilla-bug-writing-guidelines",
+        "pytest-get-started"
+      ]
+    },
+    {
+      "id": "w14-l04-q03",
+      "concept": "w14-l04-pytest-narrowing",
+      "type": "multiple_choice",
+      "prompt": "The suite shows 40 failures. You want pytest to stop at the first failure and open the debugger there. Which command?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`pytest --lf`"
+        },
+        {
+          "id": "b",
+          "text": "`pytest --trace`"
+        },
+        {
+          "id": "c",
+          "text": "`pytest --maxfail=40`"
+        },
+        {
+          "id": "d",
+          "text": "`pytest -x --pdb`"
+        }
+      ],
+      "answer": "d",
+      "explanation": "`-x` stops after the first failure and `--pdb` drops into the Python debugger on a failure; the pytest docs show them combined. `--trace` opens the debugger at the start of every test, not at the failure. `--lf` re-runs only last run's failures but neither stops early nor debugs.",
+      "materials": [
+        "pytest-how-to-handle-test-failures"
+      ]
+    },
+    {
+      "id": "w14-l04-q04",
+      "concept": "w14-l04-pytest-narrowing",
+      "type": "multiple_choice",
+      "prompt": "You have fixed one bug and want to re-run only the tests that failed last time. Which option?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`--lf` (`--last-failed`)"
+        },
+        {
+          "id": "b",
+          "text": "`--ff` (`--failed-first`)"
+        },
+        {
+          "id": "c",
+          "text": "`-x`"
+        },
+        {
+          "id": "d",
+          "text": "`--maxfail=1`"
+        }
+      ],
+      "answer": "a",
+      "explanation": "`--lf` re-runs only the failures from the previous run. `--ff` runs those failures first and then the rest of the suite, which is slower when you only want the failing ones. `--sw` (stepwise) is another option: it stops at the first failure and resumes from there next time.",
+      "materials": [
+        "pytest-cache-rerun-failed-tests"
+      ]
+    },
+    {
+      "id": "w14-l04-q05",
+      "concept": "w14-l04-git-bisect",
+      "type": "multiple_choice",
+      "prompt": "A test passed at tag `v1.2` and fails at `HEAD`, 64 commits later. Roughly how many commits will `git bisect` make you test?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "64"
+        },
+        {
+          "id": "b",
+          "text": "32"
+        },
+        {
+          "id": "c",
+          "text": "6"
+        },
+        {
+          "id": "d",
+          "text": "1"
+        }
+      ],
+      "answer": "c",
+      "explanation": "`git bisect` is a binary search: each good/bad answer halves the range, so 64 commits take about log2(64) = 6 tests. That is why bisecting is worth it even in a timed drill when you know a good commit. Testing commits one by one could take up to 64.",
+      "materials": [
+        "git-bisect-documentation"
+      ]
+    },
+    {
+      "id": "w14-l04-q06",
+      "concept": "w14-l04-git-bisect",
+      "type": "multiple_choice",
+      "prompt": "You automate the search with `git bisect run ./check.sh`. Some commits can't even be built. What exit code should the script return for those?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`125`, so bisect skips that commit"
+        },
+        {
+          "id": "b",
+          "text": "`0`, so bisect treats it as good"
+        },
+        {
+          "id": "c",
+          "text": "`1`, so bisect treats it as bad"
+        },
+        {
+          "id": "d",
+          "text": "`128`, so bisect skips that commit"
+        }
+      ],
+      "answer": "a",
+      "explanation": "For `git bisect run`, exit code 0 means good, 1–127 except 125 means bad, and 125 means the commit can't be tested and is skipped. Any other code, such as 128, aborts the bisect. Returning 0 or 1 for an untestable commit would send the search the wrong way.",
+      "materials": [
+        "git-bisect-documentation"
+      ]
+    },
+    {
+      "id": "w14-l04-q07",
+      "concept": "w14-l04-git-bisect",
+      "type": "written",
+      "prompt": "Explain how you would use `git bisect` with your failing test to find when a planted bug came in, and when bisect can't help.",
+      "model_answer": {
+        "summary": "Mark a known good and a known bad commit, then run `git bisect run` with the failing test so git binary-searches for the first bad commit, and `git bisect reset` afterwards. It can't help if no good commit exists in the history.",
+        "key_points": [
+          "Start with `git bisect start`, mark `git bisect bad` on the failing commit and `git bisect good <commit>` on a known good one",
+          "`git bisect run <cmd>` automates it: exit 0 means good, 1–127 (except 125) means bad, 125 means skip",
+          "The test command, such as `pytest path/to/test_x.py`, exits non-zero when the test fails, so it marks commits bad",
+          "`git bisect reset` returns to the commit you had checked out before starting",
+          "It can't help when no good commit exists, for example when the bug has been there since the first commit or history was squashed"
+        ]
+      },
+      "explanation": "Bisect needs one good and one bad point to search between. The git docs define the exit codes that `bisect run` understands. In the drill it is most useful when the bugs were planted in commits on top of working code.",
+      "materials": [
+        "git-bisect-documentation"
+      ]
+    },
+    {
+      "id": "w14-l04-q08",
+      "concept": "w14-l04-bug-report",
+      "type": "multiple_choice",
+      "prompt": "Mozilla's bug writing guidelines single out one part of a bug report as the most important. Which?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The suggested fix"
+        },
+        {
+          "id": "b",
+          "text": "The severity rating"
+        },
+        {
+          "id": "c",
+          "text": "A screenshot of the error"
+        },
+        {
+          "id": "d",
+          "text": "The steps to reproduce"
+        }
+      ],
+      "answer": "d",
+      "explanation": "The guidelines call reproducible steps the most important part, because developers need to trigger the bug on their own machine and then check that it is fixed. They ask for minimised, easy-to-follow steps, with any special setup. A suggested fix is useful but doesn't let anyone verify the problem.",
+      "materials": [
+        "mozilla-bug-writing-guidelines"
+      ]
+    },
+    {
+      "id": "w14-l04-q09",
+      "concept": "w14-l04-bug-report",
+      "type": "multiple_choice",
+      "prompt": "You found all three planted bugs. How should your short report be organised?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "One narrative paragraph covering all three bugs together, in the order you found them"
+        },
+        {
+          "id": "b",
+          "text": "One entry per bug: steps to reproduce, expected result, actual result, then your fix"
+        },
+        {
+          "id": "c",
+          "text": "A list of the files you changed, with a one-line summary of each change"
+        },
+        {
+          "id": "d",
+          "text": "The final diff on its own, since the code changes speak for themselves"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Mozilla's guidelines ask for a separate report for each issue, and each with steps to reproduce, expected results and actual results. A combined narrative makes it hard to check each fix. For a take-home, adding the root cause, the fix and the test that proves it makes each entry complete.",
+      "materials": [
+        "mozilla-bug-writing-guidelines"
+      ]
+    },
+    {
+      "id": "w14-l04-q10",
+      "concept": "w14-l04-bug-report",
+      "type": "written",
+      "prompt": "Write the outline of one report entry for a planted bug where the agent's retry loop never stops. List what goes in it.",
+      "model_answer": {
+        "summary": "Give minimal steps to reproduce, the expected result and the actual result. Then add the root cause, the fix, and the test that now passes. If time ran out, say honestly what is unfinished.",
+        "key_points": [
+          "Steps to reproduce: minimal and specific, such as the command or test that makes the loop run forever",
+          "Expected result: for example, the loop stops after the configured number of retries",
+          "Actual result: what really happened, such as it retried without limit",
+          "Root cause and fix: where the bug was and what you changed, with the test that proves it",
+          "One entry per bug, and a clear note on anything left unfinished when the 90 minutes ended"
+        ]
+      },
+      "explanation": "The first three parts come from Mozilla's bug writing guidelines, which also ask for precise wording over vague statements. The root cause and test are what a take-home reviewer is really grading. Being honest about unfinished work reads better than a report that overstates.",
+      "materials": [
+        "mozilla-bug-writing-guidelines"
+      ]
+    }
+  ]
+}

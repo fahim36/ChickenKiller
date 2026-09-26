@@ -1,0 +1,322 @@
+{
+  "schema_version": 1,
+  "lesson_id": "w07-l03",
+  "concepts": [
+    {
+      "id": "w07-l03-processes-and-signals",
+      "name": "Processes and signals"
+    },
+    {
+      "id": "w07-l03-environment-variables",
+      "name": "Environment variables and `$PATH`"
+    },
+    {
+      "id": "w07-l03-pipes-and-text-tools",
+      "name": "Pipes and text tools: `grep`, `sed`, `awk`, `jq`"
+    },
+    {
+      "id": "w07-l03-ssh-and-permissions",
+      "name": "`ssh`, `scp` and file permissions"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w07-l03-q01",
+      "concept": "w07-l03-processes-and-signals",
+      "type": "multiple_choice",
+      "prompt": "You press Ctrl-C while a script runs in your terminal. Which signal does the process receive?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`SIGTERM`"
+        },
+        {
+          "id": "b",
+          "text": "`SIGKILL`"
+        },
+        {
+          "id": "c",
+          "text": "`SIGINT`"
+        },
+        {
+          "id": "d",
+          "text": "`SIGHUP`"
+        }
+      ],
+      "answer": "c",
+      "explanation": "Ctrl-C sends `SIGINT`, 'interrupt from keyboard'. `SIGTERM` is the generic polite request to exit, sent by `kill <PID>`; `SIGKILL` (`kill -9`) can't be caught; and `SIGHUP` is sent when the controlling terminal goes away, which `nohup` protects against.",
+      "materials": [
+        "missing-semester-2026-command-line-environment",
+        "linux-signal-7-man-page"
+      ]
+    },
+    {
+      "id": "w07-l03-q02",
+      "concept": "w07-l03-processes-and-signals",
+      "type": "multiple_choice",
+      "prompt": "You run `docker stop` on your `agent-api` container (a Linux container, default settings). What does its main process receive?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`SIGTERM`, then `SIGKILL` if it's still running after 10 seconds"
+        },
+        {
+          "id": "b",
+          "text": "`SIGKILL` straight away, so the app has no chance to clean up"
+        },
+        {
+          "id": "c",
+          "text": "`SIGINT`, then `SIGTERM` if it's still running after 30 seconds"
+        },
+        {
+          "id": "d",
+          "text": "`SIGHUP`, which asks the process to reload, and it keeps running"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Docker sends `SIGTERM` (or the image's `STOPSIGNAL`) so the app can shut down cleanly, waits the grace period (10 seconds by default for Linux containers, changed with `--timeout`), then sends `SIGKILL`. An app that ignores `SIGTERM` is killed mid-request after 10 seconds. `docker kill` is the command that sends `SIGKILL` at once.",
+      "materials": [
+        "docker-container-stop-reference",
+        "linux-signal-7-man-page"
+      ]
+    },
+    {
+      "id": "w07-l03-q03",
+      "concept": "w07-l03-processes-and-signals",
+      "type": "written",
+      "prompt": "Why should your agent API handle `SIGTERM`, and how is `SIGTERM` different from `SIGKILL`?",
+      "model_answer": {
+        "summary": "`SIGTERM` is a request to exit that a process can catch and use to shut down cleanly; `SIGKILL` can't be caught, blocked or ignored and ends the process at once, so handling `SIGTERM` is your only chance to clean up.",
+        "key_points": [
+          "`SIGTERM` asks a process to exit gracefully, and the process can catch it with a handler",
+          "`SIGKILL` can't be caught, blocked or ignored, so the process gets no chance to clean up",
+          "On `SIGTERM` the API should stop taking new requests, finish or cancel in-flight ones, flush traces and logs, and close database connections",
+          "`docker stop` sends `SIGTERM` and then `SIGKILL` after a grace period (10 seconds by default), so cleanup must fit in that time"
+        ]
+      },
+      "explanation": "Deploys, restarts and scale-downs all stop processes with `SIGTERM` first. An API that ignores it loses in-flight agent runs and unflushed traces when the `SIGKILL` arrives. `SIGKILL` and `SIGSTOP` are the two signals a process can never handle.",
+      "materials": [
+        "linux-signal-7-man-page",
+        "missing-semester-2026-command-line-environment",
+        "docker-container-stop-reference"
+      ]
+    },
+    {
+      "id": "w07-l03-q04",
+      "concept": "w07-l03-environment-variables",
+      "type": "multiple_choice",
+      "prompt": "In bash you type `MODEL=haiku` on one line and `python run.py` on the next. Inside `run.py`, `os.environ.get(\"MODEL\")` is `None`. Why?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Python only reads environment variables that start with `PYTHON`"
+        },
+        {
+          "id": "b",
+          "text": "Variable names must be lowercase to be passed on"
+        },
+        {
+          "id": "c",
+          "text": "The variable is set, but a new terminal window must be opened first"
+        },
+        {
+          "id": "d",
+          "text": "`MODEL` is a shell variable that wasn't exported, so child processes don't get it"
+        }
+      ],
+      "answer": "d",
+      "explanation": "Assigning `MODEL=haiku` creates a variable in the shell only. `export MODEL=haiku` marks it to be passed to commands the shell runs, which then inherit it. To set it for a single command, write `MODEL=haiku python run.py`.",
+      "materials": [
+        "missing-semester-2026-command-line-environment"
+      ]
+    },
+    {
+      "id": "w07-l03-q05",
+      "concept": "w07-l03-environment-variables",
+      "type": "multiple_choice",
+      "prompt": "`echo $PATH` prints `/usr/local/bin:/usr/bin:/bin`, and there is a `python` in both `/usr/local/bin` and `/usr/bin`. Which one runs when you type `python`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`/usr/bin/python`, because system directories always take priority over local ones"
+        },
+        {
+          "id": "b",
+          "text": "`/usr/local/bin/python`: `$PATH` is searched left to right, first match wins"
+        },
+        {
+          "id": "c",
+          "text": "Whichever of the two was modified most recently, as the newer copy wins"
+        },
+        {
+          "id": "d",
+          "text": "Neither: the shell reports the name as ambiguous and runs nothing"
+        }
+      ],
+      "answer": "b",
+      "explanation": "`$PATH` is a colon-separated list of directories the shell searches, left to right, for a command name. The first match wins, here `/usr/local/bin/python`. `which python` shows which file will run. That is why activating a virtualenv works: it puts the venv's `bin` directory at the front of `$PATH`.",
+      "materials": [
+        "missing-semester-2026-course-shell"
+      ]
+    },
+    {
+      "id": "w07-l03-q06",
+      "concept": "w07-l03-pipes-and-text-tools",
+      "type": "multiple_choice",
+      "prompt": "`traces.jsonl` has one JSON object per line, each with a numeric `cost`. Which command prints the average cost per run?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`jq -s 'map(.cost) | add / length' traces.jsonl`"
+        },
+        {
+          "id": "b",
+          "text": "`jq 'map(.cost) | add / length' traces.jsonl`"
+        },
+        {
+          "id": "c",
+          "text": "`jq '.cost | add / length' traces.jsonl`"
+        },
+        {
+          "id": "d",
+          "text": "`jq -r '.cost' traces.jsonl | jq 'length'`"
+        }
+      ],
+      "answer": "a",
+      "explanation": "By default jq runs the filter once for each JSON value in the input, so without `-s` every line is handled on its own and there is no list to average. `-s` (`--slurp`) reads the whole input into one array; `map(.cost)` turns it into an array of numbers; `add` sums them and `length` counts them. `length` on a single number gives its absolute value, not a count.",
+      "materials": [
+        "jq-manual"
+      ]
+    },
+    {
+      "id": "w07-l03-q07",
+      "concept": "w07-l03-pipes-and-text-tools",
+      "type": "multiple_choice",
+      "prompt": "What does `sed -i 's/gpt-4o/gpt-5/g' config.yaml` do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Prints the file with the replacements, leaving `config.yaml` unchanged"
+        },
+        {
+          "id": "b",
+          "text": "Replaces only the first `gpt-4o` in the whole file"
+        },
+        {
+          "id": "c",
+          "text": "Replaces every `gpt-4o` on every line and writes the result back to `config.yaml`"
+        },
+        {
+          "id": "d",
+          "text": "Replaces only the first `gpt-4o` on each line"
+        }
+      ],
+      "answer": "c",
+      "explanation": "`s/pattern/replacement/` substitutes a match on each line; the `g` flag makes it replace every match on the line rather than only the first, and `-i` edits the file in place instead of printing to standard output. Without `g` you get the 'first on each line' behaviour. The pattern is a regular expression, so a `.` would match any character.",
+      "materials": [
+        "missing-semester-2026-course-shell"
+      ]
+    },
+    {
+      "id": "w07-l03-q08",
+      "concept": "w07-l03-pipes-and-text-tools",
+      "type": "written",
+      "prompt": "Write a `jq` command that computes the average cost per run from your JSONL trace file, and explain each part. What happens if the file is empty?",
+      "model_answer": {
+        "summary": "`jq -s 'map(.cost) | add / length' traces.jsonl` slurps every line into one array, extracts the costs, and divides their sum by their count; an empty file needs a guard because `add` of an empty array is `null`.",
+        "key_points": [
+          "JSONL has one JSON object per line, and jq normally runs the filter once per object",
+          "`-s` (`--slurp`) reads all the objects into a single array so one filter sees them all",
+          "`map(.cost)` turns the array of objects into an array of costs",
+          "`add` sums the array and `length` counts it, so `add / length` is the mean",
+          "For an empty file the array is empty and `add` returns `null`, so guard it, for example `if length == 0 then 0 else (map(.cost) | add / length) end`"
+        ]
+      },
+      "explanation": "The key idea is the difference between a stream of values and one array: aggregates like sums and averages need the whole set, which is what `--slurp` gives you. `jq -s 'map(.cost) | add'` for the total and `length` for the run count are the same pattern.",
+      "materials": [
+        "jq-manual",
+        "missing-semester-2026-course-shell"
+      ]
+    },
+    {
+      "id": "w07-l03-q09",
+      "concept": "w07-l03-ssh-and-permissions",
+      "type": "multiple_choice",
+      "prompt": "`ssh` won't use your key, and `ls -l ~/.ssh/id_ed25519` shows `-rw-r--r--`. What is the fix?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`chmod +x ~/.ssh/id_ed25519`"
+        },
+        {
+          "id": "b",
+          "text": "`chmod 600 ~/.ssh/id_ed25519`"
+        },
+        {
+          "id": "c",
+          "text": "`chmod 644 ~/.ssh/id_ed25519`"
+        },
+        {
+          "id": "d",
+          "text": "`chmod 755 ~/.ssh/id_ed25519`"
+        }
+      ],
+      "answer": "b",
+      "explanation": "The ssh manual says a private key must be readable by you but not accessible by others, and `ssh` ignores a key file that others can access. `-rw-r--r--` (644) lets everyone read it. `chmod 600` leaves read and write for the owner only (`-rw-------`). Adding execute or keeping others' read bits doesn't help.",
+      "materials": [
+        "openssh-ssh-manual",
+        "linux-chmod-2-man-page"
+      ]
+    },
+    {
+      "id": "w07-l03-q10",
+      "concept": "w07-l03-ssh-and-permissions",
+      "type": "multiple_choice",
+      "prompt": "What permissions does `chmod 754 deploy.sh` give?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`rwxr-xr-x`"
+        },
+        {
+          "id": "b",
+          "text": "`rw-r--r--`"
+        },
+        {
+          "id": "c",
+          "text": "`rwxrw-r--`"
+        },
+        {
+          "id": "d",
+          "text": "`rwxr-xr--`"
+        }
+      ],
+      "answer": "d",
+      "explanation": "Each digit is the sum of read (4), write (2) and execute (1), for owner, group and others in that order. 7 = 4 + 2 + 1 is `rwx` for the owner, 5 = 4 + 1 is `r-x` for the group, and 4 is `r--` for others. `rwxr-xr-x` is 755, the common setting for scripts everyone may run.",
+      "materials": [
+        "linux-chmod-2-man-page",
+        "missing-semester-2026-course-shell"
+      ]
+    },
+    {
+      "id": "w07-l03-q11",
+      "concept": "w07-l03-ssh-and-permissions",
+      "type": "written",
+      "prompt": "You need to deploy to a new server over SSH. Explain how key-based login works, how you set it up, and how you would copy files to the server.",
+      "model_answer": {
+        "summary": "Generate a key pair, put the public key on the server, and keep the private key readable only by you; ssh then proves you hold the private key without sending it, and `scp` or `rsync` copies files over the same connection.",
+        "key_points": [
+          "Key-based auth uses public-key cryptography: the client proves it owns the private key without revealing it",
+          "Generate a key pair with `ssh-keygen -t ed25519` and install the public key on the server with `ssh-copy-id`",
+          "The private key must not be accessible by others (for example `chmod 600`), or ssh ignores it",
+          "Copy files with `scp local_file host:path`; `rsync` also works and skips files that are already identical on the other side"
+        ]
+      },
+      "explanation": "Keys beat passwords because nothing secret crosses the network and the server only stores a public key. The permission check is ssh protecting you from a key other users could read. For repeated deploys, `rsync` saves time by sending only what changed.",
+      "materials": [
+        "missing-semester-2026-command-line-environment",
+        "openssh-ssh-manual"
+      ]
+    }
+  ]
+}

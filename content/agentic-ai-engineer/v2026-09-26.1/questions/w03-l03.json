@@ -1,0 +1,318 @@
+{
+  "schema_version": 1,
+  "lesson_id": "w03-l03",
+  "concepts": [
+    {
+      "id": "w03-l03-sorted-two-pointers",
+      "name": "Pointers from both ends of a sorted array (Two Sum II)"
+    },
+    {
+      "id": "w03-l03-valid-palindrome",
+      "name": "Valid Palindrome with inward pointers"
+    },
+    {
+      "id": "w03-l03-3sum-duplicates",
+      "name": "3Sum and skipping duplicates"
+    },
+    {
+      "id": "w03-l03-container-with-most-water",
+      "name": "Container With Most Water: move the shorter line"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w03-l03-q01",
+      "concept": "w03-l03-sorted-two-pointers",
+      "type": "multiple_choice",
+      "prompt": "Two Sum II: `numbers` is sorted. With `left` at the start and `right` at the end, `numbers[left] + numbers[right]` is less than `target`. What do you do, and why?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Move `right` left, because the sum needs to get smaller"
+        },
+        {
+          "id": "b",
+          "text": "Move both pointers inward, because neither element can be used"
+        },
+        {
+          "id": "c",
+          "text": "Restart from `left + 1` and scan every `right` position again"
+        },
+        {
+          "id": "d",
+          "text": "Move `left` right: `numbers[left]` is too small even with the largest value"
+        }
+      ],
+      "answer": "d",
+      "explanation": "`numbers[right]` is the largest value still in range, so if even it isn't enough, `numbers[left]` can't be in any answer with the remaining elements and can be dropped. Symmetrically, a sum above the target drops `right`. Each step discards one element for good, so the search is O(n) time with O(1) extra space, as the problem requires.",
+      "materials": [
+        "neetcode-150-practice-list",
+        "tech-interview-handbook-array"
+      ]
+    },
+    {
+      "id": "w03-l03-q02",
+      "concept": "w03-l03-sorted-two-pointers",
+      "type": "multiple_choice",
+      "prompt": "What does Two Sum II return for `numbers = [2, 7, 11, 15]`, `target = 9`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`[0, 1]`, the zero-based indices of 2 and 7"
+        },
+        {
+          "id": "b",
+          "text": "`[1, 2]`, because the problem uses 1-indexed positions"
+        },
+        {
+          "id": "c",
+          "text": "`[1, 4]`, the first and last positions"
+        },
+        {
+          "id": "d",
+          "text": "`[2, 7]`, the two values that add up to 9"
+        }
+      ],
+      "answer": "b",
+      "explanation": "2 + 15 = 17 is too big, so `right` moves to 11; 2 + 11 = 13 is still too big; 2 + 7 = 9 matches. The problem says the array is 1-indexed and asks for `[index1, index2]`, so you return `[left + 1, right + 1]`, which is `[1, 2]`. Returning zero-based indices is a common slip.",
+      "materials": [
+        "neetcode-150-practice-list"
+      ]
+    },
+    {
+      "id": "w03-l03-q03",
+      "concept": "w03-l03-sorted-two-pointers",
+      "type": "written",
+      "prompt": "Explain why the two-pointer approach to Two Sum II never misses the answer, and why it needs the array to be sorted.",
+      "model_answer": {
+        "summary": "Because the array is sorted, a sum that is too small proves the left element can't pair with anything still in range, and a sum that is too big proves the same for the right element, so each move discards only elements that can't be in the answer.",
+        "key_points": [
+          "Sorted order means `numbers[left]` is the smallest remaining value and `numbers[right]` the largest",
+          "If the sum is below the target, `numbers[left]` plus any remaining value is at most that sum, so `left` can't be in the answer and moves right",
+          "If the sum is above the target, `numbers[right]` is too big with any remaining value, so `right` moves left",
+          "Each step removes one element that can't be in a solution, so the answer is never skipped and there are at most n − 1 steps: O(n) time, O(1) space",
+          "Without sorting, the sum says nothing about which pointer to move, so the argument fails"
+        ]
+      },
+      "explanation": "Two pointers is a proof by elimination: every move must be justified by showing that the discarded element can't be part of the answer. Sorted order is what makes that justification possible.",
+      "materials": [
+        "neetcode-150-practice-list",
+        "tech-interview-handbook-array"
+      ]
+    },
+    {
+      "id": "w03-l03-q04",
+      "concept": "w03-l03-valid-palindrome",
+      "type": "multiple_choice",
+      "prompt": "Valid Palindrome ignores case and all non-alphanumeric characters. What should it return for `\"0P\"`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`false`: lowercased it's `\"0p\"`, and `'0'` isn't `'p'`"
+        },
+        {
+          "id": "b",
+          "text": "`true`: digits are ignored, which leaves only `\"p\"`"
+        },
+        {
+          "id": "c",
+          "text": "`true`: every string of length 2 or less is a palindrome"
+        },
+        {
+          "id": "d",
+          "text": "`false`: the input contains a character that isn't a letter"
+        }
+      ],
+      "answer": "a",
+      "explanation": "The problem keeps letters and numbers, so `'0'` stays and is compared with `'p'`. A common bug filters with `str.isalpha()`, which drops digits and wrongly returns `true` here; use `str.isalnum()`. With two pointers you skip non-alphanumeric characters from each end and compare lowercased characters, in O(n) time and O(1) space.",
+      "materials": [
+        "neetcode-150-practice-list"
+      ]
+    },
+    {
+      "id": "w03-l03-q05",
+      "concept": "w03-l03-valid-palindrome",
+      "type": "multiple_choice",
+      "prompt": "In the two-pointer Valid Palindrome, when does the loop stop and return `true`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "When `left` reaches the end of the string"
+        },
+        {
+          "id": "b",
+          "text": "When the first pair of characters match"
+        },
+        {
+          "id": "c",
+          "text": "When `left` and `right` meet or cross with no mismatch"
+        },
+        {
+          "id": "d",
+          "text": "When every character has been compared twice"
+        }
+      ],
+      "answer": "c",
+      "explanation": "The pointers move toward each other, skipping characters that aren't letters or digits, and compare lowercased characters; any mismatch returns `false` at once. Once `left >= right`, every pair has been checked, so the string is a palindrome. A string with no alphanumeric characters, such as `\" \"`, is empty after filtering and counts as a palindrome.",
+      "materials": [
+        "neetcode-150-practice-list"
+      ]
+    },
+    {
+      "id": "w03-l03-q06",
+      "concept": "w03-l03-3sum-duplicates",
+      "type": "multiple_choice",
+      "prompt": "3Sum sorts `nums`, then for each index `i` runs two pointers over the rest. Why does it skip `i` when `i > 0 and nums[i] == nums[i - 1]`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Because a repeated value can never be part of a triplet"
+        },
+        {
+          "id": "b",
+          "text": "Because the two-pointer search only works on distinct values"
+        },
+        {
+          "id": "c",
+          "text": "To make the algorithm O(n log n) instead of O(n²)"
+        },
+        {
+          "id": "d",
+          "text": "That value already had its turn as `nums[i]`, so its triplets would repeat"
+        }
+      ],
+      "answer": "d",
+      "explanation": "The answer must not contain duplicate triplets. After sorting, equal values sit together, and the first of them has already found every triplet starting with that value, so the repeats are skipped. Repeated values can still appear within a triplet: `[-1, -1, 2]` is valid. The skip saves work, but the algorithm stays O(n²).",
+      "materials": [
+        "neetcode-150-practice-list"
+      ]
+    },
+    {
+      "id": "w03-l03-q07",
+      "concept": "w03-l03-3sum-duplicates",
+      "type": "multiple_choice",
+      "prompt": "3Sum on `[-1, 0, 1, 2, -1, -4]`, sorted to `[-4, -1, -1, 0, 1, 2]`. What should it return, and what goes wrong without any duplicate skipping?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`[[-1, 0, 1]]`; without skipping it also returns `[-1, -1, 2]`"
+        },
+        {
+          "id": "b",
+          "text": "`[[-1, -1, 2], [-1, 0, 1]]`; without skipping, `[-1, 0, 1]` appears twice"
+        },
+        {
+          "id": "c",
+          "text": "`[[-1, -1, 2], [-1, 0, 1], [-4, 2, 2]]`; skipping removes `[-4, 2, 2]`"
+        },
+        {
+          "id": "d",
+          "text": "`[[-1, 0, 1], [0, 1, -1]]`; skipping removes the reordered copy"
+        }
+      ],
+      "answer": "b",
+      "explanation": "With `i` at the first -1, the pointers find `[-1, -1, 2]` and `[-1, 0, 1]`. With `i` at the second -1, they find `[-1, 0, 1]` again, which skipping an `i` equal to the previous one prevents. There is only one 2, so `[-4, 2, 2]` isn't possible.",
+      "materials": [
+        "neetcode-150-practice-list"
+      ]
+    },
+    {
+      "id": "w03-l03-q08",
+      "concept": "w03-l03-3sum-duplicates",
+      "type": "written",
+      "prompt": "Describe the duplicate-skipping logic in 3Sum, and explain why each part is needed.",
+      "model_answer": {
+        "summary": "Sort first; skip an `i` whose value equals the previous one; after recording a triplet, move `left` past values equal to the one just used, so the same triplet isn't recorded twice.",
+        "key_points": [
+          "Sort the array first so equal values are next to each other",
+          "In the outer loop, skip `i` when `i > 0` and `nums[i] == nums[i - 1]`, because that value has already been tried as the first element",
+          "After recording a triplet, move `left` forward past values equal to the one just used, e.g. `while left < right and nums[left] == nums[left - 1]: left += 1`",
+          "Without the inner skip, an input like `[-2, 0, 0, 2, 2]` records `[-2, 0, 2]` twice",
+          "The whole algorithm is O(n²): O(n log n) to sort plus an O(n) two-pointer pass for each `i`"
+        ]
+      },
+      "explanation": "Both skips rely on sorting: once equal values are adjacent, a repeat is always the same as its neighbour. The outer skip avoids repeating a first element, and the inner skip avoids repeating the second (the third then follows, since the sum is fixed).",
+      "materials": [
+        "neetcode-150-practice-list"
+      ]
+    },
+    {
+      "id": "w03-l03-q09",
+      "concept": "w03-l03-container-with-most-water",
+      "type": "multiple_choice",
+      "prompt": "Container With Most Water: the left line has height 1, the right line height 7, and they are 8 apart. Which pointer do you move, and why?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The left one: any other container with that line is narrower and at most 1 high"
+        },
+        {
+          "id": "b",
+          "text": "The right one: the taller line has already given the best area it can"
+        },
+        {
+          "id": "c",
+          "text": "Both: the area depends only on the width, which shrinks the same either way"
+        },
+        {
+          "id": "d",
+          "text": "Either one: the next area is the same whichever of the two pointers moves"
+        }
+      ],
+      "answer": "a",
+      "explanation": "The area is `min(height[left], height[right]) * (right - left)`. Every other container using the shorter line is narrower and still capped at height 1, so none can beat the current 1 × 8 = 8, and that line can be dropped. Moving the taller line instead keeps the cap of 1 (or lowers it) while the width shrinks, so it can't help.",
+      "materials": [
+        "neetcode-150-practice-list"
+      ]
+    },
+    {
+      "id": "w03-l03-q10",
+      "concept": "w03-l03-container-with-most-water",
+      "type": "multiple_choice",
+      "prompt": "What is the answer to Container With Most Water for `height = [1, 8, 6, 2, 5, 4, 8, 3, 7]`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "64, from the two 8s times the full width of 8"
+        },
+        {
+          "id": "b",
+          "text": "40, from the two lines of height 8 at indices 1 and 6"
+        },
+        {
+          "id": "c",
+          "text": "49, from heights 8 and 7 at indices 1 and 8"
+        },
+        {
+          "id": "d",
+          "text": "8, from the first and last lines at full width"
+        }
+      ],
+      "answer": "c",
+      "explanation": "Starting at both ends: min(1, 7) × 8 = 8, so move the shorter left line. Then min(8, 7) × 7 = 49, and no later pair beats it. The two 8s give only 8 × 5 = 40, because width counts as much as height, and they aren't at the ends, so 64 isn't possible.",
+      "materials": [
+        "neetcode-150-practice-list"
+      ]
+    },
+    {
+      "id": "w03-l03-q11",
+      "concept": "w03-l03-container-with-most-water",
+      "type": "written",
+      "prompt": "In Container With Most Water, explain why moving the pointer at the shorter line is safe, and why the algorithm is O(n).",
+      "model_answer": {
+        "summary": "Every container that keeps the shorter line is narrower and no taller than the current one, so that line can be discarded; each step discards one line, so there are at most n − 1 steps.",
+        "key_points": [
+          "The area is the shorter of the two heights times the distance between the lines",
+          "Every other container using the shorter line is narrower and still limited by that line's height, so none holds more than the current one",
+          "So the shorter line can safely be dropped, which is what moving its pointer does",
+          "Moving the taller line can't help: the width shrinks and the height is still capped by the shorter line",
+          "Each step drops one line, so the loop runs at most n − 1 times: O(n) time and O(1) space"
+        ]
+      },
+      "explanation": "This is the same elimination argument as in Two Sum II: each move is justified by showing that no container using the discarded line could be the answer. Being able to state that argument is what interviewers listen for.",
+      "materials": [
+        "neetcode-150-practice-list"
+      ]
+    }
+  ]
+}

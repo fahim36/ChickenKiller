@@ -1,0 +1,352 @@
+{
+  "schema_version": 1,
+  "lesson_id": "w04-l02",
+  "concepts": [
+    {
+      "id": "w04-l02-jwt-structure-and-revocation",
+      "name": "JWT structure, and why revocation is hard"
+    },
+    {
+      "id": "w04-l02-api-keys-sessions-jwts",
+      "name": "API keys vs sessions vs JWTs"
+    },
+    {
+      "id": "w04-l02-oauth-code-flow-pkce",
+      "name": "OAuth 2.0 authorization code flow with PKCE"
+    },
+    {
+      "id": "w04-l02-password-hashing-and-secrets",
+      "name": "Password hashing and keeping secrets out of git"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w04-l02-q01",
+      "concept": "w04-l02-jwt-structure-and-revocation",
+      "type": "multiple_choice",
+      "prompt": "Someone intercepts a signed (not encrypted) JWT. What can they do with its payload?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Read every claim, because the payload is only Base64Url-encoded"
+        },
+        {
+          "id": "b",
+          "text": "Nothing, because the payload is encrypted with the signing key"
+        },
+        {
+          "id": "c",
+          "text": "Read it only if they also know the value of the `kid` header"
+        },
+        {
+          "id": "d",
+          "text": "Change a claim and keep a valid signature, since only the header is signed"
+        }
+      ],
+      "answer": "a",
+      "explanation": "A signed JWT is three Base64Url-encoded parts, `header.payload.signature`. Encoding is not encryption: anyone can decode the payload. The signature covers the header and payload, so it detects tampering but hides nothing. That's why jwt.io warns not to put secret information in a JWT unless it is encrypted.",
+      "materials": [
+        "jwt-io-introduction-to-json-web"
+      ]
+    },
+    {
+      "id": "w04-l02-q02",
+      "concept": "w04-l02-jwt-structure-and-revocation",
+      "type": "multiple_choice",
+      "prompt": "A user logs out, but their JWT access token still has 50 minutes before `exp`. With plain stateless JWT validation, what stops that token being used?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The signature stops validating as soon as the session ends"
+        },
+        {
+          "id": "b",
+          "text": "The server reads the `iat` claim and rejects tokens issued before logout"
+        },
+        {
+          "id": "c",
+          "text": "The browser deletes it, and a deleted token can't be replayed"
+        },
+        {
+          "id": "d",
+          "text": "Nothing, unless the server checks a denylist (keyed by `jti`) or tokens are short-lived"
+        }
+      ],
+      "answer": "d",
+      "explanation": "A server validates a JWT by checking its signature and claims, with no lookup, so logging out changes nothing about the token itself. It stays valid until `exp`. To cut that short you add state back: a denylist of revoked tokens keyed by the `jti` (and `iss`) claim, as the OWASP JWT cheat sheet describes, or you keep access tokens short-lived. A copy of the token held by an attacker is unaffected by what the browser deletes.",
+      "materials": [
+        "owasp-json-web-token-cheat-sheet",
+        "jwt-io-introduction-to-json-web"
+      ]
+    },
+    {
+      "id": "w04-l02-q03",
+      "concept": "w04-l02-jwt-structure-and-revocation",
+      "type": "written",
+      "prompt": "Describe the three parts of a JWT, and explain why revoking a JWT is harder than revoking a server-side session.",
+      "model_answer": {
+        "summary": "A JWT is `header.payload.signature`, each part Base64Url-encoded; the signature lets any holder of the key verify it without a database lookup. Because nothing is stored server-side, there is no record to delete, so revocation needs extra state or short lifetimes.",
+        "key_points": [
+          "Header: token type and signing algorithm (`alg`)",
+          "Payload: claims such as `sub`, `exp`, `iat`, `jti`; readable by anyone because it is only encoded",
+          "Signature over the header and payload: proves integrity and who signed it, not secrecy",
+          "The server validates the token by itself with no stored record, so a token stays valid until `exp`",
+          "Revocation needs a denylist (for example by `jti`) or short-lived access tokens with refresh tokens; a session is revoked by deleting its server-side record"
+        ]
+      },
+      "explanation": "RFC 7519 defines the registered claims; `exp` is a NumericDate in seconds, and `jti` gives each token a unique ID that can be used to prevent replay. Stateless validation is the whole point of a JWT, and it is exactly what makes revocation hard.",
+      "materials": [
+        "jwt-io-introduction-to-json-web",
+        "owasp-json-web-token-cheat-sheet"
+      ]
+    },
+    {
+      "id": "w04-l02-q04",
+      "concept": "w04-l02-jwt-structure-and-revocation",
+      "type": "multiple_choice",
+      "prompt": "Your JWT library accepts tokens whose header says `\"alg\": \"none\"`. What's the risk?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Tokens expire immediately, so every user is logged out"
+        },
+        {
+          "id": "b",
+          "text": "Only tokens signed with HS256 stop working"
+        },
+        {
+          "id": "c",
+          "text": "An attacker can forge a token with any claims and no signature"
+        },
+        {
+          "id": "d",
+          "text": "The payload becomes encrypted and your service can't read it"
+        }
+      ],
+      "answer": "c",
+      "explanation": "`alg: none` means an unsecured JWT with an empty signature. If the parser accepts it, anyone can write their own payload, say `\"sub\": \"admin\"`, and the server will trust it. The OWASP JWT cheat sheet says to make sure your parser rejects `none` and to pin the algorithms you expect.",
+      "materials": [
+        "owasp-json-web-token-cheat-sheet"
+      ]
+    },
+    {
+      "id": "w04-l02-q05",
+      "concept": "w04-l02-api-keys-sessions-jwts",
+      "type": "multiple_choice",
+      "prompt": "Which approach lets you revoke one user's access instantly by deleting a single database row, with no extra machinery?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A stateless JWT with a 24-hour `exp`, reissued on every request"
+        },
+        {
+          "id": "b",
+          "text": "A server-side session: the cookie holds a random ID for a stored row"
+        },
+        {
+          "id": "c",
+          "text": "A JWT signed with a secret key that only the server knows"
+        },
+        {
+          "id": "d",
+          "text": "A cookie holding the user's ID, Base64-encoded so it can't be forged"
+        }
+      ],
+      "answer": "b",
+      "explanation": "With a server-side session, the browser holds only an opaque random ID and the server looks it up on every request. Delete the row and the next request fails. A JWT is checked without a lookup, so it stays valid until it expires however secret the key is. A Base64-encoded user ID is not a credential at all: anyone can make one.",
+      "materials": [
+        "jwt-io-introduction-to-json-web",
+        "owasp-json-web-token-cheat-sheet"
+      ]
+    },
+    {
+      "id": "w04-l02-q06",
+      "concept": "w04-l02-api-keys-sessions-jwts",
+      "type": "written",
+      "prompt": "Compare API keys, server-side sessions and JWTs. Which would you choose for (a) other programs calling your agent API, and (b) your own browser frontend, and why?",
+      "model_answer": {
+        "summary": "API keys suit machine-to-machine clients; server-side sessions suit a first-party browser app; JWTs suit services that must verify identity without a shared session store, at the cost of hard revocation.",
+        "key_points": [
+          "API key: a long-lived secret sent in a header by a program; the server stores only a hash and can revoke it by deleting that record",
+          "Session: the server stores the session state and the browser holds an opaque ID in a cookie, so logout and revocation are immediate",
+          "JWT: self-contained signed claims that any service with the key can verify without a lookup, but it stays valid until `exp`",
+          "(a) API keys for other programs, (b) sessions for your own browser frontend",
+          "If you use JWTs, keep access tokens short-lived and add refresh tokens or a denylist for revocation"
+        ]
+      },
+      "explanation": "The trade-off is where the state lives. Keys and sessions keep it on the server, so revoking is a delete. JWTs move it into the token, which removes the lookup but also removes the easy off switch.",
+      "materials": [
+        "jwt-io-introduction-to-json-web",
+        "oauth-2-0-simplified"
+      ]
+    },
+    {
+      "id": "w04-l02-q07",
+      "concept": "w04-l02-oauth-code-flow-pkce",
+      "type": "multiple_choice",
+      "prompt": "In the authorization code flow with PKCE, what does the client send to the token endpoint that it did not send in the authorization request?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The `code_verifier`"
+        },
+        {
+          "id": "b",
+          "text": "The `code_challenge`"
+        },
+        {
+          "id": "c",
+          "text": "The `code_challenge_method`"
+        },
+        {
+          "id": "d",
+          "text": "The `state` value"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Before redirecting, the client makes a random `code_verifier` and sends only its hash, the `code_challenge` (with `code_challenge_method=S256`), in the authorization request. When it exchanges the code at the token endpoint, it sends the `code_verifier` itself. The server hashes it and checks that it matches the challenge (RFC 7636). `state` goes out in the authorization request and comes back on the redirect; it is not sent to the token endpoint.",
+      "materials": [
+        "rfc-7636-pkce",
+        "oauth-2-0-simplified"
+      ]
+    },
+    {
+      "id": "w04-l02-q08",
+      "concept": "w04-l02-oauth-code-flow-pkce",
+      "type": "multiple_choice",
+      "prompt": "Which attack does PKCE defend against?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Cross-site scripting that reads tokens out of `localStorage`"
+        },
+        {
+          "id": "b",
+          "text": "Brute-force guessing of users' passwords on the login page"
+        },
+        {
+          "id": "c",
+          "text": "Replaying an access token after it has expired"
+        },
+        {
+          "id": "d",
+          "text": "An attacker who steals the authorization code exchanging it for tokens"
+        }
+      ],
+      "answer": "d",
+      "explanation": "RFC 7636 was written for the authorization code interception attack. The code travels through the browser and redirect URI, where a malicious app or leaky log can grab it. With PKCE the code is useless without the `code_verifier`, which never left the client. The OAuth security best current practice (RFC 9700, 2025) says public clients MUST use PKCE and recommends it for confidential clients too.",
+      "materials": [
+        "rfc-7636-pkce",
+        "oauth-2-0-simplified"
+      ]
+    },
+    {
+      "id": "w04-l02-q09",
+      "concept": "w04-l02-oauth-code-flow-pkce",
+      "type": "written",
+      "prompt": "Walk through the OAuth 2.0 authorization code flow with PKCE, from the moment the user clicks \"Sign in\" to the client holding an access token.",
+      "model_answer": {
+        "summary": "The client makes a secret verifier and sends its hash with the authorization request; the user signs in and approves at the authorization server, which redirects back with a short-lived code; the client exchanges the code plus the verifier for tokens.",
+        "key_points": [
+          "The client generates a random `code_verifier` and derives `code_challenge = BASE64URL(SHA256(code_verifier))` (method `S256`)",
+          "It redirects the browser to the authorization endpoint with `client_id`, `redirect_uri`, `scope`, `state` and the `code_challenge`",
+          "The user authenticates and consents at the authorization server, which redirects to `redirect_uri` with an authorization code and the same `state`",
+          "The client checks `state`, then sends the code and the `code_verifier` to the token endpoint",
+          "The server checks the verifier against the stored challenge and returns an access token (often with a refresh token)"
+        ]
+      },
+      "explanation": "RFC 7636 defines the verifier (43 to 128 characters) and the S256 transform, and says `plain` SHOULD NOT be used in new implementations. You will need this flow again for MCP: its authorization spec (version 2025-06-18) requires MCP clients to implement PKCE.",
+      "materials": [
+        "rfc-7636-pkce",
+        "oauth-2-0-simplified"
+      ]
+    },
+    {
+      "id": "w04-l02-q10",
+      "concept": "w04-l02-password-hashing-and-secrets",
+      "type": "multiple_choice",
+      "prompt": "Why is a salted SHA-256 hash a poor way to store passwords?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "SHA-256 is reversible if the attacker also steals the salt"
+        },
+        {
+          "id": "b",
+          "text": "It's designed to be fast, so an attacker can test billions of guesses"
+        },
+        {
+          "id": "c",
+          "text": "SHA-256 gives the same hash for passwords that differ by one character"
+        },
+        {
+          "id": "d",
+          "text": "SHA-256 output is too long to fit in a normal database column"
+        }
+      ],
+      "answer": "b",
+      "explanation": "The OWASP Password Storage Cheat Sheet says fast hashes such as SHA-256 are unsuitable because they let attackers make huge numbers of guesses quickly. Password hashes such as Argon2id, scrypt and bcrypt are deliberately slow and tunable. A salt doesn't need to be secret; it stops precomputed tables and makes identical passwords hash differently, but doesn't slow down guessing.",
+      "materials": [
+        "owasp-password-storage-cheat-sheet"
+      ]
+    },
+    {
+      "id": "w04-l02-q11",
+      "concept": "w04-l02-password-hashing-and-secrets",
+      "type": "multiple_choice",
+      "prompt": "Which option does the OWASP Password Storage Cheat Sheet list first for hashing passwords?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "bcrypt with a work factor of 4"
+        },
+        {
+          "id": "b",
+          "text": "SHA-512 with a random per-user salt"
+        },
+        {
+          "id": "c",
+          "text": "AES-256 encryption with a key kept in an environment variable"
+        },
+        {
+          "id": "d",
+          "text": "Argon2id with at least 19 MiB of memory and 2 iterations"
+        }
+      ],
+      "answer": "d",
+      "explanation": "OWASP recommends Argon2id first (minimum 19 MiB memory, 2 iterations, parallelism 1), then scrypt, then bcrypt with a work factor of 10 or more, and PBKDF2 where FIPS-140 compliance is needed. A bcrypt work factor of 4 is far too low. Encryption is the wrong tool: anyone who gets the key can decrypt every password, whereas a hash is one-way.",
+      "materials": [
+        "owasp-password-storage-cheat-sheet"
+      ]
+    },
+    {
+      "id": "w04-l02-q12",
+      "concept": "w04-l02-password-hashing-and-secrets",
+      "type": "multiple_choice",
+      "prompt": "You committed an API key, pushed, and then deleted it in the next commit. What should you do first?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Nothing more: the key is gone from the latest commit"
+        },
+        {
+          "id": "b",
+          "text": "Run `git commit --amend` to remove it from the last commit"
+        },
+        {
+          "id": "c",
+          "text": "Revoke or rotate the key, since it's still in the history and may be copied"
+        },
+        {
+          "id": "d",
+          "text": "Add `.env` to `.gitignore` so it can't happen again"
+        }
+      ],
+      "answer": "c",
+      "explanation": "Deleting the file in a later commit leaves the key in every earlier commit, and anyone who cloned, forked or scanned the repo may already have it. GitHub's guide says the first step is to revoke or rotate the secret. Once it no longer works, rewriting history is often unnecessary. `--amend` only rewrites the latest commit. `.gitignore` prevents the next leak but doesn't fix this one.",
+      "materials": [
+        "github-docs-removing-sensitive-data"
+      ]
+    }
+  ]
+}

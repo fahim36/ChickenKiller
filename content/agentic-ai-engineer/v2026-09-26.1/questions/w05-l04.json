@@ -1,0 +1,346 @@
+{
+  "schema_version": 1,
+  "lesson_id": "w05-l04",
+  "concepts": [
+    {
+      "id": "w05-l04-dfs-traversal-orders",
+      "name": "Pre-order, in-order and post-order DFS"
+    },
+    {
+      "id": "w05-l04-height-from-recursion",
+      "name": "Computing height bottom-up (Maximum Depth, Balanced Binary Tree)"
+    },
+    {
+      "id": "w05-l04-diameter-of-binary-tree",
+      "name": "Diameter: combine child heights, keep a running best"
+    },
+    {
+      "id": "w05-l04-recursive-vs-iterative-dfs",
+      "name": "Recursive vs iterative DFS"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w05-l04-q01",
+      "concept": "w05-l04-dfs-traversal-orders",
+      "type": "multiple_choice",
+      "prompt": "The tree is `1` with left child `2` and right child `3`; `2` has children `4` (left) and `5` (right). What is its in-order traversal?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`1, 2, 4, 5, 3`"
+        },
+        {
+          "id": "b",
+          "text": "`4, 2, 5, 1, 3`"
+        },
+        {
+          "id": "c",
+          "text": "`4, 5, 2, 3, 1`"
+        },
+        {
+          "id": "d",
+          "text": "`1, 2, 3, 4, 5`"
+        }
+      ],
+      "answer": "b",
+      "explanation": "In-order visits the left subtree, then the node, then the right subtree: `4, 2, 5`, then `1`, then `3`. `1, 2, 4, 5, 3` is pre-order (node first), `4, 5, 2, 3, 1` is post-order (node last), and `1, 2, 3, 4, 5` is level order, which is BFS rather than DFS.",
+      "materials": [
+        "neetcode-150-practice-list"
+      ]
+    },
+    {
+      "id": "w05-l04-q02",
+      "concept": "w05-l04-dfs-traversal-orders",
+      "type": "multiple_choice",
+      "prompt": "Maximum Depth, Balanced Binary Tree and Diameter of Binary Tree all compute something at each node from its children's results. Which traversal order does that?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Pre-order, because the root is visited first"
+        },
+        {
+          "id": "b",
+          "text": "In-order, because it visits nodes in sorted order"
+        },
+        {
+          "id": "c",
+          "text": "Level order, because it handles one level at a time"
+        },
+        {
+          "id": "d",
+          "text": "Post-order, because both children finish before their parent"
+        }
+      ],
+      "answer": "d",
+      "explanation": "A node's height depends on its children's heights, so the children must be finished first: left, right, then the node. That's post-order, and it's what a recursive function does when it combines the return values of its two recursive calls. Pre-order suits passing information down, such as a depth or bounds. In-order's sorted order only matters for binary search trees.",
+      "materials": [
+        "neetcode-150-practice-list"
+      ]
+    },
+    {
+      "id": "w05-l04-q03",
+      "concept": "w05-l04-dfs-traversal-orders",
+      "type": "written",
+      "prompt": "Explain the difference between pre-order, in-order and post-order DFS, and name a problem from this lesson (or a common task) that suits each.",
+      "model_answer": {
+        "summary": "They differ in when the node itself is visited relative to its subtrees: before them, between them, or after them. Pre-order suits pushing information down or copying, in-order gives sorted order in a BST, and post-order suits values computed from children.",
+        "key_points": [
+          "Pre-order: node, left, right; suits work done before the children, such as Invert Binary Tree (swap, then recurse) or copying a tree",
+          "In-order: left, node, right; on a binary search tree it visits values in sorted order",
+          "Post-order: left, right, node; suits values built from the children, such as height, balance or diameter",
+          "Same Tree can compare the two current nodes first, then recurse (pre-order style)",
+          "All three visit every node once: O(n) time and O(h) stack for a tree of height h"
+        ]
+      },
+      "explanation": "The three orders are the same recursion; only the position of \"visit the node\" moves. Choose the order by asking whether the node needs its children's answers (post-order) or the children need the node's (pre-order).",
+      "materials": [
+        "neetcode-150-practice-list"
+      ]
+    },
+    {
+      "id": "w05-l04-q04",
+      "concept": "w05-l04-dfs-traversal-orders",
+      "type": "multiple_choice",
+      "prompt": "What goes wrong with this Invert Binary Tree solution?\n\n```python\ndef invert(root):\n    if root is None:\n        return None\n    root.left = invert(root.right)\n    root.right = invert(root.left)\n    return root\n```",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Nothing: it swaps the children correctly at every node"
+        },
+        {
+          "id": "b",
+          "text": "It inverts only the root and leaves the subtrees unchanged"
+        },
+        {
+          "id": "c",
+          "text": "Both children end up as the same subtree, and the original left subtree is lost"
+        },
+        {
+          "id": "d",
+          "text": "It recurses forever because `root.left` is reassigned before the second call"
+        }
+      ],
+      "answer": "c",
+      "explanation": "The first line overwrites `root.left` with the inverted right subtree before the original left subtree has been saved. The second line then inverts `root.left`, which is now that same right subtree, so both children point to it and the original left subtree is unreachable. On `[2, 1, 3]` both children become the `3` node. Assigning both at once fixes it: `root.left, root.right = invert(root.right), invert(root.left)`. The recursion ends at `None`, so it doesn't loop.",
+      "materials": [
+        "neetcode-150-practice-list"
+      ]
+    },
+    {
+      "id": "w05-l04-q05",
+      "concept": "w05-l04-height-from-recursion",
+      "type": "multiple_choice",
+      "prompt": "What is the maximum depth of the tree `[3, 9, 20, null, null, 15, 7]` (root `3`, children `9` and `20`, and `20` has children `15` and `7`)?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "2"
+        },
+        {
+          "id": "b",
+          "text": "3"
+        },
+        {
+          "id": "c",
+          "text": "4"
+        },
+        {
+          "id": "d",
+          "text": "5"
+        }
+      ],
+      "answer": "b",
+      "explanation": "The problem defines maximum depth as the number of nodes on the longest root-to-leaf path. `3 → 20 → 15` has 3 nodes. The answer 2 counts edges instead of nodes. The recursion is `depth(None) = 0` and `depth(node) = 1 + max(depth(left), depth(right))`.",
+      "materials": [
+        "neetcode-150-practice-list"
+      ]
+    },
+    {
+      "id": "w05-l04-q06",
+      "concept": "w05-l04-height-from-recursion",
+      "type": "multiple_choice",
+      "prompt": "An O(n) Balanced Binary Tree solution uses one recursive helper. What does that helper return for each subtree?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The subtree's height, or a sentinel such as `-1` once any part of it is unbalanced"
+        },
+        {
+          "id": "b",
+          "text": "Only `True` or `False`, recomputing heights inside each call as needed"
+        },
+        {
+          "id": "c",
+          "text": "The number of nodes in the subtree"
+        },
+        {
+          "id": "d",
+          "text": "The diameter of the subtree"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Returning the height lets the parent check `abs(left - right) <= 1` without walking the subtree again. The `-1` sentinel carries \"unbalanced\" up the tree, so the check stops early. A helper that returns only `True` or `False` must call a separate height function at every node, which repeats work. Node counts don't decide balance: a tree is height-balanced when, at every node, the two subtree heights differ by at most one.",
+      "materials": [
+        "neetcode-150-practice-list"
+      ]
+    },
+    {
+      "id": "w05-l04-q07",
+      "concept": "w05-l04-height-from-recursion",
+      "type": "written",
+      "prompt": "Explain how to check whether a binary tree is height-balanced in O(n) time.",
+      "model_answer": {
+        "summary": "Use one post-order recursion that returns each subtree's height and checks the balance condition on the way up, returning a sentinel as soon as any node is out of balance. Each node is visited once.",
+        "key_points": [
+          "Height-balanced means that at every node the left and right subtree heights differ by at most 1",
+          "A post-order helper computes the left and right heights first, then checks the node",
+          "It returns `1 + max(left, right)` when balanced, or `-1` as soon as any subtree is unbalanced",
+          "Each node is visited once, so O(n) time and O(h) stack space",
+          "Calling a separate height function at every node recomputes the same heights over and over"
+        ]
+      },
+      "explanation": "Returning two things at once, the height and whether it's balanced, is a pattern that recurs in tree problems. Diameter uses the same idea, with a running maximum in place of the sentinel.",
+      "materials": [
+        "neetcode-150-practice-list"
+      ]
+    },
+    {
+      "id": "w05-l04-q08",
+      "concept": "w05-l04-diameter-of-binary-tree",
+      "type": "multiple_choice",
+      "prompt": "What is the diameter of the tree `[1, 2, 3, 4, 5]` (root `1`, children `2` and `3`, and `2` has children `4` and `5`)?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "2"
+        },
+        {
+          "id": "b",
+          "text": "3"
+        },
+        {
+          "id": "c",
+          "text": "4"
+        },
+        {
+          "id": "d",
+          "text": "5"
+        }
+      ],
+      "answer": "b",
+      "explanation": "The problem measures the diameter in edges: the longest path between any two nodes. `4 → 2 → 1 → 3` has 3 edges. The answer 4 counts the nodes on that path instead. At each node the longest path through it is `height(left) + height(right)`, with heights counted in nodes.",
+      "materials": [
+        "neetcode-150-practice-list"
+      ]
+    },
+    {
+      "id": "w05-l04-q09",
+      "concept": "w05-l04-diameter-of-binary-tree",
+      "type": "multiple_choice",
+      "prompt": "Why isn't the diameter just `depth(root.left) + depth(root.right)` computed once at the root?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The longest path may not pass through the root, so every node must be checked"
+        },
+        {
+          "id": "b",
+          "text": "That sum counts nodes, but the diameter is measured in edges"
+        },
+        {
+          "id": "c",
+          "text": "The root's own depth has to be added, giving one more"
+        },
+        {
+          "id": "d",
+          "text": "That formula takes O(n²) time, which is too slow"
+        }
+      ],
+      "answer": "a",
+      "explanation": "The problem says the longest path may or may not pass through the root. If the root has only a deep left subtree that branches in two, the longest path lies inside that subtree. So the O(n) solution computes `left + right` at every node during one post-order pass, keeps the largest value seen, and returns `1 + max(left, right)` to the parent. The root-only sum is O(n), but it gives the wrong answer on such trees.",
+      "materials": [
+        "neetcode-150-practice-list"
+      ]
+    },
+    {
+      "id": "w05-l04-q10",
+      "concept": "w05-l04-diameter-of-binary-tree",
+      "type": "written",
+      "prompt": "Explain the O(n) algorithm for Diameter of Binary Tree.",
+      "model_answer": {
+        "summary": "Do one post-order DFS that returns each subtree's height. At every node, `left + right` is the longest path through that node, so keep the largest one seen; that is the diameter in edges.",
+        "key_points": [
+          "A helper returns the height of a subtree (0 for `None`, else `1 + max(left, right)`)",
+          "At each node, `left_height + right_height` is the number of edges on the longest path through that node",
+          "Keep a running best (an outer variable or `nonlocal`) and update it at every node",
+          "The answer is that best, measured in edges, and it may not pass through the root",
+          "Each node is visited once: O(n) time, O(h) stack"
+        ]
+      },
+      "explanation": "The helper's return value (height) and the answer (diameter) are different things. Returning one while recording the other is the trick in this problem.",
+      "materials": [
+        "neetcode-150-practice-list"
+      ]
+    },
+    {
+      "id": "w05-l04-q11",
+      "concept": "w05-l04-recursive-vs-iterative-dfs",
+      "type": "multiple_choice",
+      "prompt": "In an iterative pre-order DFS with a stack (`node = stack.pop()`, visit it, then push its children), in which order must you push the children to visit left before right?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Right child first, then left, because a stack returns the last item pushed"
+        },
+        {
+          "id": "b",
+          "text": "Left child first, then right, the same order as the recursion"
+        },
+        {
+          "id": "c",
+          "text": "Only the left child; the right child is visited on the way back"
+        },
+        {
+          "id": "d",
+          "text": "It doesn't matter, because a stack visits children in either order"
+        }
+      ],
+      "answer": "a",
+      "explanation": "A stack is last in, first out, so the child pushed last is popped first. To visit left first, push right, then left. Pushing left first gives a right-to-left pre-order. A queue here instead of a stack would give level order (BFS).",
+      "materials": [
+        "neetcode-150-practice-list"
+      ]
+    },
+    {
+      "id": "w05-l04-q12",
+      "concept": "w05-l04-recursive-vs-iterative-dfs",
+      "type": "multiple_choice",
+      "prompt": "In CPython with default settings, what happens when you run a recursive DFS for Maximum Depth on a 10,000-node tree where every node has only a left child?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It works, because Python grows the call stack as needed"
+        },
+        {
+          "id": "b",
+          "text": "It works, but takes O(n²) time"
+        },
+        {
+          "id": "c",
+          "text": "It raises `RecursionError`, because the default recursion limit is 1000"
+        },
+        {
+          "id": "d",
+          "text": "It crashes the interpreter with a segmentation fault every time"
+        }
+      ],
+      "answer": "c",
+      "explanation": "A chain of 10,000 nodes needs 10,000 nested calls. CPython's default recursion limit is 1000 (`sys.getrecursionlimit()`), so it raises `RecursionError` (checked on 3.11 to 3.14). An iterative DFS with your own stack has no such limit. Raising the limit with `sys.setrecursionlimit` is possible, but the docs warn that too high a limit can crash Python.",
+      "materials": [
+        "python-docs-sys",
+        "neetcode-150-practice-list"
+      ]
+    }
+  ]
+}

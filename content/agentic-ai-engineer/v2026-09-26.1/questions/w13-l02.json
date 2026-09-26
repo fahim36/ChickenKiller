@@ -1,0 +1,327 @@
+{
+  "schema_version": 1,
+  "lesson_id": "w13-l02",
+  "concepts": [
+    {
+      "id": "w13-l02-storage-estimate",
+      "name": "Estimating vector storage for a large corpus"
+    },
+    {
+      "id": "w13-l02-index-limits-and-filtering",
+      "name": "pgvector index limits and filtered search"
+    },
+    {
+      "id": "w13-l02-incremental-ingestion",
+      "name": "Ingestion at scale and incremental updates"
+    },
+    {
+      "id": "w13-l02-hybrid-and-rerank",
+      "name": "Hybrid search and the cost of reranking"
+    },
+    {
+      "id": "w13-l02-access-control",
+      "name": "Access control at retrieval time"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w13-l02-q01",
+      "concept": "w13-l02-storage-estimate",
+      "type": "multiple_choice",
+      "prompt": "You index 1,000,000 PDFs at 50 chunks each, with 1,536-dimension embeddings stored in a pgvector `vector` column. pgvector stores each vector in `4 * dimensions + 8` bytes. About how much space do the vectors alone take?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "About 31 GB"
+        },
+        {
+          "id": "b",
+          "text": "About 77 GB"
+        },
+        {
+          "id": "c",
+          "text": "About 3 TB"
+        },
+        {
+          "id": "d",
+          "text": "About 308 GB"
+        }
+      ],
+      "answer": "d",
+      "explanation": "Chunks: 1,000,000 × 50 = 50,000,000. Bytes per vector: 4 × 1,536 + 8 = 6,152. Total: 50,000,000 × 6,152 ≈ 307.6 billion bytes, about 308 GB. That's before the HNSW index, the chunk text and metadata, which add a lot more. Option b is what you'd get with 1 byte per dimension; a and c are off by 10×.",
+      "materials": [
+        "pgvector-vector-search-in-postgres"
+      ]
+    },
+    {
+      "id": "w13-l02-q02",
+      "concept": "w13-l02-index-limits-and-filtering",
+      "type": "multiple_choice",
+      "prompt": "You switch to a 3,072-dimension embedding model and run `CREATE INDEX ON chunks USING hnsw (embedding vector_cosine_ops)` on a `vector(3072)` column. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It works, but each query is about twice as slow as with a 1,536-dimension model"
+        },
+        {
+          "id": "b",
+          "text": "It fails: HNSW indexes `vector` only up to 2,000 dimensions; use `halfvec` (up to 4,000) or fewer dimensions"
+        },
+        {
+          "id": "c",
+          "text": "It fails, because pgvector can't store any `vector` value longer than 2,000 dimensions, whether indexed or not"
+        },
+        {
+          "id": "d",
+          "text": "It succeeds, but silently truncates each vector to its first 2,000 dimensions before indexing"
+        }
+      ],
+      "answer": "b",
+      "explanation": "pgvector can store `vector` values up to 16,000 dimensions, but its HNSW and IVFFlat indexes support `vector` only up to 2,000. `halfvec` (half-precision) can be indexed up to 4,000 dimensions and takes `2 * dimensions + 8` bytes, half the space. Another fix is an embedding model or setting with fewer dimensions.",
+      "materials": [
+        "pgvector-vector-search-in-postgres"
+      ]
+    },
+    {
+      "id": "w13-l02-q03",
+      "concept": "w13-l02-storage-estimate",
+      "type": "written",
+      "prompt": "This Lesson's exercise: estimate storage for a million PDFs. Explain the formula, what else takes space beyond the raw vectors, and how you would shrink it.",
+      "model_answer": {
+        "summary": "Storage is roughly documents × chunks per document × bytes per vector, plus the index, the chunk text and metadata; halving precision, cutting dimensions or quantising shrinks it.",
+        "key_points": [
+          "Number of vectors = PDFs × chunks per PDF (for example 1M × 50 = 50M)",
+          "Bytes per vector in pgvector's `vector` type are `4 * dimensions + 8`, so 1,536 dimensions take about 6 KB and 50M vectors about 308 GB",
+          "The ANN index (such as HNSW), the chunk text and metadata columns add substantially to the raw vector size",
+          "`halfvec` halves vector storage, and a lower-dimension embedding shrinks it in proportion",
+          "Binary quantisation stores a compact bit vector for a fast first pass, with re-ranking on full vectors"
+        ]
+      },
+      "explanation": "The interview wants the formula stated before the number, and the awareness that the index and text are part of the bill. pgvector's README gives the per-vector sizes, the `halfvec` option and binary quantisation.",
+      "materials": [
+        "pgvector-vector-search-in-postgres"
+      ]
+    },
+    {
+      "id": "w13-l02-q04",
+      "concept": "w13-l02-incremental-ingestion",
+      "type": "multiple_choice",
+      "prompt": "Each night about 2% of the million PDFs change and a few are deleted. What is the best way to keep the index current?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Rebuild the whole index from scratch every night, so it can never drift from the source files"
+        },
+        {
+          "id": "b",
+          "text": "Append new chunks for changed PDFs and leave old ones in place, so earlier versions stay searchable"
+        },
+        {
+          "id": "c",
+          "text": "Compare content hashes; replace changed PDFs' chunks in one transaction, delete removed PDFs' chunks"
+        },
+        {
+          "id": "d",
+          "text": "Re-embed every PDF whose file modification time changed, which is cheaper than hashing the content"
+        }
+      ],
+      "answer": "c",
+      "explanation": "Comparing a content hash finds exactly the PDFs that changed, so you only re-extract and re-embed about 2% of the corpus. Replacing a document's chunks in one transaction avoids a window where old and new versions both appear. Appending leaves stale chunks that retrieval will still return, and a full rebuild wastes 98% of the work. Modification times change without content changes, so they cause needless re-embedding.",
+      "materials": [
+        "pgvector-vector-search-in-postgres",
+        "chip-huyen-building-a-generative-ai"
+      ]
+    },
+    {
+      "id": "w13-l02-q05",
+      "concept": "w13-l02-incremental-ingestion",
+      "type": "multiple_choice",
+      "prompt": "What architecture suits the initial ingestion of a million PDFs?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A document queue, workers running idempotent per-document jobs, retries with backoff and a dead-letter queue"
+        },
+        {
+          "id": "b",
+          "text": "One script that loops over all PDFs in order and stops at the first failure so nothing is skipped"
+        },
+        {
+          "id": "c",
+          "text": "Processing each PDF inside its upload HTTP request, so users see searchable results straight away"
+        },
+        {
+          "id": "d",
+          "text": "One large transaction that inserts every chunk, so any failure rolls everything back cleanly"
+        }
+      ],
+      "answer": "a",
+      "explanation": "At this scale, some PDFs will be corrupt and some API calls will fail. A queue lets you scale workers, retry transient failures with backoff, and park documents that keep failing in a dead-letter queue for inspection. Idempotent jobs (keyed by document ID and content hash) make retries safe. Batch embedding calls to cut per-request overhead.",
+      "materials": [
+        "rq-for-background-jobs",
+        "tenacity-retries-in-python"
+      ]
+    },
+    {
+      "id": "w13-l02-q06",
+      "concept": "w13-l02-incremental-ingestion",
+      "type": "written",
+      "prompt": "Describe how you'd keep a million-PDF index up to date as documents are added, edited and deleted.",
+      "model_answer": {
+        "summary": "Track each document's identity and content hash, process only what changed through a queue, replace a document's chunks atomically, and remove chunks of deleted documents.",
+        "key_points": [
+          "Each document has a stable ID and a stored content hash; a change is detected by comparing hashes",
+          "New and changed documents go on a queue for extraction, chunking and embedding by workers",
+          "A changed document's old chunks are deleted and new ones inserted in one transaction, so retrieval never mixes versions",
+          "Deleted source documents have their chunks deleted too, so retrieval doesn't return content that no longer exists",
+          "Changing the embedding model or chunking means re-embedding everything, ideally into a new index you switch to when it's complete"
+        ]
+      },
+      "explanation": "Incremental updates are a correctness problem as much as a cost one: stale or duplicate chunks lead to wrong answers with citations to outdated text. The last point matters because vectors from different embedding models can't be mixed in one index.",
+      "materials": [
+        "pgvector-vector-search-in-postgres",
+        "chip-huyen-building-a-generative-ai"
+      ]
+    },
+    {
+      "id": "w13-l02-q07",
+      "concept": "w13-l02-hybrid-and-rerank",
+      "type": "multiple_choice",
+      "prompt": "Why combine keyword search (such as BM25 or Postgres full-text search) with embedding search over the PDFs?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Hybrid search is cheaper than running either kind of search on its own"
+        },
+        {
+          "id": "b",
+          "text": "Embeddings can't represent chunks longer than a sentence, so keywords fill the gap"
+        },
+        {
+          "id": "c",
+          "text": "pgvector requires a full-text index before it can build a vector index"
+        },
+        {
+          "id": "d",
+          "text": "Keywords catch exact terms such as part numbers and names; embeddings catch synonyms and paraphrases"
+        }
+      ],
+      "answer": "d",
+      "explanation": "Applied-llms.org puts it this way: a hybrid works best, keyword matching for the obvious matches and embeddings for synonyms, hypernyms and spelling errors. Exact identifiers like `INV-2024-0042` are where pure embedding search often fails. pgvector's docs show combining it with Postgres full-text search and merging results with Reciprocal Rank Fusion.",
+      "materials": [
+        "what-we-learned-from-a-year",
+        "pgvector-vector-search-in-postgres",
+        "pinecone-learn-hybrid-search-and-rerankers"
+      ]
+    },
+    {
+      "id": "w13-l02-q08",
+      "concept": "w13-l02-hybrid-and-rerank",
+      "type": "multiple_choice",
+      "prompt": "You retrieve the top 150 chunks per query and rerank them with a cross-encoder to pick the top 20. What does the reranking cost scale with?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The number of candidates per query times the number of queries, not the corpus size"
+        },
+        {
+          "id": "b",
+          "text": "The total number of chunks in the index, so it grows as you add PDFs"
+        },
+        {
+          "id": "c",
+          "text": "Nothing per query: it's a one-time cost paid when documents are indexed"
+        },
+        {
+          "id": "d",
+          "text": "Only the dimensions of the embedding model"
+        }
+      ],
+      "answer": "a",
+      "explanation": "A reranker scores each (query, candidate) pair at query time, so its cost and latency grow with candidates per query × queries. Cutting candidates from 150 to 50 cuts that work about 3×, at some risk to recall. Anthropic's contextual retrieval post uses top-150 then top-20 and notes that reranking adds latency at runtime.",
+      "materials": [
+        "anthropic-contextual-retrieval",
+        "pinecone-learn-hybrid-search-and-rerankers"
+      ]
+    },
+    {
+      "id": "w13-l02-q09",
+      "concept": "w13-l02-access-control",
+      "type": "multiple_choice",
+      "prompt": "Users may only see PDFs their team has access to. Where should that rule be enforced?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "In the system prompt: tell the model not to quote documents the user can't access"
+        },
+        {
+          "id": "b",
+          "text": "By checking the final answer and hiding it if it mentions a restricted document"
+        },
+        {
+          "id": "c",
+          "text": "In the retrieval query, filtering by the user's permissions so restricted chunks never reach the prompt"
+        },
+        {
+          "id": "d",
+          "text": "By training a separate embedding model for each team"
+        }
+      ],
+      "answer": "c",
+      "explanation": "Once a restricted chunk is in the prompt, no instruction reliably stops the model from using it, and prompt injection can undo such instructions. OWASP's LLM08 (vector and embedding weaknesses) recommends permission-aware vector stores and strict partitioning so one group's data can't be retrieved for another. Filter by ACL metadata (or partition per tenant) inside the query.",
+      "materials": [
+        "owasp-top-10-for-llm-applications"
+      ]
+    },
+    {
+      "id": "w13-l02-q10",
+      "concept": "w13-l02-index-limits-and-filtering",
+      "type": "multiple_choice",
+      "prompt": "With an HNSW index and the default `hnsw.ef_search` of 40, you run `... WHERE team_id = 7 ORDER BY embedding <=> $1 LIMIT 10`. Team 7 owns 10% of the rows. The query often returns only about 4 rows. Why, and what helps?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`LIMIT` is ignored by HNSW index scans, so rows get dropped; add `OFFSET 0` to force the planner to apply it"
+        },
+        {
+          "id": "b",
+          "text": "The filter applies after the scan, so ~10% of 40 candidates match; use iterative scans or a partial index"
+        },
+        {
+          "id": "c",
+          "text": "HNSW returns at most 4 rows per graph layer visited; switch to IVFFlat, which has no such cap"
+        },
+        {
+          "id": "d",
+          "text": "The planner caches results from earlier queries; run `VACUUM` before each query to refresh them"
+        }
+      ],
+      "answer": "b",
+      "explanation": "With approximate indexes pgvector applies the `WHERE` filter after the index scan. With `ef_search` 40 and a filter matching 10% of rows, about 4 rows survive on average, which is the README's own example. Fixes: iterative index scans (pgvector 0.8.0+, `hnsw.iterative_scan`), a higher `ef_search`, a partial index per team, or partitioning. This matters for access-control filters.",
+      "materials": [
+        "pgvector-vector-search-in-postgres"
+      ]
+    },
+    {
+      "id": "w13-l02-q11",
+      "concept": "w13-l02-access-control",
+      "type": "written",
+      "prompt": "Explain how you'd implement access control for question answering over a million PDFs shared by many teams, and why instructions in the prompt aren't enough.",
+      "model_answer": {
+        "summary": "Store each chunk's permissions with it and filter on the user's permissions inside retrieval (or partition data per tenant), so the model only ever sees text the user may read.",
+        "key_points": [
+          "Each chunk carries ACL metadata copied from its source document, such as team or tenant IDs",
+          "Retrieval filters on the requesting user's permissions in the same query, or searches only that tenant's partition",
+          "Permission changes on a source document must update its chunks' metadata promptly",
+          "Prompt instructions aren't a control: once text is in the context the model can reveal it, and injected text can override instructions",
+          "Test it: queries from one team must never retrieve another team's chunks, including with filters that make ANN search return few results"
+        ]
+      },
+      "explanation": "OWASP lists unauthorised access and cross-tenant leaks from shared vector stores as a top LLM risk and recommends permission-aware stores with logical partitioning. The last point ties to pgvector's filtering behaviour: a filter applied after an approximate index scan changes how many results you get, so test it.",
+      "materials": [
+        "owasp-top-10-for-llm-applications",
+        "pgvector-vector-search-in-postgres"
+      ]
+    }
+  ]
+}
