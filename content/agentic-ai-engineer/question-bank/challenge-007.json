@@ -1,0 +1,257 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c007-tool-result-clearing",
+      "name": "Tool result clearing vs compaction"
+    },
+    {
+      "id": "c007-langgraph-store-memory",
+      "name": "LangGraph Store for long-term memory"
+    },
+    {
+      "id": "c007-effective-agent-tools",
+      "name": "Designing effective tools for agents"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c007-q01",
+      "lesson": null,
+      "concept": "c007-tool-result-clearing",
+      "type": "multiple_choice",
+      "prompt": "Your agent reads many large files, so you turn on the `clear_tool_uses_20250919` context editing strategy in the Claude API. Once the input passes the trigger threshold, what does Claude see?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "One summary of the older turns, which the API writes in place of them"
+        },
+        {
+          "id": "b",
+          "text": "A shorter history, because the API also deletes old results on your client"
+        },
+        {
+          "id": "c",
+          "text": "No tool results at all, including the ones from the latest tool calls"
+        },
+        {
+          "id": "d",
+          "text": "Placeholders for the oldest tool results, with the recent ones kept"
+        }
+      ],
+      "answer": "d",
+      "explanation": "Tool result clearing removes the oldest tool results first and replaces each with placeholder text, keeping the most recent tool use/result pairs (3 by default). Writing a summary of older turns is compaction, a different feature. The edit happens server side: your client still holds the full, unedited history.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://platform.claude.com/docs/en/build-with-claude/context-editing",
+          "title": "Context editing",
+          "publisher": "Anthropic",
+          "accessed": "2026-09-26",
+          "claim": "When the threshold is passed, the API clears the oldest tool results in chronological order, replaces each with placeholder text, keeps the most recent tool uses (default 3), and applies this server side while the client keeps the full unmodified history."
+        },
+        {
+          "url": "https://platform.claude.com/docs/en/build-with-claude/compaction",
+          "title": "Compaction overview",
+          "publisher": "Anthropic",
+          "accessed": "2026-09-26",
+          "claim": "Compaction replaces older turns with a summary Claude writes on the server; context editing instead clears old tool results or thinking blocks by rule without summarising them."
+        }
+      ]
+    },
+    {
+      "id": "c007-q02",
+      "lesson": null,
+      "concept": "c007-langgraph-store-memory",
+      "type": "multiple_choice",
+      "prompt": "A LangGraph assistant must remember each user's dietary preferences in every new conversation, and each conversation gets its own `thread_id`. Where should it keep them?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "In the graph state, which the checkpointer shares across every thread"
+        },
+        {
+          "id": "b",
+          "text": "In the message history, which LangGraph copies into each new thread"
+        },
+        {
+          "id": "c",
+          "text": "In a Store, under a namespace like `(user_id, \"memories\")` and a key"
+        },
+        {
+          "id": "d",
+          "text": "In one fixed `thread_id` that every user's conversation resumes from"
+        }
+      ],
+      "answer": "c",
+      "explanation": "A checkpointer saves state snapshots for one thread only, so it is short-term memory. Facts that must survive across threads go in a Store, which holds JSON documents under a namespace (often including the user ID) and a key, and can be read from any thread. Sharing one `thread_id` would merge everyone's conversations into one.",
+      "materials": [
+        "langgraph-documentation"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.langchain.com/oss/python/langgraph/persistence",
+          "title": "Persistence (LangGraph)",
+          "publisher": "LangChain",
+          "accessed": "2026-09-26",
+          "claim": "Checkpointers persist graph state snapshots scoped to a single thread (short-term, thread-scoped memory); Stores persist application-defined key-value data for long-term, cross-thread memory."
+        },
+        {
+          "url": "https://docs.langchain.com/oss/python/langgraph/memory",
+          "title": "Memory overview (LangGraph)",
+          "publisher": "LangChain",
+          "accessed": "2026-09-26",
+          "claim": "Long-term memories are stored as JSON documents under a custom namespace (such as a user ID) and a key, are shared across threads, and can be recalled in any thread."
+        }
+      ]
+    },
+    {
+      "id": "c007-q03",
+      "lesson": null,
+      "concept": "c007-effective-agent-tools",
+      "type": "written",
+      "prompt": "You are turning a CRM's 40-endpoint REST API into tools for an agent. How would you design the tool set and what the tools return?",
+      "model_answer": {
+        "summary": "Build a few namespaced tools around the workflows that matter, not one per endpoint, and make their responses high-signal, token-efficient and helpful when a call goes wrong.",
+        "key_points": [
+          "Pick a few high-impact tools, such as `search_contacts` or one `schedule_event` that finds availability and books, instead of wrapping every endpoint; more tools don't always help",
+          "Namespace related tools with a common prefix (for example `crm_search_contacts`) so the agent can tell them apart",
+          "Return meaningful fields, such as names instead of opaque UUIDs, optionally with a `response_format` of concise or detailed",
+          "Keep responses small with pagination, filtering or truncation with sensible defaults, and return errors that say specifically how to fix the call instead of codes or tracebacks"
+        ]
+      },
+      "explanation": "Agents have limited context and pay for every token a tool returns. Consolidating steps into workflow tools moves work out of the agent's context and into the tool, and meaningful, compact results and actionable errors steer the agent to the next good call. Wrapping all 40 endpoints one to one is the tempting answer, but it floods the agent with choices and low-level steps.",
+      "materials": [
+        "anthropic-writing-effective-tools-for-agents"
+      ],
+      "sources": [
+        {
+          "url": "https://www.anthropic.com/engineering/writing-tools-for-agents",
+          "title": "Writing effective tools for agents — with agents",
+          "publisher": "Anthropic",
+          "accessed": "2026-09-26",
+          "claim": "Build a few tools for high-impact workflows (e.g. `schedule_event` instead of list and create tools) rather than wrapping every endpoint, namespace related tools, return meaningful context such as names over UUIDs, use pagination, filtering and truncation with sensible defaults, and make errors specific and actionable rather than opaque codes or tracebacks."
+        }
+      ]
+    },
+    {
+      "id": "c007-q04",
+      "lesson": null,
+      "concept": "c007-tool-result-clearing",
+      "type": "written",
+      "prompt": "A long Claude API agent run keeps hitting the context limit. Compare tool result clearing (context editing) with compaction: what does each remove, and what does each cost you?",
+      "model_answer": {
+        "summary": "Tool result clearing drops the oldest tool results by rule and leaves placeholders, while compaction replaces older turns with a summary Claude writes; clearing loses those results outright, compaction keeps a lossy gist.",
+        "key_points": [
+          "Tool result clearing removes the oldest tool results once a token threshold is passed, keeps the most recent ones, and replaces each cleared result with placeholder text",
+          "By default the tool calls stay visible and only their results are cleared, and chosen tools can be excluded from clearing",
+          "Compaction replaces older turns of the whole conversation with a summary that Claude writes on the server",
+          "Clearing tool results invalidates the cached prompt prefix, and a cleared result is gone, so the agent must call the tool again if it needs it"
+        ]
+      },
+      "explanation": "Both keep a long run inside the context window, but they cut different things. Clearing is cheap and precise for bulky tool output that has already been used; compaction shrinks everything, including the conversation itself, at the cost of detail lost in the summary. Neither changes the full history your client keeps when you use context editing.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://platform.claude.com/docs/en/build-with-claude/context-editing",
+          "title": "Context editing",
+          "publisher": "Anthropic",
+          "accessed": "2026-09-26",
+          "claim": "Tool result clearing clears the oldest tool results past a threshold, keeps recent tool uses, replaces cleared results with placeholders, keeps tool call parameters by default, supports `exclude_tools`, and invalidates cached prompt prefixes when content is cleared."
+        },
+        {
+          "url": "https://platform.claude.com/docs/en/build-with-claude/compaction",
+          "title": "Compaction overview",
+          "publisher": "Anthropic",
+          "accessed": "2026-09-26",
+          "claim": "Compaction replaces the older turns of a conversation with a summary that Claude writes on the server."
+        }
+      ]
+    },
+    {
+      "id": "c007-q05",
+      "lesson": null,
+      "concept": "c007-langgraph-store-memory",
+      "type": "multiple_choice",
+      "prompt": "Two LangGraph runs use the same compiled graph with a checkpointer and a Store. Run 1 (thread `t1`) saves a memory under namespace `(\"u42\", \"memories\")`; run 2 starts a new thread `t2` for the same user. What can a node in run 2 read?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The saved memory, because the Store is shared across all threads"
+        },
+        {
+          "id": "b",
+          "text": "Nothing, because each new `thread_id` begins with an empty Store"
+        },
+        {
+          "id": "c",
+          "text": "The memory, but only after `t2` loads the latest checkpoint of `t1`"
+        },
+        {
+          "id": "d",
+          "text": "Run 1's messages, because the Store keeps the graph state snapshots"
+        }
+      ],
+      "answer": "a",
+      "explanation": "The Store sits outside graph state and is shared across threads, so any thread can read the `(\"u42\", \"memories\")` namespace. Checkpoints are the thread-scoped part: `t2` does not see `t1`'s messages or state, and it doesn't need them to read the Store.",
+      "materials": [
+        "langgraph-documentation"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.langchain.com/oss/python/langgraph/persistence",
+          "title": "Persistence (LangGraph)",
+          "publisher": "LangChain",
+          "accessed": "2026-09-26",
+          "claim": "A graph can be compiled with a checkpointer, a store, or both; checkpoints are scoped to one thread, while the store persists key-value data outside graph state for cross-thread memory."
+        },
+        {
+          "url": "https://docs.langchain.com/oss/python/langgraph/memory",
+          "title": "Memory overview (LangGraph)",
+          "publisher": "LangChain",
+          "accessed": "2026-09-26",
+          "claim": "Long-term memories are scoped to a custom namespace rather than a thread ID and can be recalled at any time and in any thread."
+        }
+      ]
+    },
+    {
+      "id": "c007-q06",
+      "lesson": null,
+      "concept": "c007-effective-agent-tools",
+      "type": "multiple_choice",
+      "prompt": "Your agent's `search_tickets` tool returns about 20,000 tokens per call and floods the context. Which fix fits Anthropic's guidance on writing tools for agents?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Return every field for each ticket, so the agent never has to search again"
+        },
+        {
+          "id": "b",
+          "text": "Add pagination and filters with small defaults, and say how to narrow"
+        },
+        {
+          "id": "c",
+          "text": "Return only ticket UUIDs, so the agent can fetch each one it needs"
+        },
+        {
+          "id": "d",
+          "text": "Split it into one tool per ticket field, so each result stays small"
+        }
+      ],
+      "answer": "b",
+      "explanation": "The guidance is to keep responses token-efficient with pagination, range selection, filtering or truncation with sensible defaults, and to steer the agent towards small, targeted searches. Returning bare UUIDs is tempting because it is short, but opaque IDs are low-signal: names and meaningful fields make agents much more precise.",
+      "materials": [
+        "anthropic-writing-effective-tools-for-agents"
+      ],
+      "sources": [
+        {
+          "url": "https://www.anthropic.com/engineering/writing-tools-for-agents",
+          "title": "Writing effective tools for agents — with agents",
+          "publisher": "Anthropic",
+          "accessed": "2026-09-26",
+          "claim": "Use pagination, range selection, filtering and/or truncation with sensible defaults, steer agents towards many small targeted searches, and resolve opaque UUIDs to meaningful language because it improves precision."
+        }
+      ]
+    }
+  ]
+}

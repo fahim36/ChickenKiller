@@ -1,0 +1,243 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c001-tool-result-loop",
+      "name": "Returning tool results in the Claude Messages API"
+    },
+    {
+      "id": "c001-langgraph-thread-id",
+      "name": "LangGraph checkpointers and thread_id"
+    },
+    {
+      "id": "c001-react-reason-act",
+      "name": "ReAct: interleaving reasoning and acting"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c001-q01",
+      "lesson": null,
+      "concept": "c001-tool-result-loop",
+      "type": "multiple_choice",
+      "prompt": "A Claude Messages API response has `stop_reason: \"tool_use\"` and one `tool_use` block with `id: \"toolu_01\"`. You have run the tool. What must your next request add to the conversation?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A message with role `tool` that holds the output and the tool's `name`"
+        },
+        {
+          "id": "b",
+          "text": "A `user` message that starts with a `tool_result` block for `toolu_01`"
+        },
+        {
+          "id": "c",
+          "text": "An `assistant` message holding a `tool_result` block, then the user's turn"
+        },
+        {
+          "id": "d",
+          "text": "A `user` message with a text summary first, then the `tool_result` block"
+        }
+      ],
+      "answer": "b",
+      "explanation": "The Claude API has no `tool` role: you continue with a `user` message whose content holds `tool_result` blocks, each with `tool_use_id` set to the `id` of the `tool_use` block it answers. The results must come right after the assistant's tool-use message, and they must come first in the content array. Putting a text block before them, as in the summary-first option, returns a 400 error; text is only allowed after all the results.",
+      "materials": [
+        "anthropic-docs-handle-tool-calls"
+      ],
+      "sources": [
+        {
+          "url": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/handle-tool-calls",
+          "title": "Handle tool calls",
+          "publisher": "Anthropic",
+          "accessed": "2026-09-26",
+          "claim": "After a `tool_use` stop, the client runs the tool and sends a new message with role `user` containing `tool_result` blocks whose `tool_use_id` is the `tool_use` block's `id`; results must immediately follow the tool-use message and come first in the content array (text before them is a 400 error); the API has no separate `tool` or `function` role."
+        }
+      ]
+    },
+    {
+      "id": "c001-q02",
+      "lesson": null,
+      "concept": "c001-langgraph-thread-id",
+      "type": "multiple_choice",
+      "prompt": "A LangGraph chat graph is compiled with an `InMemorySaver` checkpointer. You invoke it with `{\"configurable\": {\"thread_id\": \"1\"}}` and say \"I'm Bob\", then invoke it with `thread_id` `\"2\"` and ask \"What's my name?\". What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It knows Bob: a checkpointer shares its saved state across all threads"
+        },
+        {
+          "id": "b",
+          "text": "It raises an error, as thread \"2\" has no saved checkpoint to load yet"
+        },
+        {
+          "id": "c",
+          "text": "It knows Bob: `InMemorySaver` keys state by the compiled graph object"
+        },
+        {
+          "id": "d",
+          "text": "It starts fresh with no memory of Bob; only thread \"1\" holds that"
+        }
+      ],
+      "answer": "d",
+      "explanation": "A checkpointer saves state per thread: every checkpoint is stored under the `thread_id` passed in `config[\"configurable\"]`, and a run loads and extends that thread's state. A new `thread_id` is simply a new, empty thread, so the run starts without the earlier messages; it is not an error. Sharing data across threads is what a LangGraph store is for, not a checkpointer.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://docs.langchain.com/oss/python/langgraph/checkpointers",
+          "title": "Checkpointers",
+          "publisher": "LangChain",
+          "accessed": "2026-09-26",
+          "claim": "When invoking a graph with a checkpointer you must specify a `thread_id` in the `configurable` part of the config; a thread holds the accumulated state of a sequence of runs, reusing a `thread_id` resumes that state, and a new `thread_id` starts a fresh thread with no prior history."
+        },
+        {
+          "url": "https://docs.langchain.com/oss/python/langgraph/persistence",
+          "title": "Persistence",
+          "publisher": "LangChain",
+          "accessed": "2026-09-26",
+          "claim": "Checkpointers persist graph state snapshots within a single thread, while stores persist application-defined key-value data across threads."
+        }
+      ]
+    },
+    {
+      "id": "c001-q03",
+      "lesson": null,
+      "concept": "c001-react-reason-act",
+      "type": "written",
+      "prompt": "What is the ReAct pattern for agents? Explain why interleaving reasoning with actions works better than reasoning only (chain-of-thought) or acting only.",
+      "model_answer": {
+        "summary": "ReAct has the model alternate between a reasoning trace (a thought), an action such as a tool call, and the observation that comes back, so each step informs the next. Reasoning plans and adjusts the actions, and actions ground the reasoning in real information.",
+        "key_points": [
+          "The model produces interleaved thoughts, actions (for example Wikipedia API searches) and observations, in a loop until it answers.",
+          "Reasoning traces let the model make, track and update a plan and handle exceptions, which acting-only agents lack.",
+          "Actions fetch outside information, which cuts the hallucination and error propagation that chain-of-thought alone shows on tasks like HotpotQA and Fever.",
+          "The thought-action-observation trajectory is readable, so people can inspect, trust and debug how the agent reached its answer."
+        ]
+      },
+      "explanation": "ReAct (Yao et al.) prompts a model to generate reasoning traces and task actions in an interleaved way. Reasoning alone works only from the model's own knowledge, so a wrong fact early on is never checked and spreads through the chain. Acting alone can gather information but has no explicit plan to decide what to do next or recover from a surprise. Combining them fixes both, and the resulting trajectories are easier to interpret.",
+      "materials": [
+        "react-paper"
+      ],
+      "sources": [
+        {
+          "url": "https://arxiv.org/abs/2210.03629",
+          "title": "ReAct: Synergizing Reasoning and Acting in Language Models",
+          "publisher": "arXiv (Yao et al.)",
+          "accessed": "2026-09-26",
+          "claim": "ReAct generates reasoning traces and task-specific actions in an interleaved manner: reasoning helps induce, track and update action plans and handle exceptions, while actions gather information from external sources; on HotpotQA and Fever, using a simple Wikipedia API overcomes the hallucination and error propagation of chain-of-thought, and trajectories are more interpretable."
+        }
+      ]
+    },
+    {
+      "id": "c001-q04",
+      "lesson": null,
+      "concept": "c001-tool-result-loop",
+      "type": "multiple_choice",
+      "prompt": "Claude returned a `tool_use` block, and while your tool runs the user types a new question into the chat. How should your next request carry both the tool's output and the new question?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Send the user's question as its own message, then the `tool_result`"
+        },
+        {
+          "id": "b",
+          "text": "Drop the tool output, since the user's new question replaces it"
+        },
+        {
+          "id": "c",
+          "text": "One `user` message: the `tool_result` first, then the question"
+        },
+        {
+          "id": "d",
+          "text": "One `user` message: the question as text first, then the result"
+        }
+      ],
+      "answer": "c",
+      "explanation": "Tool results must immediately follow the assistant's tool-use message, with no other message in between, and inside that `user` message the `tool_result` blocks come first and any text after them. So the new question rides in the same message, after the result. A separate message before the result breaks the first rule, text before the result breaks the second (a 400 error), and a `tool_use` left without its `tool_result` is rejected too.",
+      "materials": [
+        "anthropic-docs-handle-tool-calls"
+      ],
+      "sources": [
+        {
+          "url": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/handle-tool-calls",
+          "title": "Handle tool calls",
+          "publisher": "Anthropic",
+          "accessed": "2026-09-26",
+          "claim": "Tool result blocks must immediately follow their tool use blocks, with no messages between the assistant's tool use message and the user's tool result message; in that user message tool_result blocks come first and any text after them, and text before a tool_result causes a 400 error."
+        }
+      ]
+    },
+    {
+      "id": "c001-q05",
+      "lesson": null,
+      "concept": "c001-langgraph-thread-id",
+      "type": "written",
+      "prompt": "Your LangGraph agent is compiled with a checkpointer. Explain what the `thread_id` in `config[\"configurable\"]` does, and what goes wrong if you leave it out or give every request a new one.",
+      "model_answer": {
+        "summary": "The checkpointer saves the graph's state as checkpoints under the `thread_id`, so the ID decides which conversation a run loads and extends. It is required: without it nothing can be saved or resumed, and a fresh ID on every call means the agent never remembers anything.",
+        "key_points": [
+          "The checkpointer saves a checkpoint of the graph state at each super-step, stored under the run's `thread_id`.",
+          "Invoking a graph that has a checkpointer requires a `thread_id` in the `configurable` part of the config; without it the checkpointer cannot save state or resume after an interrupt.",
+          "Reusing the same `thread_id` continues that thread's accumulated state, and `get_state(config)` returns its latest checkpoint.",
+          "A new `thread_id` on every request starts an empty thread each time, so the agent loses the conversation; data meant to cross threads belongs in a store."
+        ]
+      },
+      "explanation": "In LangGraph, a thread is the unit of short-term memory: the checkpointer writes a checkpoint at every super-step and files it under the `thread_id`. That is why the ID is mandatory, and why human-in-the-loop interrupts and resuming depend on it. The common bug is generating a new ID per request, which silently gives the agent amnesia; the fix is to map each user conversation to one stable `thread_id`.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://docs.langchain.com/oss/python/langgraph/checkpointers",
+          "title": "Checkpointers",
+          "publisher": "LangChain",
+          "accessed": "2026-09-26",
+          "claim": "When invoking a graph with a checkpointer you must specify a `thread_id` in the `configurable` portion of the config; without it the checkpointer cannot save state or resume after an interrupt. LangGraph creates a checkpoint at each super-step boundary, and `get_state(config)` returns the latest checkpoint for that thread ID."
+        },
+        {
+          "url": "https://docs.langchain.com/oss/python/langgraph/persistence",
+          "title": "Persistence",
+          "publisher": "LangChain",
+          "accessed": "2026-09-26",
+          "claim": "Checkpointers persist graph state snapshots within a single thread; stores persist application-defined key-value data across threads."
+        }
+      ]
+    },
+    {
+      "id": "c001-q06",
+      "lesson": null,
+      "concept": "c001-react-reason-act",
+      "type": "multiple_choice",
+      "prompt": "In the ReAct paper, what weakness of chain-of-thought prompting on HotpotQA and Fever do ReAct's Wikipedia API actions address?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It relies on the model's own knowledge, so it hallucinates and errors spread"
+        },
+        {
+          "id": "b",
+          "text": "It cannot do multi-step reasoning, so ReAct adds the missing reasoning steps"
+        },
+        {
+          "id": "c",
+          "text": "It spends too many tokens, so ReAct swaps each written thought for a tool call"
+        },
+        {
+          "id": "d",
+          "text": "It needs fine-tuning to work, while ReAct needs no in-context examples at all"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Chain-of-thought does reason in many steps, but only from what the model already knows, so it can invent a fact and build on it. ReAct keeps the reasoning and adds actions against a simple Wikipedia API, grounding each step in retrieved text; the paper reports this overcomes chain-of-thought's hallucination and error propagation. ReAct keeps its thoughts rather than replacing them, and it is prompted with one or two in-context examples, not zero.",
+      "materials": [
+        "react-paper"
+      ],
+      "sources": [
+        {
+          "url": "https://arxiv.org/abs/2210.03629",
+          "title": "ReAct: Synergizing Reasoning and Acting in Language Models",
+          "publisher": "arXiv (Yao et al.)",
+          "accessed": "2026-09-26",
+          "claim": "On HotpotQA and Fever, ReAct overcomes the hallucination and error propagation prevalent in chain-of-thought reasoning by interacting with a simple Wikipedia API; it interleaves reasoning traces with actions and is a prompting method, using only one or two in-context examples on ALFWorld and WebShop."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,240 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c003-forced-tool-choice",
+      "name": "Forcing tool use with `tool_choice`"
+    },
+    {
+      "id": "c003-mcp-tool-annotations",
+      "name": "MCP tool annotations are untrusted hints"
+    },
+    {
+      "id": "c003-contextual-retrieval",
+      "name": "Contextual Retrieval for RAG chunks"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c003-q01",
+      "lesson": null,
+      "concept": "c003-forced-tool-choice",
+      "type": "multiple_choice",
+      "prompt": "On a Claude model that supports forced tool use, you send `tool_choice: {\"type\": \"tool\", \"name\": \"get_weather\"}`. Your user message also asks Claude to explain its reasoning before calling the tool. What comes back?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A short text block with the explanation, then the `get_weather` call"
+        },
+        {
+          "id": "b",
+          "text": "A text-only answer if Claude judges the tool isn't needed this time"
+        },
+        {
+          "id": "c",
+          "text": "A 400 error, since a forced tool can't be mixed with prompt instructions"
+        },
+        {
+          "id": "d",
+          "text": "The `get_weather` call, with no natural-language text before it"
+        }
+      ],
+      "answer": "d",
+      "explanation": "With `tool_choice` set to `any` or `tool`, the API prefills the assistant message to force a tool call, so Claude emits no natural-language text before the `tool_use` block, even when asked to. Option (a) is what you'd get with the default `auto` plus an instruction to use the tool. The request doesn't fail because of the instruction; forced tool use only errors where it's unsupported, such as with manual extended thinking or on models that reject it (Claude Opus 5.5 returns 400).",
+      "materials": [
+        "anthropic-docs-tool-use-with-claude"
+      ],
+      "sources": [
+        {
+          "url": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/define-tools",
+          "title": "Define tools (Claude API docs), section \"Forcing tool use\"",
+          "publisher": "Anthropic",
+          "accessed": "2026-09-26",
+          "claim": "When `tool_choice` is `any` or `tool`, the API prefills the assistant message to force a tool call, so the model won't emit natural-language text before `tool_use` blocks, even if explicitly asked; to get an explanation plus a specific tool, use `auto` and ask for the tool in the user message."
+        }
+      ]
+    },
+    {
+      "id": "c003-q02",
+      "lesson": null,
+      "concept": "c003-mcp-tool-annotations",
+      "type": "multiple_choice",
+      "prompt": "A third-party MCP server you don't control lists a `delete_records` tool annotated `readOnlyHint: true`. Per the MCP spec (revision 2026-07-28), how should your client treat that annotation?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Trust it and auto-approve the calls, since the server says it has no side effects"
+        },
+        {
+          "id": "b",
+          "text": "As an untrusted hint: keep the user's confirmation step before each call"
+        },
+        {
+          "id": "c",
+          "text": "As invalid: reject the whole server, since annotations must be signed first"
+        },
+        {
+          "id": "d",
+          "text": "As a guarantee: the protocol layer blocks any write the hint rules out"
+        }
+      ],
+      "answer": "b",
+      "explanation": "The spec says clients must consider tool annotations untrusted unless they come from trusted servers, and the schema calls every annotation a hint that may not describe the tool faithfully. So a third-party `readOnlyHint` can't justify auto-approval (a); keep a human in the loop who can deny the call. Nothing in MCP signs annotations, and the protocol can't enforce them, so (c) and (d) are wrong.",
+      "materials": [
+        "mcp-specification"
+      ],
+      "sources": [
+        {
+          "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/tools",
+          "title": "Tools (MCP specification, revision 2026-07-28)",
+          "publisher": "Model Context Protocol",
+          "accessed": "2026-09-26",
+          "claim": "Clients MUST consider tool annotations untrusted unless they come from trusted servers; there SHOULD always be a human in the loop able to deny tool invocations, and clients SHOULD prompt for confirmation on sensitive operations."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/modelcontextprotocol/specification/main/schema/2026-07-28/schema.ts",
+          "title": "MCP schema.ts, revision 2026-07-28: ToolAnnotations",
+          "publisher": "Model Context Protocol",
+          "accessed": "2026-09-26",
+          "claim": "All ToolAnnotations properties are hints, not guaranteed to describe tool behaviour faithfully, and clients should never make tool use decisions based on annotations from untrusted servers."
+        }
+      ]
+    },
+    {
+      "id": "c003-q03",
+      "lesson": null,
+      "concept": "c003-contextual-retrieval",
+      "type": "written",
+      "prompt": "Your RAG system over many companies' quarterly reports retrieves the chunk \"Revenue grew 3% over the previous quarter\" for questions about the wrong company. Explain why plain chunking causes this and how Anthropic's Contextual Retrieval fixes it, including where the added context is used.",
+      "model_answer": {
+        "summary": "Chunking cuts a passage off from the document-level facts (which company, which quarter) that make it findable. Contextual Retrieval has an LLM write a short, chunk-specific context from the whole document and prepends it to each chunk before embedding it and before building the BM25 index.",
+        "key_points": [
+          "Plain chunking loses context: the chunk alone doesn't say which company or period it refers to, so neither embeddings nor keyword search can match it to the right question.",
+          "An LLM is given the whole document and the chunk, and writes a short context (about 50–100 tokens) that situates the chunk in the document.",
+          "That context is prepended to the chunk for both the embedding (contextual embeddings) and the BM25 index (contextual BM25).",
+          "Adding a reranking step on top cut retrieval failures further than contextual embeddings plus contextual BM25 alone."
+        ]
+      },
+      "explanation": "Anthropic's example is exactly this chunk: on its own it doesn't name the company or quarter. Contextual Retrieval prepends LLM-written context to each chunk before embedding and before BM25 indexing; in Anthropic's tests this cut top-20 retrieval failures by 49%, and adding reranking brought the cut to 67%. A common wrong answer is to add the context only to the embeddings, which leaves the BM25 index unable to match terms like the company name.",
+      "materials": [
+        "anthropic-contextual-retrieval"
+      ],
+      "sources": [
+        {
+          "url": "https://www.anthropic.com/engineering/contextual-retrieval",
+          "title": "Introducing Contextual Retrieval",
+          "publisher": "Anthropic",
+          "accessed": "2026-09-26",
+          "claim": "Traditional chunking loses context (e.g. a chunk saying revenue grew 3% doesn't say which company or period); Contextual Retrieval prepends a 50–100 token chunk-specific context, written by Claude from the whole document, before embedding (contextual embeddings) and before creating the BM25 index (contextual BM25), cutting top-20 retrieval failures by 49%, and by 67% when reranking is added."
+        }
+      ]
+    },
+    {
+      "id": "c003-q04",
+      "lesson": null,
+      "concept": "c003-forced-tool-choice",
+      "type": "written",
+      "prompt": "Your app runs Claude with manual extended thinking (`thinking: {\"type\": \"enabled\"}`), must call `get_weather` for every weather question, and should show the user a one-line explanation first. Which `tool_choice` do you use, and why not `{\"type\": \"tool\", \"name\": \"get_weather\"}`?",
+      "model_answer": {
+        "summary": "Use the default `auto` and tell Claude in the user message to use `get_weather`. Forcing with `tool` fails with manual extended thinking and, where it works, prevents any text before the tool call.",
+        "key_points": [
+          "With manual extended thinking, `tool_choice` of `any` or `tool` isn't supported and returns an error; only `auto` and `none` work.",
+          "Even where forcing is supported, `any` and `tool` prefill the assistant message, so Claude writes no natural-language text before the `tool_use` block.",
+          "`auto` plus an explicit instruction such as \"Use the get_weather tool in your response\" lets Claude explain and then call the tool.",
+          "`strict: true` on the tool definition can still guarantee schema-valid tool inputs without forcing the call."
+        ]
+      },
+      "explanation": "The docs list manual extended thinking as a setting where `any` and `tool` error, and recommend `auto` or `none` instead. They also say forced tool use prefills the assistant turn, so no explanation can come before the call. The tempting answer, `tool`, fails on both counts here; `auto` with a clear instruction in the user message gives both the explanation and the call.",
+      "materials": [
+        "anthropic-docs-tool-use-with-claude"
+      ],
+      "sources": [
+        {
+          "url": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/define-tools",
+          "title": "Define tools (Claude API docs), section \"Forcing tool use\"",
+          "publisher": "Anthropic",
+          "accessed": "2026-09-26",
+          "claim": "With manual extended thinking (`thinking: {type: \"enabled\"}`), `tool_choice` `any` and `tool` are not supported and error, while `auto` and `none` work; `any` and `tool` prefill the assistant message so no text precedes `tool_use`; to get an explanation plus a specific tool, use `auto` and ask for the tool in the user message; strict tool use guarantees schema-valid inputs."
+        }
+      ]
+    },
+    {
+      "id": "c003-q05",
+      "lesson": null,
+      "concept": "c003-mcp-tool-annotations",
+      "type": "multiple_choice",
+      "prompt": "An MCP server lists a tool with no `annotations` at all. Going by the `ToolAnnotations` defaults in the MCP spec (revision 2026-07-28), what should a client assume about the tool?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It is read-only and safe to auto-approve, as no hint says anything otherwise"
+        },
+        {
+          "id": "b",
+          "text": "It makes only additive updates but may reach services on the open web"
+        },
+        {
+          "id": "c",
+          "text": "It may modify its environment destructively and reach external systems"
+        },
+        {
+          "id": "d",
+          "text": "It is idempotent, so the client can retry it freely after a timeout"
+        }
+      ],
+      "answer": "c",
+      "explanation": "The defaults are the cautious ones: `readOnlyHint` false, `destructiveHint` true, `idempotentHint` false and `openWorldHint` true. So a tool with no annotations should be treated as one that may change things destructively, may not be safe to repeat, and may talk to the outside world. Assuming read-only (a) gets the default backwards, and even an explicit hint is only a hint unless the server is trusted.",
+      "materials": [
+        "mcp-specification"
+      ],
+      "sources": [
+        {
+          "url": "https://raw.githubusercontent.com/modelcontextprotocol/specification/main/schema/2026-07-28/schema.ts",
+          "title": "MCP schema.ts, revision 2026-07-28: ToolAnnotations",
+          "publisher": "Model Context Protocol",
+          "accessed": "2026-09-26",
+          "claim": "ToolAnnotations defaults: readOnlyHint false, destructiveHint true, idempotentHint false, openWorldHint true; all annotations are hints, and clients should never make tool use decisions based on annotations from untrusted servers."
+        }
+      ]
+    },
+    {
+      "id": "c003-q06",
+      "lesson": null,
+      "concept": "c003-contextual-retrieval",
+      "type": "multiple_choice",
+      "prompt": "You add Anthropic's Contextual Retrieval to a hybrid RAG pipeline that uses both embeddings and BM25. Where does the short, LLM-written context for each chunk go?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Prepended to each chunk before it is embedded and before BM25 indexing"
+        },
+        {
+          "id": "b",
+          "text": "Into the embedding input only, while BM25 indexes just the raw chunk text"
+        },
+        {
+          "id": "c",
+          "text": "Into chunk metadata, used only to filter results after vector search"
+        },
+        {
+          "id": "d",
+          "text": "Onto the user's query at search time, instead of onto stored chunks"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Contextual Retrieval prepends the chunk-specific context to the chunk text for both the embeddings (contextual embeddings) and the BM25 index (contextual BM25). Using both cut top-20 retrieval failures by 49% in Anthropic's tests, against 35% for contextual embeddings alone, so (b) leaves gains on the table. The context is generated per chunk at indexing time, not added to the query.",
+      "materials": [
+        "anthropic-contextual-retrieval"
+      ],
+      "sources": [
+        {
+          "url": "https://www.anthropic.com/engineering/contextual-retrieval",
+          "title": "Introducing Contextual Retrieval",
+          "publisher": "Anthropic",
+          "accessed": "2026-09-26",
+          "claim": "Contextual Retrieval prepends chunk-specific explanatory context to each chunk before embedding and before creating the BM25 index; contextual embeddings alone cut top-20 retrieval failures by 35%, and contextual embeddings plus contextual BM25 by 49%."
+        }
+      ]
+    }
+  ]
+}
