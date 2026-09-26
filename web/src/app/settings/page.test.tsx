@@ -1,0 +1,58 @@
+import { cleanup, render, screen } from "@testing-library/react";
+import { afterEach, expect, it, vi } from "vitest";
+import { NEW_LEARNER, ONBOARDED, STACKS, stubApi } from "@/test/stubApi";
+import SettingsPage from "./page";
+
+vi.mock("next/server", () => ({ connection: async () => {} }));
+vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
+vi.mock("@clerk/nextjs/server", () => ({
+  auth: async () => ({ getToken: async () => "session-token" }),
+}));
+
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
+
+it("starts from the Learner's Active Stack and saved time zone", async () => {
+  stubApi({ "/me": ONBOARDED, "/stacks": STACKS });
+
+  render(await SettingsPage());
+
+  expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Settings");
+  const active = screen.getByRole("radio", { name: /Agentic AI Engineer/ }) as HTMLInputElement;
+  expect(active.checked).toBe(true);
+  const timeZone = screen.getByRole("combobox", { name: "Time zone" }) as HTMLInputElement;
+  expect(timeZone.value).toBe("Asia/Dhaka");
+  expect(screen.getByRole("button", { name: "Save" })).toBeTruthy();
+  expect(screen.getByText(/progress on each Stack is kept/)).toBeTruthy();
+});
+
+it("keeps a withdrawn Active Stack on the list so the Learner can stay on it", async () => {
+  stubApi({ "/me": ONBOARDED, "/stacks": STACKS.slice(1) });
+
+  render(await SettingsPage());
+
+  expect(screen.getAllByRole("radio").map((r) => r.getAttribute("value"))).toEqual([
+    "agentic-ai-engineer",
+    "data-engineer",
+  ]);
+});
+
+it("shows the Admin the way to invitations", async () => {
+  stubApi({ "/me": { ...ONBOARDED, is_admin: true }, "/stacks": STACKS });
+
+  render(await SettingsPage());
+
+  expect(screen.getByRole("link", { name: "Invitations" }).getAttribute("href")).toBe(
+    "/admin/invitations",
+  );
+});
+
+it("sends a Learner who hasn't onboarded to onboarding", async () => {
+  stubApi({ "/me": NEW_LEARNER, "/stacks": STACKS });
+
+  await expect(SettingsPage()).rejects.toThrow(
+    expect.objectContaining({ digest: expect.stringContaining("/onboarding") }),
+  );
+});

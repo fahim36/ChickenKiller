@@ -1,19 +1,51 @@
 from fastapi import APIRouter, Depends, FastAPI, HTTPException
 
-from app import learners, lessons, schemas
+from app import learners, lessons, onboarding, schemas
 from app.auth import TokenVerifier
-from app.deps import AdminLearner, CurrentLearner, SessionDep, VerifierDep, get_current_learner
+from app.deps import (
+    ActiveStack,
+    AdminLearner,
+    CurrentLearner,
+    SessionDep,
+    VerifierDep,
+    get_current_learner,
+)
+from app.models import Learner
 
 # Everything except the health check: only a signed-in, invited Learner gets in (app/deps.py).
 router = APIRouter(dependencies=[Depends(get_current_learner)])
 
 
-@router.get("/me")
-def me(learner: CurrentLearner, verifier: VerifierDep) -> schemas.MeOut:
+def _me(session: SessionDep, learner: Learner, verifier: VerifierDep) -> schemas.MeOut:
+    record = onboarding.active_stack(session, learner)
     return schemas.MeOut(
         email=learner.email,
         is_admin=learners.is_admin(learner, verifier.settings.admin_emails),
+        needs_onboarding=onboarding.needs_onboarding(learner),
+        active_stack=None
+        if record is None
+        else schemas.ActiveStackOut(
+            id=record.stack.id, name=record.stack.name, started_at=record.started_at
+        ),
+        time_zone=learner.time_zone,
     )
+
+
+@router.get("/me")
+def me(learner: CurrentLearner, session: SessionDep, verifier: VerifierDep) -> schemas.MeOut:
+    return _me(session, learner, verifier)
+
+
+@router.put("/me/settings")
+def save_settings(
+    body: schemas.SettingsIn, learner: CurrentLearner, session: SessionDep, verifier: VerifierDep
+) -> schemas.MeOut:
+    """Onboarding, and settings later: set the Active Stack and time zone."""
+    try:
+        onboarding.choose(session, learner, body.active_stack_id, body.time_zone)
+    except onboarding.NotPublished as error:
+        raise HTTPException(422, "Choose one of the published Stacks.") from error
+    return _me(session, learner, verifier)
 
 
 @router.get("/invitations")
@@ -46,7 +78,7 @@ def list_stacks(session: SessionDep) -> list[schemas.StackSummary]:
 
 
 @router.get("/stacks/{stack_id}")
-def get_syllabus(stack_id: str, session: SessionDep) -> schemas.SyllabusOut:
+def get_syllabus(stack_id: str, session: SessionDep, _: ActiveStack) -> schemas.SyllabusOut:
     syllabus = lessons.current_syllabus(session, stack_id)
     if syllabus is None:
         raise HTTPException(404, "Stack not found")
@@ -61,7 +93,9 @@ def get_syllabus(stack_id: str, session: SessionDep) -> schemas.SyllabusOut:
 
 
 @router.get("/stacks/{stack_id}/lessons/{lesson_id}")
-def get_lesson(stack_id: str, lesson_id: str, session: SessionDep) -> schemas.LessonOut:
+def get_lesson(
+    stack_id: str, lesson_id: str, session: SessionDep, _: ActiveStack
+) -> schemas.LessonOut:
     lesson = lessons.find_current_lesson(session, stack_id, lesson_id)
     if lesson is None:
         raise HTTPException(404, "Lesson not found")

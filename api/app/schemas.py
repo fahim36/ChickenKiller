@@ -1,5 +1,7 @@
 import re
+import zoneinfo
 from datetime import datetime
+from functools import cache
 
 from pydantic import BaseModel as _BaseModel
 from pydantic import ConfigDict, field_validator
@@ -69,11 +71,46 @@ class LessonOut(BaseModel):
     next_lesson_id: str | None
 
 
+class ActiveStackOut(BaseModel):
+    """The Learner's Active Stack, and when they started studying it."""
+
+    id: str
+    name: str
+    started_at: datetime
+
+
 class MeOut(BaseModel):
-    """The signed-in Learner. Later admin-only screens check `is_admin`."""
+    """The signed-in Learner. Admin-only screens check `is_admin`.
+
+    `needs_onboarding` is true until the Learner has picked an Active Stack and a time zone.
+    """
 
     email: str
     is_admin: bool
+    needs_onboarding: bool
+    active_stack: ActiveStackOut | None
+    time_zone: str | None
+
+
+class SettingsIn(BaseModel):
+    """What onboarding sets, and settings change: the Active Stack and the time zone."""
+
+    active_stack_id: str
+    time_zone: str
+
+    @field_validator("time_zone")
+    @classmethod
+    def _is_an_iana_name(cls, value: str) -> str:
+        if value not in _iana_time_zones():
+            raise ValueError("Choose a time zone from the list, such as Asia/Dhaka")
+        return value
+
+
+@cache
+def _iana_time_zones() -> frozenset[str]:
+    # Exact names only: looking a name up with ZoneInfo would also accept file paths, and any
+    # letter case on Windows.
+    return frozenset(zoneinfo.available_timezones())
 
 
 # Deliberately loose: Clerk verifies the address when the person signs up.

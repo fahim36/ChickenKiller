@@ -19,7 +19,7 @@ export default async function LessonPage({
   return (
     <main>
       <p className="crumbs">
-        <Link href="/">Stacks</Link> / <Link href={`/stacks/${lesson.stack_id}`}>Syllabus</Link> /
+        <Link href={`/stacks/${lesson.stack_id}`}>Syllabus</Link> /
         Week {lesson.week.number}: {lesson.week.title}
       </p>
       <h1>

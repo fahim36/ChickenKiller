@@ -28,7 +28,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <header className="site">
             <Link href="/">Interview Cracker</Link>
             <Show when="signed-in">
-              <UserButton />
+              <nav className="site-nav">
+                <Link href="/settings">Settings</Link>
+                <UserButton />
+              </nav>
             </Show>
           </header>
           {children}

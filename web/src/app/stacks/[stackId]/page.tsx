@@ -14,7 +14,7 @@ export default async function SyllabusPage({ params }: PageProps<"/stacks/[stack
   return (
     <main>
       <p className="crumbs">
-        <Link href="/">Stacks</Link>
+        <Link href="/settings">Switch Stack</Link>
       </p>
       <h1>{syllabus.name}</h1>
       <p className="muted">

@@ -19,6 +19,7 @@ from datetime import datetime
 from typing import Any
 
 from sqlalchemy import (
+    Boolean,
     DateTime,
     ForeignKey,
     Integer,
@@ -26,6 +27,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     func,
+    true,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -46,6 +48,11 @@ class Stack(Base):
     id: Mapped[str] = mapped_column(ID, primary_key=True)
     name: Mapped[str] = mapped_column(Text)
     summary: Mapped[str] = mapped_column(Text)
+    published: Mapped[bool] = mapped_column(
+        Boolean,
+        server_default=true(),
+        comment="Set by the current Syllabus. Only published Stacks can be chosen.",
+    )
     current_syllabus_pk: Mapped[int | None] = mapped_column(
         ForeignKey(_SYLLABUS_FK, use_alter=True, ondelete="SET NULL")
     )
@@ -259,6 +266,27 @@ class Learner(Base):
         ForeignKey("stacks.id", ondelete="SET NULL")
     )
     time_zone: Mapped[str | None] = mapped_column(String(64), comment="An IANA name.")
+
+
+class LearnerStack(Base):
+    """One Learner on one Stack: created the first time that Stack becomes their Active Stack.
+
+    A Learner's progress on a Stack hangs off this record, keyed by `(learner_id, stack_id)` and
+    the content's permanent IDs. Switching the Active Stack never deletes it, so switching back
+    resumes where the Learner left off.
+    """
+
+    __tablename__ = "learner_stacks"
+
+    learner_id: Mapped[int] = mapped_column(
+        ForeignKey("learners.id", ondelete="CASCADE"), primary_key=True
+    )
+    stack_id: Mapped[str] = mapped_column(
+        ForeignKey("stacks.id", ondelete="CASCADE"), primary_key=True
+    )
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    stack: Mapped[Stack] = relationship(lazy="joined")
 
 
 class Invitation(Base):

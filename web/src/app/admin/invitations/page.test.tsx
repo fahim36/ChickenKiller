@@ -1,6 +1,7 @@
 import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import type { Invitation, Me } from "@/lib/api";
+import { ONBOARDED } from "@/test/stubApi";
 import InvitationsPage from "./page";
 
 vi.mock("next/server", () => ({ connection: async () => {} }));
@@ -14,7 +15,7 @@ const pending: Invitation[] = [
   { email: "grace@example.com", invited_at: "2026-09-21T10:00:00Z" },
 ];
 
-const ADMIN: Me = { email: "admin@example.com", is_admin: true };
+const ADMIN: Me = { ...ONBOARDED, email: "admin@example.com", is_admin: true };
 
 /** The API as this Learner, with these invitations still pending. */
 function stubApi(me: Me, invitations: Invitation[] = pending) {
@@ -56,7 +57,7 @@ it("says so when no invitation is pending", async () => {
 });
 
 it("is not found for a Learner who isn't the Admin", async () => {
-  stubApi({ email: "ada@example.com", is_admin: false });
+  stubApi(ONBOARDED);
 
   await expect(InvitationsPage()).rejects.toThrow(
     expect.objectContaining({ digest: "NEXT_HTTP_ERROR_FALLBACK;404" }),

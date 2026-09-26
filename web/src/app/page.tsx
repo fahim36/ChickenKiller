@@ -1,37 +1,11 @@
-import Link from "next/link";
+import { redirect } from "next/navigation";
 import { connection } from "next/server";
-import { api, type Me, type StackSummary } from "@/lib/api";
+import { api, type Me } from "@/lib/api";
 
+// Home is the Learner's Active Stack. A first sign-in has none yet, so it goes to onboarding.
 export default async function Home() {
-  await connection(); // render per request: content changes on every import
-  const [me, stackList] = await Promise.all([api<Me>("/me"), api<StackSummary[]>("/stacks")]);
-  const stacks = stackList ?? [];
-
-  return (
-    <main>
-      {me?.is_admin && (
-        <p className="crumbs">
-          Admin: <Link href="/admin/invitations">Invitations</Link>
-        </p>
-      )}
-      <h1>Choose a Stack</h1>
-      {stacks.length === 0 ? (
-        <p className="muted">
-          No Stacks imported yet. Run <code>uv run content-import ../content</code> in <code>api/</code>.
-        </p>
-      ) : (
-        <ul className="cards">
-          {stacks.map((s) => (
-            <li key={s.id}>
-              <Link href={`/stacks/${s.id}`} className="card">
-                <strong>{s.name}</strong>
-                <span className="muted">{s.summary}</span>
-                <span className="version">{s.version}</span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-    </main>
-  );
+  await connection();
+  const me = await api<Me>("/me");
+  if (!me?.active_stack || me.needs_onboarding) redirect("/onboarding");
+  redirect(`/stacks/${encodeURIComponent(me.active_stack.id)}`);
 }

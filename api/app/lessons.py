@@ -7,11 +7,11 @@ from app.models import Lesson, LessonMaterial, Stack, Syllabus, Week
 
 
 def list_stacks(session: Session) -> list[Stack]:
-    """Stacks that have a current Syllabus, by name, with it loaded."""
+    """Published Stacks that have a current Syllabus, by name, with it loaded."""
     return list(
         session.scalars(
             select(Stack)
-            .where(Stack.current_syllabus_pk.is_not(None))
+            .where(Stack.published, Stack.current_syllabus_pk.is_not(None))
             .options(joinedload(Stack.current_syllabus))
             .order_by(Stack.name)
         )

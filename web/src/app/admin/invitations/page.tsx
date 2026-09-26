@@ -17,7 +17,7 @@ export default async function InvitationsPage() {
   return (
     <main>
       <p className="crumbs">
-        <Link href="/">Stacks</Link>
+        <Link href="/settings">Settings</Link>
       </p>
       <h1>Invitations</h1>
       <p className="muted">

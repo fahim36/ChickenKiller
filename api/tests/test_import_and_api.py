@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.content.importer import import_folder
 from app.content.loader import ContentError
 from app.models import Concept, Lesson, Material, Milestone, Question, Stack, Syllabus, Week
-from tests.conftest import ContentFactory, as_version, changelog_entry, make_changelog
+from tests.conftest import ContentFactory, as_version, changelog_entry, make_changelog, onboard
 
 TABLES = (Stack, Syllabus, Week, Lesson, Milestone, Material, Concept, Question)
 LESSON = "/stacks/mini-stack/lessons/w01-l01"
@@ -47,6 +47,7 @@ def test_import_twice_changes_nothing(
 ) -> None:
     folder = make_content()
     import_folder(session, folder)
+    onboard(api)
     before = counts(session), api.get(LESSON).json()
 
     again = import_folder(session, folder)
@@ -59,6 +60,7 @@ def test_changed_content_under_an_imported_version_is_refused(
     session: Session, api: TestClient, make_content: ContentFactory
 ) -> None:
     import_folder(session, make_content())
+    onboard(api)
 
     def edit(syllabus: dict[str, Any], bank: dict[str, Any]) -> None:
         syllabus["weeks"][0]["lessons"][0]["title"] = "A quietly edited title"
@@ -66,6 +68,18 @@ def test_changed_content_under_an_imported_version_is_refused(
     with pytest.raises(ContentError, match="already imported with different content"):
         import_folder(session, make_content(edit))
     assert api.get(LESSON).json()["title"] == "First lesson"
+
+
+def test_stating_a_default_is_the_same_content(
+    session: Session, make_content: ContentFactory
+) -> None:
+    """Versions imported before a field with a default existed still import as unchanged."""
+    import_folder(session, make_content())
+
+    def explicit(syllabus: dict[str, Any], bank: dict[str, Any]) -> None:
+        syllabus["stack"]["published"] = True
+
+    assert import_folder(session, make_content(explicit)).status == "unchanged"
 
 
 def test_invalid_content_is_not_imported(session: Session, make_content: ContentFactory) -> None:
@@ -81,6 +95,7 @@ def test_a_newer_version_becomes_the_current_syllabus(
     session: Session, api: TestClient, make_content: ContentFactory
 ) -> None:
     import_folder(session, make_content())
+    onboard(api)
 
     def newer(syllabus: dict[str, Any], bank: dict[str, Any]) -> None:
         syllabus["version"] = "v2026-02-01"
@@ -103,6 +118,7 @@ def test_an_older_version_does_not_replace_the_current_one(
         syllabus["version"] = "v2026-02-01"
 
     import_folder(session, make_content(newer))
+    onboard(api)
     result = import_folder(session, make_content())
 
     assert (result.status, result.is_current) == ("imported", False)
@@ -121,6 +137,7 @@ def test_same_day_versions_sort_by_their_number(
     ]:
         changelog = make_changelog(name, previous) if previous else None
         import_folder(session, make_content(as_version(name), changelog=changelog))
+    onboard(api)
 
     assert api.get("/stacks/mini-stack").json()["version"] == "v2026-01-01.10"
 
@@ -128,6 +145,7 @@ def test_same_day_versions_sort_by_their_number(
 @pytest.fixture
 def client(session: Session, api: TestClient, make_content: ContentFactory) -> Iterator[TestClient]:
     import_folder(session, make_content())
+    onboard(api)
     yield api
 
 
