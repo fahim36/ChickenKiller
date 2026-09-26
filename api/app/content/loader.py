@@ -1,5 +1,5 @@
-"""Read one version folder of a Stack: `syllabus.json`, `questions/<lesson-id>.json`, and
-`changelog.json` if there is one.
+"""Read a Stack's content: one version folder (`syllabus.json`, and `changelog.json` if there
+is one) and the Stack's Question Bank (`<stack>/question-bank/*.json`, beside the versions).
 
 Each file is parsed into the format models (`app.content.format`). Anything that breaks the
 format becomes a `Problem` naming the file and the item; rules that span several items are
@@ -13,11 +13,15 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ValidationError
 
-from app.content.format import Changelog, Lesson, QuestionBank, Syllabus
+from app.content.format import Changelog, Concept, Lesson, Question, QuestionBank, Syllabus
 
 SYLLABUS_FILE = "syllabus.json"
-QUESTIONS_DIR = "questions"
 CHANGELOG_FILE = "changelog.json"
+QUESTION_BANK_DIR = "question-bank"
+"""The Stack's Question Bank, `content/<stack-id>/question-bank/`: unversioned, beside the
+Syllabus versions."""
+LEGACY_QUESTIONS_DIR = "questions"
+"""Where each version kept its own Question Banks before the bank became the Stack's (#15)."""
 
 
 @dataclass(frozen=True)
@@ -40,10 +44,30 @@ class ContentError(Exception):
 
 
 @dataclass
+class Bank:
+    """A Stack's Question Bank: every file of `question-bank/` that parses, in file-name order."""
+
+    path: Path
+    files: dict[Path, QuestionBank] = field(default_factory=dict)
+
+    def concepts(self) -> list[tuple[Path, Concept]]:
+        return [(p, c) for p, f in self.files.items() for c in f.concepts]
+
+    def questions(self) -> list[tuple[Path, Question]]:
+        return [(p, q) for p, f in self.files.items() for q in f.questions]
+
+    def live_questions(self) -> list[Question]:
+        """The Questions that aren't Retired Questions, in bank order: the ones that can be
+        drawn."""
+        return [q for _, q in self.questions() if q.retired is None]
+
+
+@dataclass
 class ContentFolder:
     path: Path
     syllabus: Syllabus
-    banks: dict[Path, QuestionBank] = field(default_factory=dict)
+    bank: Bank
+    """The Stack's Question Bank, which sits beside the version folders."""
     changelog: Changelog | None = None  # None when there is no changelog.json, or it's unreadable
     has_changelog_file: bool = False
 
@@ -51,20 +75,35 @@ class ContentFolder:
         return [lesson for week in self.syllabus.weeks for lesson in week.lessons]
 
 
-def read_folder(path: Path) -> tuple[ContentFolder | None, list[Problem]]:
-    """Parse every file. The folder is None when `syllabus.json` itself can't be read; a Question
-    Bank that breaks the format is left out and reported."""
+def bank_dir(stack_dir: Path) -> Path:
+    return stack_dir / QUESTION_BANK_DIR
+
+
+def read_bank(stack_dir: Path) -> tuple[Bank, list[Problem]]:
+    """Parse every file of the Stack's Question Bank. A file that breaks the format is left out
+    and reported. A Stack with no `question-bank/` folder has an empty bank."""
+    problems: list[Problem] = []
+    bank = Bank(path=bank_dir(stack_dir))
+    if bank.path.is_dir():
+        for file in sorted(bank.path.glob("*.json")):
+            parsed = _read(file, QuestionBank, problems)
+            if parsed is not None:
+                bank.files[file] = parsed
+    return bank, problems
+
+
+def read_folder(
+    path: Path, bank: tuple[Bank, list[Problem]] | None = None
+) -> tuple[ContentFolder | None, list[Problem]]:
+    """Parse one version folder and the Stack's Question Bank (or the already read `bank`). The
+    folder is None when `syllabus.json` itself can't be read."""
     problems: list[Problem] = []
     syllabus = _read(path / SYLLABUS_FILE, Syllabus, problems)
+    the_bank, bank_problems = bank if bank is not None else read_bank(path.parent)
+    problems += bank_problems
     if syllabus is None:
         return None, problems
-    folder = ContentFolder(path=path, syllabus=syllabus)
-    questions_dir = path / QUESTIONS_DIR
-    if questions_dir.is_dir():
-        for bank_path in sorted(questions_dir.glob("*.json")):
-            bank = _read(bank_path, QuestionBank, problems)
-            if bank is not None:
-                folder.banks[bank_path] = bank
+    folder = ContentFolder(path=path, syllabus=syllabus, bank=the_bank)
     changelog_path = path / CHANGELOG_FILE
     if changelog_path.exists():
         folder.has_changelog_file = True

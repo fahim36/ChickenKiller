@@ -1,0 +1,521 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "w08-l02-ruff-check-and-format",
+      "name": "Ruff: `ruff check` vs `ruff format` in CI"
+    },
+    {
+      "id": "w08-l02-exit-codes",
+      "name": "A check fails CI through its exit code"
+    },
+    {
+      "id": "w08-l02-what-each-step-catches",
+      "name": "What each CI step catches"
+    },
+    {
+      "id": "w08-l02-docker-build-in-ci",
+      "name": "Building the Docker image in CI"
+    },
+    {
+      "id": "w08-l02-required-status-checks",
+      "name": "Branch protection with required status checks"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w08-l02-q01",
+      "lesson": "w08-l02",
+      "concept": "w08-l02-ruff-check-and-format",
+      "type": "multiple_choice",
+      "prompt": "CI runs `ruff format --check .` and one file isn't formatted. What does Ruff do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Reformats the file and exits with code 0"
+        },
+        {
+          "id": "b",
+          "text": "Prints a warning and exits with code 0, so CI stays green"
+        },
+        {
+          "id": "c",
+          "text": "Leaves the file unchanged and exits with code 1, so the step fails"
+        },
+        {
+          "id": "d",
+          "text": "Exits with code 2, which means a configuration error"
+        }
+      ],
+      "answer": "c",
+      "explanation": "With `--check`, Ruff writes nothing: it exits `0` when no file would change and `1` when some file would be reformatted. Exit code `2` is reserved for abnormal termination such as bad configuration. The non-zero exit is what turns the CI step red.",
+      "materials": [
+        "ruff-linter-and-formatter"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.astral.sh/ruff/formatter/",
+          "title": "The Ruff Formatter",
+          "publisher": "Astral",
+          "accessed": "2026-09-26",
+          "claim": "With --check, ruff format writes no files and exits 0 when nothing would be reformatted, 1 when one or more files would be, and 2 on abnormal termination such as invalid configuration."
+        }
+      ]
+    },
+    {
+      "id": "w08-l02-q02",
+      "lesson": "w08-l02",
+      "concept": "w08-l02-ruff-check-and-format",
+      "type": "multiple_choice",
+      "prompt": "After running `ruff format`, your imports are still in a messy order. Why, and what's the fix?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The formatter doesn't sort imports; run `ruff check --select I --fix`, then format"
+        },
+        {
+          "id": "b",
+          "text": "Import sorting only runs with `ruff format --unsafe-fixes` enabled"
+        },
+        {
+          "id": "c",
+          "text": "Ruff can't sort imports at all, so you need to install isort alongside it"
+        },
+        {
+          "id": "d",
+          "text": "The formatter sorts imports only when `line-length` is set in `pyproject.toml`"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Import sorting is a lint rule set in Ruff (the `I` rules), not part of the formatter. The Ruff docs say to run the linter with `--select I --fix` and then the formatter. There is no need for a separate isort install.",
+      "materials": [
+        "ruff-linter-and-formatter"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.astral.sh/ruff/formatter/",
+          "title": "The Ruff Formatter",
+          "publisher": "Astral",
+          "accessed": "2026-09-26",
+          "claim": "The Ruff formatter does not sort imports; the docs recommend running ruff check --select I --fix followed by ruff format."
+        }
+      ]
+    },
+    {
+      "id": "w08-l02-q03",
+      "lesson": "w08-l02",
+      "concept": "w08-l02-ruff-check-and-format",
+      "type": "multiple_choice",
+      "prompt": "`ruff check --fix` fixes most violations but leaves one it says has a fix available. Why?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`--fix` only fixes one violation per file per run"
+        },
+        {
+          "id": "b",
+          "text": "The rule isn't in the default rule set"
+        },
+        {
+          "id": "c",
+          "text": "Fixes are only applied when the formatter runs afterwards"
+        },
+        {
+          "id": "d",
+          "text": "That fix is unsafe (it may change behaviour) and needs `--unsafe-fixes`"
+        }
+      ],
+      "answer": "d",
+      "explanation": "Ruff applies only safe fixes by default: ones that keep runtime behaviour the same. Unsafe fixes, such as rewriting `list(x)[0]` as `next(iter(x))` (which changes `IndexError` to `StopIteration` on an empty input), need `--unsafe-fixes`. Review those changes rather than applying them blindly.",
+      "materials": [
+        "ruff-linter-and-formatter"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.astral.sh/ruff/linter/",
+          "title": "The Ruff Linter",
+          "publisher": "Astral",
+          "accessed": "2026-09-26",
+          "claim": "Ruff applies only safe fixes by default; unsafe fixes such as RUF015's rewrite of list(...)[0] to next(iter(...)), which changes IndexError to StopIteration, need --unsafe-fixes."
+        }
+      ]
+    },
+    {
+      "id": "w08-l02-q04",
+      "lesson": "w08-l02",
+      "concept": "w08-l02-ruff-check-and-format",
+      "type": "written",
+      "prompt": "Why should CI run `ruff check` and `ruff format --check`, rather than `ruff check --fix` and `ruff format`?",
+      "model_answer": {
+        "summary": "CI should verify the committed code, not rewrite a throwaway copy of it: the checking forms exit non-zero on problems, while the fixing forms can pass while the repository stays wrong.",
+        "key_points": [
+          "`ruff check` exits 1 when violations are found and `ruff format --check` exits 1 when a file would change, so the step fails",
+          "`ruff check --fix` exits 0 when it fixed every violation, so CI would pass",
+          "Fixes made in CI land only on the runner's copy, which is thrown away; the repository keeps the unformatted code",
+          "Developers fix locally (or with a pre-commit hook) and commit the result"
+        ]
+      },
+      "explanation": "A CI check is a gate. It is only useful if it fails when the committed code is wrong. Fixing on the runner hides the problem: the job goes green and nobody commits the fix.",
+      "materials": [
+        "ruff-linter-and-formatter"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.astral.sh/ruff/linter/",
+          "title": "The Ruff Linter",
+          "publisher": "Astral",
+          "accessed": "2026-09-26",
+          "claim": "ruff check exits 0 when no violations are found or all were fixed automatically, 1 when violations remain, and 2 on abnormal termination."
+        },
+        {
+          "url": "https://docs.astral.sh/ruff/formatter/",
+          "title": "The Ruff Formatter",
+          "publisher": "Astral",
+          "accessed": "2026-09-26",
+          "claim": "With --check, ruff format writes no files and exits 0 when nothing would be reformatted, 1 when one or more files would be, and 2 on abnormal termination such as invalid configuration."
+        }
+      ]
+    },
+    {
+      "id": "w08-l02-q05",
+      "lesson": "w08-l02",
+      "concept": "w08-l02-exit-codes",
+      "type": "multiple_choice",
+      "prompt": "You break a test on purpose and push. What exit code does `pytest` return, and what does GitHub Actions do with that step?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Exit code 0, because the test run itself completed"
+        },
+        {
+          "id": "b",
+          "text": "Exit code 1; any non-zero exit marks the step failed and later steps are skipped"
+        },
+        {
+          "id": "c",
+          "text": "Exit code 1, but Actions only fails a step when it prints to stderr"
+        },
+        {
+          "id": "d",
+          "text": "Exit code 5; Actions retries the step once"
+        }
+      ],
+      "answer": "b",
+      "explanation": "pytest exits `1` when tests were collected and run and some failed. GitHub Actions treats exit code `0` as success and any other exit code as failure, so the step, and with it the job and the pull request's check, goes red. Output on stderr alone doesn't fail a step.",
+      "materials": [
+        "pytest-exit-codes",
+        "github-actions-documentation"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.pytest.org/en/stable/reference/exit-codes.html",
+          "title": "Exit codes",
+          "publisher": "pytest",
+          "accessed": "2026-09-26",
+          "claim": "pytest exits 1 when tests ran and some failed, 4 on a command-line usage error, and 5 when no tests were collected."
+        },
+        {
+          "url": "https://docs.github.com/en/actions/how-tos/create-and-publish-actions/set-exit-codes",
+          "title": "Setting exit codes for actions",
+          "publisher": "GitHub",
+          "accessed": "2026-09-26",
+          "claim": "Exit code 0 marks a step success; any non-zero exit code marks it failure, skips future steps and gives the check run a failure status."
+        }
+      ]
+    },
+    {
+      "id": "w08-l02-q06",
+      "lesson": "w08-l02",
+      "concept": "w08-l02-exit-codes",
+      "type": "multiple_choice",
+      "prompt": "A typo in the CI command makes `pytest` look in a folder with no tests. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "pytest exits 0, because no test failed"
+        },
+        {
+          "id": "b",
+          "text": "pytest exits 1, the same as a failing test"
+        },
+        {
+          "id": "c",
+          "text": "pytest exits 5 (no tests collected), so the step fails"
+        },
+        {
+          "id": "d",
+          "text": "pytest exits 4 and prints its usage"
+        }
+      ],
+      "answer": "c",
+      "explanation": "pytest has a dedicated exit code, `5`, for \"no tests were collected\". Because it's non-zero, CI fails, which is what you want: a green build that ran zero tests would be a false pass. Exit code `4` is for command-line usage errors.",
+      "materials": [
+        "pytest-exit-codes"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.pytest.org/en/stable/reference/exit-codes.html",
+          "title": "Exit codes",
+          "publisher": "pytest",
+          "accessed": "2026-09-26",
+          "claim": "pytest exits 1 when tests ran and some failed, 4 on a command-line usage error, and 5 when no tests were collected."
+        }
+      ]
+    },
+    {
+      "id": "w08-l02-q07",
+      "lesson": "w08-l02",
+      "concept": "w08-l02-what-each-step-catches",
+      "type": "multiple_choice",
+      "prompt": "`def find_user(uid: str) -> User | None` is called as `find_user(uid).name`. Every test passes because the test data always has the user. Which CI step catches the bug?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "mypy, which reports that `None` has no attribute `name`"
+        },
+        {
+          "id": "b",
+          "text": "`ruff format --check`, because the call chain is badly formatted"
+        },
+        {
+          "id": "c",
+          "text": "pytest, which checks the return annotation at runtime on every call"
+        },
+        {
+          "id": "d",
+          "text": "The Docker build, which imports every module and would hit the error"
+        }
+      ],
+      "answer": "a",
+      "explanation": "A type checker reasons about every path, including the `None` one no test exercises. mypy flags using `.name` on `User | None` until the code handles `None`. Python never checks annotations at runtime, so pytest only catches the bug if a test happens to hit that path.",
+      "materials": [
+        "mypy-type-hints-cheat-sheet",
+        "python-docs-typing"
+      ],
+      "sources": [
+        {
+          "url": "https://mypy.readthedocs.io/en/stable/kinds_of_types.html",
+          "title": "Kinds of types",
+          "publisher": "mypy project",
+          "accessed": "2026-09-26",
+          "claim": "mypy disallows most operations on unguarded optional (X | None) values and requires an explicit None check first."
+        },
+        {
+          "url": "https://docs.python.org/3/library/typing.html",
+          "title": "typing — Support for type hints",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "The Python runtime does not enforce function and variable type annotations; they are for type checkers and other tools."
+        }
+      ]
+    },
+    {
+      "id": "w08-l02-q08",
+      "lesson": "w08-l02",
+      "concept": "w08-l02-what-each-step-catches",
+      "type": "written",
+      "prompt": "An interviewer asks: \"What does your CI pipeline check, and why each step?\" Answer for a pipeline with Ruff, mypy, pytest and a Docker build, and say why you order them that way.",
+      "model_answer": {
+        "summary": "Each step catches a different class of problem, and the fast, cheap checks run first so a pull request fails quickly.",
+        "key_points": [
+          "Ruff lint and format checks catch style problems and common bugs such as unused imports, in seconds",
+          "mypy catches type errors, such as an unhandled `None`, on paths no test exercises",
+          "pytest catches behaviour regressions: the code runs but does the wrong thing",
+          "The Docker build catches packaging and Dockerfile problems that the tests, run outside the image, can't see",
+          "Cheap checks go first so a failure shows up fast, and every step fails the job through a non-zero exit code"
+        ]
+      },
+      "explanation": "A good answer ties each step to the bug it prevents rather than listing tools. The steps overlap little: a formatter can't see a type error, and a type checker can't see wrong logic. Ordering by cost gives quick feedback.",
+      "materials": [
+        "ruff-linter-and-formatter",
+        "pytest-exit-codes",
+        "github-actions-documentation"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.astral.sh/ruff/linter/",
+          "title": "The Ruff Linter",
+          "publisher": "Astral",
+          "accessed": "2026-09-26",
+          "claim": "ruff check exits 0 when no violations are found or all were fixed automatically, 1 when violations remain, and 2 on abnormal termination."
+        },
+        {
+          "url": "https://docs.pytest.org/en/stable/reference/exit-codes.html",
+          "title": "Exit codes",
+          "publisher": "pytest",
+          "accessed": "2026-09-26",
+          "claim": "pytest exits 1 when tests ran and some failed, 4 on a command-line usage error, and 5 when no tests were collected."
+        },
+        {
+          "url": "https://docs.github.com/en/actions/how-tos/create-and-publish-actions/set-exit-codes",
+          "title": "Setting exit codes for actions",
+          "publisher": "GitHub",
+          "accessed": "2026-09-26",
+          "claim": "Exit code 0 marks a step success; any non-zero exit code marks it failure, skips future steps and gives the check run a failure status."
+        }
+      ]
+    },
+    {
+      "id": "w08-l02-q09",
+      "lesson": "w08-l02",
+      "concept": "w08-l02-docker-build-in-ci",
+      "type": "multiple_choice",
+      "prompt": "Your workflow uses `docker/build-push-action` with `cache-from: type=gha` and `cache-to: type=gha,mode=max`. What do these do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "They push the image to GitHub Container Registry after each build"
+        },
+        {
+          "id": "b",
+          "text": "They reuse build layers from the GitHub Actions cache, and `mode=max` also caches intermediate layers"
+        },
+        {
+          "id": "c",
+          "text": "They cache only the final image's layers; `mode=max` sets the largest cache size"
+        },
+        {
+          "id": "d",
+          "text": "They cache the Python packages pip downloads, not Docker layers"
+        }
+      ],
+      "answer": "b",
+      "explanation": "`type=gha` stores BuildKit's layer cache in the GitHub Actions cache, so unchanged layers aren't rebuilt. In the default `min` mode only layers exported into the final image are cached; `max` caches all layers, including those of intermediate build stages. Exporting needs write access to the Actions cache.",
+      "materials": [
+        "docker-docs-cache-management-with-github-actions"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.docker.com/build/ci/github-actions/cache/",
+          "title": "Cache management with GitHub Actions",
+          "publisher": "Docker Inc.",
+          "accessed": "2026-09-26",
+          "claim": "The type=gha cache backend stores and fetches BuildKit cache blobs via the GitHub Actions cache service, configured as cache-from: type=gha and cache-to: type=gha,mode=max, and cache-to fails where the workflow has only read access to the cache."
+        },
+        {
+          "url": "https://docs.docker.com/build/cache/backends/",
+          "title": "Cache storage backends",
+          "publisher": "Docker Inc.",
+          "accessed": "2026-09-26",
+          "claim": "In min mode only layers exported into the resulting image are cached, while max mode caches all layers including those of intermediate steps."
+        }
+      ]
+    },
+    {
+      "id": "w08-l02-q10",
+      "lesson": "w08-l02",
+      "concept": "w08-l02-docker-build-in-ci",
+      "type": "multiple_choice",
+      "prompt": "You push the image only from `main`. Why still build it on every pull request?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Branch protection can't require a check unless it builds an image"
+        },
+        {
+          "id": "b",
+          "text": "Building populates the registry so `main` can skip its build"
+        },
+        {
+          "id": "c",
+          "text": "The tests run inside the built image automatically"
+        },
+        {
+          "id": "d",
+          "text": "It catches a broken Dockerfile or a missing dependency before merge, not after"
+        }
+      ],
+      "answer": "d",
+      "explanation": "Tests that run on the runner don't prove the image builds: a file left out of the build context or a missing system package only fails inside the Docker build. Building (without pushing) on each pull request makes that a red check you see before merging.",
+      "materials": [
+        "docker-docs-cache-management-with-github-actions",
+        "docker-get-started"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.docker.com/build/concepts/context/",
+          "title": "Build context",
+          "publisher": "Docker Inc.",
+          "accessed": "2026-09-26",
+          "claim": "COPY and ADD can only use files in the build context, and .dockerignore can exclude files from it, so a missing file fails inside the Docker build."
+        },
+        {
+          "url": "https://github.com/docker/build-push-action",
+          "title": "docker/build-push-action: GitHub Action to build and push Docker images with Buildx",
+          "publisher": "Docker Inc.",
+          "accessed": "2026-09-26",
+          "claim": "The action's push input defaults to false, so it can build an image in CI without pushing it to a registry."
+        }
+      ]
+    },
+    {
+      "id": "w08-l02-q11",
+      "lesson": "w08-l02",
+      "concept": "w08-l02-required-status-checks",
+      "type": "multiple_choice",
+      "prompt": "Branch protection on `main` requires the `test` status check. On one pull request the `test` job reports `skipped` because its `if:` condition was false. Can the pull request merge?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Yes: a required check that is skipped counts as passing"
+        },
+        {
+          "id": "b",
+          "text": "No: a skipped required check counts as a failure and blocks the merge"
+        },
+        {
+          "id": "c",
+          "text": "No: GitHub first re-runs the job without its `if:` condition"
+        },
+        {
+          "id": "d",
+          "text": "Only an admin can merge it, by overriding branch protection"
+        }
+      ],
+      "answer": "a",
+      "explanation": "GitHub lets a pull request merge when each required check has a successful, skipped or neutral status. So a required job that skips itself doesn't protect anything: keep conditions off the jobs you rely on as gates.",
+      "materials": [
+        "github-docs-about-protected-branches"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches",
+          "title": "About protected branches",
+          "publisher": "GitHub",
+          "accessed": "2026-09-26",
+          "claim": "Required status checks must have a successful, skipped or neutral status before changes can be merged into a protected branch."
+        }
+      ]
+    },
+    {
+      "id": "w08-l02-q12",
+      "lesson": "w08-l02",
+      "concept": "w08-l02-required-status-checks",
+      "type": "written",
+      "prompt": "Explain how you would make sure a red CI run blocks merging into `main` on GitHub. Name the settings and one gap to watch for.",
+      "model_answer": {
+        "summary": "Protect `main` with a branch protection rule (or ruleset) that requires pull requests and the CI job's status check, keeps branches up to date, and doesn't let admins bypass it.",
+        "key_points": [
+          "Add a branch protection rule or ruleset on `main` that requires a pull request before merging",
+          "Require status checks to pass and select the CI job's check by name",
+          "\"Require branches to be up to date before merging\" makes the checks run against the latest `main`",
+          "By default the rules don't apply to admins unless \"Do not allow bypassing the above settings\" is on",
+          "A required check that reports `skipped` still allows the merge"
+        ]
+      },
+      "explanation": "CI only blocks bad code when branch protection makes its result a condition of merging. The strict \"up to date\" option closes the gap where two pull requests pass separately but break when combined.",
+      "materials": [
+        "github-docs-about-protected-branches"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches",
+          "title": "About protected branches",
+          "publisher": "GitHub",
+          "accessed": "2026-09-26",
+          "claim": "Protected branches can require pull requests and status checks, the strict setting requires the branch to be up to date with the base branch, and admins can bypass unless 'Do not allow bypassing the above settings' is enabled."
+        }
+      ]
+    }
+  ]
+}

@@ -10,8 +10,11 @@ the importer refuses changed content under a version it has already imported.
 It also starts the new version's `changelog.json`, naming the version it follows, with an empty
 `summary` and no `changes`: the content check fails until the update fills them in.
 
-A Stack with no versions yet gets a folder with only `questions/` and the changelog; write
-`syllabus.json` into it from scratch. Prints the new folder's path.
+The Question Bank is not copied: it is the Stack's, beside the versions
+(`content/<stack-id>/question-bank/`), and a Syllabus Update adds to it in place (ADR-0004).
+
+A Stack with no versions yet gets a folder with only the changelog, and an empty
+`question-bank/`; write `syllabus.json` into it from scratch. Prints the new folder's path.
 """
 
 import argparse
@@ -24,7 +27,7 @@ from pathlib import Path
 from typing import Any
 
 from app.config import CONTENT_DIR
-from app.content.loader import CHANGELOG_FILE, QUESTIONS_DIR, SYLLABUS_FILE
+from app.content.loader import CHANGELOG_FILE, SYLLABUS_FILE, bank_dir
 from app.content.versions import next_version, stack_versions, validate_version, version_key
 
 
@@ -48,14 +51,14 @@ def new_version(content_dir: Path, stack_id: str, today: date, version: str | No
     }
 
     if not existing:
-        (target / QUESTIONS_DIR).mkdir(parents=True)
+        target.mkdir(parents=True)
+        bank_dir(stack_dir).mkdir(exist_ok=True)
         _write_json(target / CHANGELOG_FILE, stub)
         return target
 
     source = existing[-1]
     # The changelog belongs to the version it describes; the new version writes its own.
     shutil.copytree(source, target, ignore=shutil.ignore_patterns(CHANGELOG_FILE))
-    (target / QUESTIONS_DIR).mkdir(exist_ok=True)
     syllabus = target / SYLLABUS_FILE
     text = syllabus.read_bytes().decode("utf-8")  # bytes, so line endings stay as they are
     pattern = re.compile(r'("version"\s*:\s*)"' + re.escape(source.name) + '"')

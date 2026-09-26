@@ -19,10 +19,9 @@ from tests.conftest import (
     ClientFactory,
     ContentFactory,
     FakeGrader,
-    changelog_entry,
     make_bank,
-    make_changelog,
     onboard,
+    source,
 )
 from tests.test_lesson_quiz import (
     QUIZ,
@@ -55,6 +54,8 @@ def mc(n: int, concept: str) -> dict[str, Any]:
         "answer": "a",
         "explanation": f"Because of {question_number(n)}.",
         "materials": ["mat-docs"],
+        "lesson": "w01-l01",
+        "sources": [source()],
     }
 
 
@@ -172,6 +173,15 @@ def test_the_results_show_each_missed_question_with_the_answers_explanation_and_
                     "title": "Some docs",
                     "url": "https://example.com/docs",
                     "type": "docs",
+                }
+            ],
+            "sources": [
+                {
+                    "url": "https://example.com/docs/page-1",
+                    "title": "Docs page 1",
+                    "publisher": "Example",
+                    "accessed": "2026-01-01",
+                    "claim": "What the Question relies on.",
                 }
             ],
         }
@@ -306,34 +316,29 @@ def test_after_a_wrong_retake_a_correct_one_completes_the_lesson(learner: TestCl
     assert lesson_states(learner)["w01-l01"] == "completed"
 
 
-def test_retakes_are_asked_from_the_attempts_pinned_version(
-    session: Session, learner: TestClient, make_content: ContentFactory
+def test_a_retake_never_asks_a_retired_sibling(
+    session: Session, api: TestClient, make_content: ContentFactory
 ) -> None:
-    _, result = pass_missing_one(learner)
+    """A Question retired after the Retake opened is never asked again: here every sibling but
+    the one waiting, which is then the only one left to ask."""
+    setup(session, api, make_content, five_on_concept_a)
+    missed, result = pass_missing_one(api)
+    [retake] = result["retakes"]
+    waiting = retake["question"]["id"]
+    retired = concept_siblings(missed) - {waiting}
 
-    def newer(syllabus: dict[str, Any], bank: dict[str, Any]) -> None:
-        own_explanations(syllabus, bank)
-        syllabus["version"] = "v2026-02-01"
+    def retire_them(syllabus: dict[str, Any], bank: dict[str, Any]) -> None:
+        five_on_concept_a(syllabus, bank)
         for question in bank["questions"]:
-            if question["type"] == "multiple_choice":
-                question["answer"] = "b"
+            if question["id"] in retired:
+                question["retired"] = {"reason": "Out of date."}
 
-    changelog = make_changelog(
-        "v2026-02-01",
-        "v2026-01-01",
-        changelog_entry("lesson", "w01-l01", "changed"),
-        *(changelog_entry("question", qid, "changed") for qid in sorted(CONCEPT_OF)[:6]),
-    )
-    import_folder(
-        session,
-        make_content(
-            newer, extra_banks={"w01-l02": make_bank("w01-l02", "second")}, changelog=changelog
-        ),
-    )
+    setup_again = make_content(retire_them, extra_banks={"w01-l02": make_bank("w01-l02", "second")})
+    assert import_folder(session, setup_again).bank.retired == sorted(retired)
 
-    answered = answer_retake(learner, result["retakes"][0], "a").json()
+    asked = [answer_retake(api, retake, "b").json()["next_question"]["id"] for _ in range(3)]
 
-    assert (answered["correct"], answered["lesson_completed"]) == (True, True)
+    assert asked == [waiting] * 3
 
 
 # --- Below the Pass Mark: a fresh quiz -------------------------------------------------------
@@ -399,7 +404,7 @@ def test_every_missed_question_is_recorded_for_review(
     assert missed_ids == [missed, wrong_sibling]
     assert answered["next_question"]["id"] not in missed_ids
     [first, second] = quizzes.missed_questions(session, learner_id(session), "mini-stack")
-    assert (first.question_id, first.syllabus_version) == (missed, "v2026-01-01")
+    assert first.question_id == missed
     assert second.first_missed_at >= first.first_missed_at
 
 

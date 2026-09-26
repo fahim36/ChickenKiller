@@ -1,0 +1,498 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "w06-l02-graph-representation",
+      "name": "Adjacency lists, and grids as graphs"
+    },
+    {
+      "id": "w06-l02-bfs-vs-dfs",
+      "name": "BFS with a queue vs DFS with recursion or a stack"
+    },
+    {
+      "id": "w06-l02-visited-set",
+      "name": "Visited sets: why and when to mark"
+    },
+    {
+      "id": "w06-l02-clone-graph-map",
+      "name": "Cloning a graph with an old-to-new map"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w06-l02-q01",
+      "lesson": "w06-l02",
+      "concept": "w06-l02-graph-representation",
+      "type": "multiple_choice",
+      "prompt": "Number of Islands connects land cells horizontally and vertically. How many islands are in this grid?\n\n```\n1 0 1\n0 1 0\n1 0 1\n```",
+      "choices": [
+        {
+          "id": "a",
+          "text": "1"
+        },
+        {
+          "id": "b",
+          "text": "3"
+        },
+        {
+          "id": "c",
+          "text": "5"
+        },
+        {
+          "id": "d",
+          "text": "9"
+        }
+      ],
+      "answer": "c",
+      "explanation": "Treat the grid as a graph where each land cell is a node and its neighbours are the cells above, below, left and right. None of the five `1`s shares a side with another; they only touch at corners, and diagonals don't connect. So each is its own island: 5. Answering 1 means you counted diagonal neighbours.",
+      "materials": [
+        "neetcode-150-practice-list"
+      ],
+      "sources": [
+        {
+          "url": "https://leetcode.com/graphql?query=query{question(titleSlug:\"number-of-islands\"){questionFrontendId title content}}",
+          "title": "Number of Islands - LeetCode",
+          "publisher": "LeetCode",
+          "accessed": "2026-09-26",
+          "claim": "An island is land cells connected horizontally or vertically, and the grid is at most 300 × 300."
+        }
+      ]
+    },
+    {
+      "id": "w06-l02-q02",
+      "lesson": "w06-l02",
+      "concept": "w06-l02-graph-representation",
+      "type": "multiple_choice",
+      "prompt": "An undirected graph has edges `[[0, 1], [1, 2]]`. You build `graph = defaultdict(list)` and, for each edge `[a, b]`, run only `graph[a].append(b)`. Which nodes does a BFS from node 2 visit?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Only node 2"
+        },
+        {
+          "id": "b",
+          "text": "Nodes 2, 1 and 0"
+        },
+        {
+          "id": "c",
+          "text": "Nodes 2 and 1"
+        },
+        {
+          "id": "d",
+          "text": "None: it raises `KeyError`"
+        }
+      ],
+      "answer": "a",
+      "explanation": "The code only stores each edge one way, so `graph[0] == [1]`, `graph[1] == [2]` and `graph[2]` is an empty list (a `defaultdict` creates it rather than raising `KeyError`). BFS from 2 finds no neighbours. In an undirected graph each edge must be added in both directions: `graph[a].append(b)` and `graph[b].append(a)`.",
+      "materials": [
+        "neetcode-150-practice-list"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/library/collections.html#collections.defaultdict",
+          "title": "collections — Container datatypes — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "On a missing key a `defaultdict` calls `default_factory`, inserts the result for that key and returns it instead of raising `KeyError`."
+        }
+      ]
+    },
+    {
+      "id": "w06-l02-q03",
+      "lesson": "w06-l02",
+      "concept": "w06-l02-bfs-vs-dfs",
+      "type": "multiple_choice",
+      "prompt": "Why does a BFS in Python usually use `collections.deque` with `popleft()` rather than a list with `pop(0)`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A list can't hold tuples such as `(row, col)` as queue entries"
+        },
+        {
+          "id": "b",
+          "text": "`deque` visits the nodes level by level, while a list goes depth-first"
+        },
+        {
+          "id": "c",
+          "text": "`list.pop(0)` removes the last item, not the first one that BFS needs next"
+        },
+        {
+          "id": "d",
+          "text": "`pop(0)` is O(n), as it shifts the remaining items; `popleft()` is O(1)"
+        }
+      ],
+      "answer": "d",
+      "explanation": "Both give the same first-in, first-out order, so BFS visits the same nodes either way. The difference is cost: the Python docs say lists incur O(n) memory movement for `pop(0)`, while a deque pops from either end in about O(1). On a 300 × 300 grid that turns a linear BFS into a quadratic one.",
+      "materials": [
+        "python-docs-collections"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/library/collections.html#collections.defaultdict",
+          "title": "collections — Container datatypes — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "Deques append and pop from either end in about O(1), while lists incur O(n) memory movement for `pop(0)`."
+        },
+        {
+          "url": "https://docs.python.org/3/tutorial/datastructures.html",
+          "title": "5. Data Structures — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "A list works as a FIFO queue but is slow for it, because popping from the front shifts every other element."
+        }
+      ]
+    },
+    {
+      "id": "w06-l02-q04",
+      "lesson": "w06-l02",
+      "concept": "w06-l02-bfs-vs-dfs",
+      "type": "multiple_choice",
+      "prompt": "Number of Islands allows grids up to 300 × 300. What happens when a recursive DFS runs on a grid that is all land, in CPython with the default settings?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It works, but uses more memory than a BFS over the same grid would"
+        },
+        {
+          "id": "b",
+          "text": "It raises `RecursionError`: the depth can far exceed the default limit of 1,000"
+        },
+        {
+          "id": "c",
+          "text": "Python turns the recursive tail call into a loop, so the recursion depth doesn't matter"
+        },
+        {
+          "id": "d",
+          "text": "It counts the same island more than once as the recursion unwinds"
+        }
+      ],
+      "answer": "b",
+      "explanation": "One island of 90,000 cells can make the DFS recurse tens of thousands of calls deep, while CPython's recursion limit (`sys.getrecursionlimit()`) is 1,000 by default. Python does no tail-call elimination. Use BFS with a deque, or a DFS with an explicit stack, when the input can be large. Raising the limit with `sys.setrecursionlimit` risks crashing the interpreter.",
+      "materials": [
+        "neetcode-150-practice-list",
+        "python-docs-collections"
+      ],
+      "sources": [
+        {
+          "url": "https://leetcode.com/graphql?query=query{question(titleSlug:\"number-of-islands\"){questionFrontendId title content}}",
+          "title": "Number of Islands - LeetCode",
+          "publisher": "LeetCode",
+          "accessed": "2026-09-26",
+          "claim": "An island is land cells connected horizontally or vertically, and the grid is at most 300 × 300."
+        },
+        {
+          "url": "https://docs.python.org/3/library/sys.html",
+          "title": "sys — System-specific parameters and functions — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "The recursion limit caps the interpreter stack depth; exceeding it raises `RecursionError`, and setting it too high can crash Python."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/python/cpython/main/Include/internal/pycore_ceval.h",
+          "title": "cpython/Include/internal/pycore_ceval.h",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "CPython's default recursion limit, `Py_DEFAULT_RECURSION_LIMIT`, is 1000."
+        }
+      ]
+    },
+    {
+      "id": "w06-l02-q05",
+      "lesson": "w06-l02",
+      "concept": "w06-l02-bfs-vs-dfs",
+      "type": "written",
+      "prompt": "You solved Number of Islands with BFS and then with DFS. Compare the two versions, and say which one you would hand in for a 300 × 300 grid in Python, and why.",
+      "model_answer": {
+        "summary": "Both visit each cell once in O(m × n) time and give the same count; for large grids in Python, BFS with a deque (or an iterative DFS) is safer because recursive DFS can hit the recursion limit.",
+        "key_points": [
+          "Both scan the grid and start a traversal at each unvisited land cell, adding one to the count each time",
+          "BFS uses a queue (`collections.deque`) and spreads out level by level; DFS goes deep first, using recursion or an explicit stack",
+          "Each cell is processed once, so both are O(m × n) time, with up to O(m × n) extra space for the visited set, queue or stack",
+          "Recursive DFS can go as deep as the island is large, which exceeds CPython's default recursion limit of 1,000 on a big grid and raises `RecursionError`",
+          "So hand in BFS or an iterative DFS for large inputs; recursive DFS is fine when the grid is small"
+        ]
+      },
+      "explanation": "The count doesn't depend on the order you explore an island in, only on finding every connected land cell once. What differs is where the pending cells live: in a queue, in your own stack, or on Python's call stack. Only the last one has a small fixed limit.",
+      "materials": [
+        "neetcode-150-practice-list",
+        "python-docs-collections"
+      ],
+      "sources": [
+        {
+          "url": "https://leetcode.com/graphql?query=query{question(titleSlug:\"number-of-islands\"){questionFrontendId title content}}",
+          "title": "Number of Islands - LeetCode",
+          "publisher": "LeetCode",
+          "accessed": "2026-09-26",
+          "claim": "An island is land cells connected horizontally or vertically, and the grid is at most 300 × 300."
+        },
+        {
+          "url": "https://docs.python.org/3/library/collections.html#collections.defaultdict",
+          "title": "collections — Container datatypes — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "Deques append and pop from either end in about O(1), while lists incur O(n) memory movement for `pop(0)`."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/python/cpython/main/Include/internal/pycore_ceval.h",
+          "title": "cpython/Include/internal/pycore_ceval.h",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "CPython's default recursion limit, `Py_DEFAULT_RECURSION_LIMIT`, is 1000."
+        }
+      ]
+    },
+    {
+      "id": "w06-l02-q06",
+      "lesson": "w06-l02",
+      "concept": "w06-l02-visited-set",
+      "type": "multiple_choice",
+      "prompt": "In a grid BFS, when should you add a cell to the visited set?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "When you append it to the queue, so no cell is queued twice"
+        },
+        {
+          "id": "b",
+          "text": "When you pop it from the queue; it makes no difference to the work done"
+        },
+        {
+          "id": "c",
+          "text": "Never: on a grid, BFS can't revisit a cell"
+        },
+        {
+          "id": "d",
+          "text": "Only after the whole island has been explored"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Marking on append means each cell enters the queue once. If you mark only on pop, a cell can be appended by several neighbours before it is first popped, so the queue fills with duplicates and you need an extra check when popping. On a 2 × 2 all-land grid, marking on pop appends 5 entries for 4 cells. Grid moves go in all four directions, so revisits are possible.",
+      "materials": [
+        "python-docs-collections",
+        "neetcode-150-practice-list"
+      ],
+      "sources": [
+        {
+          "url": "https://leetcode.com/graphql?query=query{question(titleSlug:\"number-of-islands\"){questionFrontendId title content}}",
+          "title": "Number of Islands - LeetCode",
+          "publisher": "LeetCode",
+          "accessed": "2026-09-26",
+          "claim": "An island is land cells connected horizontally or vertically, and the grid is at most 300 × 300."
+        },
+        {
+          "url": "https://docs.python.org/3/library/collections.html#collections.defaultdict",
+          "title": "collections — Container datatypes — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "Deques append and pop from either end in about O(1), while lists incur O(n) memory movement for `pop(0)`."
+        }
+      ]
+    },
+    {
+      "id": "w06-l02-q07",
+      "lesson": "w06-l02",
+      "concept": "w06-l02-visited-set",
+      "type": "multiple_choice",
+      "prompt": "A recursive DFS on an undirected graph with the edge 0–1 doesn't keep a visited set. What happens when it starts at node 0?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It visits each node exactly twice, once per direction of the edge"
+        },
+        {
+          "id": "b",
+          "text": "It works, because an adjacency list lists each neighbour only once"
+        },
+        {
+          "id": "c",
+          "text": "It goes 0, 1, 0, 1, ... until it raises `RecursionError`"
+        },
+        {
+          "id": "d",
+          "text": "It visits node 0 only"
+        }
+      ],
+      "answer": "c",
+      "explanation": "In an undirected graph, 1 is a neighbour of 0 and 0 is a neighbour of 1. Without a record of visited nodes, the DFS goes from 0 to 1, back to 0, and so on until Python's recursion limit stops it. Any cycle, including the back-and-forth of one undirected edge, needs a visited check.",
+      "materials": [
+        "neetcode-150-practice-list"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/library/sys.html",
+          "title": "sys — System-specific parameters and functions — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "The recursion limit caps the interpreter stack depth; exceeding it raises `RecursionError`, and setting it too high can crash Python."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/python/cpython/main/Include/internal/pycore_ceval.h",
+          "title": "cpython/Include/internal/pycore_ceval.h",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "CPython's default recursion limit, `Py_DEFAULT_RECURSION_LIMIT`, is 1000."
+        }
+      ]
+    },
+    {
+      "id": "w06-l02-q08",
+      "lesson": "w06-l02",
+      "concept": "w06-l02-visited-set",
+      "type": "written",
+      "prompt": "Why does a traversal of a graph need a visited set when a traversal of a tree doesn't? For Max Area of Island, compare a separate `visited` set with overwriting land cells as you go.",
+      "model_answer": {
+        "summary": "A graph can reach the same node by several paths or around a cycle, so without a visited record the traversal repeats work or never ends; on a grid you can use a set or overwrite visited land cells, which saves memory but changes the input.",
+        "key_points": [
+          "A tree has exactly one path to each node, so a traversal can't reach a node twice",
+          "A graph can have cycles and several paths to a node, so an unmarked traversal counts cells twice or loops forever",
+          "Mark a node as visited before exploring from it (when you push or enqueue it)",
+          "A separate `visited` set leaves the grid unchanged but uses up to O(m × n) extra memory",
+          "Overwriting `1` with `0` as you visit needs no extra memory but destroys the input, so say so or copy the grid first"
+        ]
+      },
+      "explanation": "In Max Area of Island a cell counted twice makes the area wrong, and an edge walked back and forth makes the recursion endless. The visited mark is what makes 'count the cells in this island' well defined. Mutating the input is a fair trade in an interview if you say you are doing it.",
+      "materials": [
+        "neetcode-150-practice-list"
+      ],
+      "sources": [
+        {
+          "url": "https://leetcode.com/graphql?query=query{question(titleSlug:\"max-area-of-island\"){questionFrontendId title content}}",
+          "title": "Max Area of Island - LeetCode",
+          "publisher": "LeetCode",
+          "accessed": "2026-09-26",
+          "claim": "An island is 1s connected 4-directionally, its area is its number of cells, and the answer is the largest area or 0."
+        }
+      ]
+    },
+    {
+      "id": "w06-l02-q09",
+      "lesson": "w06-l02",
+      "concept": "w06-l02-clone-graph-map",
+      "type": "multiple_choice",
+      "prompt": "Clone Graph: why does the usual solution keep a dict from each original node to its copy?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "To sort the copies by `val` so the clone comes back in order"
+        },
+        {
+          "id": "b",
+          "text": "Because two nodes can have the same `val` and need telling apart"
+        },
+        {
+          "id": "c",
+          "text": "Because calling `copy.copy(node)` on each node would be too slow"
+        },
+        {
+          "id": "d",
+          "text": "It's the visited set, and it lets later edges reuse the existing copy"
+        }
+      ],
+      "answer": "d",
+      "explanation": "The graph can have cycles, and many nodes can point to the same neighbour. The dict records which nodes already have a copy, so the traversal doesn't loop, and every edge to a node is wired to that one copy instead of a fresh duplicate. Values are unique in this problem, and `copy.copy` would be wrong anyway: a shallow copy shares the original `neighbors` list.",
+      "materials": [
+        "neetcode-150-practice-list"
+      ],
+      "sources": [
+        {
+          "url": "https://leetcode.com/graphql?query=query{question(titleSlug:\"clone-graph\"){questionFrontendId title content}}",
+          "title": "Clone Graph - LeetCode",
+          "publisher": "LeetCode",
+          "accessed": "2026-09-26",
+          "claim": "Return a deep copy of a connected undirected graph of 0 to 100 nodes with unique values 1 to 100, each node holding `val` and a `neighbors` list; an empty input is `[]`."
+        },
+        {
+          "url": "https://docs.python.org/3/library/copy.html",
+          "title": "copy — Shallow and deep copy operations — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "A shallow copy inserts references to the objects in the original, while `deepcopy` keeps a memo dict of objects already copied so recursive structures don't loop."
+        }
+      ]
+    },
+    {
+      "id": "w06-l02-q10",
+      "lesson": "w06-l02",
+      "concept": "w06-l02-clone-graph-map",
+      "type": "multiple_choice",
+      "prompt": "This DFS clone runs on two nodes that are each other's neighbour. What happens?\n\n```python\ndef clone(node, old_to_new):\n    if node in old_to_new:\n        return old_to_new[node]\n    copy = Node(node.val)\n    for nb in node.neighbors:\n        copy.neighbors.append(clone(nb, old_to_new))\n    old_to_new[node] = copy\n    return copy\n```",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It returns a correct deep copy of the two nodes and their edge"
+        },
+        {
+          "id": "b",
+          "text": "`RecursionError`, because a node joins the map only after its neighbours"
+        },
+        {
+          "id": "c",
+          "text": "It returns a copy whose neighbours are still the original nodes"
+        },
+        {
+          "id": "d",
+          "text": "It returns a copy of node 1 with an empty `neighbors` list"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Node 1 isn't in the map yet when the code recurses into node 2, and node 2 recurses back into node 1, which still isn't in the map, and so on. Store the copy in `old_to_new` right after creating it and before looping over the neighbours; then the recursive call for node 1 finds its copy and the cycle closes.",
+      "materials": [
+        "neetcode-150-practice-list"
+      ],
+      "sources": [
+        {
+          "url": "https://leetcode.com/graphql?query=query{question(titleSlug:\"clone-graph\"){questionFrontendId title content}}",
+          "title": "Clone Graph - LeetCode",
+          "publisher": "LeetCode",
+          "accessed": "2026-09-26",
+          "claim": "Return a deep copy of a connected undirected graph of 0 to 100 nodes with unique values 1 to 100, each node holding `val` and a `neighbors` list; an empty input is `[]`."
+        },
+        {
+          "url": "https://docs.python.org/3/library/sys.html",
+          "title": "sys — System-specific parameters and functions — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "The recursion limit caps the interpreter stack depth; exceeding it raises `RecursionError`, and setting it too high can crash Python."
+        }
+      ]
+    },
+    {
+      "id": "w06-l02-q11",
+      "lesson": "w06-l02",
+      "concept": "w06-l02-clone-graph-map",
+      "type": "written",
+      "prompt": "Describe a correct Clone Graph solution, with BFS or DFS, and give its time and space complexity.",
+      "model_answer": {
+        "summary": "Traverse the graph once, creating each node's copy the first time you see it and storing it in an old-to-new map before exploring further, then wire each copy's neighbours to the neighbours' copies. It runs in O(V + E) time with O(V) extra space.",
+        "key_points": [
+          "An empty input (`None`) returns `None`",
+          "Keep a dict from each original node to its copy; it doubles as the visited set",
+          "Create a copy and put it in the map when a node is first seen, before visiting its neighbours",
+          "For each neighbour, create its copy if it has none yet, then append that copy to the current copy's `neighbors`",
+          "Return the copy of the start node; each node and each edge is handled once, so O(V + E) time and O(V) space for the map"
+        ]
+      },
+      "explanation": "The map solves both problems a deep copy of a graph has: cycles, which would make the traversal endless, and shared neighbours, which must end up pointing at one copy. Filling the map before exploring is what makes cycles safe.",
+      "materials": [
+        "neetcode-150-practice-list"
+      ],
+      "sources": [
+        {
+          "url": "https://leetcode.com/graphql?query=query{question(titleSlug:\"clone-graph\"){questionFrontendId title content}}",
+          "title": "Clone Graph - LeetCode",
+          "publisher": "LeetCode",
+          "accessed": "2026-09-26",
+          "claim": "Return a deep copy of a connected undirected graph of 0 to 100 nodes with unique values 1 to 100, each node holding `val` and a `neighbors` list; an empty input is `[]`."
+        },
+        {
+          "url": "https://docs.python.org/3/library/copy.html",
+          "title": "copy — Shallow and deep copy operations — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "`deepcopy` handles recursive objects by keeping a memo dictionary of objects already copied during the pass."
+        }
+      ]
+    }
+  ]
+}

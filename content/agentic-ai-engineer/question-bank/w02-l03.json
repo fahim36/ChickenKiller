@@ -1,0 +1,476 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "w02-l03-coroutines-tasks-futures",
+      "name": "Coroutines vs tasks vs futures"
+    },
+    {
+      "id": "w02-l03-await-yields-to-loop",
+      "name": "`await` hands control back to the event loop"
+    },
+    {
+      "id": "w02-l03-gather-and-create-task",
+      "name": "`asyncio.gather` and `asyncio.create_task`"
+    },
+    {
+      "id": "w02-l03-blocking-calls",
+      "name": "Blocking calls and `asyncio.to_thread`"
+    },
+    {
+      "id": "w02-l03-async-with-and-for",
+      "name": "`async with` and `async for`"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w02-l03-q01",
+      "lesson": "w02-l03",
+      "concept": "w02-l03-coroutines-tasks-futures",
+      "type": "multiple_choice",
+      "prompt": "Inside an `async def`, you write `fetch()` for the coroutine function `async def fetch(): ...`, without `await` and without passing the result anywhere. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`fetch` runs to completion before the next line runs"
+        },
+        {
+          "id": "b",
+          "text": "Nothing runs: it returns a coroutine object that is never awaited"
+        },
+        {
+          "id": "c",
+          "text": "`fetch` is scheduled on the event loop and runs in the background"
+        },
+        {
+          "id": "d",
+          "text": "It raises `SyntaxError` because the `await` is missing"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Calling a coroutine function only creates a coroutine object; the docs note that simply calling a coroutine will not schedule it. It runs only when awaited, wrapped in a Task with `asyncio.create_task`, or run with `asyncio.run`. When the unawaited coroutine is thrown away, asyncio emits `RuntimeWarning: coroutine 'fetch' was never awaited`.",
+      "materials": [
+        "python-docs-coroutines-and-tasks",
+        "python-docs-developing-with-asyncio"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/library/asyncio-task.html",
+          "title": "Coroutines and tasks — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "Simply calling a coroutine does not schedule it to run; it must be awaited, wrapped in a Task or run with asyncio.run()."
+        },
+        {
+          "url": "https://docs.python.org/3/library/asyncio-dev.html",
+          "title": "Developing with asyncio — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "When a coroutine is called but never awaited, asyncio emits RuntimeWarning: coroutine '...' was never awaited."
+        }
+      ]
+    },
+    {
+      "id": "w02-l03-q02",
+      "lesson": "w02-l03",
+      "concept": "w02-l03-coroutines-tasks-futures",
+      "type": "multiple_choice",
+      "prompt": "Which statement about asyncio's three kinds of awaitable is correct?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A Task is a separate OS thread that runs one coroutine"
+        },
+        {
+          "id": "b",
+          "text": "A Future is the object you get when you call an `async def` function"
+        },
+        {
+          "id": "c",
+          "text": "A coroutine starts running as soon as it is created, like a Task"
+        },
+        {
+          "id": "d",
+          "text": "A Task wraps a coroutine and schedules it to run on the event loop soon"
+        }
+      ],
+      "answer": "d",
+      "explanation": "A coroutine is what an `async def` function returns, and it does nothing until awaited. `asyncio.create_task` wraps it in a Task, which the event loop schedules to run soon, concurrently with other tasks on the same thread. A Future is a low-level awaitable representing an eventual result; application code rarely needs to create one.",
+      "materials": [
+        "python-docs-coroutines-and-tasks"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/library/asyncio-task.html",
+          "title": "Coroutines and tasks — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "The three awaitables are coroutines, Tasks (which wrap a coroutine via create_task and schedule it to run soon) and Futures (low-level objects representing an eventual result)."
+        }
+      ]
+    },
+    {
+      "id": "w02-l03-q03",
+      "lesson": "w02-l03",
+      "concept": "w02-l03-await-yields-to-loop",
+      "type": "multiple_choice",
+      "prompt": "`worker(name)` prints `start`, runs `await asyncio.sleep(1)`, then prints `end`. `main` runs `await worker(\"A\")` and then `await worker(\"B\")`. About how long does `asyncio.run(main())` take, and in what order are the lines printed?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "About 2 s: A start, A end, B start, B end"
+        },
+        {
+          "id": "b",
+          "text": "About 1 s: A start, B start, A end, B end"
+        },
+        {
+          "id": "c",
+          "text": "About 1 s: A start, A end, B start, B end"
+        },
+        {
+          "id": "d",
+          "text": "About 2 s: A start, B start, A end, B end"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Awaiting a coroutine directly runs it to completion before `main` moves to its next line. `await` lets the event loop run *other* tasks, but here there are none, so the sleeps happen one after another. To overlap them, run both as tasks: `await asyncio.gather(worker(\"A\"), worker(\"B\"))` takes about 1 s and prints both starts first.",
+      "materials": [
+        "python-docs-coroutines-and-tasks",
+        "real-python-async-io-in-python"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/library/asyncio-task.html",
+          "title": "Coroutines and tasks — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "The docs' example shows that awaiting two say_after coroutines one after the other takes the sum of their delays, while wrapping them in Tasks lets them overlap."
+        }
+      ]
+    },
+    {
+      "id": "w02-l03-q04",
+      "lesson": "w02-l03",
+      "concept": "w02-l03-await-yields-to-loop",
+      "type": "written",
+      "prompt": "Explain, step by step, what happens when a task reaches `await asyncio.sleep(1)` while nine other tasks are waiting for HTTP responses.",
+      "model_answer": {
+        "summary": "The task suspends and hands control back to the event loop, which runs whichever other tasks are ready; about a second later the loop resumes the sleeping task at the line after the `await`.",
+        "key_points": [
+          "The `await` suspends the current task at that point and returns control to the event loop",
+          "The event loop, on a single thread, runs other tasks that are ready, such as those whose HTTP responses have arrived",
+          "When the sleep finishes, the loop resumes the task where it left off",
+          "This is cooperative multitasking: a task gives up control only at an `await` that suspends, so code between awaits runs without interruption"
+        ]
+      },
+      "explanation": "asyncio gets its concurrency from one thread switching between tasks at `await` points, not from parallel threads. Waiting on a timer or on I/O costs nothing while other tasks run, which is why ten LLM calls can overlap. The same rule explains the danger: a task that never awaits never lets the others run.",
+      "materials": [
+        "python-docs-coroutines-and-tasks",
+        "real-python-async-io-in-python"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/library/asyncio-dev.html",
+          "title": "Developing with asyncio — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "An event loop runs all Tasks in one thread; while one Task runs no other can, and when a Task executes an await it is suspended and the loop runs the next Task."
+        },
+        {
+          "url": "https://docs.python.org/3/library/asyncio-task.html",
+          "title": "Coroutines and tasks — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "Tasks schedule coroutines to run concurrently on the event loop, and asyncio.sleep suspends the current task, letting others run."
+        }
+      ]
+    },
+    {
+      "id": "w02-l03-q05",
+      "lesson": "w02-l03",
+      "concept": "w02-l03-gather-and-create-task",
+      "type": "multiple_choice",
+      "prompt": "`slow()` sleeps 3 s and returns `\"slow\"`; `fast()` sleeps 1 s and returns `\"fast\"`. What does `await asyncio.gather(slow(), fast())` return, and after about how long?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`[\"fast\", \"slow\"]` after about 3 s: results come in finishing order"
+        },
+        {
+          "id": "b",
+          "text": "`[\"slow\", \"fast\"]` after about 4 s: the coroutines run one after another"
+        },
+        {
+          "id": "c",
+          "text": "`[\"slow\", \"fast\"]` after about 3 s: results follow the argument order"
+        },
+        {
+          "id": "d",
+          "text": "`\"fast\"` after about 1 s: `gather` returns the first result"
+        }
+      ],
+      "answer": "c",
+      "explanation": "`gather` wraps each coroutine in a Task, so they run concurrently, waits for all of them, and returns the results in the order the awaitables were passed, not the order they finished. The total time is about that of the slowest one. When you want each result as soon as it's ready, use `asyncio.as_completed` instead.",
+      "materials": [
+        "python-docs-coroutines-and-tasks"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/library/asyncio-task.html",
+          "title": "Coroutines and tasks — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "gather runs awaitables concurrently, scheduling coroutines as Tasks, and returns results in the order the awaitables were passed; as_completed yields results as they finish."
+        }
+      ]
+    },
+    {
+      "id": "w02-l03-q06",
+      "lesson": "w02-l03",
+      "concept": "w02-l03-gather-and-create-task",
+      "type": "multiple_choice",
+      "prompt": "`await asyncio.gather(a(), b(), c())` with the default `return_exceptions=False`. `a()` raises `ValueError` while `b()` and `c()` are still running. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`gather` cancels `b()` and `c()`, then raises the `ValueError`"
+        },
+        {
+          "id": "b",
+          "text": "The `ValueError` propagates at once, and `b()` and `c()` keep running"
+        },
+        {
+          "id": "c",
+          "text": "`gather` waits for all three, then returns the `ValueError` in the list"
+        },
+        {
+          "id": "d",
+          "text": "`gather` waits for all three, then raises an `ExceptionGroup`"
+        }
+      ],
+      "answer": "b",
+      "explanation": "With `return_exceptions=False`, the first exception is propagated straight away to whoever awaits `gather`, and the docs say the other awaitables won't be cancelled and will continue to run. `return_exceptions=True` puts exceptions in the results list instead (choice c). Cancelling the rest and raising an `ExceptionGroup` is what `asyncio.TaskGroup` does (Python 3.11+).",
+      "materials": [
+        "python-docs-coroutines-and-tasks"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/library/asyncio-task.html",
+          "title": "Coroutines and tasks — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "With return_exceptions=False, gather propagates the first exception immediately to the awaiting task, and the other awaitables are not cancelled and keep running."
+        }
+      ]
+    },
+    {
+      "id": "w02-l03-q07",
+      "lesson": "w02-l03",
+      "concept": "w02-l03-gather-and-create-task",
+      "type": "written",
+      "prompt": "The exercise: call your LLM ten times in sequence, then with `asyncio.gather`. If each call takes about 2 s, what timings do you expect, why, and what could keep the `gather` run from being that fast?",
+      "model_answer": {
+        "summary": "In sequence about 20 s, because each `await` finishes before the next call starts; with `gather` about 2 s plus overhead, because the ten requests wait on the network at the same time.",
+        "key_points": [
+          "In sequence, each `await` waits for one call to finish before the next starts, so the total is about the sum, roughly 20 s",
+          "`gather` runs the ten calls as concurrent tasks, so the total is about the slowest call, roughly 2 s",
+          "The speed-up needs an async client: a blocking client such as `requests` would make the calls run one after another again",
+          "Sending many requests at once can hit the provider's rate limits, which is why real code caps concurrency, for example with `asyncio.Semaphore`"
+        ]
+      },
+      "explanation": "The calls spend nearly all their time waiting on the network, and waiting overlaps perfectly on one event loop. The limit is no longer your code but what the other side allows, so concurrency in agent backends almost always comes with a cap.",
+      "materials": [
+        "python-docs-coroutines-and-tasks",
+        "real-python-async-io-in-python"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/library/asyncio-task.html",
+          "title": "Coroutines and tasks — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "Awaiting coroutines in sequence takes the sum of their durations, while gather runs them concurrently as Tasks."
+        },
+        {
+          "url": "https://docs.python.org/3/library/asyncio-dev.html",
+          "title": "Developing with asyncio — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "Blocking code called directly on the event loop delays all concurrent Tasks and I/O for its duration, so a blocking client removes the concurrency."
+        }
+      ]
+    },
+    {
+      "id": "w02-l03-q08",
+      "lesson": "w02-l03",
+      "concept": "w02-l03-blocking-calls",
+      "type": "multiple_choice",
+      "prompt": "Ten tasks are gathered, and each calls `requests.get(url)`, which takes about 1 s. About how long does the `gather` take, and what is the fix?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "About 10 s: `requests` blocks the loop; use an async client or `asyncio.to_thread`"
+        },
+        {
+          "id": "b",
+          "text": "About 1 s: `gather` runs each task on its own thread automatically"
+        },
+        {
+          "id": "c",
+          "text": "About 1 s, but only if you put `await` in front of `requests.get(url)`"
+        },
+        {
+          "id": "d",
+          "text": "About 10 s: `gather` always runs tasks in order; use `create_task` instead"
+        }
+      ],
+      "answer": "a",
+      "explanation": "The event loop runs on one thread, and a blocking call such as `requests.get` or `time.sleep` holds that thread until it returns, so no other task runs meanwhile; the docs' example is a 1-second blocking call delaying every task by 1 second. Use an async client such as `httpx.AsyncClient`, or move the call to a worker thread with `await asyncio.to_thread(requests.get, url)` (Python 3.9+). Putting `await` in front doesn't help: `requests.get` still blocks, then returns a `Response`, which isn't awaitable.",
+      "materials": [
+        "python-docs-developing-with-asyncio",
+        "python-docs-coroutines-and-tasks"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/library/asyncio-dev.html",
+          "title": "Developing with asyncio — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "A function that blocks for 1 second delays all concurrent asyncio Tasks and I/O operations by 1 second, because the loop runs all Tasks in one thread."
+        },
+        {
+          "url": "https://docs.python.org/3/library/asyncio-task.html",
+          "title": "Coroutines and tasks — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "asyncio.to_thread runs a function in a separate thread and is intended for I/O-bound functions that would otherwise block the event loop."
+        }
+      ]
+    },
+    {
+      "id": "w02-l03-q09",
+      "lesson": "w02-l03",
+      "concept": "w02-l03-blocking-calls",
+      "type": "written",
+      "prompt": "Why does one blocking call freeze an asyncio program, and when would you reach for `asyncio.to_thread` rather than an async library?",
+      "model_answer": {
+        "summary": "All tasks share one event-loop thread, so a call that blocks that thread stops every task; `asyncio.to_thread` moves a blocking I/O call to a worker thread when no async version of the library exists.",
+        "key_points": [
+          "The event loop runs every task on one thread and can switch tasks only at an `await`",
+          "A blocking call such as `time.sleep` or `requests.get` holds that thread, so no other task or I/O callback runs until it returns",
+          "The best fix is an async library (`asyncio.sleep`, `httpx.AsyncClient`) that awaits instead of blocking",
+          "`await asyncio.to_thread(func, *args)` runs a blocking function in a separate thread, which suits I/O-bound code that has no async version",
+          "Because of the GIL, `to_thread` generally doesn't speed up CPU-bound pure-Python code"
+        ]
+      },
+      "explanation": "Concurrency in asyncio depends on every task yielding at `await`s. A blocking call never yields, so it stalls the whole program for its duration. `to_thread` is the escape hatch for I/O libraries you can't replace; for heavy CPU work, the docs point to an executor, which can run it in another thread or even another process.",
+      "materials": [
+        "python-docs-developing-with-asyncio",
+        "python-docs-coroutines-and-tasks"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/library/asyncio-dev.html",
+          "title": "Developing with asyncio — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "The event loop runs all Tasks in one thread, blocking code delays every Task, and the docs recommend running such code in an executor."
+        },
+        {
+          "url": "https://docs.python.org/3/library/asyncio-task.html",
+          "title": "Coroutines and tasks — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "asyncio.to_thread runs a blocking function in a separate thread; because of the GIL it can typically only make I/O-bound functions non-blocking."
+        }
+      ]
+    },
+    {
+      "id": "w02-l03-q10",
+      "lesson": "w02-l03",
+      "concept": "w02-l03-async-with-and-for",
+      "type": "multiple_choice",
+      "prompt": "What happens when `async with httpx.AsyncClient() as client:` is written inside a regular `def` function?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It runs, but the client's connections are closed synchronously"
+        },
+        {
+          "id": "b",
+          "text": "It raises `RuntimeError` when the function is called outside a loop"
+        },
+        {
+          "id": "c",
+          "text": "It works as long as an event loop is already running in the thread"
+        },
+        {
+          "id": "d",
+          "text": "It's a `SyntaxError`: `async with` is only allowed inside `async def`"
+        }
+      ],
+      "answer": "d",
+      "explanation": "`async with` and `async for` are coroutine syntax: the language reference says using either outside the body of a coroutine function is a `SyntaxError`, so the module fails to compile before anything runs. Move the code into an `async def` and run it with `asyncio.run` or await it from another coroutine.",
+      "materials": [
+        "python-docs-compound-statements"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/reference/compound_stmts.html",
+          "title": "8. Compound statements — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "It is a SyntaxError to use an async with (or async for) statement outside the body of a coroutine function."
+        }
+      ]
+    },
+    {
+      "id": "w02-l03-q11",
+      "lesson": "w02-l03",
+      "concept": "w02-l03-async-with-and-for",
+      "type": "multiple_choice",
+      "prompt": "What does `async for chunk in response.aiter_bytes():` do that a plain `for` loop can't?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It processes the chunks in parallel, on several threads"
+        },
+        {
+          "id": "b",
+          "text": "It awaits `__anext__()` for each item, so the task can suspend while data arrives"
+        },
+        {
+          "id": "c",
+          "text": "It reads every chunk into memory first, then iterates over them"
+        },
+        {
+          "id": "d",
+          "text": "It runs the loop body as a separate Task for each chunk"
+        }
+      ],
+      "answer": "b",
+      "explanation": "`async for` calls `__aiter__()` once, then awaits `__anext__()` for each item until `StopAsyncIteration`. Each of those awaits is a point where the task can suspend while the next chunk comes over the network, letting other tasks run. `async with` works the same way for setup and teardown: it awaits `__aenter__` and `__aexit__`, so opening and closing a client can do I/O.",
+      "materials": [
+        "python-docs-compound-statements",
+        "httpx-async-client"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/reference/compound_stmts.html",
+          "title": "8. Compound statements — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "async for calls __aiter__() once and then awaits __anext__() for each item until StopAsyncIteration, and async with awaits __aenter__ and __aexit__."
+        },
+        {
+          "url": "https://www.python-httpx.org/async/",
+          "title": "Async Support - HTTPX",
+          "publisher": "Encode (HTTPX project)",
+          "accessed": "2026-09-26",
+          "claim": "HTTPX streams a response asynchronously with async for chunk in response.aiter_bytes()."
+        }
+      ]
+    }
+  ]
+}

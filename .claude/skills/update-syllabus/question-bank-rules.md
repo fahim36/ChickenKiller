@@ -1,8 +1,8 @@
 # Question Bank rules
 
-How to write one Lesson's Question Bank, `content/<stack>/<version>/questions/<lesson-id>.json`. Every agent that writes a bank follows these rules, whether it runs `/update-syllabus` itself or is one of its sub-agents.
+How to write one Lesson's Questions, in the Stack's Question Bank: `content/<stack>/question-bank/<lesson-id>.json` (the bank is the Stack's, not a version's; files only group Questions, and each Question names its Lesson in `lesson`). Every agent that writes a bank follows these rules, whether it runs `/update-syllabus` itself or is one of its sub-agents.
 
-The format is `content/schema/question-bank.schema.json`; the terms (Concept, Explanation, Model Answer, Retake, Lesson Quiz) are in `CONTEXT.md`. Write JSON with 2-space indent, UTF-8, and a final newline. Match the tone of the existing banks, such as `content/agentic-ai-engineer/v2026-09-26/questions/w01-l01.json`: plain English, short sentences, code in backticks.
+The format is `content/schema/question-bank.schema.json`; the terms (Concept, Explanation, Model Answer, Retake, Lesson Quiz) are in `CONTEXT.md`. Write JSON with 2-space indent, UTF-8, and a final newline. Match the tone of the existing banks, such as `content/agentic-ai-engineer/question-bank/w01-l01.json`: plain English, short sentences, code in backticks.
 
 ## What a bank covers
 
@@ -21,7 +21,9 @@ The Lesson's `topics` and `exercise` in `syllabus.json`, and nothing beyond them
 - **Multiple choice**: 4 choices, `a` to `d`, exactly one correct. Wrong choices are plausible: each is a real misconception, and about as long as the right one. Spread the correct letter across the bank. No "all of the above" or "none of the above".
 - **Written**: asks the Learner to explain, compare or decide. The Model Answer has a one- or two-sentence `summary` and 2–5 `key_points`. Each key point is one claim a grader can find, or not find, in an answer.
 - **Explanation**: why the correct answer is correct and why the tempting wrong answer is wrong. It stands alone: the Learner reads it right after missing the Question.
-- **Materials**: 1–3 Material IDs from `syllabus.json`, pointing at the pages where the answer can be checked. Prefer the official docs page for the exact feature.
+- **Materials**: 1–3 Material IDs from the newest version's `syllabus.json`, pointing at the pages where the answer can be checked. Prefer the official docs page for the exact feature.
+- **Lesson**: `lesson` is the Lesson's ID.
+- **Sources**: at least one `{url, title, publisher, accessed, claim}` for every Question: the primary source fetched in this run, the UTC date you fetched it (`YYYY-MM-DD`), and the claim the Question relies on. The content check refuses a new Question whose Sources weren't accessed today or yesterday (UTC).
 
 ## Accuracy
 
@@ -33,7 +35,7 @@ The Lesson's `topics` and `exercise` in `syllabus.json`, and nothing beyond them
 
 - **Questions**: `<lesson-id>-q01`, `-q02`, ... in file order.
 - **Concepts**: `<lesson-id>-<short-slug>`, such as `w02-l01-protocol-structural-typing`. The Lesson prefix keeps Concept IDs unique when several agents write banks at once.
-- **Revising an existing bank**: a Question or Concept you reword, correct or improve keeps its ID. A Question replaced by one that tests something else is removed, and the new one gets a new ID.
+- **Revising an existing bank**: a committed Question is never edited or deleted (ADR-0004). To fix or replace one, retire it (`retired: {reason, replaced_by}`) and add a new Question with a new ID. A Concept's `name` may be reworded.
 - **A new ID is never one used before**: number new Questions after the highest number this Lesson has used in any version (`grep -rh '"<lesson-id>-q' content/<stack>/`).
 
 ## New Materials
@@ -47,4 +49,4 @@ Check first whether the Syllabus already has a Material with that URL, and reuse
 
 ## Done when
 
-`uv run --project api content-check content/<stack>/<version>` reports no error in this bank's file. An error that names a Material you proposed but haven't added to `syllabus.json` yet is the one exception: the Syllabus Update adds it.
+`uv run --project api content-check content/<stack>` reports no error in this bank's file. An error that names a Material you proposed but haven't added to `syllabus.json` yet is the one exception: the Syllabus Update adds it.

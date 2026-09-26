@@ -125,9 +125,21 @@ export interface LessonQuiz {
  */
 export type QuizAnswers = Record<string, string | null>;
 
+/** Where a Question's content came from, for checking it. */
+export interface Source {
+  url: string;
+  title: string;
+  publisher: string;
+  /** When it was read, as YYYY-MM-DD. */
+  accessed: string;
+  /** The claim the Question relies on. */
+  claim: string;
+}
+
 /**
  * A Question after the Learner answered it: their response, the correct answer or Model
- * Answer, the Explanation and the Materials. Only sent once the answer is submitted.
+ * Answer, the Explanation, the Materials and the Sources. Only sent once the answer is
+ * submitted.
  */
 export interface AnsweredQuestion {
   id: string;
@@ -144,6 +156,8 @@ export interface AnsweredQuestion {
   model_answer: { summary: string; key_points: string[] } | null;
   explanation: string;
   materials: Material[];
+  /** Every Source, in order: shown after the Explanation. */
+  sources: Source[];
 }
 
 /** A pending Retake: a sibling Question on the Missed Question's Concept. */

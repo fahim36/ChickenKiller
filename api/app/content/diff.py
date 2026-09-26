@@ -7,15 +7,16 @@ An item is matched across versions by its permanent ID alone; the `version` stri
 a change. So a new version that was copied and left alone has an empty diff.
 
 - A **Lesson** is changed when its own fields change (title, topics, exercise, minutes,
-  materials), when it moves to another Week, or when anything in its Question Bank changes
-  (reported as the field `question_bank`). Its place within the Week is not a change.
+  materials), or when it moves to another Week. Its place within the Week is not a change.
 - A **Week** is changed when its own fields change, or its list of Lessons or Milestones does.
-- **Concepts** and **Questions** are listed too, so a Lesson's change can be traced to them.
+- Only the Syllabus is compared. The Question Bank is the Stack's, not a version's (ADR-0004), so
+  Concepts and Questions never appear here: the content check holds the bank to git instead, and
+  each Question carries its own Sources and retirement reason.
 
 The Syllabus Update writes its changelog from this list, and the content check holds the changelog
 to it (`app.content.check`). The importer stores each Lesson's `lesson_fingerprints`, so the app
-can tell a Learner's Completed Lesson changed since the version they completed it in, by the same
-rule (#13).
+can tell a Learner's Completed Lesson changed since the version they completed it in (#13): the
+same fields, plus the Questions tagged to the Lesson when the version was imported.
 """
 
 import argparse
@@ -62,9 +63,8 @@ class Item:
 
 
 def content_items(folder: ContentFolder) -> dict[str, Item]:
-    """Every item with a permanent ID, in the order the files list them."""
+    """Every item of the Syllabus with a permanent ID, in the order the file lists them."""
     s = folder.syllabus
-    banks = {bank.lesson_id: bank for bank in folder.banks.values()}
     items: dict[str, Item] = {
         s.stack.id: Item(ItemKind.STACK, s.stack.model_dump(mode="json", exclude={"id"}))
     }
@@ -76,10 +76,6 @@ def content_items(folder: ContentFolder) -> dict[str, Item]:
         for lesson in week.lessons:
             fields = lesson.model_dump(mode="json", exclude={"id"})
             fields["week"] = week.id
-            bank = banks.get(lesson.id)
-            fields["question_bank"] = (
-                None if bank is None else bank.model_dump(mode="json", exclude={"lesson_id"})
-            )
             items[lesson.id] = Item(ItemKind.LESSON, fields)
         for milestone in week.milestones:
             fields = milestone.model_dump(mode="json", exclude={"id"})
@@ -89,24 +85,32 @@ def content_items(folder: ContentFolder) -> dict[str, Item]:
         items[material.id] = Item(
             ItemKind.MATERIAL, material.model_dump(mode="json", exclude={"id"})
         )
-    for bank in folder.banks.values():
-        for concept in bank.concepts:
-            fields = concept.model_dump(mode="json", exclude={"id"})
-            fields["lesson"] = bank.lesson_id
-            items[concept.id] = Item(ItemKind.CONCEPT, fields)
-        for question in bank.questions:
-            fields = question.model_dump(mode="json", exclude={"id"})
-            fields["lesson"] = bank.lesson_id
-            items[question.id] = Item(ItemKind.QUESTION, fields)
     return items
 
 
+def lesson_questions(folder: ContentFolder) -> dict[str, list[str]]:
+    """The Questions (permanent IDs, bank order) tagged to each Lesson of the version, leaving
+    out Retired Questions. Every Lesson is listed, with none if it has none."""
+    tagged: dict[str, list[str]] = {lesson.id: [] for lesson in folder.lessons()}
+    for question in folder.bank.live_questions():
+        if question.lesson in tagged:
+            tagged[question.lesson].append(question.id)
+    return tagged
+
+
 def lesson_fingerprints(folder: ContentFolder) -> dict[str, str]:
-    """A hash of each Lesson's content as `diff_contents` compares it, by permanent ID: two
-    versions' fingerprints of a Lesson are equal exactly when the diff wouldn't list it as
-    changed."""
+    """A hash of each Lesson's content, by permanent ID: its fields as `diff_contents` compares
+    them, plus the Questions tagged to it now (`lesson_questions`). The importer stores it with
+    each version, so two versions' fingerprints of a Lesson are equal exactly when the diff
+    wouldn't list it as changed and the version brought it no Question added, retired or
+    re-tagged."""
+    questions = lesson_questions(folder)
     return {
-        item_id: hashlib.sha256(json.dumps(item.fields, sort_keys=True).encode()).hexdigest()
+        item_id: hashlib.sha256(
+            json.dumps(
+                {**item.fields, "questions": sorted(questions[item_id])}, sort_keys=True
+            ).encode()
+        ).hexdigest()
         for item_id, item in content_items(folder).items()
         if item.kind == ItemKind.LESSON
     }

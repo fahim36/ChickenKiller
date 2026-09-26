@@ -21,6 +21,7 @@ const wrong: AnsweredQuestion = {
   materials: [
     { id: "mat-docs", title: "Python docs", url: "https://docs.python.org/", type: "docs" },
   ],
+  sources: [],
 };
 
 const unanswered: AnsweredQuestion = {

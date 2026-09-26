@@ -25,6 +25,7 @@
     },
     "Concept": {
       "additionalProperties": false,
+      "description": "The single idea a Question tests. Concepts belong to the Stack, like the Question Bank.",
       "properties": {
         "id": {
           "description": "Permanent ID: lowercase words joined by hyphens. It never changes across Syllabus versions, so Learner progress can be keyed by it.",
@@ -81,6 +82,22 @@
           "title": "Id",
           "type": "string"
         },
+        "lesson": {
+          "anyOf": [
+            {
+              "description": "Permanent ID: lowercase words joined by hyphens. It never changes across Syllabus versions, so Learner progress can be keyed by it.",
+              "maxLength": 80,
+              "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The Lesson the Question belongs to, in the Stack's newest Syllabus; null for none. It is the one field of a committed Question that may change (a re-tag).",
+          "title": "Lesson"
+        },
         "concept": {
           "description": "Permanent ID: lowercase words joined by hyphens. It never changes across Syllabus versions, so Learner progress can be keyed by it.",
           "maxLength": 80,
@@ -127,6 +144,26 @@
           "title": "Materials",
           "type": "array",
           "uniqueItems": true
+        },
+        "sources": {
+          "items": {
+            "$ref": "#/$defs/Source"
+          },
+          "minItems": 1,
+          "title": "Sources",
+          "type": "array"
+        },
+        "retired": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Retirement"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Set once to retire the Question; a retirement is never undone."
         }
       },
       "required": [
@@ -137,9 +174,98 @@
         "choices",
         "answer",
         "explanation",
-        "materials"
+        "materials",
+        "sources"
       ],
       "title": "MultipleChoiceQuestion",
+      "type": "object"
+    },
+    "Retirement": {
+      "additionalProperties": false,
+      "description": "Why a Question was taken out of use. It stays in the Question Bank, and is never drawn.",
+      "properties": {
+        "reason": {
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        },
+        "replaced_by": {
+          "anyOf": [
+            {
+              "description": "Permanent ID: lowercase words joined by hyphens. It never changes across Syllabus versions, so Learner progress can be keyed by it.",
+              "maxLength": 80,
+              "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The Question that replaces it, if any: a Question in the bank.",
+          "title": "Replaced By"
+        },
+        "on": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The UTC date it was retired.",
+          "title": "On"
+        }
+      },
+      "required": [
+        "reason"
+      ],
+      "title": "Retirement",
+      "type": "object"
+    },
+    "Source": {
+      "additionalProperties": false,
+      "description": "Where a Question's content came from. A Source is for checking a Question; a Material is\nfor learning.",
+      "properties": {
+        "url": {
+          "pattern": "^https://",
+          "title": "Url",
+          "type": "string"
+        },
+        "title": {
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "publisher": {
+          "minLength": 1,
+          "title": "Publisher",
+          "type": "string"
+        },
+        "accessed": {
+          "description": "The UTC date the Source was read, YYYY-MM-DD: in the run that wrote the Question (the content check allows today or yesterday for a new Question).",
+          "format": "date",
+          "title": "Accessed",
+          "type": "string"
+        },
+        "claim": {
+          "description": "The claim the Question relies on.",
+          "minLength": 1,
+          "title": "Claim",
+          "type": "string"
+        }
+      },
+      "required": [
+        "url",
+        "title",
+        "publisher",
+        "accessed",
+        "claim"
+      ],
+      "title": "Source",
       "type": "object"
     },
     "WrittenQuestion": {
@@ -151,6 +277,22 @@
           "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
           "title": "Id",
           "type": "string"
+        },
+        "lesson": {
+          "anyOf": [
+            {
+              "description": "Permanent ID: lowercase words joined by hyphens. It never changes across Syllabus versions, so Learner progress can be keyed by it.",
+              "maxLength": 80,
+              "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The Lesson the Question belongs to, in the Stack's newest Syllabus; null for none. It is the one field of a committed Question that may change (a re-tag).",
+          "title": "Lesson"
         },
         "concept": {
           "description": "Permanent ID: lowercase words joined by hyphens. It never changes across Syllabus versions, so Learner progress can be keyed by it.",
@@ -188,6 +330,26 @@
           "title": "Materials",
           "type": "array",
           "uniqueItems": true
+        },
+        "sources": {
+          "items": {
+            "$ref": "#/$defs/Source"
+          },
+          "minItems": 1,
+          "title": "Sources",
+          "type": "array"
+        },
+        "retired": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Retirement"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Set once to retire the Question; a retirement is never undone."
         }
       },
       "required": [
@@ -197,32 +359,25 @@
         "prompt",
         "model_answer",
         "explanation",
-        "materials"
+        "materials",
+        "sources"
       ],
       "title": "WrittenQuestion",
       "type": "object"
     }
   },
   "additionalProperties": false,
-  "description": "All pre-written Questions for one Lesson. Questions testing the same Concept are siblings.",
+  "description": "One file of a Stack's Question Bank (`question-bank/<name>.json`). The bank is every file\ntogether: files only group Questions for readable diffs, and a Concept declared in one file\ncan be tested in another. Questions testing the same Concept are siblings.\n\nThe bank is append-only (ADR-0004): a committed Question is never edited or deleted, only\nretired or re-tagged to another Lesson.",
   "properties": {
     "schema_version": {
-      "const": 1,
+      "const": 2,
       "title": "Schema Version",
       "type": "integer"
-    },
-    "lesson_id": {
-      "description": "Permanent ID: lowercase words joined by hyphens. It never changes across Syllabus versions, so Learner progress can be keyed by it.",
-      "maxLength": 80,
-      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
-      "title": "Lesson Id",
-      "type": "string"
     },
     "concepts": {
       "items": {
         "$ref": "#/$defs/Concept"
       },
-      "minItems": 1,
       "title": "Concepts",
       "type": "array"
     },
@@ -244,14 +399,12 @@
           }
         ]
       },
-      "minItems": 1,
       "title": "Questions",
       "type": "array"
     }
   },
   "required": [
     "schema_version",
-    "lesson_id",
     "concepts",
     "questions"
   ],

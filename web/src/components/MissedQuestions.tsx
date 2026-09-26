@@ -19,7 +19,7 @@ export function MissedQuestions({ missed }: { missed: AnsweredQuestion[] }) {
   );
 }
 
-/** One answered Question with its answer, Explanation and Materials. */
+/** One answered Question with its answer, Explanation, Sources and Materials. */
 export function AnsweredQuestionDetail({ question: q }: { question: AnsweredQuestion }) {
   const promptId = `answered-${q.id}`;
   const choice = (id: string | null) => q.choices.find((c) => c.id === id)?.text ?? id ?? "";
@@ -58,6 +58,18 @@ export function AnsweredQuestionDetail({ question: q }: { question: AnsweredQues
       <p className="explanation">
         <Inline text={q.explanation} />
       </p>
+      {q.sources.length > 0 && (
+        <ul className="sources small" aria-label="Sources">
+          {q.sources.map((s) => (
+            <li key={s.url}>
+              <a href={s.url} target="_blank" rel="noreferrer">
+                {s.title}
+              </a>{" "}
+              · {s.publisher}: <Inline text={s.claim} />
+            </li>
+          ))}
+        </ul>
+      )}
       {q.materials.length > 0 && <MaterialList materials={q.materials} />}
     </article>
   );

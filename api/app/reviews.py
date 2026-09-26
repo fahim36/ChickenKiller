@@ -5,15 +5,16 @@ one at a time. The rules (what is due, in what order) are the plain functions in
 - **Sets aren't stored.** A set is the first `review.SET_SIZE` Questions of the Learner's queue,
   drawn fresh on every request (`review_set`), so drawing changes nothing and a reload draws
   the same set until something is answered. There is nothing to finish, resume or drop.
-- **The queue's sources**, for each Active Stack (`_sources`), all from the Stack's current
-  Syllabus version (a Question a later version removed has left Review):
+- **The queue's sources**, for each Active Stack (`_sources`), all from the Stack's Question
+  Bank (`review_bank`):
   1. the Missed Questions (`quizzes.missed_questions`), with every correct answer to them;
   2. the new Questions of the Learner's Updated Lessons they haven't answered yet
      (`updated_lessons.updated_question_ids`, #13);
   3. spaced repeats: the Questions of Completed Lessons and of played Daily Challenges
      (`_played_challenge_question_ids`, empty until #17), each with when it was last answered.
 - **Every Question Review can ask** comes from `review_bank`, both for drawing and for
-  answering. #15 adds the "never a Retired Question" filter there, in one place.
+  answering: the Stack's Question Bank without its Retired Questions (#15), which are never
+  drawn nor accepted.
 - **Answering** (`answer_question`) takes any Question that is in the Learner's queue right now,
   on one of their Active Stacks; anything else is refused (`NotInReview`), such as a Locked
   Lesson's Question or a repeat already answered today. It is marked by `marking.mark` like a
@@ -29,12 +30,12 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, selectinload
 
 from app import progress, quizzes, review, updated_lessons
 from app.grading import Grader
 from app.marking import AnswerTooLong, GradingFailed, NotAChoice, mark
-from app.models import Answer, LearnerStack, Lesson, Question, Stack, Syllabus
+from app.models import Answer, LearnerStack, Lesson, Question, Stack
 from app.review import QuestionRef
 
 REVIEW = "review"
@@ -68,18 +69,19 @@ class AnswerResult:
 
 
 def review_bank(session: Session, stack_id: str) -> list[Question]:
-    """Every Question Review can draw or accept on the Stack, in Syllabus order (Lesson, then
-    Question Bank order): the current Syllabus version's Question Bank.
-
-    #15: leave Retired Questions out here, so they are never drawn nor answered in Review."""
+    """Every Question Review can draw or accept on the Stack: its Question Bank, leaving out
+    Retired Questions (ADR-0004), in Syllabus order (the current Syllabus's Lesson order, then
+    Question Bank order; Questions tagged to no current Lesson last)."""
+    current_pk = select(Stack.current_syllabus_pk).where(Stack.id == stack_id).scalar_subquery()
     return list(
         session.scalars(
             select(Question)
-            .join(Stack, Stack.current_syllabus_pk == Question.syllabus_pk)
-            .join(Lesson, Lesson.pk == Question.lesson_pk)
-            .where(Stack.id == stack_id)
-            .options(joinedload(Question.lesson))
-            .order_by(Lesson.position, Question.position)
+            .outerjoin(
+                Lesson, (Lesson.syllabus_pk == current_pk) & (Lesson.id == Question.lesson_id)
+            )
+            .where(Question.stack_id == stack_id, Question.retired_reason.is_(None))
+            .options(selectinload(Question.sources), selectinload(Question.material_links))
+            .order_by(Lesson.position.nulls_last(), Question.position)
         )
     )
 
@@ -139,15 +141,11 @@ def answer_question(
     except (NotAChoice, AnswerTooLong, GradingFailed):
         session.rollback()  # releases the lock; nothing was written
         raise
-    version = session.scalars(
-        select(Syllabus.version).where(Syllabus.pk == question.syllabus_pk)
-    ).one()
     session.add(
         Answer(
             learner_id=record.learner_id,
             stack_id=record.stack_id,
             question_id=question.id,
-            syllabus_version=version,
             context=REVIEW,
             response=response,
             correct=marked.correct,
@@ -200,7 +198,7 @@ def _sources(
         repeats=[
             review.Repeat(ref(q.id), last_answered.get(q.id))
             for q in bank.values()
-            if q.lesson.id in completed or q.id in played
+            if q.lesson_id in completed or q.id in played
         ],
     )
 

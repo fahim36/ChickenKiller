@@ -1,6 +1,6 @@
 ---
 name: update-syllabus
-description: Run a Syllabus Update for one Stack. Researches the field against primary sources and writes a new version folder with the Syllabus, a Question Bank for every Lesson and a changelog.
+description: Run a Syllabus Update for one Stack. Researches the field against primary sources and writes a new version folder with the Syllabus and a changelog, and Questions for every Lesson in the Stack's Question Bank.
 argument-hint: <stack-id>
 arguments: [stack]
 disable-model-invocation: true
@@ -40,7 +40,7 @@ Done when **every Lesson has a verdict**:
 
 Every verdict except *keep* carries at least one primary-source URL.
 
-If every verdict is *keep* and every Lesson already has a Question Bank, stop. Create nothing, and report "no update needed", with the sources you checked.
+If every verdict is *keep* and every Lesson already has Questions, stop. Create nothing, and report "no update needed", with the sources you checked.
 
 ## 3. Start the new version
 
@@ -50,7 +50,7 @@ uv run --project api content-new-version $stack
 
 It copies the current version to a new folder named for today (`v2026-09-26`, or `v2026-09-26.1` for a second version that day) and starts its `changelog.json`. It prints the folder's path. Every item you don't touch keeps its permanent ID because it is a copy.
 
-Write only inside that new folder. A committed version never changes: the importer refuses changed content under a version it has already imported.
+Write the Syllabus only inside that new folder. Questions go in the Stack's one Question Bank, `content/$stack/question-bank/`, which is not versioned and is not copied. A committed version never changes: the importer refuses changed content under a version it has already imported.
 
 ## 4. Edit the Syllabus
 
@@ -61,7 +61,9 @@ Apply the verdicts to the new folder's `syllabus.json`, following the permanent-
 Every Lesson ends with a Question Bank that follows [question-bank-rules.md](question-bank-rules.md):
 - a Lesson with no bank gets one;
 - a new Lesson gets one;
-- a revised Lesson's bank is revised to match, keeping the IDs of Questions that survive.
+- a revised Lesson gets new Questions to match.
+
+The Question Bank is append-only (ADR-0004): a committed Question is never edited or deleted. One that is wrong or out of date is retired (`retired: {reason, replaced_by?}`) and a new one added, and a Question can be re-tagged to another Lesson (its `lesson`). The content check refuses anything else.
 
 Fan out sub-agents, each with a few Lessons (a Week at most). Give each one:
 - the new folder's path;
@@ -70,13 +72,13 @@ Fan out sub-agents, each with a few Lessons (a Week at most). Give each one:
 - your research findings for those Lessons.
 
 Each sub-agent:
-- writes only `questions/<lesson-id>.json` for its own Lessons, never `syllabus.json` or `changelog.json`;
+- writes only `content/$stack/question-bank/<lesson-id>.json` for its own Lessons, never `syllabus.json` or `changelog.json`;
 - returns the Materials it needs added, as `{id, title, url, type, subject}`;
 - returns a changelog entry for each Lesson: *what* changed, *why*, and its *sources*.
 
 Then add the returned Materials to `syllabus.json` yourself. When two agents propose the same URL, keep one ID and point both banks at it.
 
-Done when every Lesson in the Syllabus has a bank file.
+Done when every Lesson in the Syllabus has Questions tagged to it.
 
 ## 6. Write the changelog
 
@@ -88,7 +90,7 @@ This lists every added, changed and removed item by permanent ID, compared with 
 - `summary` says what this version changes and why, in a few sentences;
 - `changes` has one entry for every Lesson in the diff, with the same `change` (`added`, `changed` or `removed`) and at least one source URL.
 
-You may add entries for other kinds of item (a Material whose URL moved, say). Every entry must match the diff.
+You may add entries for other kinds of item (a Material whose URL moved, say). Every entry must match the diff. The changelog covers the Syllabus only: Questions added or retired aren't listed, since each carries its own Sources and retirement reason.
 
 Read the diff as a review of your IDs. Each `removed` must be something you meant to remove. A `removed` plus an `added` that are really one item revised mean you gave it a new ID: restore the old one.
 
@@ -101,7 +103,7 @@ uv run --project api content-check --links content/$stack/<new-version>
 
 Fix every error and run the check again. A dead link gets the same page's current URL from its publisher, or a replacement Material. A warning that a site refused the check (HTTP 401, 403 or 429) is fine.
 
-Done when the check reports **no errors**, and no "no Question Bank yet" warning for the new version.
+Done when the check reports **no errors**, and no "no Questions yet" warning. A warning that a new Question repeats a Concept is fine if the repeat is deliberate.
 
 ## 8. Report
 

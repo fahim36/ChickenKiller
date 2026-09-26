@@ -233,7 +233,7 @@ def _answered_question(
     q: Question, response: str | None, feedback: str | None
 ) -> schemas.AnsweredQuestionOut:
     """A Question after it was answered, with its answer, the grader's feedback (written),
-    Explanation and Materials."""
+    Explanation, Materials and Sources."""
     return schemas.AnsweredQuestionOut(
         id=q.id,
         type="written" if q.type == "written" else "multiple_choice",
@@ -245,7 +245,7 @@ def _answered_question(
         model_answer=None if q.model_answer is None else schemas.ModelAnswerOut(**q.model_answer),
         explanation=q.explanation,
         materials=[schemas.MaterialOut.model_validate(m) for m in q.materials],
-        # Sources (#15): the Question's Sources go here, shown with the Explanation.
+        sources=[schemas.SourceOut.model_validate(s) for s in q.sources],
     )
 
 

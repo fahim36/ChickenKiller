@@ -39,7 +39,7 @@ def test_lists_added_changed_and_removed_items_by_kind(make_content: ContentFact
             }
         )
         syllabus["materials"][1]["url"] = "https://example.com/video-v2"
-        del bank["questions"][1]  # w01-l01-q02
+        del bank["questions"][1]  # the Question Bank isn't the version's: no change here
 
     old = make_content()
     new = make_content(as_version("v2026-02-01", edit))
@@ -47,28 +47,19 @@ def test_lists_added_changed_and_removed_items_by_kind(make_content: ContentFact
     assert as_tuples(diff_versions(old, new)) == [
         ("changed", "Week", "w01", ("lessons",)),
         ("added", "Lesson", "w01-l03", ()),
-        ("changed", "Lesson", "w01-l01", ("title", "minutes", "question_bank")),
+        ("changed", "Lesson", "w01-l01", ("title", "minutes")),
         ("changed", "Material", "mat-video", ("url",)),
-        ("removed", "Question", "w01-l01-q02", ()),
     ]
 
 
-def test_a_new_question_bank_changes_its_lesson(make_content: ContentFactory) -> None:
+def test_new_questions_change_no_lesson(make_content: ContentFactory) -> None:
+    """Only the Syllabus is compared: the Question Bank is the Stack's, not a version's."""
     old = make_content()
     new = make_content(
         as_version("v2026-02-01"), extra_banks={"w01-l02": make_bank("w01-l02", "second")}
     )
 
-    changes = as_tuples(diff_versions(old, new))
-
-    assert changes[0] == ("changed", "Lesson", "w01-l02", ("question_bank",))
-    assert [c[:3] for c in changes[1:]] == [
-        ("added", "Concept", "second-a"),
-        ("added", "Concept", "second-b"),
-        ("added", "Concept", "second-c"),
-        ("added", "Concept", "second-d"),
-        *[("added", "Question", f"w01-l02-q{n:02}") for n in range(1, 9)],
-    ]
+    assert diff_versions(old, new) == []
 
 
 def test_a_first_version_adds_everything(make_content: ContentFactory) -> None:
@@ -76,7 +67,7 @@ def test_a_first_version_adds_everything(make_content: ContentFactory) -> None:
 
     assert {c.change for c in changes} == {"added"}
     assert [c.id for c in changes if c.kind.label == "Lesson"] == ["w01-l01", "w01-l02"]
-    assert len(changes) == 1 + 1 + 2 + 1 + 2 + 4 + 8  # Stack, Week, Lessons, ..., Questions
+    assert len(changes) == 1 + 1 + 2 + 1 + 2  # Stack, Week, Lessons, Milestone, Materials
 
 
 def test_cli_prints_one_line_per_change(

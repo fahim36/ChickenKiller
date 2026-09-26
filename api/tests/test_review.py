@@ -22,6 +22,7 @@ from tests.conftest import (
     FakeGrader,
     complete_lessons,
     make_bank,
+    mc_question,
     onboard,
 )
 from tests.test_lesson_quiz import (
@@ -149,6 +150,41 @@ def test_a_set_holds_at_most_ten_questions(session: Session, learner: TestClient
     assert asked(learner) == [*FIRST_BANK, "w01-l02-q01", "w01-l02-q02"]
 
 
+def retire_q01(syllabus: dict[str, Any], bank: dict[str, Any]) -> None:
+    """w01-l01-q01 is retired and replaced by a new q09."""
+    bank["questions"][0]["retired"] = {"reason": "Wrong.", "replaced_by": "w01-l01-q09"}
+    bank["questions"].append(mc_question("w01-l01-q09", "concept-a"))
+
+
+def test_a_retired_question_is_never_drawn_nor_answered(
+    session: Session, make_content: ContentFactory, learner: TestClient
+) -> None:
+    import_folder(
+        session,
+        make_content(retire_q01, extra_banks={"w01-l02": make_bank("w01-l02", "second")}),
+    )
+
+    questions = asked(learner)
+
+    assert "w01-l01-q01" not in questions
+    assert "w01-l01-q09" in questions
+    assert code(answer(learner, "w01-l01-q01", "a")) == (409, "not_in_review")
+
+
+def test_a_missed_question_retired_later_leaves_review(
+    session: Session, make_content: ContentFactory, learner: TestClient
+) -> None:
+    answer_wrong(learner, "w01-l01-q01")
+    assert asked(learner)[0] == "w01-l01-q01"
+
+    import_folder(
+        session,
+        make_content(retire_q01, extra_banks={"w01-l02": make_bank("w01-l02", "second")}),
+    )
+
+    assert "w01-l01-q01" not in asked(learner)
+
+
 def test_locked_lessons_questions_are_never_drawn(learner: TestClient) -> None:
     assert not [q for q in asked(learner) if q.startswith("w01-l02")]
 
@@ -246,6 +282,15 @@ def test_a_wrong_answer_shows_its_explanation_and_correct_answer(learner: TestCl
                 "title": "Some docs",
                 "url": "https://example.com/docs",
                 "type": "docs",
+            }
+        ],
+        "sources": [
+            {
+                "url": "https://example.com/docs/page-1",
+                "title": "Docs page 1",
+                "publisher": "Example",
+                "accessed": "2026-01-01",
+                "claim": "What the Question relies on.",
             }
         ],
     }

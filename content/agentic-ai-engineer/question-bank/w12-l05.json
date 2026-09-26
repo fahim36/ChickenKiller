@@ -1,0 +1,514 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "w12-l05-health-checks",
+      "name": "Liveness vs readiness health checks"
+    },
+    {
+      "id": "w12-l05-graceful-shutdown",
+      "name": "Graceful shutdown on SIGTERM"
+    },
+    {
+      "id": "w12-l05-config-and-secrets",
+      "name": "Config in environment variables, no secrets in the image"
+    },
+    {
+      "id": "w12-l05-logs-and-rollback",
+      "name": "Logs to stdout and a rollback plan"
+    },
+    {
+      "id": "w12-l05-simple-platforms",
+      "name": "Railway, Fly.io and Modal"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w12-l05-q01",
+      "lesson": "w12-l05",
+      "concept": "w12-l05-health-checks",
+      "type": "multiple_choice",
+      "prompt": "Your API container is running, but its database is briefly unreachable, so it can't serve requests. In Kubernetes terms, which probe should fail?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Liveness, so the kubelet restarts the container and reconnects"
+        },
+        {
+          "id": "b",
+          "text": "Readiness, so traffic stops going to it without restarting it"
+        },
+        {
+          "id": "c",
+          "text": "Both, so the container is restarted and removed from the service"
+        },
+        {
+          "id": "d",
+          "text": "Neither, because health checks should only cover the web server itself"
+        }
+      ],
+      "answer": "b",
+      "explanation": "A failed readiness probe removes the pod from the Service's endpoints, so it gets no traffic until it's ready again. A failed liveness probe makes the kubelet restart the container, which is for a process that is stuck, such as a deadlock. Restarting can't fix an unreachable database; it just adds restarts on top of the outage.",
+      "materials": [
+        "kubernetes-liveness-readiness-and-startup-probes"
+      ],
+      "sources": [
+        {
+          "url": "https://kubernetes.io/docs/concepts/configuration/liveness-readiness-startup-probes/",
+          "title": "Liveness, Readiness, and Startup Probes",
+          "publisher": "The Kubernetes Authors (CNCF)",
+          "accessed": "2026-09-26",
+          "claim": "A failed readiness probe removes the Pod's IP from matching Services' EndpointSlices without restarting it, while a failed liveness probe makes the kubelet restart the container, e.g. for a deadlock."
+        }
+      ]
+    },
+    {
+      "id": "w12-l05-q02",
+      "lesson": "w12-l05",
+      "concept": "w12-l05-health-checks",
+      "type": "multiple_choice",
+      "prompt": "Your liveness endpoint calls the LLM provider and returns 500 if the call is slow. The provider has a 20-minute outage. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The platform routes traffic to the healthy containers until the provider recovers"
+        },
+        {
+          "id": "b",
+          "text": "Nothing, because liveness probes ignore failures caused by external services"
+        },
+        {
+          "id": "c",
+          "text": "Every container fails liveness and is restarted over and over, which can't fix the outage"
+        },
+        {
+          "id": "d",
+          "text": "The platform serves the last cached response for each route until the provider is back online"
+        }
+      ],
+      "answer": "c",
+      "explanation": "The probe can't tell \"my process is broken\" from \"a dependency is down\", so all containers fail at once and the orchestrator keeps restarting them. Keep liveness checks to the process itself (can it respond at all?), and handle dependency outages in readiness checks and in the request path with timeouts, retries and fallbacks.",
+      "materials": [
+        "kubernetes-liveness-readiness-and-startup-probes"
+      ],
+      "sources": [
+        {
+          "url": "https://kubernetes.io/docs/concepts/configuration/liveness-readiness-startup-probes/",
+          "title": "Liveness, Readiness, and Startup Probes",
+          "publisher": "The Kubernetes Authors (CNCF)",
+          "accessed": "2026-09-26",
+          "claim": "Liveness probe failures restart containers, and incorrectly implemented liveness probes can cause cascading failures with repeated restarts and extra load on the remaining pods."
+        }
+      ]
+    },
+    {
+      "id": "w12-l05-q03",
+      "lesson": "w12-l05",
+      "concept": "w12-l05-graceful-shutdown",
+      "type": "multiple_choice",
+      "prompt": "A Dockerfile ends with the shell form `CMD uvicorn app:app --host 0.0.0.0`, which runs the command through `/bin/sh -c`. What is the risk when you run `docker stop`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`/bin/sh -c` doesn't pass signals, so uvicorn may miss SIGTERM and be killed with SIGKILL"
+        },
+        {
+          "id": "b",
+          "text": "Docker sends SIGKILL straight away to shell-form commands, skipping the grace period entirely"
+        },
+        {
+          "id": "c",
+          "text": "The shell forwards SIGTERM twice, so uvicorn shuts down before finishing requests"
+        },
+        {
+          "id": "d",
+          "text": "There is no risk: shell form and exec form pass signals to the app the same way"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Shell form starts your command as a child of `/bin/sh -c`, which the Dockerfile reference (under the shell form of ENTRYPOINT; CMD's shell form runs the same way) says does not pass signals, so the app isn't PID 1 and may not see the SIGTERM from `docker stop`. After the grace period (10 seconds by default for Linux containers) Docker sends SIGKILL and in-flight requests are cut off. Use exec form: `CMD [\"uvicorn\", \"app:app\", \"--host\", \"0.0.0.0\"]`.",
+      "materials": [
+        "docker-docs-dockerfile-reference",
+        "docker-get-started"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.docker.com/reference/dockerfile/",
+          "title": "Dockerfile reference | Docker Docs",
+          "publisher": "Docker",
+          "accessed": "2026-09-26",
+          "claim": "Shell form runs the command as a subcommand of /bin/sh -c, which does not pass signals, so the executable isn't PID 1 and doesn't receive SIGTERM from docker stop; exec form avoids this."
+        },
+        {
+          "url": "https://docs.docker.com/reference/cli/docker/container/stop/",
+          "title": "docker container stop | Docker Docs",
+          "publisher": "Docker",
+          "accessed": "2026-09-26",
+          "claim": "docker stop sends SIGTERM to the main process and SIGKILL after a grace period, 10 seconds by default for Linux containers."
+        }
+      ]
+    },
+    {
+      "id": "w12-l05-q04",
+      "lesson": "w12-l05",
+      "concept": "w12-l05-graceful-shutdown",
+      "type": "written",
+      "prompt": "Describe what `agent-api` should do between receiving SIGTERM and being killed, and what to do about agent runs that take longer than the grace period.",
+      "model_answer": {
+        "summary": "Stop taking new work, finish or hand off in-flight work, release resources, and exit before the grace period ends; long runs must be checkpointed so another instance can resume them.",
+        "key_points": [
+          "Stop accepting new requests, for example by failing readiness so the load balancer stops routing to it",
+          "Let in-flight requests and streams finish, within the platform's grace period",
+          "Close database connections and flush logs and traces before exiting",
+          "Know the grace period: `docker stop` waits 10 seconds by default, ECS waits 30 seconds by default (at most 120 on Fargate), and Fly.io waits 5 seconds by default",
+          "Agent runs longer than the grace period should checkpoint their state (or run as queued jobs) so they can resume elsewhere instead of being lost"
+        ]
+      },
+      "explanation": "Platforms stop a container with SIGTERM and follow with SIGKILL when the grace period ends. Deploys, scale-ins and host maintenance all do this, so an app that ignores SIGTERM drops requests on every deploy. Long agent runs make this worse, which is why checkpointing (such as a LangGraph checkpointer) matters in production.",
+      "materials": [
+        "docker-docs-dockerfile-reference",
+        "fly-io-app-configuration"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.docker.com/reference/cli/docker/container/stop/",
+          "title": "docker container stop | Docker Docs",
+          "publisher": "Docker",
+          "accessed": "2026-09-26",
+          "claim": "docker stop sends SIGTERM, then SIGKILL after a default 10-second grace period on Linux."
+        },
+        {
+          "url": "https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_definition_parameters.html",
+          "title": "Amazon ECS task definition parameters for Fargate",
+          "publisher": "AWS",
+          "accessed": "2026-09-26",
+          "claim": "stopTimeout is how long ECS waits before forcefully killing a container; the default is 30 seconds and the maximum is 120 seconds on Fargate."
+        },
+        {
+          "url": "https://docs.fly.io/reference/configuration/",
+          "title": "App configuration (fly.toml)",
+          "publisher": "Fly.io",
+          "accessed": "2026-09-26",
+          "claim": "Fly.io sends SIGINT by default and waits kill_timeout, 5 seconds by default (maximum 300), before forcing shutdown."
+        }
+      ]
+    },
+    {
+      "id": "w12-l05-q05",
+      "lesson": "w12-l05",
+      "concept": "w12-l05-config-and-secrets",
+      "type": "multiple_choice",
+      "prompt": "A build step needs a private package token. Which approach keeps the token out of the final image?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`ARG PKG_TOKEN`, passed with `docker build --build-arg`"
+        },
+        {
+          "id": "b",
+          "text": "`ENV PKG_TOKEN=...` set just before the install step"
+        },
+        {
+          "id": "c",
+          "text": "`COPY .env .`, then `RUN rm .env` in a later step"
+        },
+        {
+          "id": "d",
+          "text": "A BuildKit secret mount: `RUN --mount=type=secret,id=pkg_token ...`"
+        }
+      ],
+      "answer": "d",
+      "explanation": "Docker's docs say build arguments and environment variables are inappropriate for secrets because they persist in the final image. A secret mount makes the secret available only for the duration of that one `RUN` instruction and it isn't stored in the image. Deleting a copied file in a later step doesn't help: the earlier layer still contains it.",
+      "materials": [
+        "docker-docs-build-secrets"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.docker.com/build/building/secrets/",
+          "title": "Build secrets | Docker Docs",
+          "publisher": "Docker",
+          "accessed": "2026-09-26",
+          "claim": "Build arguments and environment variables are unsuitable for secrets because they persist in the final image, while a RUN --mount=type=secret mount exposes the secret only for that RUN instruction and doesn't store it in the image."
+        }
+      ]
+    },
+    {
+      "id": "w12-l05-q06",
+      "lesson": "w12-l05",
+      "concept": "w12-l05-graceful-shutdown",
+      "type": "multiple_choice",
+      "prompt": "You deploy to Fly.io with a `fly.toml` that doesn't set `kill_signal` or `kill_timeout`. Your app needs 20 seconds to finish in-flight requests. What happens on each deploy?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Fly sends SIGTERM and waits 30 seconds, so requests finish"
+        },
+        {
+          "id": "b",
+          "text": "Fly sends SIGINT and waits 5 seconds by default, so longer requests are cut off"
+        },
+        {
+          "id": "c",
+          "text": "Fly waits until the health check reports zero open connections"
+        },
+        {
+          "id": "d",
+          "text": "Fly keeps the old Machine running until every client disconnects"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Fly.io's defaults are `kill_signal = \"SIGINT\"` and `kill_timeout = 5` seconds (maximum 300). Your app must handle SIGINT as a shutdown signal, and you should raise `kill_timeout` to cover your drain time. Defaults differ between platforms, so check each one rather than assuming SIGTERM and 30 seconds.",
+      "materials": [
+        "fly-io-app-configuration"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.fly.io/reference/configuration/",
+          "title": "App configuration (fly.toml)",
+          "publisher": "Fly.io",
+          "accessed": "2026-09-26",
+          "claim": "By default Fly.io sends SIGINT when stopping a Machine and waits 5 seconds (kill_timeout, maximum 300) before forcing it down."
+        }
+      ]
+    },
+    {
+      "id": "w12-l05-q07",
+      "lesson": "w12-l05",
+      "concept": "w12-l05-config-and-secrets",
+      "type": "written",
+      "prompt": "For the `DEPLOY.md` you're writing: explain how configuration and secrets reach the running container, and what must never happen to them.",
+      "model_answer": {
+        "summary": "All config that varies between deploys comes from environment variables at runtime, and secrets come from the platform's secret store; none of it is in the code, the image or Git.",
+        "key_points": [
+          "Anything that varies between deploys (database URL, API keys, model names, log level) is read from environment variables",
+          "Secrets are stored in the platform's secret store (such as Railway variables or AWS Secrets Manager) and injected at runtime",
+          "Secrets are never in the Dockerfile, `ARG`/`ENV`, an image layer or the Git repository; `.env` files are listed in `.gitignore` and `.dockerignore`",
+          "The app checks at startup that required settings are present and fails fast with a clear error if not",
+          "The twelve-factor litmus test: the code could be open-sourced at any moment without exposing any credentials"
+        ]
+      },
+      "explanation": "The Twelve-Factor App defines config as everything likely to vary between deploys and requires strict separation of config from code, stored in environment variables. Keeping secrets out of images matters because anyone who can pull an image can read its layers.",
+      "materials": [
+        "the-twelve-factor-app",
+        "docker-docs-build-secrets"
+      ],
+      "sources": [
+        {
+          "url": "https://12factor.net/config",
+          "title": "The Twelve-Factor App - III. Config",
+          "publisher": "The Twelve-Factor App (Adam Wiggins)",
+          "accessed": "2026-09-26",
+          "claim": "Config is everything that varies between deploys, strictly separated from code and stored in environment variables, with the litmus test that the codebase could be open-sourced without compromising credentials."
+        },
+        {
+          "url": "https://docs.docker.com/build/building/secrets/",
+          "title": "Build secrets | Docker Docs",
+          "publisher": "Docker",
+          "accessed": "2026-09-26",
+          "claim": "Build args and environment variables persist in the final image, so they must not carry secrets."
+        }
+      ]
+    },
+    {
+      "id": "w12-l05-q08",
+      "lesson": "w12-l05",
+      "concept": "w12-l05-logs-and-rollback",
+      "type": "multiple_choice",
+      "prompt": "Following the Twelve-Factor App, where should `agent-api` write its logs?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "To a rotating file in `/var/log` inside the container, kept for a week"
+        },
+        {
+          "id": "b",
+          "text": "Straight to an S3 bucket from the application code, one file per day"
+        },
+        {
+          "id": "c",
+          "text": "Unbuffered to stdout, as a stream the platform collects and routes"
+        },
+        {
+          "id": "d",
+          "text": "Only when an error happens, to keep log volume and storage costs low"
+        }
+      ],
+      "answer": "c",
+      "explanation": "A twelve-factor app never concerns itself with routing or storing its output: each process writes unbuffered to stdout, and the execution environment captures and routes the stream. Files inside a container disappear with the container, and shipping logs from app code couples it to one destination. Structured JSON lines make the stream easy to search.",
+      "materials": [
+        "the-twelve-factor-app"
+      ],
+      "sources": [
+        {
+          "url": "https://12factor.net/logs",
+          "title": "The Twelve-Factor App - XI. Logs",
+          "publisher": "The Twelve-Factor App (Adam Wiggins)",
+          "accessed": "2026-09-26",
+          "claim": "A twelve-factor app never routes or stores its output: each process writes its event stream unbuffered to stdout and the execution environment captures and routes it."
+        }
+      ]
+    },
+    {
+      "id": "w12-l05-q09",
+      "lesson": "w12-l05",
+      "concept": "w12-l05-logs-and-rollback",
+      "type": "multiple_choice",
+      "prompt": "A bad release is live on Railway, so you roll back to the previous deployment. What does the rollback restore?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The previous deployment's Docker image and custom variables, if it's within your plan's retention"
+        },
+        {
+          "id": "b",
+          "text": "It rebuilds the previous commit from source, with today's dependencies"
+        },
+        {
+          "id": "c",
+          "text": "The previous image, your variables, and your database as it was at that deployment"
+        },
+        {
+          "id": "d",
+          "text": "Only the environment variables; the code stays on the new release"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Railway's rollback restores the earlier deployment's Docker image and custom variables, for deployments within your plan's retention period. It does not touch your database, so a migration the bad release ran stays applied. That's why database migrations should stay backward-compatible with the previous release.",
+      "materials": [
+        "railway-documentation"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.railway.com/deployments/deployment-actions",
+          "title": "Deployment Actions | Railway Docs",
+          "publisher": "Railway",
+          "accessed": "2026-09-26",
+          "claim": "A rollback restores the previous deployment's Docker image and custom variables, and deployments older than the plan's retention can't be rolled back to; nothing else is listed as restored."
+        },
+        {
+          "url": "https://docs.railway.com/guides/roll-back-bad-deploy",
+          "title": "Roll Back a Bad Deploy Fast | Railway Guides",
+          "publisher": "Railway",
+          "accessed": "2026-09-26",
+          "claim": "Rollback redeploys a previous deployment's image and custom variables as a new active deployment without a rebuild."
+        }
+      ]
+    },
+    {
+      "id": "w12-l05-q10",
+      "lesson": "w12-l05",
+      "concept": "w12-l05-logs-and-rollback",
+      "type": "written",
+      "prompt": "Write the rollback section of `DEPLOY.md`. What makes a rollback safe and fast?",
+      "model_answer": {
+        "summary": "Every release is an immutable, versioned image, the previous one stays deployable, the database schema stays compatible with it, and there's a clear trigger and a tested procedure.",
+        "key_points": [
+          "Images are tagged by commit SHA (not only `latest`), so the previous version can be redeployed exactly",
+          "The previous deployment is kept, so rollback is a redeploy, not a rebuild",
+          "Database migrations are backward-compatible (add first, remove in a later release), because rolling back code doesn't roll back data",
+          "A clear trigger is written down, such as error rate, failed health checks or eval failures after the deploy",
+          "The steps are written and have been tried once, so anyone can roll back under pressure"
+        ]
+      },
+      "explanation": "Interviewers ask \"walk me through your rollback\" to see whether you've thought about data, not just code. Platform rollbacks restore images and variables, not your database, so schema compatibility is the part people most often miss.",
+      "materials": [
+        "railway-documentation",
+        "the-twelve-factor-app"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.railway.com/deployments/deployment-actions",
+          "title": "Deployment Actions | Railway Docs",
+          "publisher": "Railway",
+          "accessed": "2026-09-26",
+          "claim": "Rollback restores only the Docker image and custom variables of a retained earlier deployment, so data changes are not rolled back."
+        },
+        {
+          "url": "https://docs.docker.com/get-started/docker-concepts/the-basics/what-is-an-image/",
+          "title": "What is an image? | Docker Docs",
+          "publisher": "Docker",
+          "accessed": "2026-09-26",
+          "claim": "Images are immutable once created, so a previous tagged image can be redeployed exactly."
+        }
+      ]
+    },
+    {
+      "id": "w12-l05-q11",
+      "lesson": "w12-l05",
+      "concept": "w12-l05-simple-platforms",
+      "type": "multiple_choice",
+      "prompt": "You configure a healthcheck path on a Railway service. What does Railway use it for?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It polls the path every minute for as long as the service runs, and restarts it on any failure"
+        },
+        {
+          "id": "b",
+          "text": "It uses it only for billing, pausing charges while the service is unhealthy"
+        },
+        {
+          "id": "c",
+          "text": "It calls the path before every incoming request, as a readiness gate"
+        },
+        {
+          "id": "d",
+          "text": "During a deploy, it waits for a 2xx before switching traffic to the new version, then stops"
+        }
+      ],
+      "answer": "d",
+      "explanation": "Railway queries the healthcheck path until it gets a 2xx (default timeout 300 seconds), and only then makes the new deployment active and retires the old one, which gives zero-downtime deploys. Railway's docs say it does not monitor the endpoint after the deployment has gone live, so you still need separate uptime monitoring.",
+      "materials": [
+        "railway-documentation"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.railway.com/guides/healthchecks",
+          "title": "Healthchecks | Railway Docs",
+          "publisher": "Railway",
+          "accessed": "2026-09-26",
+          "claim": "Railway queries the healthcheck path until it gets any 2xx (default timeout 300 seconds) before activating the new deployment, and does not monitor the endpoint after the deployment is live."
+        }
+      ]
+    },
+    {
+      "id": "w12-l05-q12",
+      "lesson": "w12-l05",
+      "concept": "w12-l05-simple-platforms",
+      "type": "multiple_choice",
+      "prompt": "You deploy a Modal app with `modal deploy`. One of its Functions gets no requests for a day. What do you pay for that Function's compute?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "One warm container, billed per hour, so the next request is fast"
+        },
+        {
+          "id": "b",
+          "text": "Nothing: with no inputs, by default no containers run"
+        },
+        {
+          "id": "c",
+          "text": "A daily minimum charge for every deployed Function"
+        },
+        {
+          "id": "d",
+          "text": "Nothing, because Modal deletes deployed apps after 24 hours idle"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Modal scales Functions to zero by default: when a Function has no live inputs, no containers run and you aren't charged for compute, even though the app stays deployed until you stop it. The trade-off is that the next request has to start a container first.",
+      "materials": [
+        "modal-documentation"
+      ],
+      "sources": [
+        {
+          "url": "https://modal.com/docs/guide/scale",
+          "title": "Scaling out | Modal Docs",
+          "publisher": "Modal Labs",
+          "accessed": "2026-09-26",
+          "claim": "By default Modal Functions scale to zero when there are no inputs, so you pay only for compute used; min_containers keeps a warm pool at a cost."
+        }
+      ]
+    }
+  ]
+}

@@ -219,7 +219,7 @@ def test_an_unanswered_question_counts_as_missed(learner: TestClient) -> None:
 # --- Recording answers -----------------------------------------------------------------------
 
 
-def test_every_answer_is_recorded_against_the_learner_the_question_and_its_version(
+def test_every_answer_is_recorded_against_the_learner_and_the_question(
     session: Session, learner: TestClient
 ) -> None:
     quiz = start(learner)
@@ -234,7 +234,6 @@ def test_every_answer_is_recorded_against_the_learner_the_question_and_its_versi
     assert sorted(
         (
             a.question_id,
-            a.syllabus_version,
             a.context,
             str(a.lesson_quiz_attempt_id),
             a.response,
@@ -243,10 +242,10 @@ def test_every_answer_is_recorded_against_the_learner_the_question_and_its_versi
         for a in recorded
     ) == sorted(
         [
-            (qid, "v2026-01-01", "lesson_quiz", quiz["attempt_id"], answer, is_right(answer))
+            (qid, "lesson_quiz", quiz["attempt_id"], answer, is_right(answer))
             for qid, answer in answers.items()
         ]
-        + [(unanswered, "v2026-01-01", "lesson_quiz", quiz["attempt_id"], None, False)]
+        + [(unanswered, "lesson_quiz", quiz["attempt_id"], None, False)]
     )
     assert missed in {a.question_id for a in recorded if a.correct is False}
 
@@ -325,19 +324,16 @@ def test_an_unknown_quiz_is_not_found(learner: TestClient) -> None:
 def test_a_quiz_in_progress_finishes_on_the_version_it_started_on(
     session: Session, learner: TestClient, make_content: ContentFactory
 ) -> None:
+    """A Question never changes, so the quiz marks the Questions it drew; the attempt keeps the
+    Syllabus version it started in, which a pass completes the Lesson in (#13)."""
     quiz = start(learner)
 
     def newer(syllabus: dict[str, Any], bank: dict[str, Any]) -> None:
         syllabus["version"] = "v2026-02-01"
-        for question in bank["questions"]:
-            if question["type"] == "multiple_choice":
-                question["answer"] = "b"
+        syllabus["weeks"][0]["lessons"][0]["title"] = "First lesson, revised"
 
     changelog = make_changelog(
-        "v2026-02-01",
-        "v2026-01-01",
-        changelog_entry("lesson", "w01-l01", "changed"),
-        *(changelog_entry("question", qid, "changed") for qid in sorted(MULTIPLE_CHOICE)),
+        "v2026-02-01", "v2026-01-01", changelog_entry("lesson", "w01-l01", "changed")
     )
     import_folder(
         session,
@@ -352,8 +348,35 @@ def test_a_quiz_in_progress_finishes_on_the_version_it_started_on(
     result = submit(learner, quiz, answer_all(quiz)).json()
 
     assert (result["correct"], result["passed"]) == (6, True)
-    recorded = quizzes.recorded_answers(session, learner_id(session), "mini-stack")
-    assert {a.syllabus_version for a in recorded} == {"v2026-01-01"}
+    assert start(learner, "/stacks/mini-stack/lessons/w01-l02/quiz")["version"] == "v2026-02-01"
+
+
+def test_a_lesson_quiz_never_draws_a_retired_question(
+    session: Session, api: TestClient, make_content: ContentFactory
+) -> None:
+    """q01 and q03 retired (q09 and q10 added): only the Questions still in use are drawn, first
+    quiz and fresh quiz alike."""
+
+    def two_more_then_retire(syllabus: dict[str, Any], bank: dict[str, Any]) -> None:
+        q01, q03 = bank["questions"][0], bank["questions"][2]
+        bank["questions"] += [dict(q01, id="w01-l01-q09"), dict(q03, id="w01-l01-q10")]
+        for question in bank["questions"]:
+            if question["id"] in ("w01-l01-q01", "w01-l01-q03"):
+                question["retired"] = {"reason": "Out of date.", "replaced_by": "w01-l01-q09"}
+
+    import_folder(
+        session,
+        make_content(two_more_then_retire, extra_banks={"w01-l02": make_bank("w01-l02", "second")}),
+    )
+    onboard(api)
+    first = start(api)
+    submit(api, first, answer_all(first, wrong=2))
+    fresh = start(api)
+
+    live = {f"w01-l01-q{n:02}" for n in (2, 4, 5, 6, 9, 10)} | set(WRITTEN)
+    for quiz in (first, fresh):
+        drawn = {q["id"] for q in quiz["questions"]}
+        assert len(drawn) == 6 and drawn <= live
 
 
 def test_the_quiz_start_response_is_plain_json(learner: TestClient) -> None:

@@ -15,8 +15,8 @@ export type AnswerReviewAction = (
 /**
  * A Review set, answered one Question at a time in the order the API gives, each on its own
  * Stack. Each answer is marked straight away: a right one says so, a wrong one shows the
- * Question's correct answer or Model Answer, the grader's feedback (written) and the
- * Explanation before moving on. Any Question can be skipped: Review is optional. If grading
+ * Question's correct answer or Model Answer, the grader's feedback (written), the
+ * Explanation and its Sources before moving on. Any Question can be skipped: Review is optional. If grading
  * fails, nothing was counted and the Learner submits again. After the last one, "Next set"
  * loads the page again, which draws a fresh set.
  */
@@ -75,7 +75,6 @@ export function ReviewFlow({
             <>
               <p className="mark mark-missed">Not quite. Read the Explanation before moving on.</p>
               <AnsweredQuestionDetail question={outcome.question} />
-              {/* Sources (#15): show the Question's Sources here, after its Explanation. */}
             </>
           )}
           <button type="button" onClick={next}>

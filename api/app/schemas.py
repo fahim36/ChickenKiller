@@ -1,6 +1,6 @@
 import re
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from typing import Literal
 
 from pydantic import BaseModel as _BaseModel
@@ -204,10 +204,21 @@ class ModelAnswerOut(BaseModel):
     key_points: list[str]
 
 
+class SourceOut(BaseModel):
+    """Where a Question's content came from, for checking it (ADR-0004)."""
+
+    url: str
+    title: str
+    publisher: str
+    accessed: date
+    claim: str
+    """The claim the Question relies on."""
+
+
 class AnsweredQuestionOut(BaseModel):
     """A Question the Learner has answered, with everything shown afterwards: their response,
-    the correct answer (a choice ID) or Model Answer, the Explanation and the Materials. Only
-    ever sent after the answer is submitted."""
+    the correct answer (a choice ID) or Model Answer, the Explanation, the Materials and the
+    Sources. Only ever sent after the answer is submitted."""
 
     id: str
     type: Literal["multiple_choice", "written"]
@@ -224,6 +235,8 @@ class AnsweredQuestionOut(BaseModel):
     """For a written Question."""
     explanation: str
     materials: list[MaterialOut]
+    sources: list[SourceOut]
+    """Every Source, in order: shown after the Explanation."""
 
 
 class RetakeOut(BaseModel):

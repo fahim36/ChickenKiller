@@ -49,6 +49,15 @@ function answered(question: ReviewQuestion, response: string): AnsweredQuestion 
       : null,
     explanation: `Because of ${question.id}.`,
     materials: [],
+    sources: [
+      {
+        url: "https://docs.python.org/3/reference/expressions.html#is",
+        title: "Identity comparisons",
+        publisher: "Python Software Foundation",
+        accessed: "2026-09-20",
+        claim: "`is` tests object identity.",
+      },
+    ],
   };
 }
 
@@ -108,6 +117,21 @@ it("shows the Explanation and the correct answer after a wrong answer", async ()
   expect(await screen.findByText("Not quite. Read the Explanation before moving on.")).toBeTruthy();
   expect(screen.getByText("Because of w01-l01-q01.")).toBeTruthy();
   expect(screen.getByText("Identity")).toBeTruthy(); // the correct answer
+});
+
+it("shows every Source after the Explanation of a wrong answer", async () => {
+  renderFlow(vi.fn(async () => result(mc, "b", false)));
+
+  fireEvent.click(screen.getByRole("radio", { name: "Equality" }));
+  submit();
+
+  const sources = await screen.findByRole("list", { name: "Sources" });
+  expect(sources.textContent).toBe(
+    "Identity comparisons · Python Software Foundation: is tests object identity.",
+  );
+  expect(screen.getByRole("link", { name: "Identity comparisons" }).getAttribute("href")).toBe(
+    "https://docs.python.org/3/reference/expressions.html#is",
+  );
 });
 
 it("shows the Model Answer and the grader's feedback after a missed written answer", async () => {
