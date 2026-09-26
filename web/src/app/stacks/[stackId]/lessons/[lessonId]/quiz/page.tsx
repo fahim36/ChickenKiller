@@ -46,6 +46,7 @@ export default async function LessonQuizPage({
           <RetakeFlow
             retakes={pending.retakes}
             stackId={stackId}
+            maxAnswerChars={pending.max_answer_chars}
             answerAction={answerRetake.bind(null, stackId, lessonId)}
           />
         </main>

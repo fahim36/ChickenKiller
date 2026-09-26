@@ -4,34 +4,51 @@ import Link from "next/link";
 import { type FormEvent, useState } from "react";
 import { Inline } from "@/components/Inline";
 import { AnsweredQuestionDetail } from "@/components/MissedQuestions";
-import type { AnsweredQuestion, QuizQuestion, Retake, RetakeResult } from "@/lib/api";
+import { WrittenAnswer } from "@/components/WrittenAnswer";
+import type {
+  AnsweredQuestion,
+  GradingFailed,
+  QuizQuestion,
+  Retake,
+  RetakeResult,
+} from "@/lib/api";
 
 interface RetakeState {
   id: string;
   question: QuizQuestion;
+  /** How many times this Retake has been answered wrongly: a new ask starts a fresh form. */
+  tries: number;
   /** The last wrong sibling, shown with its Explanation. */
   explained: AnsweredQuestion | null;
   done: boolean;
 }
 
-type AnswerAction = (retakeId: string, answer: string | null) => Promise<RetakeResult>;
+export type AnswerRetakeAction = (
+  retakeId: string,
+  answer: string | null,
+) => Promise<RetakeResult | GradingFailed>;
 
 /**
  * The Retakes of a passed Lesson Quiz: for each Missed Question, a sibling Question on the same
- * Concept. A wrong answer shows that sibling's Explanation and the API offers another sibling;
- * once every Retake is correct the Lesson is Completed and the next one is Unlocked.
+ * Concept, multiple choice or written. A wrong answer shows that sibling's Explanation (and the
+ * grader's feedback on a written one) and the API offers another sibling; once every Retake is
+ * correct the Lesson is Completed and the next one is Unlocked. If grading fails, nothing was
+ * counted and the Learner submits again.
  */
 export function RetakeFlow({
   retakes,
   stackId,
+  maxAnswerChars,
   answerAction,
 }: {
   retakes: Retake[];
   stackId: string;
-  answerAction: AnswerAction;
+  /** The longest written answer the API accepts. */
+  maxAnswerChars: number;
+  answerAction: AnswerRetakeAction;
 }) {
   const [states, setStates] = useState<RetakeState[]>(() =>
-    retakes.map((r) => ({ id: r.id, question: r.question, explained: null, done: false })),
+    retakes.map((r) => ({ id: r.id, question: r.question, tries: 0, explained: null, done: false })),
   );
   const [completed, setCompleted] = useState(false);
 
@@ -42,7 +59,12 @@ export function RetakeFlow({
           ? s
           : result.correct
             ? { ...s, explained: null, done: true }
-            : { ...s, explained: result.question, question: result.next_question ?? s.question },
+            : {
+                ...s,
+                tries: s.tries + 1,
+                explained: result.question,
+                question: result.next_question ?? s.question,
+              },
       ),
     );
     if (result.lesson_completed) setCompleted(true);
@@ -72,7 +94,13 @@ export function RetakeFlow({
             {s.done ? (
               <p className="mark mark-correct">Correct</p>
             ) : (
-              <RetakeForm state={s} answerAction={answerAction} onAnswered={answered} />
+              <RetakeForm
+                key={s.tries}
+                state={s}
+                maxAnswerChars={maxAnswerChars}
+                answerAction={answerAction}
+                onAnswered={answered}
+              />
             )}
           </li>
         ))}
@@ -83,25 +111,30 @@ export function RetakeFlow({
 
 function RetakeForm({
   state,
+  maxAnswerChars,
   answerAction,
   onAnswered,
 }: {
   state: RetakeState;
-  answerAction: AnswerAction;
+  maxAnswerChars: number;
+  answerAction: AnswerRetakeAction;
   onAnswered: (result: RetakeResult) => void;
 }) {
-  const [answer, setAnswer] = useState<{ questionId: string; choice: string } | null>(null);
+  const [answer, setAnswer] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [gradingFailed, setGradingFailed] = useState<string | null>(null);
   const q = state.question;
-  const chosen = answer?.questionId === q.id ? answer.choice : null;
 
   async function submit(event: FormEvent) {
     event.preventDefault();
     setFailed(false);
+    setGradingFailed(null);
     setSubmitting(true);
     try {
-      onAnswered(await answerAction(state.id, chosen));
+      const outcome = await answerAction(state.id, answer.trim() === "" ? null : answer);
+      if ("code" in outcome) setGradingFailed(outcome.message);
+      else onAnswered(outcome);
     } catch {
       setFailed(true);
     } finally {
@@ -121,26 +154,41 @@ function RetakeForm({
         <legend>
           <Inline text={q.prompt} />
         </legend>
-        {q.choices.map((c) => (
-          <label key={c.id} className="choice">
-            <input
-              type="radio"
-              name={`retake-${state.id}`}
-              value={c.id}
-              checked={chosen === c.id}
-              onChange={() => setAnswer({ questionId: q.id, choice: c.id })}
-            />{" "}
-            <Inline text={c.text} />
-          </label>
-        ))}
+        {q.type === "written" ? (
+          <WrittenAnswer
+            question={q}
+            value={answer}
+            maxLength={maxAnswerChars}
+            onChange={setAnswer}
+            idPrefix={`retake-${state.id}`}
+          />
+        ) : (
+          q.choices.map((c) => (
+            <label key={c.id} className="choice">
+              <input
+                type="radio"
+                name={`retake-${state.id}`}
+                value={c.id}
+                checked={answer === c.id}
+                onChange={() => setAnswer(c.id)}
+              />{" "}
+              <Inline text={c.text} />
+            </label>
+          ))
+        )}
       </fieldset>
       {failed && (
         <p role="alert" className="notice notice-error">
           Couldn&apos;t submit your Retake. Try again.
         </p>
       )}
+      {gradingFailed && (
+        <p role="alert" className="notice notice-error">
+          {gradingFailed}
+        </p>
+      )}
       <button type="submit" disabled={submitting}>
-        Submit Retake
+        {submitting ? "Grading…" : gradingFailed ? "Submit again" : "Submit Retake"}
       </button>
     </form>
   );

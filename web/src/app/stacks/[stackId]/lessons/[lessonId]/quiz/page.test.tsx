@@ -13,6 +13,7 @@ const quiz: LessonQuiz = {
   lesson_id: "w01-l01",
   version: "v2026-09-26",
   pass_mark: 80,
+  max_answer_chars: 4000,
   questions: [
     {
       id: "w01-l01-q01",
@@ -56,6 +57,7 @@ it("shows the pending Retakes when the last quiz passed with Missed Questions", 
     attempt_id: "attempt-1",
     lesson_id: "w01-l01",
     lesson_completed: false,
+    max_answer_chars: 4000,
     retakes: [
       {
         id: "retake-1",

@@ -15,6 +15,8 @@
   gets through, whatever the browser shows.
 - `QuizRandom`: the random source that draws a quiz's Questions. Tests override `get_quiz_rng`
   with a seeded one.
+- `GraderDep`: the `Grader` that grades written answers (app/grading.py), set on the app by
+  `create_app`. Pass it to `marking.mark` / `mark_all`. Tests override `get_grader` with a fake.
 """
 
 import random
@@ -27,6 +29,7 @@ from sqlalchemy.orm import Session
 from app import learners, lessons, onboarding, progress
 from app.auth import Identity, InvalidToken, KeysUnavailable, TokenVerifier
 from app.db import get_session
+from app.grading import Grader
 from app.models import Learner, LearnerStack, Lesson
 
 SessionDep = Annotated[Session, Depends(get_session)]
@@ -154,3 +157,11 @@ def get_quiz_rng() -> random.Random:
 
 
 QuizRandom = Annotated[random.Random, Depends(get_quiz_rng)]
+
+
+def get_grader(request: Request) -> Grader:
+    grader: Grader = request.app.state.grader
+    return grader
+
+
+GraderDep = Annotated[Grader, Depends(get_grader)]

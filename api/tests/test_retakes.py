@@ -1,7 +1,8 @@
 """After a Lesson Quiz, over the API (#8): the results for each Missed Question, Retakes on a
 sibling Question, the Lesson completing only once every Retake is correct, a fresh quiz below
 the Pass Mark, and the record of Missed Questions the Daily Review reads (#9). The sibling and
-drawing rules themselves are tested in test_lesson_quiz_rules.py."""
+drawing rules themselves are tested in test_lesson_quiz_rules.py. Written answers are graded
+by the fake grader (conftest.py), which passes an answer saying "right"."""
 
 from collections.abc import Callable
 from typing import Any
@@ -17,6 +18,7 @@ from tests.conftest import (
     LEARNER_EMAIL,
     ClientFactory,
     ContentFactory,
+    FakeGrader,
     changelog_entry,
     make_bank,
     make_changelog,
@@ -24,6 +26,8 @@ from tests.conftest import (
 )
 from tests.test_lesson_quiz import (
     QUIZ,
+    RIGHT,
+    WRONG,
     answer_all,
     code,
     keys,
@@ -49,7 +53,7 @@ def mc(n: int, concept: str) -> dict[str, Any]:
         "prompt": f"Question {n}?",
         "choices": [{"id": "a", "text": "Right"}, {"id": "b", "text": "Wrong"}],
         "answer": "a",
-        "explanation": f"Because of {n}.",
+        "explanation": f"Because of {question_number(n)}.",
         "materials": ["mat-docs"],
     }
 
@@ -69,9 +73,21 @@ def five_on_concept_a(syllabus: dict[str, Any], bank: dict[str, Any]) -> None:
 
 def ten_multiple_choice(syllabus: dict[str, Any], bank: dict[str, Any]) -> None:
     """Ten multiple-choice Questions (q01-q06 and q09-q12) and the two written ones: a fresh
-    quiz after a first one can draw four new Questions, but has to repeat two."""
+    quiz after a first one can draw four new multiple-choice Questions, but has to repeat the
+    written ones."""
     concepts = ["concept-a", "concept-b", "concept-c", "concept-a"]
     bank["questions"] += [mc(n, concepts[n - 9]) for n in range(9, 13)]
+
+
+def mixed_concepts(syllabus: dict[str, Any], bank: dict[str, Any]) -> None:
+    """Concepts b and d each get one multiple-choice and one written Question (b: q03 and q07,
+    d: q04 and q08), so a missed q03 or q04 is retaken on a written sibling."""
+    own_explanations(syllabus, bank)
+    for question in bank["questions"]:
+        if question["id"] == question_number(4):
+            question["concept"] = "concept-d"
+        if question["id"] == question_number(7):
+            question["concept"] = "concept-b"
 
 
 def setup(session: Session, api: TestClient, make_content: ContentFactory, edit: Edit) -> None:
@@ -84,13 +100,16 @@ def setup(session: Session, api: TestClient, make_content: ContentFactory, edit:
 @pytest.fixture
 def learner(session: Session, api: TestClient, make_content: ContentFactory) -> TestClient:
     """A Learner on the mini Stack, whose w01-l01 bank has two multiple-choice Questions on each
-    of Concepts a, b and c (q01-q02, q03-q04, q05-q06), and each Explanation its own."""
+    of Concepts a, b and c (q01-q02, q03-q04, q05-q06) and two written ones on Concept d
+    (q07-q08), each Explanation its own. A quiz asks four multiple choice and both written."""
     setup(session, api, make_content, own_explanations)
     return api
 
 
 CONCEPT_OF = {question_number(n): "abc"[(n - 1) // 2] for n in range(1, 7)}
+CONCEPT_OF.update({question_number(n): "d" for n in (7, 8)})
 CONCEPT_OF.update({question_number(n): "a" for n in (9, 10, 11)})
+WRITTEN = [question_number(7), question_number(8)]
 
 
 def concept_siblings(question_id: str) -> set[str]:
@@ -99,7 +118,14 @@ def concept_siblings(question_id: str) -> set[str]:
 
 def miss(quiz: dict[str, Any], missed: list[str]) -> dict[str, str | None]:
     """Answer every Question correctly except those in `missed`."""
-    return {q["id"]: ("b" if q["id"] in missed else "a") for q in quiz["questions"]}
+    answers: dict[str, str | None] = {}
+    for q in quiz["questions"]:
+        wrong = q["id"] in missed
+        if q["type"] == "written":
+            answers[q["id"]] = WRONG if wrong else RIGHT
+        else:
+            answers[q["id"]] = "b" if wrong else "a"
+    return answers
 
 
 def pass_missing_one(client: TestClient, concept: str = "a") -> tuple[str, dict[str, Any]]:
@@ -136,6 +162,7 @@ def test_the_results_show_each_missed_question_with_the_answers_explanation_and_
             "prompt": f"Question {int(qid[-2:])}?",
             "choices": [{"id": "a", "text": "Right"}, {"id": "b", "text": "Wrong"}],
             "response": response,
+            "feedback": None,
             "answer": "a",
             "model_answer": None,
             "explanation": f"Because of {qid}.",
@@ -208,6 +235,7 @@ def test_starting_the_quiz_while_retakes_are_pending_points_at_them(
         "attempt_id": result["attempt_id"],
         "lesson_id": "w01-l01",
         "lesson_completed": False,
+        "max_answer_chars": 4000,
         "retakes": result["retakes"],
     }
 
@@ -331,8 +359,9 @@ def test_below_the_pass_mark_there_are_no_retakes_and_the_fresh_quiz_avoids_old_
     fresh = start(api)
     fresh_ids = {q["id"] for q in fresh["questions"]}
     assert fresh["attempt_id"] != first["attempt_id"]
-    assert multiple_choice - first_ids <= fresh_ids  # all four unused Questions
-    assert len(fresh_ids & first_ids) == 2  # and only the two repeats it can't avoid
+    # Four of the six unused multiple-choice Questions; the bank's only two written ones again.
+    assert len(fresh_ids & (multiple_choice - first_ids)) == 4
+    assert fresh_ids & first_ids == set(WRITTEN)
 
 
 def test_a_fresh_quiz_repeats_questions_only_when_the_bank_is_too_small(
@@ -343,8 +372,12 @@ def test_a_fresh_quiz_repeats_questions_only_when_the_bank_is_too_small(
 
     fresh = start(learner)
 
-    # Only six multiple-choice Questions in this bank, so the fresh quiz has to reuse them.
-    assert {q["id"] for q in fresh["questions"]} == {q["id"] for q in first["questions"]}
+    # Six multiple-choice Questions and two written: the fresh quiz uses the two unused
+    # multiple-choice ones and has to repeat the rest.
+    first_ids = {q["id"] for q in first["questions"]}
+    fresh_ids = {q["id"] for q in fresh["questions"]}
+    assert {question_number(n) for n in range(1, 7)} - first_ids <= fresh_ids
+    assert len(fresh_ids - first_ids) == 2
 
 
 # --- Missed Questions for the Daily Review ---------------------------------------------------
@@ -427,3 +460,99 @@ def test_the_learners_answers_to_retakes_are_recorded(
         False,
     )
     assert str(retake_answer.retake_id) == retake["id"]
+
+
+# --- Written Retakes (#7's grading) ----------------------------------------------------------
+
+
+def test_a_missed_written_question_is_retaken_on_its_written_sibling(
+    learner: TestClient,
+) -> None:
+    missed, result = pass_missing_one(learner, "d")
+    [retake] = result["retakes"]
+    [sibling] = set(WRITTEN) - {missed}
+
+    assert retake["question"] == {
+        "id": sibling,
+        "type": "written",
+        "prompt": f"Explain {int(sibling[-2:])}.",
+        "choices": [],
+    }
+    [detail] = result["missed"]
+    assert (detail["response"], detail["feedback"]) == (WRONG, "Missing: one.")
+    assert detail["model_answer"] == {"summary": "S", "key_points": ["one", "two"]}
+
+
+def test_a_written_retake_that_passes_grading_completes_the_lesson(
+    learner: TestClient, grader: FakeGrader
+) -> None:
+    _, result = pass_missing_one(learner, "d")
+    [retake] = result["retakes"]
+
+    answered = answer_retake(learner, retake, "The right idea.").json()
+
+    assert (answered["correct"], answered["lesson_completed"]) == (True, True)
+    assert answered["question"]["feedback"] == "Covers every key point."
+    assert grader.calls[-1][2] == "The right idea."
+    assert lesson_states(learner)["w01-l01"] == "completed"
+
+
+def test_a_written_retake_that_fails_grading_shows_feedback_and_the_explanation(
+    session: Session, learner: TestClient
+) -> None:
+    missed, result = pass_missing_one(learner, "d")
+    [retake] = result["retakes"]
+
+    answered = answer_retake(learner, retake, "No idea.").json()
+
+    assert answered["correct"] is False
+    assert answered["question"]["feedback"] == "Missing: one."
+    assert answered["question"]["explanation"] == f"Because of {retake['question']['id']}."
+    assert answered["question"]["model_answer"] == {"summary": "S", "key_points": ["one", "two"]}
+    assert answered["next_question"]["id"] == retake["question"]["id"] != missed
+    assert lesson_states(learner)["w01-l01"] == "unlocked"
+    [row] = [
+        a
+        for a in quizzes.recorded_answers(session, learner_id(session), "mini-stack")
+        if a.context == "retake"
+    ]
+    assert (row.response, row.correct, row.feedback) == ("No idea.", False, "Missing: one.")
+
+
+def test_when_grading_a_retake_fails_nothing_is_recorded_and_it_can_be_answered_again(
+    session: Session, learner: TestClient, grader: FakeGrader
+) -> None:
+    _, result = pass_missing_one(learner, "d")
+    [retake] = result["retakes"]
+    grader.failing = True
+
+    response = answer_retake(learner, retake, "The right idea.")
+
+    assert code(response) == (503, "grading_failed")
+    recorded = quizzes.recorded_answers(session, learner_id(session), "mini-stack")
+    assert [a for a in recorded if a.context == "retake"] == []
+    grader.failing = False
+    answered = answer_retake(learner, retake, "The right idea.").json()
+    assert (answered["correct"], answered["lesson_completed"]) == (True, True)
+
+
+def test_a_missed_multiple_choice_question_can_be_retaken_on_a_written_sibling(
+    session: Session, api: TestClient, make_content: ContentFactory
+) -> None:
+    setup(session, api, make_content, mixed_concepts)
+    quiz = start(api)
+    missed = next(q["id"] for q in quiz["questions"] if q["id"] == question_number(3))
+    result = submit(api, quiz, miss(quiz, [missed])).json()
+    [retake] = result["retakes"]
+
+    assert (retake["question"]["id"], retake["question"]["type"]) == (question_number(7), "written")
+    answered = answer_retake(api, retake, "The right idea.").json()
+    assert answered["lesson_completed"] is True
+
+
+def test_an_overlong_written_retake_is_rejected(learner: TestClient) -> None:
+    _, result = pass_missing_one(learner, "d")
+
+    response = answer_retake(learner, result["retakes"][0], "x" * 5000)
+
+    assert code(response) == (422, "answer_too_long")

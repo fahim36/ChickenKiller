@@ -31,5 +31,9 @@ CLERK_JWKS_URL = os.environ.get("CLERK_JWKS_URL") or (
 CLERK_AUTHORIZED_PARTIES = env_list("CLERK_AUTHORIZED_PARTIES")
 ADMIN_EMAILS = frozenset(email.lower() for email in env_list("ADMIN_EMAILS"))
 
+# Grading written answers (app/grading.py, docs/deploy.md). Without it the app still runs, but
+# every written answer fails to grade (503 `grading_failed`) and can be resubmitted later.
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+
 CONTENT_DIR = Path(os.environ.get("CONTENT_DIR", REPO_ROOT / "content"))
 CONTENT_SCHEMA_DIR = Path(os.environ.get("CONTENT_SCHEMA_DIR", CONTENT_DIR / "schema"))

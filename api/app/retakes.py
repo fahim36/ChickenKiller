@@ -5,9 +5,12 @@ becomes a Completed Lesson only when every Retake is correct.
 - **Opening** (`open_retakes`) makes one `Retake` per Missed Question of a passed attempt and
   asks its first sibling. It is idempotent: the submit route calls it right after submitting,
   and reading the Retakes calls it again, so an interrupted request never strands a Lesson.
-- **Answering** (`answer_retake`) marks the sibling asked. Correct: that Retake is done, and
-  the last one done completes the Lesson. Wrong: its Explanation is shown and another sibling
-  is asked (`quiz.pick_sibling`: unused ones first, then cycling, never the original).
+- **Answering** (`answer_retake`) marks the sibling asked with `marking.mark`, the same rules
+  as the Lesson Quiz: a written sibling is graded against its Model Answer (#7). Correct: that
+  Retake is done, and the last one done completes the Lesson. Wrong: its Explanation (and the
+  grader's feedback) is shown and another sibling is asked (`quiz.pick_sibling`: unused ones
+  first, then cycling, never the original). If grading fails, nothing is recorded and the
+  Learner answers again.
 - Siblings come from the attempt's pinned Syllabus version, like the quiz itself (#13).
 - Every answer is an `Answer` with `context='retake'`, so a wrong sibling is a Missed Question
   too (`quizzes.missed_questions`).
@@ -15,9 +18,8 @@ becomes a Completed Lesson only when every Retake is correct.
 Retakes are keyed by the Learner and the attempt, not guarded by `UnlockedLesson`, so Retakes
 already under way can be finished even if the Lesson becomes locked (#9's Pending Review Round).
 
-Only multiple-choice siblings can be asked until #7 grades written answers (`RETAKE_TYPES` and
-`_mark`). Until then a Missed Question whose Concept has no other multiple-choice Question gets
-no Retake, and doesn't hold up the Lesson.
+A sibling may be of either type, whatever the Missed Question's type: a missed multiple-choice
+Question can be retaken on a written sibling and vice versa.
 """
 
 import random
@@ -31,14 +33,15 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
 from app import progress, quiz
+from app.grading import Grader
+from app.marking import AnswerTooLong, GradingFailed, NotAChoice, mark
 from app.models import Answer, LearnerStack, LessonQuizAttempt, Question, Retake, Syllabus
-from app.quizzes import NotAChoice
 
 RETAKE = "retake"
 """`Answer.context` for an answer given in a Retake."""
 
-RETAKE_TYPES = ("multiple_choice",)
-"""Question types a Retake may ask. #7 adds "written" once `_mark` can grade it."""
+RETAKE_TYPES = ("multiple_choice", "written")
+"""Question types a Retake may ask: both, since `marking.mark` grades written answers."""
 
 
 class RetakeNotFound(Exception):
@@ -71,6 +74,8 @@ class RetakeResult:
     """The sibling just answered."""
     response: str | None
     correct: bool
+    feedback: str | None
+    """The grader's one line, for a graded written answer."""
     next_question: Question | None
     """Another sibling to try, after a wrong answer."""
     pending: int
@@ -122,7 +127,7 @@ def open_retakes(
         original = _version_question(session, attempt, question_id)
         sibling = quiz.pick_sibling(_concept_questions(session, original), original.id, [], rng)
         if sibling is None:
-            continue  # no sibling a Retake can ask yet (see RETAKE_TYPES)
+            continue  # a Concept with one Question: the content check rules this out
         session.execute(
             insert(Retake)
             .values(
@@ -151,13 +156,16 @@ def answer_retake(
     lesson_id: str,
     retake_id: uuid.UUID,
     response: str | None,
+    grader: Grader,
     rng: random.Random,
     now: datetime,
 ) -> RetakeResult:
-    """Mark and record the answer to a Retake's waiting sibling. None is unanswered, so wrong.
+    """Mark and record the answer to a Retake's waiting sibling: a choice ID or a written
+    answer. None (or a blank written answer) is unanswered, so wrong.
 
-    Raises RetakeNotFound, RetakeDone, or NotAChoice for a response that isn't one of the
-    sibling's choices; nothing is recorded then.
+    Raises RetakeNotFound, RetakeDone, NotAChoice, AnswerTooLong or GradingFailed; nothing is
+    recorded then, and the same sibling waits for another answer. A written answer is graded
+    while the Retake's row is locked, so a double submission can't grade twice.
     """
     retake = session.scalar(
         select(Retake)
@@ -176,7 +184,12 @@ def answer_retake(
         raise RetakeDone(retake_id)
     attempt = session.get_one(LessonQuizAttempt, retake.lesson_quiz_attempt_id)
     question = _version_question(session, attempt, retake.asked_question_ids[-1])
-    correct = _mark(question, response)
+    try:
+        marked = mark(question, response, grader)
+    except (NotAChoice, AnswerTooLong, GradingFailed):
+        session.rollback()  # releases the lock; nothing was written
+        raise
+    correct = marked.correct
     session.add(
         Answer(
             learner_id=record.learner_id,
@@ -187,6 +200,7 @@ def answer_retake(
             retake_id=retake.id,
             response=response,
             correct=correct,
+            feedback=marked.feedback,
             answered_at=now,
         )
     )
@@ -210,17 +224,9 @@ def answer_retake(
         progress.complete_lesson(session, record, attempt.lesson_id, now)  # commits
     else:
         session.commit()
-    return RetakeResult(retake, question, response, correct, next_question, pending, completed)
-
-
-def _mark(question: Question, response: str | None) -> bool:
-    """Whether a Retake's response is correct. Multiple choice only for now: #7 swaps this for
-    its `mark(question, response, grader)` and adds "written" to RETAKE_TYPES."""
-    if response is None:
-        return False
-    if response not in {c["id"] for c in question.choices or []}:
-        raise NotAChoice(question.id)
-    return response == question.answer
+    return RetakeResult(
+        retake, question, response, correct, marked.feedback, next_question, pending, completed
+    )
 
 
 def _pending(session: Session, attempt: LessonQuizAttempt) -> list[PendingRetake]:

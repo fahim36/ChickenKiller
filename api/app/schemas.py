@@ -166,10 +166,10 @@ class ChoiceOut(BaseModel):
 
 class QuizQuestionOut(BaseModel):
     """A Question as the Learner sees it while answering: never its answer, Model Answer or
-    Explanation."""
+    Explanation. A written Question has no choices."""
 
     id: str
-    type: Literal["multiple_choice"]
+    type: Literal["multiple_choice", "written"]
     prompt: str
     choices: list[ChoiceOut]
 
@@ -182,12 +182,15 @@ class LessonQuizOut(BaseModel):
     version: str
     pass_mark: int
     """As a percentage."""
+    max_answer_chars: int
+    """The longest written answer accepted."""
     questions: list[QuizQuestionOut]
 
 
 class LessonQuizAnswersIn(BaseModel):
-    """The Learner's answers, by Question ID: a choice ID, or null for unanswered. A Question
-    left out is unanswered too."""
+    """The Learner's answers, by Question ID: a choice ID, the written answer (at most
+    `max_answer_chars`), or null for unanswered. A Question left out, or a blank written answer,
+    is unanswered too."""
 
     answers: dict[str, str | None]
 
@@ -195,6 +198,8 @@ class LessonQuizAnswersIn(BaseModel):
 class QuestionResultOut(BaseModel):
     id: str
     correct: bool
+    feedback: str | None = None
+    """The grader's one line on a graded written answer; null otherwise."""
 
 
 class ModelAnswerOut(BaseModel):
@@ -214,6 +219,8 @@ class AnsweredQuestionOut(BaseModel):
     """Empty for a written Question."""
     response: str | None
     """The Learner's choice ID or written answer; null for unanswered."""
+    feedback: str | None
+    """The grader's one line on a graded written answer; null otherwise."""
     answer: str | None
     """The correct choice ID, for multiple choice."""
     model_answer: ModelAnswerOut | None
@@ -266,6 +273,8 @@ class RetakesOut(BaseModel):
     attempt_id: uuid.UUID
     lesson_id: str
     lesson_completed: bool
+    max_answer_chars: int
+    """The longest written answer accepted."""
     retakes: list[RetakeOut]
 
 

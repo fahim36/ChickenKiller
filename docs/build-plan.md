@@ -125,6 +125,7 @@ There are also 11 Vitest tests for the page helpers, the components and the Less
 **Tests:**
 - A Retake never asks the original Missed Question, and never the same sibling twice while an unused one is left.
 - Once every sibling is used they cycle again, never the same one twice in a row. A Concept with exactly two Questions has one sibling, so its Retakes ask that sibling again (#8).
+- A sibling may be of either type: a missed written Question gets a Retake like any other, and a written Retake is graded the same way as in the Lesson Quiz (a grading failure records nothing and the Learner answers again).
 - Grading is tested with the Claude client replaced by a fake. Separately, **a small eval set**: 30 or more written answers you've labelled pass or fail. Measure how often the grader agrees with your labels, and fail CI if agreement drops below the number you set.
 
 **Demo:**

@@ -82,10 +82,13 @@ export interface Lesson {
   next_lesson_id: string | null;
 }
 
-/** A Question as the Learner sees it while answering: never its answer or Explanation. */
+/**
+ * A Question as the Learner sees it while answering: never its answer, Model Answer or
+ * Explanation. A written Question has no choices; it is answered in the Learner's own words.
+ */
 export interface QuizQuestion {
   id: string;
-  type: "multiple_choice";
+  type: "multiple_choice" | "written";
   prompt: string;
   choices: { id: string; text: string }[];
 }
@@ -97,10 +100,15 @@ export interface LessonQuiz {
   version: string;
   /** As a percentage. */
   pass_mark: number;
+  /** The longest written answer the API accepts. */
+  max_answer_chars: number;
   questions: QuizQuestion[];
 }
 
-/** The Learner's answers by Question ID. A Question left out is unanswered, so missed. */
+/**
+ * The Learner's answers by Question ID: a choice ID, or a written answer. A Question left out
+ * is unanswered, so missed.
+ */
 export type QuizAnswers = Record<string, string | null>;
 
 /**
@@ -115,6 +123,8 @@ export interface AnsweredQuestion {
   choices: { id: string; text: string }[];
   /** The Learner's choice ID or written answer; null when left unanswered. */
   response: string | null;
+  /** The grader's one line on a graded written answer; null otherwise. */
+  feedback: string | null;
   /** The correct choice ID, for multiple choice. */
   answer: string | null;
   model_answer: { summary: string; key_points: string[] } | null;
@@ -146,7 +156,8 @@ export interface LessonQuizResult {
   /** Met the Pass Mark. The Lesson is Completed only once every Retake is correct too. */
   passed: boolean;
   pass_mark: number;
-  questions: { id: string; correct: boolean }[];
+  /** `feedback` is the grader's one line on a graded written answer, otherwise null. */
+  questions: { id: string; correct: boolean; feedback?: string | null }[];
   /** Each Missed Question, in the order asked. */
   missed: AnsweredQuestion[];
   next_step: NextStep;
@@ -155,11 +166,23 @@ export interface LessonQuizResult {
   retakes: Retake[];
 }
 
+/**
+ * Submitting couldn't grade the written answers (a timeout or an API error). Nothing was
+ * recorded and the quiz (or Retake) is still open, so the Learner can submit again without
+ * penalty.
+ */
+export interface GradingFailed {
+  code: "grading_failed";
+  message: string;
+}
+
 /** A passed attempt's pending Retakes. */
 export interface Retakes {
   attempt_id: string;
   lesson_id: string;
   lesson_completed: boolean;
+  /** The longest written answer the API accepts. */
+  max_answer_chars: number;
   retakes: Retake[];
 }
 

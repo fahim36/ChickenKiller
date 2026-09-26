@@ -14,6 +14,7 @@ const wrong: AnsweredQuestion = {
     { id: "b", text: "Equality" },
   ],
   response: "b",
+  feedback: null,
   answer: "a",
   model_answer: null,
   explanation: "`is` compares identity; `==` compares equality.",
@@ -42,6 +43,7 @@ const written: AnsweredQuestion = {
   prompt: "Explain the mutable default argument trap.",
   choices: [],
   response: "Defaults are fine.",
+  feedback: "Missing: evaluated once.",
   answer: null,
   model_answer: { summary: "Defaults are evaluated once.", key_points: ["once", "shared"] },
   explanation: "The default object is shared between calls.",
@@ -78,13 +80,14 @@ it("links a Missed Question's Materials", () => {
   expect(link.getAttribute("href")).toBe("https://docs.python.org/");
 });
 
-it("shows a written Question's Model Answer instead of a correct choice", () => {
+it("shows a written Question's feedback and Model Answer instead of a correct choice", () => {
   render(<AnsweredQuestionDetail question={written} />);
 
   const article = detail("Explain the mutable default argument trap.");
   expect(within(article).getByText("Your answer:").parentElement?.textContent).toBe(
     "Your answer: Defaults are fine.",
   );
+  expect(within(article).getByText("Missing: evaluated once.")).toBeTruthy();
   expect(within(article).getByText("Defaults are evaluated once.")).toBeTruthy();
   expect(within(article).getAllByRole("listitem").map((li) => li.textContent)).toEqual([
     "once",

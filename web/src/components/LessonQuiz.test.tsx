@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, within } from "@testing-library/rea
 import { afterEach, expect, it, vi } from "vitest";
 import type {
   AnsweredQuestion,
+  GradingFailed,
   LessonQuiz as Quiz,
   LessonQuizResult,
   QuizAnswers,
@@ -9,28 +10,40 @@ import type {
 } from "@/lib/api";
 import { LessonQuiz } from "./LessonQuiz";
 
+// Four multiple-choice Questions (1 to 4), then two written ones (5 and 6).
 const quiz: Quiz = {
   attempt_id: "3f1c7a52-0000-4000-8000-000000000001",
   lesson_id: "w01-l01",
   version: "v2026-09-26",
   pass_mark: 80,
-  questions: [1, 2, 3, 4, 5, 6].map((n) => ({
-    id: `w01-l01-q0${n}`,
-    type: "multiple_choice",
-    prompt: `Question ${n}?`,
-    choices: [
-      { id: "a", text: `Right ${n}` },
-      { id: "b", text: `Wrong ${n}` },
-    ],
-  })),
+  max_answer_chars: 4000,
+  questions: [
+    ...[1, 2, 3, 4].map((n) => ({
+      id: `w01-l01-q0${n}`,
+      type: "multiple_choice" as const,
+      prompt: `Question ${n}?`,
+      choices: [
+        { id: "a", text: `Right ${n}` },
+        { id: "b", text: `Wrong ${n}` },
+      ],
+    })),
+    ...[5, 6].map((n) => ({
+      id: `w01-l01-q0${n}`,
+      type: "written" as const,
+      prompt: `Question ${n}?`,
+      choices: [],
+    })),
+  ],
 };
 
 function missed(n: number): AnsweredQuestion {
+  const written = quiz.questions[n - 1].type === "written";
   return {
     ...quiz.questions[n - 1],
-    response: "b",
-    answer: "a",
-    model_answer: null,
+    response: written ? "Not sure." : "b",
+    feedback: written ? "Missing: the loop." : null,
+    answer: written ? null : "a",
+    model_answer: written ? { summary: "Agents loop.", key_points: ["loop", "tools"] } : null,
     explanation: `Because of ${n}.`,
     materials: [],
   };
@@ -48,7 +61,7 @@ function result(correct: number): LessonQuizResult {
     percent: Math.round((correct / 6) * 100),
     passed,
     pass_mark: 80,
-    questions: quiz.questions.map((q, i) => ({ id: q.id, correct: i < correct })),
+    questions: quiz.questions.map((q, i) => ({ id: q.id, correct: i < correct, feedback: null })),
     missed: missedNumbers.map(missed),
     next_step: !passed ? "fresh_quiz" : correct === 6 ? "completed" : "retakes",
     lesson_completed: correct === 6,
@@ -64,12 +77,13 @@ function result(correct: number): LessonQuizResult {
 
 afterEach(cleanup);
 
-type AnswerRetake = (retakeId: string, answer: string | null) => Promise<RetakeResult>;
+type Submit = (answers: QuizAnswers) => Promise<LessonQuizResult | GradingFailed>;
+type AnswerRetake = (
+  retakeId: string,
+  answer: string | null,
+) => Promise<RetakeResult | GradingFailed>;
 
-function renderQuiz(
-  submitAction: (answers: QuizAnswers) => Promise<LessonQuizResult>,
-  answerRetakeAction: AnswerRetake = vi.fn(),
-) {
+function renderQuiz(submitAction: Submit, answerRetakeAction: AnswerRetake = vi.fn()) {
   render(
     <LessonQuiz
       quiz={quiz}
@@ -80,36 +94,52 @@ function renderQuiz(
   );
 }
 
+const question = (n: number) => screen.getByRole("group", { name: new RegExp(`Question ${n}\\?`) });
+
 function choose(n: number, text: string) {
-  const question = screen.getByRole("group", { name: new RegExp(`Question ${n}\\?`) });
-  fireEvent.click(within(question).getByRole("radio", { name: text }));
+  fireEvent.click(within(question(n)).getByRole("radio", { name: text }));
 }
 
-const submitButton = () => screen.getByRole("button", { name: "Submit answers" });
+function write(n: number, text: string) {
+  fireEvent.change(within(question(n)).getByRole("textbox", { name: "Your answer" }), {
+    target: { value: text },
+  });
+}
 
-it("shows the six Questions with their choices", () => {
+const submitButton = () => screen.getByRole("button", { name: /Submit/ });
+
+it("shows the multiple-choice Questions with their choices and the written ones with a box", () => {
   renderQuiz(vi.fn());
 
   expect(screen.getAllByRole("group")).toHaveLength(6);
-  const first = screen.getByRole("group", { name: /Question 1\?/ });
+  const first = question(1);
   expect(within(first).getAllByRole("radio").map((r) => r.getAttribute("value"))).toEqual([
     "a",
     "b",
   ]);
   expect(within(first).getByText("Right 1")).toBeTruthy();
+  expect(within(question(5)).queryAllByRole("radio")).toHaveLength(0);
+  const box = within(question(5)).getByRole("textbox", { name: "Your answer" });
+  expect(box.getAttribute("maxlength")).toBe("4000");
 });
 
-it("submits the chosen answers, leaving unanswered Questions out", async () => {
+it("submits the chosen and written answers, leaving unanswered Questions out", async () => {
   const submitAction = vi.fn(async () => result(5));
   renderQuiz(submitAction);
 
   choose(1, "Right 1");
   choose(2, "Wrong 2");
   choose(2, "Right 2");
+  write(5, "An agent calls tools in a loop.");
+  write(6, "   ");
   fireEvent.click(submitButton());
 
   await vi.waitFor(() =>
-    expect(submitAction).toHaveBeenCalledWith({ "w01-l01-q01": "a", "w01-l01-q02": "a" }),
+    expect(submitAction).toHaveBeenCalledWith({
+      "w01-l01-q01": "a",
+      "w01-l01-q02": "a",
+      "w01-l01-q05": "An agent calls tools in a loop.",
+    }),
   );
 });
 
@@ -147,17 +177,54 @@ it("marks which Questions were right and which were missed", async () => {
   fireEvent.click(submitButton());
   await screen.findByRole("status");
 
-  const marks = quiz.questions.map((_, i) =>
-    within(screen.getByRole("group", { name: new RegExp(`Question ${i + 1}\\?`) })).getByText(
-      /^(Correct|Missed)$/,
-    ).textContent,
+  const marks = quiz.questions.map(
+    (_, i) => within(question(i + 1)).getByText(/^(Correct|Missed)$/).textContent,
   );
   expect(marks).toEqual(["Correct", "Correct", "Correct", "Correct", "Missed", "Missed"]);
 });
 
+it("shows the grader's feedback on each written answer", async () => {
+  const graded = result(5);
+  graded.questions[4].feedback = "Covers every key point.";
+  graded.questions[5].feedback = "Missing: the loop.";
+  renderQuiz(vi.fn(async () => graded));
+
+  fireEvent.click(submitButton());
+  await screen.findByRole("status");
+
+  expect(within(question(5)).getByText("Correct")).toBeTruthy();
+  expect(within(question(5)).getByText("Covers every key point.")).toBeTruthy();
+  expect(within(question(6)).getByText("Missed")).toBeTruthy();
+  expect(within(question(6)).getByText("Missing: the loop.")).toBeTruthy();
+});
+
+it("says nothing was counted when grading fails, and lets the Learner submit again", async () => {
+  const failure: GradingFailed = {
+    code: "grading_failed",
+    message: "Your written answers couldn't be graded just now. Nothing was counted.",
+  };
+  const submitAction = vi.fn<Submit>().mockResolvedValueOnce(failure).mockResolvedValueOnce(result(6));
+  renderQuiz(submitAction);
+  write(5, "My answer.");
+
+  fireEvent.click(submitButton());
+
+  expect((await screen.findByRole("alert")).textContent).toBe(failure.message);
+  expect(screen.queryByRole("status")).toBeNull();
+  expect(submitButton().textContent).toBe("Submit again");
+  const box = within(question(5)).getByRole("textbox", { name: "Your answer" });
+  expect((box as HTMLTextAreaElement).value).toBe("My answer.");
+
+  fireEvent.click(submitButton());
+
+  expect((await screen.findByRole("status")).textContent).toContain("6 of 6 (100%)");
+  expect(submitAction).toHaveBeenLastCalledWith({ "w01-l01-q05": "My answer." });
+  expect(screen.queryByRole("alert")).toBeNull();
+});
+
 it("says so and lets the Learner try again when submitting fails", async () => {
   const submitAction = vi
-    .fn<(answers: QuizAnswers) => Promise<LessonQuizResult>>()
+    .fn<Submit>()
     .mockRejectedValueOnce(new Error("HTTP 500"))
     .mockResolvedValueOnce(result(6));
   renderQuiz(submitAction);
@@ -180,13 +247,15 @@ it("after submitting shows each Missed Question's Explanation", async () => {
   const explained = screen.getAllByRole("article").map((a) => a.querySelector("h3")?.textContent);
   expect(explained).toEqual(["Question 5?", "Question 6?"]);
   expect(screen.getByText("Because of 5.")).toBeTruthy();
+  const written = screen.getAllByRole("article")[0];
+  expect(within(written).getByText("Agents loop.")).toBeTruthy();
 });
 
 it("a pass with a Missed Question goes on to its Retake, and a correct one completes the Lesson", async () => {
   const answerRetake = vi.fn<AnswerRetake>(async () => ({
     retake_id: "retake-6",
     correct: true,
-    question: { ...missed(6), response: "a" },
+    question: { ...missed(1), id: "w01-l01-q09", response: "a" },
     next_question: null,
     pending: 0,
     lesson_completed: true,

@@ -3,8 +3,8 @@ import { MaterialList } from "@/components/MaterialList";
 import type { AnsweredQuestion } from "@/lib/api";
 
 /**
- * The results screen's Missed Questions: for each, the Learner's answer, the correct answer
- * or Model Answer, the Explanation and the Materials. The API only sends these after the
+ * The results screen's Missed Questions: for each, the Learner's answer, the grader's
+ * feedback (written), the correct answer or Model Answer, the Explanation and the Materials. The API only sends these after the
  * answers are submitted.
  */
 export function MissedQuestions({ missed }: { missed: AnsweredQuestion[] }) {
@@ -36,6 +36,7 @@ export function AnsweredQuestionDetail({ question: q }: { question: AnsweredQues
           <Inline text={q.type === "written" ? q.response : choice(q.response)} />
         )}
       </p>
+      {q.feedback && <p className="feedback">{q.feedback}</p>}
       {q.model_answer ? (
         <div>
           <p>

@@ -1,7 +1,7 @@
 """retakes (#8)
 
-Revision ID: 0006_retakes
-Revises: 0005
+Revision ID: 0007
+Revises: 0006
 Create Date: 2026-09-26 15:01:10.768185
 
 """
@@ -13,8 +13,8 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = "0006_retakes"
-down_revision: str | Sequence[str] | None = "0005"
+revision: str = "0007"
+down_revision: str | Sequence[str] | None = "0006"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

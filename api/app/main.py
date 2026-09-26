@@ -1,15 +1,29 @@
+import logging
 import uuid
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException
 
-from app import learners, lessons, onboarding, progress, quiz, quizzes, retakes, schemas
+from app import (
+    config,
+    grading,
+    learners,
+    lessons,
+    marking,
+    onboarding,
+    progress,
+    quiz,
+    quizzes,
+    retakes,
+    schemas,
+)
 from app.auth import TokenVerifier
 from app.deps import (
     ActiveStack,
     ActiveStackInPath,
     AdminLearner,
     CurrentLearner,
+    GraderDep,
     QuizRandom,
     SessionDep,
     UnlockedLesson,
@@ -167,6 +181,13 @@ QUIZ_SUBMITTED = {
     "code": "quiz_submitted",
     "message": "This Lesson Quiz has already been submitted.",
 }
+GRADING_FAILED = {
+    "code": "grading_failed",
+    "message": (
+        "Your written answers couldn't be graded just now. Nothing was counted: "
+        "submit again in a moment."
+    ),
+}
 RETAKE_DONE = {
     "code": "retake_done",
     "message": "You've already answered this Retake correctly.",
@@ -177,20 +198,24 @@ def _quiz_question(q: Question) -> schemas.QuizQuestionOut:
     """A Question to answer: never its answer, Model Answer or Explanation."""
     return schemas.QuizQuestionOut(
         id=q.id,
-        type="multiple_choice",
+        type="written" if q.type == "written" else "multiple_choice",
         prompt=q.prompt,
         choices=[schemas.ChoiceOut(id=c["id"], text=c["text"]) for c in q.choices or []],
     )
 
 
-def _answered_question(q: Question, response: str | None) -> schemas.AnsweredQuestionOut:
-    """A Question after it was answered, with its answer, Explanation and Materials."""
+def _answered_question(
+    q: Question, response: str | None, feedback: str | None
+) -> schemas.AnsweredQuestionOut:
+    """A Question after it was answered, with its answer, the grader's feedback (written),
+    Explanation and Materials."""
     return schemas.AnsweredQuestionOut(
         id=q.id,
         type="written" if q.type == "written" else "multiple_choice",
         prompt=q.prompt,
         choices=[schemas.ChoiceOut(id=c["id"], text=c["text"]) for c in q.choices or []],
         response=response,
+        feedback=feedback,
         answer=q.answer,
         model_answer=None if q.model_answer is None else schemas.ModelAnswerOut(**q.model_answer),
         explanation=q.explanation,
@@ -207,6 +232,25 @@ def _retakes_out(pending: list[retakes.PendingRetake]) -> list[schemas.RetakeOut
         )
         for p in pending
     ]
+
+
+def _answer_too_long(error: marking.AnswerTooLong) -> HTTPException:
+    detail = {
+        "code": "answer_too_long",
+        "message": (
+            f"Your answer to {error.question_id} is too long: "
+            f"keep it under {grading.MAX_ANSWER_CHARS} characters."
+        ),
+    }
+    return HTTPException(422, detail)
+
+
+def _not_a_choice(error: marking.NotAChoice) -> HTTPException:
+    detail = {
+        "code": "not_a_choice",
+        "message": f"That isn't one of the choices for {error.question_id}.",
+    }
+    return HTTPException(422, detail)
 
 
 @router.post("/stacks/{stack_id}/lessons/{lesson_id}/quiz")
@@ -238,6 +282,7 @@ def start_lesson_quiz(
         lesson_id=started.attempt.lesson_id,
         version=started.attempt.syllabus_version,
         pass_mark=PASS_MARK_PERCENT,
+        max_answer_chars=grading.MAX_ANSWER_CHARS,
         questions=[_quiz_question(q) for q in started.questions],
     )
 
@@ -249,6 +294,7 @@ def submit_lesson_quiz(
     body: schemas.LessonQuizAnswersIn,
     active: ActiveStackInPath,
     session: SessionDep,
+    grader: GraderDep,
     rng: QuizRandom,
 ) -> schemas.LessonQuizResultOut:
     """Submit a Lesson Quiz's answers and get its score, each Missed Question's answer,
@@ -258,13 +304,18 @@ def submit_lesson_quiz(
 
     Not guarded by `UnlockedLesson`: a quiz already started can always be finished (#9's
     Pending Review Round). 404 for an attempt that isn't the Learner's; 409 `quiz_submitted`
-    the second time; 422 `question_not_in_quiz` or `not_a_choice` for answers that don't fit
-    the quiz, and then nothing is recorded.
+    the second time; 422 `question_not_in_quiz`, `not_a_choice` or `answer_too_long` for
+    answers that don't fit the quiz, and then nothing is recorded.
+
+    Written answers are graded against their Model Answers (app/grading.py), and each result
+    carries the grader's one-line `feedback`. 503 `grading_failed` when grading fails (a timeout,
+    an API error, or no ANTHROPIC_API_KEY): nothing is recorded, the attempt stays open, and
+    the Learner submits again without penalty.
     """
     try:
         attempt_uuid = uuid.UUID(attempt_id)
         result = quizzes.submit_lesson_quiz(
-            session, active, lesson_id, attempt_uuid, body.answers, datetime.now(UTC)
+            session, active, lesson_id, attempt_uuid, body.answers, datetime.now(UTC), grader
         )
     except (ValueError, quizzes.AttemptNotFound) as error:
         raise HTTPException(404, "Lesson Quiz not found") from error
@@ -276,12 +327,12 @@ def submit_lesson_quiz(
             "message": f"Not a Question of this quiz: {', '.join(error.question_ids)}",
         }
         raise HTTPException(422, detail) from error
-    except quizzes.NotAChoice as error:
-        detail = {
-            "code": "not_a_choice",
-            "message": f"That isn't one of the choices for {error.question_id}.",
-        }
-        raise HTTPException(422, detail) from error
+    except marking.NotAChoice as error:
+        raise _not_a_choice(error) from error
+    except marking.AnswerTooLong as error:
+        raise _answer_too_long(error) from error
+    except grading.GradingFailed as error:
+        raise HTTPException(503, GRADING_FAILED) from error
     completed, pending = result.lesson_completed, []
     if result.score.passed and not completed:
         state = retakes.open_retakes(
@@ -300,9 +351,13 @@ def submit_lesson_quiz(
         passed=result.score.passed,
         pass_mark=PASS_MARK_PERCENT,
         questions=[
-            schemas.QuestionResultOut(id=qid, correct=ok) for qid, ok in result.correct.items()
+            schemas.QuestionResultOut(id=qid, correct=ok, feedback=result.feedback[qid])
+            for qid, ok in result.correct.items()
         ],
-        missed=[_answered_question(q, result.responses[q.id]) for q in result.missed],
+        missed=[
+            _answered_question(q, result.responses[q.id], result.feedback[q.id])
+            for q in result.missed
+        ],
         next_step=next_step,
         lesson_completed=completed,
         retakes=_retakes_out(pending),
@@ -334,6 +389,7 @@ def get_retakes(
         attempt_id=state.attempt.id,
         lesson_id=state.attempt.lesson_id,
         lesson_completed=state.lesson_completed,
+        max_answer_chars=grading.MAX_ANSWER_CHARS,
         retakes=_retakes_out(state.pending),
     )
 
@@ -345,14 +401,17 @@ def answer_retake(
     body: schemas.RetakeAnswerIn,
     active: ActiveStackInPath,
     session: SessionDep,
+    grader: GraderDep,
     rng: QuizRandom,
 ) -> schemas.RetakeResultOut:
-    """Answer a Retake's sibling Question. Wrong: its Explanation, and another sibling to try.
+    """Answer a Retake's sibling Question: a choice ID, a written answer, or null. Wrong: its
+    Explanation (and the grader's feedback, for a written one), and another sibling to try.
     Correct: the Retake is done; the last one done completes the Lesson and unlocks the next.
 
     Not guarded by `UnlockedLesson`: Retakes under way can always be finished. 404 for a
     Retake that isn't the Learner's; 409 `retake_done` once answered correctly; 422
-    `not_a_choice`, and then nothing is recorded.
+    `not_a_choice` or `answer_too_long`; 503 `grading_failed` when a written answer can't be
+    graded. In each of those nothing is recorded and the Learner can answer again.
     """
     try:
         result = retakes.answer_retake(
@@ -361,6 +420,7 @@ def answer_retake(
             lesson_id,
             uuid.UUID(retake_id),
             body.answer,
+            grader,
             rng,
             datetime.now(UTC),
         )
@@ -368,16 +428,16 @@ def answer_retake(
         raise HTTPException(404, "Retake not found") from error
     except retakes.RetakeDone as error:
         raise HTTPException(409, RETAKE_DONE) from error
-    except quizzes.NotAChoice as error:
-        detail = {
-            "code": "not_a_choice",
-            "message": f"That isn't one of the choices for {error.question_id}.",
-        }
-        raise HTTPException(422, detail) from error
+    except marking.NotAChoice as error:
+        raise _not_a_choice(error) from error
+    except marking.AnswerTooLong as error:
+        raise _answer_too_long(error) from error
+    except grading.GradingFailed as error:
+        raise HTTPException(503, GRADING_FAILED) from error
     return schemas.RetakeResultOut(
         retake_id=result.retake.id,
         correct=result.correct,
-        question=_answered_question(result.question, result.response),
+        question=_answered_question(result.question, result.response, result.feedback),
         next_question=None
         if result.next_question is None
         else _quiz_question(result.next_question),
@@ -400,10 +460,15 @@ def tick_milestone(
     return schemas.MilestoneTickOut(id=milestone_id, ticked=body.ticked)
 
 
-def create_app(verifier: TokenVerifier | None = None) -> FastAPI:
-    """The API. Session tokens are checked by `verifier`, by default the one CLERK_* configures."""
+def create_app(
+    verifier: TokenVerifier | None = None, grader: grading.Grader | None = None
+) -> FastAPI:
+    """The API. Session tokens are checked by `verifier`, by default the one CLERK_* configures;
+    written answers are graded by `grader`, by default Claude with ANTHROPIC_API_KEY."""
+    _configure_logging()
     app = FastAPI(title="Learning App API")
     app.state.verifier = verifier or TokenVerifier.from_config()
+    app.state.grader = grader or grading.grader_from_config(config.ANTHROPIC_API_KEY)
 
     @app.get("/health")
     def health() -> dict[str, str]:
@@ -411,6 +476,17 @@ def create_app(verifier: TokenVerifier | None = None) -> FastAPI:
 
     app.include_router(router)
     return app
+
+
+def _configure_logging() -> None:
+    """Send the app's own INFO logs (such as each grading call's cost) to stderr, next to
+    uvicorn's."""
+    logger = logging.getLogger("app")
+    if not logger.handlers:
+        handler = logging.StreamHandler()
+        handler.setFormatter(logging.Formatter("%(levelname)s:     %(name)s %(message)s"))
+        logger.addHandler(handler)
+        logger.setLevel(logging.INFO)
 
 
 app = create_app()

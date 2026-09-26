@@ -1,6 +1,12 @@
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import type { AnsweredQuestion, QuizQuestion, Retake, RetakeResult } from "@/lib/api";
+import type {
+  AnsweredQuestion,
+  GradingFailed,
+  QuizQuestion,
+  Retake,
+  RetakeResult,
+} from "@/lib/api";
 import { RetakeFlow } from "./RetakeFlow";
 
 afterEach(cleanup);
@@ -23,6 +29,7 @@ function answered(n: number, response: string): AnsweredQuestion {
   return {
     ...question(n),
     response,
+    feedback: null,
     answer: "a",
     model_answer: null,
     explanation: `Because of sibling ${n}.`,
@@ -52,10 +59,17 @@ function right(n: number): RetakeResult {
   };
 }
 
-type Answer = (retakeId: string, answer: string | null) => Promise<RetakeResult>;
+type Answer = (retakeId: string, answer: string | null) => Promise<RetakeResult | GradingFailed>;
 
 function renderFlow(answerAction: Answer, retakes: Retake[] = [retake]) {
-  render(<RetakeFlow retakes={retakes} stackId="agentic-ai-engineer" answerAction={answerAction} />);
+  render(
+    <RetakeFlow
+      retakes={retakes}
+      stackId="agentic-ai-engineer"
+      maxAnswerChars={4000}
+      answerAction={answerAction}
+    />,
+  );
 }
 
 function choose(text: string) {
@@ -148,4 +162,84 @@ it("says so and lets the Learner try again when submitting fails", async () => {
   fireEvent.click(screen.getByRole("button", { name: "Submit Retake" }));
 
   expect(await screen.findByRole("status")).toBeTruthy();
+});
+
+const writtenSibling: QuizQuestion = {
+  id: "w01-l01-q08",
+  type: "written",
+  prompt: "Explain sibling 8.",
+  choices: [],
+};
+const writtenRetake: Retake = {
+  id: "retake-w",
+  missed_question_id: "w01-l01-q07",
+  question: writtenSibling,
+};
+
+function writeAnswer(text: string) {
+  const box = within(screen.getByRole("group", { name: "Explain sibling 8." })).getByRole(
+    "textbox",
+    { name: "Your answer" },
+  );
+  fireEvent.change(box, { target: { value: text } });
+  return box as HTMLTextAreaElement;
+}
+
+it("answers a written sibling in a text box", async () => {
+  const answerAction = vi.fn<Answer>(async () => ({ ...right(8), retake_id: "retake-w" }));
+  renderFlow(answerAction, [writtenRetake]);
+
+  expect(writeAnswer("The right idea.").getAttribute("maxlength")).toBe("4000");
+  fireEvent.click(screen.getByRole("button", { name: "Submit Retake" }));
+
+  await vi.waitFor(() => expect(answerAction).toHaveBeenCalledWith("retake-w", "The right idea."));
+  expect(await screen.findByRole("status")).toBeTruthy();
+});
+
+it("after a wrong written Retake shows the grader's feedback and the Model Answer", async () => {
+  const graded: RetakeResult = {
+    retake_id: "retake-w",
+    correct: false,
+    question: {
+      ...writtenSibling,
+      response: "No idea.",
+      feedback: "Missing: the loop.",
+      answer: null,
+      model_answer: { summary: "Agents loop.", key_points: ["loop", "tools"] },
+      explanation: "Because of sibling 8.",
+      materials: [],
+    },
+    next_question: writtenSibling,
+    pending: 1,
+    lesson_completed: false,
+  };
+  renderFlow(vi.fn<Answer>(async () => graded), [writtenRetake]);
+
+  writeAnswer("No idea.");
+  fireEvent.click(screen.getByRole("button", { name: "Submit Retake" }));
+
+  const explained = await screen.findByRole("article", { name: "Explain sibling 8." });
+  expect(within(explained).getByText("Missing: the loop.")).toBeTruthy();
+  expect(within(explained).getByText("Agents loop.")).toBeTruthy();
+  // The same sibling is asked again, with an empty box.
+  expect(writeAnswer("").value).toBe("");
+});
+
+it("says nothing was counted when grading a Retake fails, and lets the Learner submit again", async () => {
+  const failure: GradingFailed = { code: "grading_failed", message: "Couldn't grade: nothing counted." };
+  const answerAction = vi
+    .fn<Answer>()
+    .mockResolvedValueOnce(failure)
+    .mockResolvedValueOnce({ ...right(8), retake_id: "retake-w" });
+  renderFlow(answerAction, [writtenRetake]);
+
+  writeAnswer("The right idea.");
+  fireEvent.click(screen.getByRole("button", { name: "Submit Retake" }));
+
+  expect((await screen.findByRole("alert")).textContent).toBe(failure.message);
+  expect(writeAnswer("The right idea.").value).toBe("The right idea.");
+  fireEvent.click(screen.getByRole("button", { name: "Submit again" }));
+
+  expect(await screen.findByRole("status")).toBeTruthy();
+  expect(answerAction).toHaveBeenLastCalledWith("retake-w", "The right idea.");
 });
