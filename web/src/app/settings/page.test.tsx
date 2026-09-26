@@ -51,13 +51,16 @@ it("keeps a withdrawn Active Stack on the list so the Learner can keep it", asyn
   expect(ticked()).toEqual(["agentic-ai-engineer"]);
 });
 
-it("shows the Admin the way to invitations", async () => {
+it("shows the Admin the way to invitations and Upcoming Challenges", async () => {
   stubApi({ "/me": { ...ONBOARDED, is_admin: true }, "/stacks": STACKS });
 
   render(await SettingsPage());
 
   expect(screen.getByRole("link", { name: "Invitations" }).getAttribute("href")).toBe(
     "/admin/invitations",
+  );
+  expect(screen.getByRole("link", { name: "Upcoming Challenges" }).getAttribute("href")).toBe(
+    "/admin/challenges",
   );
 });
 

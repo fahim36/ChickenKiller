@@ -10,6 +10,8 @@ by being retired or re-tagged to another Lesson (ADR-0004). The rules themselves
   Lesson in each version folder (`<stack>/<version>/questions/<lesson-id>.json`). Those banks are
   merged, the newest version winning, and each Question is tagged to its file's Lesson. Their
   Questions had no Sources, so they may gain Sources once (`BaselineQuestion.legacy`).
+- The Stack's Daily Challenges (`<stack>/challenges/<number>.json`) are read as committed bytes:
+  one whose Day has begun is frozen (the rule is in `app.content.check` too).
 - A Stack the ref doesn't have yet has an empty baseline: every Question is new.
 - Outside a git repository there is no baseline (`BaselineUnavailable`), and the rules that need
   one are skipped.
@@ -17,14 +19,15 @@ by being retired or re-tagged to another Lesson (ADR-0004). The rules themselves
 
 import json
 import subprocess
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from datetime import date
 from pathlib import Path, PurePosixPath
 from typing import Any
 
 from pydantic import TypeAdapter, ValidationError
 
-from app.content.format import Question, Retirement
-from app.content.loader import LEGACY_QUESTIONS_DIR, QUESTION_BANK_DIR
+from app.content.format import DailyChallenge, Question, Retirement
+from app.content.loader import CHALLENGES_DIR, LAUNCH_FILE, LEGACY_QUESTIONS_DIR, QUESTION_BANK_DIR
 from app.content.versions import is_version, version_key
 
 _QUESTION: TypeAdapter[Any] = TypeAdapter(Question)
@@ -54,9 +57,27 @@ class BaselineQuestion:
 
 
 @dataclass(frozen=True)
+class BaselineChallenge:
+    file: str
+    """Where it was committed, relative to the Stack folder."""
+    content: bytes
+    """The file as committed, with LF line endings: a released Challenge never changes."""
+    date: date | None
+    """Its Day as committed; None if the file didn't parse."""
+    number: int | None
+
+
+@dataclass(frozen=True)
 class Baseline:
     ref: str
     questions: dict[str, BaselineQuestion]
+    challenges: dict[str, BaselineChallenge] = field(default_factory=dict)
+    """Keyed by file name, such as `001.json`."""
+
+
+def normalise_newlines(content: bytes) -> bytes:
+    """Line endings don't count (a Windows checkout may have CRLF)."""
+    return content.replace(b"\r\n", b"\n")
 
 
 def question_fields(question: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any] | None]:
@@ -96,7 +117,7 @@ def read_baseline(stack_dir: Path, ref: str = "HEAD") -> Baseline:
         raise BadBaseline(f"git ref {ref!r} doesn't name a commit") from None
 
     names = _git(root, "ls-tree", "-r", "--name-only", commit, "--", f"{prefix}/").splitlines()
-    bank_files, legacy_files = [], []
+    bank_files, legacy_files, challenge_files = [], [], []
     for name in names:
         path = PurePosixPath(name)
         depth = len(path.parts) - len(prefix.parts)
@@ -104,6 +125,8 @@ def read_baseline(stack_dir: Path, ref: str = "HEAD") -> Baseline:
             continue
         if depth == 2 and path.parent.name == QUESTION_BANK_DIR:
             bank_files.append(path)
+        elif depth == 2 and path.parent.name == CHALLENGES_DIR and path.name != LAUNCH_FILE:
+            challenge_files.append(path)
         elif (
             depth == 3
             and path.parent.name == LEGACY_QUESTIONS_DIR
@@ -111,6 +134,10 @@ def read_baseline(stack_dir: Path, ref: str = "HEAD") -> Baseline:
         ):
             legacy_files.append(path)
 
+    challenges = {
+        path.name: _challenge(path.relative_to(prefix).as_posix(), content)
+        for path, content in _cat(root, commit, challenge_files).items()
+    }
     questions: dict[str, BaselineQuestion] = {}
     if bank_files:
         contents = _cat(root, commit, bank_files)
@@ -118,7 +145,7 @@ def read_baseline(stack_dir: Path, ref: str = "HEAD") -> Baseline:
             doc = _json(contents[path])
             for q in doc.get("questions", []) if isinstance(doc, dict) else []:
                 _add(questions, q, path.relative_to(prefix).as_posix(), legacy=False)
-        return Baseline(ref, questions)
+        return Baseline(ref, questions, challenges)
 
     # The old layout: newest version last, so it wins.
     legacy_files.sort(key=lambda p: (version_key(p.parent.parent.name), p.name))
@@ -135,7 +162,20 @@ def read_baseline(stack_dir: Path, ref: str = "HEAD") -> Baseline:
                     path.relative_to(prefix).as_posix(),
                     legacy=True,
                 )
-    return Baseline(ref, questions)
+    return Baseline(ref, questions, challenges)
+
+
+def _challenge(file: str, content: bytes) -> BaselineChallenge:
+    try:
+        parsed: DailyChallenge | None = DailyChallenge.model_validate(_json(content))
+    except ValidationError:
+        parsed = None
+    return BaselineChallenge(
+        file,
+        normalise_newlines(content),
+        parsed.date if parsed else None,
+        parsed.number if parsed else None,
+    )
 
 
 def _add(into: dict[str, BaselineQuestion], q: Any, file: str, legacy: bool) -> None:

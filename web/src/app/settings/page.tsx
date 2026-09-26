@@ -23,7 +23,8 @@ export default async function SettingsPage() {
         {me.is_admin && (
           <>
             {" "}
-            · Admin: <Link href="/admin/invitations">Invitations</Link>
+            · Admin: <Link href="/admin/invitations">Invitations</Link> ·{" "}
+            <Link href="/admin/challenges">Upcoming Challenges</Link>
           </>
         )}
       </p>

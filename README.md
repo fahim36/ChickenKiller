@@ -20,10 +20,12 @@ graph LR
 
 | Path | What's there |
 |---|---|
-| `content/schema/` | JSON Schema for `syllabus.json`, Question Bank files and `changelog.json`, generated from `api/app/content/format.py` ([format notes](docs/content-format.md)) |
+| `content/schema/` | JSON Schema for `syllabus.json`, Question Bank files, `changelog.json` and Daily Challenge files, generated from `api/app/content/format.py` ([format notes](docs/content-format.md)) |
 | `content/<stack>/<version>/` | One Syllabus version: `syllabus.json` and `changelog.json` |
 | `content/<stack>/question-bank/` | The Stack's one Question Bank, append-only, with each Question's Sources ([ADR-0004](docs/adr/0004-append-only-question-bank-with-sources.md)) |
+| `content/<stack>/challenges/` | The Stack's launch Day and its Daily Challenges, one file per Day, frozen once released |
 | `.claude/skills/update-syllabus/` | The `/update-syllabus` command that writes a new Syllabus version ([below](#update-a-syllabus)) |
+| `.claude/skills/write-challenges/` | The `/write-challenges` command that writes the next Upcoming Challenges ([below](#write-upcoming-challenges)) |
 | `api/` | FastAPI app, SQLAlchemy models, Alembic migrations, and the `content-check`, `content-diff`, `content-import`, `content-migrate-bank`, `content-new-version` and `content-schema` commands |
 | `web/` | Next.js 16 front end (App Router, server components) |
 | `render.yaml`, `api/Dockerfile` | Deployment ([docs/deploy.md](docs/deploy.md)) |
@@ -113,6 +115,28 @@ The content tools it relies on also work by hand, from the repo root:
 | `uv run --project api content-new-version <stack>` | Copies the newest version to a new folder named for today, and starts its changelog. Items you don't touch keep their IDs because they are copies. |
 | `uv run --project api content-diff [<old>] <new>` | Lists what the Syllabus added, changed and removed, by permanent ID, per kind. With one folder, it compares with the version before it. Then lists the Questions the Question Bank added, retired and re-tagged since git `HEAD` (`--baseline <ref>` for another). `--json` for scripts. |
 
+## Write Upcoming Challenges
+
+In Claude Code, from the repo root:
+
+```
+/write-challenges agentic-ai-engineer 7
+```
+
+It reads the Stack's whole Question Bank, researches the field, and writes the next 7 Upcoming Challenges: `content/<stack>/challenges/<number>.json`, each with its number, UTC date and three Questions (two multiple choice, one written). New Questions go into the Question Bank with Sources fetched in the run, preferring Concepts the bank doesn't test yet. The first run for a Stack writes its launch Day (tomorrow, UTC). It passes the content check before it finishes. Review the files, then commit and import them. The steps are in [.claude/skills/write-challenges/SKILL.md](.claude/skills/write-challenges/SKILL.md).
+
+A Challenge can be edited until its Day begins; from 00:00 UTC on its Day it is released and frozen, and the content check refuses any change. A Day with no Challenge written has no Challenge, so keep a few Days ahead: the content check and the Admin's **Upcoming Challenges** page (Settings → Admin) show "Challenges written through <date> (<n> Days left)" per Stack, and warn when fewer than three Days are left.
+
+It never asks questions, so it also runs headless, for example from a scheduled task:
+
+```bash
+claude -p "/write-challenges agentic-ai-engineer 7" \
+  --permission-mode acceptEdits \
+  --allowedTools "Read,Write,Edit,Glob,Grep,WebSearch,WebFetch,Agent,Bash(uv run --project api content-check *),Bash(git status *),Bash(git log *),Bash(grep *),Bash(date *)"
+```
+
+The flags work as for `/update-syllabus` above, including `MSYS_NO_PATHCONV=1` in Git Bash.
+
 ## Checks
 
 ```bash
@@ -124,7 +148,8 @@ This checks every Stack version against the format and the Question Bank rules:
 - every Question has Sources, and the Question Bank is append-only against git: never edited or deleted, only retired or re-tagged;
 - permanent IDs unique across every kind of item, and never reused as another kind in a later version;
 - every Material reference exists;
-- a version that follows another has a changelog that lists every added, changed and removed Lesson, with sources.
+- a version that follows another has a changelog that lists every added, changed and removed Lesson, with sources;
+- Daily Challenges numbered and dated from the launch, with two multiple-choice Questions and one written, and never changed once their Day has begun.
 
 Each error names the file and the item, such as the Question. Add `--links` to also check that every Material URL loads. The rules are in [docs/content-format.md](docs/content-format.md).
 

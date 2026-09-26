@@ -1,0 +1,225 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c002-tool-error-results",
+      "name": "Reporting tool errors with is_error"
+    },
+    {
+      "id": "c002-lost-in-the-middle",
+      "name": "Lost in the middle of long contexts"
+    },
+    {
+      "id": "c002-langgraph-interrupts",
+      "name": "Human-in-the-loop with LangGraph interrupt()"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c002-q01",
+      "lesson": null,
+      "concept": "c002-tool-error-results",
+      "type": "multiple_choice",
+      "prompt": "Claude asked your client-side `get_weather` tool for data, and the weather API returned HTTP 500. What should your agent loop send back to Claude?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "No `tool_result` for that call, just a user text note asking Claude to try again later"
+        },
+        {
+          "id": "b",
+          "text": "Nothing: raise the error in your client and resend the request without the failed turn"
+        },
+        {
+          "id": "c",
+          "text": "A `tool_result` for that `tool_use_id`, with `is_error: true` and the error as content"
+        },
+        {
+          "id": "d",
+          "text": "A `tool_result` with empty content, since Claude can detect a failed tool call by itself"
+        }
+      ],
+      "answer": "c",
+      "explanation": "The Claude API docs say that when a tool throws during execution, you return the error message in the `tool_result` content with `\"is_error\": true`; Claude then works the error into its reply or tries another way. Skipping the result is not an option: every `tool_use` block must be answered by a `tool_result` in the very next user message, or the API rejects the request. An empty `tool_result` is valid but reads as a successful call that returned nothing, so Claude learns nothing about the failure.",
+      "materials": [
+        "anthropic-docs-handle-tool-calls"
+      ],
+      "sources": [
+        {
+          "url": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/handle-tool-calls",
+          "title": "Handle tool calls (Claude API docs)",
+          "publisher": "Anthropic",
+          "accessed": "2026-09-26",
+          "claim": "If a client tool throws during execution, return the error message in the tool_result content with \"is_error\": true, and Claude incorporates it into its response; tool_result blocks must immediately follow their tool_use blocks, with no messages in between."
+        }
+      ]
+    },
+    {
+      "id": "c002-q02",
+      "lesson": null,
+      "concept": "c002-lost-in-the-middle",
+      "type": "multiple_choice",
+      "prompt": "Your RAG prompt holds many retrieved documents, and the one with the answer sits in the middle of the list. What does the \"Lost in the Middle\" study predict?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Accuracy is lower than if that document were placed first or last in the context"
+        },
+        {
+          "id": "b",
+          "text": "Accuracy is unaffected, as long as the whole prompt fits inside the context window"
+        },
+        {
+          "id": "c",
+          "text": "Accuracy is highest, because middle positions get the most attention from the model"
+        },
+        {
+          "id": "d",
+          "text": "Long-context models avoid any drop, because they were trained on very long inputs"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Liu et al. found a U-shaped curve on multi-document QA and key-value retrieval: performance is often highest when the relevant information is at the beginning or end of the input, and drops significantly when it is in the middle. Fitting in the window is not enough, and the drop appeared even for explicitly long-context models, so a bigger window does not fix it.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://arxiv.org/abs/2307.03172",
+          "title": "Lost in the Middle: How Language Models Use Long Contexts",
+          "publisher": "arXiv (Liu et al.)",
+          "accessed": "2026-09-26",
+          "claim": "On multi-document QA and key-value retrieval, performance is often highest when relevant information is at the beginning or end of the input context and degrades significantly when it is in the middle, even for explicitly long-context models."
+        }
+      ]
+    },
+    {
+      "id": "c002-q03",
+      "lesson": null,
+      "concept": "c002-langgraph-interrupts",
+      "type": "written",
+      "prompt": "A LangGraph node creates a draft refund through a payment API, then calls `interrupt()` to get a manager's approval. What does the graph need for this pause to work, how do you resume it, and what can go wrong with the draft refund?",
+      "model_answer": {
+        "summary": "The graph must be compiled with a checkpointer and run with a `thread_id`, and you resume it by invoking it again on the same thread with `Command(resume=...)`. On resume the node restarts from its first line, so the draft refund is created again unless that call is idempotent or moved after the interrupt.",
+        "key_points": [
+          "`interrupt()` needs a checkpointer (a durable one in production) and a `thread_id` in `config[\"configurable\"]` so the paused state can be saved and found again.",
+          "You resume by invoking the graph again with `Command(resume=value)` and the same `thread_id`; that value becomes the return value of `interrupt()`.",
+          "On resume the whole node re-runs from the beginning, not from the `interrupt()` line, so code before it runs twice.",
+          "So the payment call before `interrupt()` must be idempotent, or be moved after the `interrupt()` or into a separate node, to avoid a duplicate draft refund."
+        ]
+      },
+      "explanation": "LangGraph saves the graph's state at the interrupt through the checkpointer, keyed by the thread ID, and resuming with `Command(resume=...)` on that thread hands the value back as the result of `interrupt()`. The trap is assuming execution continues from the `interrupt()` line: the runtime restarts the node from its start, so any non-idempotent side effect before the interrupt, like creating a draft refund, happens again.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://docs.langchain.com/oss/python/langgraph/interrupts",
+          "title": "Interrupts (LangGraph docs)",
+          "publisher": "LangChain",
+          "accessed": "2026-09-26",
+          "claim": "interrupt() needs a checkpointer and a thread_id; you resume with Command(resume=...) using the same thread ID, and the value becomes interrupt()'s return value; on resume the node restarts from the beginning, so side effects before interrupt() must be idempotent, or be placed after it or in a separate node."
+        }
+      ]
+    },
+    {
+      "id": "c002-q04",
+      "lesson": null,
+      "concept": "c002-tool-error-results",
+      "type": "written",
+      "prompt": "Claude calls your `search_orders` tool but leaves out the required `customer_id`. How should your loop reply in that turn, and how can you stop this happening in the first place?",
+      "model_answer": {
+        "summary": "Reply with a `tool_result` for that `tool_use_id` with `is_error: true` and a message naming the missing parameter, so Claude can retry with it filled in. To prevent it, write more detailed tool descriptions, or set `strict: true` so inputs always match the schema.",
+        "key_points": [
+          "Send a `tool_result` for the same `tool_use_id` with `is_error: true` and a message that says what was wrong, such as the missing `customer_id`.",
+          "Claude then retries the call with corrections, a few times, before apologizing to the user.",
+          "Instructive error messages (what went wrong and what to try next) work better than a generic \"failed\".",
+          "To prevent it, give the tool a more detailed `description`, or use strict tool use (`strict: true`) so inputs are guaranteed to match the schema."
+        ]
+      },
+      "explanation": "The Claude API docs say an invalid call, such as one missing a required parameter, usually means Claude lacked the information to use the tool well. You can answer it with an error `tool_result` and Claude retries 2-3 times with corrections. Raising in the client instead ends the loop and throws away Claude's chance to recover. The lasting fixes are clearer descriptions or `strict: true` on the tool definition.",
+      "materials": [
+        "anthropic-docs-handle-tool-calls"
+      ],
+      "sources": [
+        {
+          "url": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/handle-tool-calls",
+          "title": "Handle tool calls (Claude API docs)",
+          "publisher": "Anthropic",
+          "accessed": "2026-09-26",
+          "claim": "For an invalid tool call such as a missing required parameter, return a tool_result with is_error: true and Claude retries 2-3 times with corrections before apologizing; write instructive error messages; more detailed descriptions or strict: true prevent invalid calls."
+        }
+      ]
+    },
+    {
+      "id": "c002-q05",
+      "lesson": null,
+      "concept": "c002-lost-in-the-middle",
+      "type": "multiple_choice",
+      "prompt": "Your agent reranks 30 chunks and must lay them all out in one long prompt. Given the \"Lost in the Middle\" findings, which layout is the best bet?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Shuffle the chunks randomly so that no position gets a systematic edge"
+        },
+        {
+          "id": "b",
+          "text": "Put top-ranked chunks at the start or the end, and weaker ones in between"
+        },
+        {
+          "id": "c",
+          "text": "Put top-ranked chunks in the middle, where the model reads most carefully"
+        },
+        {
+          "id": "d",
+          "text": "Keep any order you like, since a long-context model uses every position well"
+        }
+      ],
+      "answer": "b",
+      "explanation": "The paper found that models use information at the beginning or end of the input best, and that accuracy drops when the relevant passage is in the middle, even for long-context models. So the strongest chunks belong at the edges. Putting them in the middle does the opposite, and a random order just leaves the best chunk's position to chance.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://arxiv.org/abs/2307.03172",
+          "title": "Lost in the Middle: How Language Models Use Long Contexts",
+          "publisher": "arXiv (Liu et al.)",
+          "accessed": "2026-09-26",
+          "claim": "Performance is often highest when relevant information occurs at the beginning or end of the input context and significantly degrades when it is in the middle, even for explicitly long-context models."
+        }
+      ]
+    },
+    {
+      "id": "c002-q06",
+      "lesson": null,
+      "concept": "c002-langgraph-interrupts",
+      "type": "multiple_choice",
+      "prompt": "A LangGraph node runs `log_event()`, then `answer = interrupt(\"Approve?\")`, then `save(answer)`. When you resume the thread with `Command(resume=\"yes\")`, what runs?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Only `save(answer)`, because execution picks up right after the `interrupt()` line"
+        },
+        {
+          "id": "b",
+          "text": "The whole graph again from `START`, with `\"yes\"` written into the graph's state"
+        },
+        {
+          "id": "c",
+          "text": "Only the nodes after this one, since the resume value finishes the paused node"
+        },
+        {
+          "id": "d",
+          "text": "The node from its start: `log_event()` again, then `interrupt()` returns `\"yes\"`"
+        }
+      ],
+      "answer": "d",
+      "explanation": "On resume, LangGraph restarts the node where `interrupt()` was called from its beginning, not from the `interrupt()` line, and this time `interrupt()` returns the value passed to `Command(resume=...)`. So `log_event()` runs twice, which is why code before an interrupt must be idempotent. Only that node restarts, not the whole graph.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://docs.langchain.com/oss/python/langgraph/interrupts",
+          "title": "Interrupts (LangGraph docs)",
+          "publisher": "LangChain",
+          "accessed": "2026-09-26",
+          "claim": "On resume the runtime restarts the entire node from the beginning (not the whole graph, and not from the interrupt line), and the value passed to Command(resume=...) becomes the return value of interrupt()."
+        }
+      ]
+    }
+  ]
+}

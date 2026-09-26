@@ -153,6 +153,18 @@ class InvitationOut(BaseModel):
     invited_at: datetime
 
 
+class ChallengesAheadOut(BaseModel):
+    """How far ahead a Stack's Daily Challenges are written (#16): through `written_through`
+    (null when none are), with `days_left` counted from today (UTC) to it, both included.
+    `warning` when fewer than three Days are left."""
+
+    stack_id: str
+    stack_name: str
+    written_through: date | None
+    days_left: int
+    warning: bool
+
+
 # --- Lesson Quiz -----------------------------------------------------------------------------
 
 

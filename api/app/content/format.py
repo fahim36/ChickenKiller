@@ -5,6 +5,8 @@ A Stack's folder holds its Syllabus versions and its one Question Bank:
     <stack-id>/<version>/syllabus.json        one Syllabus version
     <stack-id>/<version>/changelog.json       what changed since the previous version
     <stack-id>/question-bank/<name>.json      the Question Bank, in as many files as is readable
+    <stack-id>/challenges/launch.json         the Day the Stack's Daily Challenges start
+    <stack-id>/challenges/<number>.json       one Daily Challenge, such as 001.json
 
 The JSON Schema files in `content/schema/` are generated from these models
 (`uv run content-schema`), so this module is the single source of truth for the format.
@@ -291,3 +293,42 @@ class Changelog(_Model):
     ]
     summary: Text
     changes: list[ChangelogEntry]
+
+
+class ChallengeLaunch(_Model):
+    """The Day a Stack's run of Daily Challenges starts (`challenges/launch.json`): Challenge #1
+    is on it, and #n is n - 1 Days later. Like the Question Bank, it is the Stack's, not a
+    version's."""
+
+    model_config = ConfigDict(title="Challenge Launch")
+
+    schema_version: Literal[1]
+    launch: Annotated[date, Field(description="The UTC Day of Challenge #1, YYYY-MM-DD.")]
+
+
+class DailyChallenge(_Model):
+    """One Daily Challenge of a Stack (`challenges/<number>.json`, zero-padded: `001.json`): its
+    three Questions, from the Stack's Question Bank. Written ahead as an Upcoming Challenge, it
+    can be edited until its Day begins (00:00 UTC), and is frozen from then on."""
+
+    model_config = ConfigDict(title="Daily Challenge")
+
+    schema_version: Literal[1]
+    number: Annotated[int, Field(ge=1, description="Numbered from the Stack's launch: #1, #2...")]
+    date: Annotated[
+        date,
+        Field(description="Its UTC Day, YYYY-MM-DD: the launch Day plus number - 1 Days."),
+    ]
+    questions: Annotated[
+        list[PermanentId],
+        Field(
+            min_length=3,
+            max_length=3,
+            json_schema_extra={"uniqueItems": True},
+            description=(
+                "IDs of three Questions of the Stack's Question Bank: two multiple choice and "
+                "one written."
+            ),
+        ),
+        AfterValidator(_unique),
+    ]

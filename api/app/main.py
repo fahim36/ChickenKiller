@@ -1,9 +1,11 @@
 import logging
 import uuid
+from datetime import UTC
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException
 
 from app import (
+    challenges,
     config,
     grading,
     learners,
@@ -95,6 +97,25 @@ def invite(
     except learners.AlreadyALearner as error:
         raise HTTPException(409, f"{body.email} is already a Learner.") from error
     return schemas.InvitationOut.model_validate(invitation)
+
+
+@router.get("/admin/challenges")
+def get_challenges_ahead(
+    _: AdminLearner, session: SessionDep, now: Now
+) -> list[schemas.ChallengesAheadOut]:
+    """How far ahead each Stack's Daily Challenges are written, by Stack name, from today (UTC):
+    "Challenges written through <date> (<n> Days left)", warning below three Days. Only counts:
+    an Upcoming Challenge's Questions are never sent."""
+    return [
+        schemas.ChallengesAheadOut(
+            stack_id=row.stack.id,
+            stack_name=row.stack.name,
+            written_through=row.ahead.written_through,
+            days_left=row.ahead.days_left,
+            warning=row.ahead.warning,
+        )
+        for row in challenges.challenges_ahead(session, now.astimezone(UTC).date())
+    ]
 
 
 @router.get("/stacks")

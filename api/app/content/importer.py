@@ -24,6 +24,11 @@ ever added to, so re-running an import changes nothing:
   one), and a retirement is never undone;
 - each Question's Materials are linked to the Stack's current Syllabus, where they resolve.
 
+Then it loads the Stack's Daily Challenges (`<stack>/challenges/`, #16), by the UTC Day of the
+import: an Upcoming Challenge is added, updated, or removed if its file is gone; a released one
+(its Day has begun: today or earlier) that differs from what is stored, or is gone, is
+refused. Re-running an import changes nothing.
+
 Learner progress needs no carrying over: it is keyed by permanent IDs, never by a version's rows,
 so a new version leaves Completed Lessons, Missed Questions, Milestone ticks and answers as
 they are. What a new version means for each Learner (Updated Lessons, removed Lessons, their
@@ -35,6 +40,7 @@ import hashlib
 import json
 import sys
 from dataclasses import dataclass, field
+from datetime import date
 from pathlib import Path
 from typing import Literal
 
@@ -43,12 +49,14 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.content import format as fmt
 from app.content.baseline import question_fields
-from app.content.check import load_checked_folder, version_folders
+from app.content.challenges import is_frozen
+from app.content.check import load_checked_folder, utc_today, version_folders
 from app.content.diff import lesson_fingerprints, lesson_questions
-from app.content.loader import Bank, ContentError, ContentFolder, Problem
+from app.content.loader import Bank, Challenges, ContentError, ContentFolder, Problem
 from app.content.versions import version_key
 from app.models import (
     Concept,
+    DailyChallenge,
     Lesson,
     LessonMaterial,
     Material,
@@ -81,6 +89,21 @@ class BankChanges:
         )
 
 
+@dataclass
+class ChallengeChanges:
+    """What an import changed in a Stack's Daily Challenges, by number."""
+
+    added: list[int] = field(default_factory=list)
+    updated: list[int] = field(default_factory=list)
+    removed: list[int] = field(default_factory=list)
+
+    def __bool__(self) -> bool:
+        return bool(self.added or self.updated or self.removed)
+
+    def __str__(self) -> str:
+        return f"{len(self.added)} added, {len(self.updated)} updated, {len(self.removed)} removed"
+
+
 @dataclass(frozen=True)
 class ImportResult:
     stack_id: str
@@ -88,21 +111,28 @@ class ImportResult:
     status: Literal["imported", "unchanged"]
     is_current: bool
     bank: BankChanges = field(default_factory=BankChanges)
+    challenges: ChallengeChanges = field(default_factory=ChallengeChanges)
 
     def __str__(self) -> str:
         line = f"{self.stack_id} {self.version}: {self.status}" + (
             " (current)" if self.is_current else ""
         )
-        return line + (f"; Question Bank: {self.bank}" if self.bank else "")
+        line += f"; Question Bank: {self.bank}" if self.bank else ""
+        return line + (f"; Daily Challenges: {self.challenges}" if self.challenges else "")
 
 
-def import_folder(session: Session, path: Path) -> ImportResult:
-    """Check and import one Stack version folder, and its Stack's Question Bank. Flushes; the
-    caller commits."""
-    return import_content(session, load_checked_folder(path))
+def import_folder(session: Session, path: Path, today: date | None = None) -> ImportResult:
+    """Check and import one Stack version folder, and its Stack's Question Bank and Daily
+    Challenges. `today` (UTC, by default the real one) decides which Challenges are released.
+    Flushes; the caller commits."""
+    today = today or utc_today()
+    return import_content(session, load_checked_folder(path, today), today)
 
 
-def import_content(session: Session, content: ContentFolder) -> ImportResult:
+def import_content(
+    session: Session, content: ContentFolder, today: date | None = None
+) -> ImportResult:
+    today = today or utc_today()
     syllabus = content.syllabus
     content_hash = _content_hash(content)
 
@@ -125,12 +155,14 @@ def import_content(session: Session, content: ContentFolder) -> ImportResult:
                 ]
             )
         bank = import_bank(session, syllabus.stack.id, content.bank)
+        challenges = import_challenges(session, syllabus.stack.id, content.challenges, today)
         return ImportResult(
             syllabus.stack.id,
             syllabus.version,
             "unchanged",
             _is_current(session, existing),
             bank,
+            challenges,
         )
 
     stack = session.get(Stack, syllabus.stack.id)
@@ -158,9 +190,79 @@ def import_content(session: Session, content: ContentFolder) -> ImportResult:
         stack.published = syllabus.stack.published
     session.flush()
     bank = import_bank(session, syllabus.stack.id, content.bank)
+    challenges = import_challenges(session, syllabus.stack.id, content.challenges, today)
     return ImportResult(
-        syllabus.stack.id, syllabus.version, "imported", _is_current(session, row), bank
+        syllabus.stack.id,
+        syllabus.version,
+        "imported",
+        _is_current(session, row),
+        bank,
+        challenges,
     )
+
+
+def import_challenges(
+    session: Session, stack_id: str, challenges: Challenges | None, today: date
+) -> ChallengeChanges:
+    """Load the Stack's Daily Challenges: add new ones, update or remove Upcoming ones. A
+    released Challenge (its Day before `today`, UTC) that differs from what is stored, or is
+    missing from the files, is refused, changing nothing. Run after `import_bank`, whose
+    Questions they name. Flushes."""
+    stored = {
+        c.number: c
+        for c in session.scalars(select(DailyChallenge).where(DailyChallenge.stack_id == stack_id))
+    }
+    incoming = {c.number: c for c in (challenges.challenges() if challenges else [])}
+    changes = ChallengeChanges()
+    refused: list[Problem] = []
+    where = str(challenges.path) if challenges else stack_id
+    for number, old in sorted(stored.items()):
+        file = incoming.get(number)
+        if file is not None and _challenge_hash(file) == old.content_hash:
+            continue
+        if is_frozen(old.day, today):
+            change = "deleted" if file is None else "changed"
+            refused.append(
+                Problem(
+                    "error",
+                    where,
+                    f"#{number}",
+                    f"{change} since it was imported, but its Day ({old.day}) has begun: a "
+                    "released Daily Challenge is frozen",
+                )
+            )
+        elif file is None:
+            session.delete(old)
+            changes.removed.append(number)
+    if refused:
+        raise ContentError(refused)
+    session.flush()  # a removed Challenge's Day may be taken by another one below
+
+    for number, challenge in sorted(incoming.items()):
+        content_hash = _challenge_hash(challenge)
+        row = stored.get(number)
+        if row is None:
+            session.add(
+                DailyChallenge(
+                    stack_id=stack_id,
+                    number=number,
+                    day=challenge.date,
+                    question_ids=list(challenge.questions),
+                    content_hash=content_hash,
+                )
+            )
+            changes.added.append(number)
+        elif row.content_hash != content_hash:
+            row.day = challenge.date
+            row.question_ids = list(challenge.questions)
+            row.content_hash = content_hash
+            changes.updated.append(number)
+    session.flush()
+    return changes
+
+
+def _challenge_hash(challenge: fmt.DailyChallenge) -> str:
+    return hashlib.sha256(challenge.model_dump_json().encode()).hexdigest()
 
 
 def import_bank(session: Session, stack_id: str, bank: Bank) -> BankChanges:

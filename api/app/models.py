@@ -310,6 +310,32 @@ class Question(Base):
         return [link.material for link in self.material_links]
 
 
+# --- Daily Challenges ------------------------------------------------------------------------
+
+
+class DailyChallenge(Base):
+    """One Daily Challenge of a Stack: three Questions of its Question Bank, for one UTC Day.
+
+    Imported ahead as an Upcoming Challenge, it may change at import until its Day; from 00:00
+    UTC on its Day it is released and frozen (app/content/importer.py). Until its Day an Upcoming
+    Challenge's Questions are never sent to a Learner.
+    """
+
+    __tablename__ = "daily_challenges"
+    __table_args__ = (UniqueConstraint("stack_id", "number"), UniqueConstraint("stack_id", "day"))
+
+    pk: Mapped[int] = mapped_column(Integer, primary_key=True)
+    stack_id: Mapped[str] = mapped_column(ForeignKey("stacks.id", ondelete="CASCADE"))
+    number: Mapped[int] = mapped_column(Integer, comment="Numbered from the Stack's launch.")
+    day: Mapped[date] = mapped_column(Date, comment="Its UTC Day.")
+    question_ids: Mapped[list[str]] = mapped_column(
+        JSONB, comment="Permanent IDs of its three Questions, in order."
+    )
+    content_hash: Mapped[str] = mapped_column(
+        String(64), comment="The import refuses a change once its Day has begun."
+    )
+
+
 # --- People ----------------------------------------------------------------------------------
 
 

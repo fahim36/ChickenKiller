@@ -17,7 +17,8 @@ export default async function InvitationsPage() {
   return (
     <main>
       <p className="crumbs">
-        <Link href="/settings">Settings</Link>
+        <Link href="/settings">Settings</Link> ·{" "}
+        <Link href="/admin/challenges">Upcoming Challenges</Link>
       </p>
       <h1>Invitations</h1>
       <p className="muted">

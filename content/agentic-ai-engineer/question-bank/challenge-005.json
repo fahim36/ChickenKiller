@@ -1,0 +1,228 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c005-pass-hat-k-reliability",
+      "name": "pass^k vs pass@k for agent reliability"
+    },
+    {
+      "id": "c005-strict-structured-outputs",
+      "name": "Strict Structured Outputs schemas"
+    },
+    {
+      "id": "c005-context-attention-budget",
+      "name": "Context as a finite attention budget"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c005-q01",
+      "lesson": null,
+      "concept": "c005-pass-hat-k-reliability",
+      "type": "multiple_choice",
+      "prompt": "You run a support agent 8 times on the same task, each run independent. What does tau-bench's pass^8 measure?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The chance at least one of the 8 runs succeeds, so it rises as k grows"
+        },
+        {
+          "id": "b",
+          "text": "The mean success rate over the 8 runs, so it stays flat as k grows"
+        },
+        {
+          "id": "c",
+          "text": "The chance all 8 runs succeed, so it falls or stays flat as k grows"
+        },
+        {
+          "id": "d",
+          "text": "The success rate of the 8th run, after the agent learns from the rest"
+        }
+      ],
+      "answer": "c",
+      "explanation": "tau-bench defines pass^k as the chance that all k independent trials of a task succeed, averaged over tasks. Needing every trial to pass makes it a measure of consistency, and it drops as k grows: gpt-4o in the retail domain scores about 61% at pass^1 but under 25% at pass^8. \"At least one succeeds\" is pass@k, which rewards a lucky hit and rises with k, the opposite of what a customer-facing agent needs.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://arxiv.org/html/2406.12045",
+          "title": "τ-bench: A Benchmark for Tool-Agent-User Interaction in Real-World Domains",
+          "publisher": "arXiv (Yao, Shinn, Razavi, Narasimhan)",
+          "accessed": "2026-09-26",
+          "claim": "pass^k is the chance that all k i.i.d. trials of a task succeed, averaged across tasks, unlike pass@k (at least one of k succeeds); it drops sharply as k grows, e.g. gpt-4o retail about 61% pass^1 but under 25% pass^8."
+        }
+      ]
+    },
+    {
+      "id": "c005-q02",
+      "lesson": null,
+      "concept": "c005-strict-structured-outputs",
+      "type": "multiple_choice",
+      "prompt": "You turn on OpenAI Structured Outputs with `strict: true` for a user schema whose `nickname` field is optional. How must you write `nickname` in the schema?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Leave it out of `required`; strict mode treats unlisted fields as optional"
+        },
+        {
+          "id": "b",
+          "text": "Set `additionalProperties: true` so the model may skip `nickname` freely"
+        },
+        {
+          "id": "c",
+          "text": "Leave it out of `required`, and set `additionalProperties: false` at the root"
+        },
+        {
+          "id": "d",
+          "text": "List it in `required` and give it a type like `[\"string\", \"null\"]`"
+        }
+      ],
+      "answer": "d",
+      "explanation": "In strict mode every field must be listed in `required`; to model an optional field you make its type a union with `null`, so the model always emits the key and uses `null` when it has no value. Every object must also set `additionalProperties: false`, so leaving a field out of `required` (a or c) or allowing extra properties (b) is rejected, however right it looks from plain JSON Schema.",
+      "materials": [
+        "openai-docs-structured-outputs"
+      ],
+      "sources": [
+        {
+          "url": "https://developers.openai.com/api/docs/guides/structured-outputs",
+          "title": "Structured Outputs",
+          "publisher": "OpenAI",
+          "accessed": "2026-09-26",
+          "claim": "With strict Structured Outputs all fields must be required; optional fields are emulated with a union type that includes null, and objects must set additionalProperties: false."
+        }
+      ]
+    },
+    {
+      "id": "c005-q03",
+      "lesson": null,
+      "concept": "c005-context-attention-budget",
+      "type": "written",
+      "prompt": "Your long-running coding agent makes worse decisions as a session goes on, although its context window is far from full. Explain why, and describe two context-engineering techniques you would use to fix it.",
+      "model_answer": {
+        "summary": "Context is a finite attention budget: as tokens pile up the model recalls and uses them less reliably (context rot), so the goal is the smallest set of high-signal tokens, not a full window. Keep context lean with techniques such as just-in-time retrieval, compaction, structured notes or sub-agents.",
+        "key_points": [
+          "Every token spends part of a finite attention budget, and recall gets worse as context grows (context rot), even well below the window limit.",
+          "The aim is the smallest set of high-signal tokens that make the desired outcome likely.",
+          "Just-in-time retrieval keeps lightweight references (file paths, queries, links) and loads the data with tools only when needed; compaction summarises a long history and restarts with the summary.",
+          "Structured notes persisted outside the context, or sub-agents that return only a condensed summary, keep detail out of the main context."
+        ]
+      },
+      "explanation": "The failure is not running out of room: Anthropic describes context as an attention budget that every token draws on, and reports that recall falls as the token count grows. So stuffing everything in hurts. The fixes curate what is in context: load data just in time through tools, compact old history into a summary, write notes to memory outside the window, or hand deep work to sub-agents that return a short digest. A bigger context window alone does not remove context rot.",
+      "materials": [
+        "anthropic-effective-context-engineering-for-ai"
+      ],
+      "sources": [
+        {
+          "url": "https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents",
+          "title": "Effective context engineering for AI agents",
+          "publisher": "Anthropic",
+          "accessed": "2026-09-26",
+          "claim": "Context is a finite attention budget that each token depletes; recall decreases as tokens increase (context rot); the goal is the smallest set of high-signal tokens; techniques include just-in-time retrieval via tools, compaction, structured note-taking and sub-agent architectures."
+        }
+      ]
+    },
+    {
+      "id": "c005-q04",
+      "lesson": null,
+      "concept": "c005-pass-hat-k-reliability",
+      "type": "written",
+      "prompt": "A vendor says their support agent scores 60% at pass^1 on tau-bench and even higher at pass@8. Why is pass^k the better number for deciding whether to ship it, and what would you expect pass^8 to look like?",
+      "model_answer": {
+        "summary": "pass^k asks whether the agent succeeds on every one of k independent tries of the same task, which is what real users repeating similar requests experience; pass@k only asks whether one try in k succeeds. pass^8 will be well below 60%.",
+        "key_points": [
+          "pass@k is the chance at least one of k trials succeeds, so it rises with k and hides inconsistency.",
+          "pass^k is the chance all k independent trials succeed, averaged over tasks, so it measures reliability.",
+          "pass^k falls as k grows; in tau-bench retail, gpt-4o dropped from about 61% at pass^1 to under 25% at pass^8."
+        ]
+      },
+      "explanation": "A shipped agent meets the same kind of task many times, and each failure is a real customer. pass^k captures that by requiring all k trials to succeed, so it falls as k grows and exposes inconsistency; tau-bench found pass^8 under 25% in retail for an agent near 61% at pass^1. pass@k is the tempting number because it goes up with more tries, but it measures whether the agent can ever solve the task, not whether it does so every time.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://arxiv.org/html/2406.12045",
+          "title": "τ-bench: A Benchmark for Tool-Agent-User Interaction in Real-World Domains",
+          "publisher": "arXiv (Yao, Shinn, Razavi, Narasimhan)",
+          "accessed": "2026-09-26",
+          "claim": "pass^k is the chance all k i.i.d. trials succeed (a reliability measure), in contrast to pass@k (at least one succeeds); it drops sharply with k, e.g. gpt-4o retail about 61% pass^1 vs under 25% pass^8."
+        }
+      ]
+    },
+    {
+      "id": "c005-q05",
+      "lesson": null,
+      "concept": "c005-strict-structured-outputs",
+      "type": "multiple_choice",
+      "prompt": "Your extraction pipeline uses OpenAI JSON mode and sometimes gets objects with missing keys. What does switching to Structured Outputs change?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "JSON mode can emit invalid JSON; Structured Outputs fixes only the parsing errors"
+        },
+        {
+          "id": "b",
+          "text": "Both give valid JSON, but only Structured Outputs guarantees your schema"
+        },
+        {
+          "id": "c",
+          "text": "Nothing about the keys; JSON mode already matches the schema, only slower"
+        },
+        {
+          "id": "d",
+          "text": "Output always fits the schema, so you no longer need to handle refusals"
+        }
+      ],
+      "answer": "b",
+      "explanation": "OpenAI's docs say both JSON mode and Structured Outputs produce valid JSON, but only Structured Outputs ensures the output adheres to your schema, so missing required keys stop. The tempting answer is d: a safety refusal still comes back in a separate `refusal` field instead of schema-shaped output, so your code must check for it.",
+      "materials": [
+        "openai-docs-structured-outputs"
+      ],
+      "sources": [
+        {
+          "url": "https://developers.openai.com/api/docs/guides/structured-outputs",
+          "title": "Structured Outputs",
+          "publisher": "OpenAI",
+          "accessed": "2026-09-26",
+          "claim": "Both JSON mode and Structured Outputs ensure valid JSON, but only Structured Outputs ensures schema adherence; a safety refusal is returned in a separate refusal field rather than as schema-matching output."
+        }
+      ]
+    },
+    {
+      "id": "c005-q06",
+      "lesson": null,
+      "concept": "c005-context-attention-budget",
+      "type": "multiple_choice",
+      "prompt": "A lead agent hands a research sub-task to a sub-agent, which spends tens of thousands of tokens searching. Following Anthropic's context-engineering guidance, what should the sub-agent return?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A condensed, distilled summary of its work, often 1,000 to 2,000 tokens"
+        },
+        {
+          "id": "b",
+          "text": "Its full transcript, so the lead agent sees every detail and misses nothing"
+        },
+        {
+          "id": "c",
+          "text": "Just a success flag; the lead agent then reruns the searches it needs itself"
+        },
+        {
+          "id": "d",
+          "text": "Its raw tool results, cut down to fit whatever room the lead agent has left"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Sub-agents exist to keep the lead agent's context clean: each explores with its own context and returns only a condensed, distilled summary, often 1,000 to 2,000 tokens. Returning the full transcript (b) is tempting but defeats the point, because context is a finite attention budget and recall degrades as tokens pile up.",
+      "materials": [
+        "anthropic-effective-context-engineering-for-ai"
+      ],
+      "sources": [
+        {
+          "url": "https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents",
+          "title": "Effective context engineering for AI agents",
+          "publisher": "Anthropic",
+          "accessed": "2026-09-26",
+          "claim": "In sub-agent architectures, each sub-agent may use many tokens exploring but returns only a condensed, distilled summary of its work (often 1,000-2,000 tokens) to the lead agent."
+        }
+      ]
+    }
+  ]
+}

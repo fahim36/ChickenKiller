@@ -6,9 +6,11 @@ Each Stack has a folder holding its Syllabus versions and its one Question Bank:
 content/<stack-id>/<version>/syllabus.json       one Syllabus version
 content/<stack-id>/<version>/changelog.json      what changed since the version before
 content/<stack-id>/question-bank/<name>.json     the Stack's Question Bank, never versioned
+content/<stack-id>/challenges/launch.json        the Day of the Stack's Daily Challenge #1
+content/<stack-id>/challenges/<number>.json      one Daily Challenge, such as 001.json
 ```
 
-The Syllabus is versioned and each new version replaces the old one. The Question Bank is not: it only grows, and a Question is never edited or deleted once committed ([ADR-0004](adr/0004-append-only-question-bank-with-sources.md)). See [the Question Bank](#question-bank-question-bankjson).
+The Syllabus is versioned and each new version replaces the old one. The Question Bank is not: it only grows, and a Question is never edited or deleted once committed ([ADR-0004](adr/0004-append-only-question-bank-with-sources.md)). See [the Question Bank](#question-bank-question-bankjson). The Daily Challenges aren't versioned either, and each is frozen from 00:00 UTC on its Day. See [Daily Challenges](#daily-challenges-challenges).
 
 Until #15 each version folder held its own banks, in `<version>/questions/<lesson-id>.json`. Nothing had been released, so the two committed versions of `agentic-ai-engineer` are rewritten into this layout **once**, by `content-migrate-bank` (see [Moving to the Stack's Question Bank](#moving-to-the-stacks-question-bank)). A version folder that still has a `questions/` folder fails the check.
 
@@ -25,7 +27,7 @@ A version is named for the day it was made: `v2026-09-26`. More versions on the 
 ## Where it is defined
 
 - **The format** is the Pydantic models in [`api/app/content/format.py`](../api/app/content/format.py). That file is the single definition of the format.
-- **The JSON Schema files** [`content/schema/syllabus.schema.json`](../content/schema/syllabus.schema.json), [`question-bank.schema.json`](../content/schema/question-bank.schema.json) and [`changelog.schema.json`](../content/schema/changelog.schema.json) are generated from those models. Claude Code reads them when it writes content.
+- **The JSON Schema files** [`content/schema/syllabus.schema.json`](../content/schema/syllabus.schema.json), [`question-bank.schema.json`](../content/schema/question-bank.schema.json), [`changelog.schema.json`](../content/schema/changelog.schema.json), [`challenge.schema.json`](../content/schema/challenge.schema.json) and [`challenge-launch.schema.json`](../content/schema/challenge-launch.schema.json) are generated from those models. Claude Code reads them when it writes content.
   - Regenerate them with `uv run content-schema` in `api/`.
   - A test and a CI step fail if they are out of date.
 - **Rules that span several items** are in [`api/app/content/check.py`](../api/app/content/check.py), run with `uv run content-check ../content` in `api/`. It checks each Stack whole: every version, and the Question Bank. The rules cover:
@@ -35,13 +37,14 @@ A version is named for the day it was made: `v2026-09-26`. More versions on the 
   - at least two Questions per Concept that aren't retired, so a Retake always has a sibling;
   - at least 8 Questions per Lesson that aren't retired, with 4 multiple choice and 2 written, enough for a Lesson Quiz (no maximum: the bank only grows);
   - Sources, retirements and the append-only rules (see [the Question Bank](#question-bank-question-bankjson));
+  - Daily Challenges: numbered and dated from the launch, three Questions each, frozen once released (see [Daily Challenges](#daily-challenges-challenges));
   - a changelog that matches what changed since the version before (see [the changelog](#changelog-changelogjson));
   - a permanent ID never comes back as a different kind of item in a later version;
   - Material links that load (with `--links`). A site that refuses automated requests (HTTP 401, 403 or 429) is only a warning.
 
 Every problem is printed as `LEVEL file [item] message`. The item is the permanent ID of the thing at fault, such as the Question. For a format violation, the message starts with the path to the field. Any error fails the check; warnings don't.
 
-`content-check` takes `--baseline <git ref>` (default `HEAD`) and `--today <YYYY-MM-DD>` (default: today in UTC) for the append-only rules.
+`content-check` takes `--baseline <git ref>` (default `HEAD`) and `--today <YYYY-MM-DD>` (default: today in UTC) for the append-only and frozen-Challenge rules. For each Stack with Daily Challenges it also prints how far ahead they are written: `content/agentic-ai-engineer: Challenges written through 2026-10-03 (7 Days left)`.
 
 The same check runs as the pre-commit hook (against `HEAD`) and in CI (against a pull request's base, with "today" the UTC day of its last commit). Material links are checked weekly, and on pull requests that change a Stack version (`.github/workflows/content-links.yml`).
 
@@ -142,6 +145,46 @@ A one-time rewrite of a Stack from the old layout ([`api/app/content/migrate_ban
 It prints a report: Questions without Sources, Questions retired, changelog entries dropped. Run the check afterwards: a retirement can leave a Concept or Lesson short, which needs new Questions.
 
 When `agentic-ai-engineer` was migrated, writing its Sources turned up factual slips in five Questions and one Material title. Nothing had been released, so they were fixed in place in the old layout (in `v2026-09-26.1`, IDs kept) just before the rewrite, not retired, and the check against the old-layout baseline reports each as a warning: `w01-l05-q03` (the keyed answer had the error case backwards), `w02-l04-q12` (RFC 9110's wording for 5xx), `w10-l05-q08` (partitioned indices restrict access per organization, not per user), `w12-l03-q05` (regional endpoints cost 10% more than global), `w12-l05-q03` (the Dockerfile reference's signal warning is under ENTRYPOINT) and the Laszlo Bock Material's title. From then on the bank is append-only: a mistake means retiring the Question and adding a new one.
+
+## Daily Challenges (`challenges/`)
+
+A Stack's Daily Challenges are the files of `content/<stack-id>/challenges/`, written ahead by `/write-challenges <stack> <days>` ([.claude/skills/write-challenges/SKILL.md](../.claude/skills/write-challenges/SKILL.md)). Like the Question Bank they belong to the Stack, not to a Syllabus version.
+
+`launch.json` holds the Stack's launch Day, the UTC Day of Challenge #1:
+
+| Field | Contents |
+|---|---|
+| `schema_version` | Always `1` |
+| `launch` | `YYYY-MM-DD` |
+
+Each Challenge is `<number>.json`, zero-padded to three digits (`001.json`, ..., `999.json`, then `1000.json`):
+
+| Field | Contents |
+|---|---|
+| `schema_version` | Always `1` |
+| `number` | From 1, counting from the launch |
+| `date` | Its UTC Day, `YYYY-MM-DD`: the launch Day plus `number` − 1 Days |
+| `questions` | Three Question IDs of the Stack's Question Bank: two multiple choice and one written |
+
+The check holds them to these rules (`--today` is the clock):
+
+- A file's name is its `number`, and its `date` follows from the launch Day. So numbers and dates are consecutive from the launch, and a Challenge can't move to another Day.
+- **A Day with no Challenge written has no Challenge.** Gaps are allowed: a Stack that runs out has no Challenge on those Days, and numbering carries on from the launch.
+- Every Question is in the bank, and the mix is two multiple choice and one written. A Question can be one written for the Challenge (`question-bank/challenge-<number>.json`, tagged to a Lesson or not) or an older one.
+- An Upcoming Challenge (its Day is after today) uses no Retired Question, since one can't be answered. A released Challenge keeps a Question retired after its Day: the Archive shows it retired ([ADR-0004](adr/0004-append-only-question-bank-with-sources.md)).
+- Its new Questions follow the bank's rules like any other: Sources accessed in this run, a sibling for every Concept.
+- Fewer than three Days left is a warning: `Challenges written through 2026-10-03 (2 Days left): write more with /write-challenges; ...`. Days left count from today to the last Challenge's Day, both included, so a gap before it doesn't count against it; a launched Stack with none written has 0.
+
+**Frozen.** Against the git baseline (`api/app/content/baseline.py`), a Challenge is released at 00:00 UTC on its Day, so one whose Day is today (UTC) or earlier is frozen:
+
+- it never changes, byte for byte (line endings aside), and is never deleted;
+- a Day that has begun (today or earlier) never gets a Challenge it didn't have when committed.
+
+Only Challenges for future Days are Upcoming Challenges: they can be edited or deleted until 23:59:59 UTC the Day before. The check's clock is a date (`--today`, the UTC day of the commit in CI), so a Challenge committed on the Day before its own passes. Moving `launch` would re-date every Challenge, so once one is released the frozen rule refuses it too. Outside git the frozen rules are skipped, with the same warning as the bank's.
+
+The importer loads the Challenges on every import, by the UTC Day of the import. A new Challenge is added (even one whose Day has begun, which was checked when it was committed); an Upcoming one is updated, or removed when its file is gone; a released one that differs from what is stored, or is gone, is refused, changing nothing. Re-running an import changes nothing. The API never sends an Upcoming Challenge's Questions to a Learner: the Admin's **Upcoming Challenges** page (`/admin/challenges`) only shows each Stack's "Challenges written through <date> (<n> Days left)", with the same warning.
+
+How to write a Challenge's Questions is in [`.claude/skills/write-challenges/challenge-rules.md`](../.claude/skills/write-challenges/challenge-rules.md), on top of the bank's rules.
 
 ## Changelog (`changelog.json`)
 
