@@ -22,6 +22,8 @@ from app import progress
 from app.auth import AuthSettings, TokenVerifier
 from app.config import normalize_database_url
 from app.db import get_session
+from app.deps import get_grader
+from app.grading import Grade, GradingFailed
 from app.main import create_app
 from app.models import Learner, LearnerStack
 
@@ -323,11 +325,39 @@ def make_token(signing_key: rsa.RSAPrivateKey) -> TokenFactory:
     return factory
 
 
+# --- Grading written answers ------------------------------------------------------------------
+# Claude is never called in tests: the API grades with this fake (app/grading.py's `Grader`).
+
+
+class FakeGrader:
+    """Passes an answer that contains "right" (any case), with feedback naming the Question's
+    first key point otherwise. Set `failing` to make every grading fail, as a timeout would.
+    Every call is kept in `calls` as (prompt, model_answer, answer)."""
+
+    def __init__(self) -> None:
+        self.failing = False
+        self.calls: list[tuple[str, Any, str]] = []
+
+    def grade(self, prompt: str, model_answer: Any, answer: str) -> Grade:
+        self.calls.append((prompt, model_answer, answer))
+        if self.failing:
+            raise GradingFailed("the fake grader is failing")
+        if "right" in answer.lower():
+            return Grade(passed=True, feedback="Covers every key point.")
+        return Grade(passed=False, feedback=f"Missing: {model_answer['key_points'][0]}.")
+
+
 @pytest.fixture
-def app(session: Session, signing_key: rsa.RSAPrivateKey) -> FastAPI:
-    """The HTTP API, reading and writing through the test session."""
+def grader() -> FakeGrader:
+    return FakeGrader()
+
+
+@pytest.fixture
+def app(session: Session, signing_key: rsa.RSAPrivateKey, grader: FakeGrader) -> FastAPI:
+    """The HTTP API, reading and writing through the test session and grading with `grader`."""
     app = create_app(verifier=TokenVerifier(AUTH_SETTINGS, LocalKeys(signing_key)))
     app.dependency_overrides[get_session] = lambda: session
+    app.dependency_overrides[get_grader] = lambda: grader
     return app
 
 

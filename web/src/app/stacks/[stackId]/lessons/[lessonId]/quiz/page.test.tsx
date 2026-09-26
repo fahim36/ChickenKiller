@@ -13,6 +13,7 @@ const quiz: LessonQuiz = {
   lesson_id: "w01-l01",
   version: "v2026-09-26",
   pass_mark: 80,
+  max_answer_chars: 4000,
   questions: [
     {
       id: "w01-l01-q01",

@@ -11,9 +11,11 @@ stores what they decide.
   Question drawn gets an `Answer` row, unanswered ones included, and a pass makes the Lesson a
   Completed Lesson (`progress.complete_lesson`).
 
-#6 draws multiple-choice Questions only. #7 adds written ones: `_mark` grades them, and a grading
-failure leaves `correct` null so the attempt can be resubmitted. #8 adds Retakes: a pass with
-Missed Questions then waits for them instead of completing the Lesson here.
+A Lesson Quiz is four multiple-choice and two written Questions (`quiz.draw_quiz`). Answers are
+marked by `marking.mark_all`, which grades written ones with the injected `Grader` (#7). If
+grading fails, submitting raises `GradingFailed` and records nothing: the attempt stays open,
+so the Learner resubmits without penalty. #8 adds Retakes: a pass with Missed Questions then
+waits for them instead of completing the Lesson here.
 """
 
 import random
@@ -27,6 +29,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
 from app import progress, quiz
+from app.grading import Grader
+from app.marking import AnswerTooLong, GradingFailed, NotAChoice, mark_all
 from app.models import Answer, LearnerStack, Lesson, LessonQuizAttempt, Question, Syllabus
 
 LESSON_QUIZ = "lesson_quiz"
@@ -51,12 +55,6 @@ class QuestionNotInQuiz(Exception):
         self.question_ids = list(question_ids)
 
 
-class NotAChoice(Exception):
-    def __init__(self, question_id: str) -> None:
-        super().__init__(question_id)
-        self.question_id = question_id
-
-
 @dataclass(frozen=True)
 class StartedQuiz:
     attempt: LessonQuizAttempt
@@ -70,6 +68,8 @@ class QuizResult:
     score: quiz.Score
     correct: dict[str, bool]
     """Each Question's result, by permanent ID, in the order they were asked."""
+    feedback: dict[str, str | None]
+    """The grader's line for each graded written answer; None for the others."""
 
 
 def start_lesson_quiz(
@@ -83,11 +83,11 @@ def start_lesson_quiz(
 
     bank = session.scalars(
         select(Question)
-        .where(Question.lesson_pk == lesson.pk, Question.type == "multiple_choice")
+        .where(Question.lesson_pk == lesson.pk)
         .options(joinedload(Question.concept))
         .order_by(Question.position)
     ).all()
-    drawn = quiz.draw_questions([quiz.BankQuestion(q.id, q.concept.id) for q in bank], rng)
+    drawn = quiz.draw_quiz([quiz.BankQuestion(q.id, q.concept.id, q.type) for q in bank], rng)
     if not drawn:
         raise QuizUnavailable(lesson.id)
     version = session.scalars(
@@ -123,13 +123,15 @@ def submit_lesson_quiz(
     attempt_id: uuid.UUID,
     responses: Mapping[str, str | None],
     now: datetime,
+    grader: Grader,
 ) -> QuizResult:
     """Mark and record the answers to an attempt, keyed by Question ID. A Question left out, or
     answered with None, is a Missed Question. At or above the Pass Mark the Lesson becomes a
     Completed Lesson.
 
-    Raises AttemptNotFound, AlreadySubmitted, QuestionNotInQuiz or NotAChoice; nothing is
-    recorded then.
+    Raises AttemptNotFound, AlreadySubmitted, QuestionNotInQuiz, NotAChoice, AnswerTooLong or
+    GradingFailed; nothing is recorded then and the attempt stays open. Written answers are
+    graded while the attempt's row is locked, so a double submission can't grade twice.
     """
     attempt = session.scalar(
         select(LessonQuizAttempt)
@@ -149,7 +151,12 @@ def submit_lesson_quiz(
     if unknown:
         raise QuestionNotInQuiz(unknown)
 
-    correct = {q.id: _mark(q, responses.get(q.id)) for q in _questions(session, attempt)}
+    try:
+        marked = mark_all(_questions(session, attempt), responses, grader)
+    except (NotAChoice, AnswerTooLong, GradingFailed):
+        session.rollback()  # releases the lock; nothing was written
+        raise
+    correct = {qid: m.correct for qid, m in marked.items()}
     for question_id, is_correct in correct.items():
         session.add(
             Answer(
@@ -161,6 +168,7 @@ def submit_lesson_quiz(
                 lesson_quiz_attempt_id=attempt.id,
                 response=responses.get(question_id),
                 correct=is_correct,
+                feedback=marked[question_id].feedback,
                 answered_at=now,
             )
         )
@@ -172,7 +180,7 @@ def submit_lesson_quiz(
         progress.complete_lesson(session, record, lesson_id, now)  # commits
     else:
         session.commit()
-    return QuizResult(attempt, result, correct)
+    return QuizResult(attempt, result, correct, {qid: m.feedback for qid, m in marked.items()})
 
 
 def recorded_answers(session: Session, learner_id: int, stack_id: str) -> list[Answer]:
@@ -212,13 +220,3 @@ def _questions(session: Session, attempt: LessonQuizAttempt) -> list[Question]:
     ).all()
     by_id = {q.id: q for q in rows}
     return [by_id[qid] for qid in attempt.question_ids]
-
-
-def _mark(question: Question, response: str | None) -> bool:
-    """Whether a response to a multiple-choice Question is correct. Raises NotAChoice for a
-    response that isn't one of its choices."""
-    if response is None:
-        return False
-    if response not in {c["id"] for c in question.choices or []}:
-        raise NotAChoice(question.id)
-    return response == question.answer
