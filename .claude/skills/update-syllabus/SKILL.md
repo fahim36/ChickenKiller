@@ -100,7 +100,7 @@ Apply the verdicts, following [question-bank-rules.md](question-bank-rules.md):
 | Lesson *new* | 8–12 new Questions tagged to it, over 3–6 new Concepts. |
 | Lesson *revise* | New Questions for what changed. Every live Question the revision makes wrong or out of date is retired, `replaced_by` the new Question on its Concept. The Lesson ends with at least 8 live Questions. |
 | Lesson *short* | New Questions until it meets the minimums in the rules. |
-| Lesson *remove* | Each live Question tagged to it is re-tagged to the Lesson that now teaches its Concept, or retired with the reason "Its Lesson was removed: …" and `replaced_by: null`. |
+| Lesson *remove* | Each live Question tagged to it is re-tagged to the Lesson that now teaches its Concept. One that is still correct but that no Lesson teaches now is tagged to none (`"lesson": null`): it stays in Review for Learners who missed it, but no Lesson Quiz draws it. One that is wrong or out of date is retired with the reason "Its Lesson was removed: …" and `replaced_by: null`. |
 | Question *retire* | `retired: {reason, replaced_by, on}`, and a new Question on the same Concept when the Concept is still taught. |
 | Question *re-tag* | Only its `lesson` changes. |
 
