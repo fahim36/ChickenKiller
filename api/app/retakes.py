@@ -16,7 +16,7 @@ becomes a Completed Lesson only when every Retake is correct.
   too (`quizzes.missed_questions`).
 
 Retakes are keyed by the Learner and the attempt, not guarded by `UnlockedLesson`, so Retakes
-already under way can be finished even if the Lesson becomes locked (#9's Pending Review Round).
+already under way can always be finished.
 
 A sibling may be of either type, whatever the Missed Question's type: a missed multiple-choice
 Question can be retaken on a written sibling and vice versa.

@@ -4,9 +4,10 @@ import { connection } from "next/server";
 import { api, type Me } from "@/lib/api";
 
 /**
- * Home: one card per Active Stack, linking to its Week map. A first sign-in has no Active Stack
- * yet, so it goes to onboarding. Each Stack's card is its own section, for what later belongs
- * to one Stack (its Daily Challenge and Streak).
+ * Home: one card per Active Stack, linking to its Week map, and a link to Review, which spans
+ * every Active Stack. A first sign-in has no Active Stack yet, so it goes to onboarding. Each
+ * Stack's card is its own section, for what later belongs to one Stack (its Daily Challenge
+ * and Streak, #17 and #18).
  */
 export default async function Home() {
   await connection();
@@ -28,6 +29,12 @@ export default async function Home() {
           </li>
         ))}
       </ul>
+      <p>
+        <Link href="/review">Review</Link>{" "}
+        <span className="small muted">
+          Practise Missed Questions and past Lessons from all your Stacks, whenever you like.
+        </span>
+      </p>
       <p className="small">
         <Link href="/settings">Add or drop Stacks</Link>
       </p>

@@ -10,11 +10,10 @@ Syllabus version's rows, so progress survives a new version (#13).
   it), which the progress rows belong to.
 
 The lock-state rule itself is `unlocking.lesson_states`; `lesson_states` here feeds it the
-Learner's data: their standing against the current Syllabus (`updated_lessons`, #13) and
-whether a Pending Review Round exists today (`pending_review_round`, #9). The Week map, the
-Lesson page and the Lesson Quiz guard (`deps.UnlockedLesson`) all use it, so a new input to the
-rule is added in one place. Reading the rule needs the clock, because a Review Round becomes
-pending two hours after it opens and only the current Day's (UTC) rounds count.
+Learner's data: their Completed Lessons, measured against the current Syllabus
+(`updated_lessons`, #13). The Week map, the Lesson page and the Lesson Quiz guard
+(`deps.UnlockedLesson`) all use it. Lock states depend on completion only: Milestone ticks and
+Review never change them.
 """
 
 from datetime import datetime
@@ -23,8 +22,8 @@ from sqlalchemy import delete, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
-from app import review, updated_lessons
-from app.models import CompletedLesson, LearnerStack, MilestoneTick, ReviewRound
+from app import updated_lessons
+from app.models import CompletedLesson, LearnerStack, MilestoneTick
 from app.unlocking import LessonState
 
 
@@ -63,51 +62,12 @@ def complete_lesson(
     session.commit()
 
 
-def lesson_states(
-    session: Session, learner_id: int, stack_id: str, now: datetime
-) -> dict[str, LessonState]:
-    """Each Lesson of the Stack's current Syllabus with its state for this Learner at `now`, in
-    Syllabus order: while a Pending Review Round exists, the Unlocked Lesson is locked too.
-    Updated Lessons (#13) come from comparing the current version with the ones the Learner
-    completed Lessons in (`updated_lessons`). Empty if the Stack has no current Syllabus."""
-    return updated_lessons.lesson_states(
-        session,
-        learner_id,
-        stack_id,
-        pending_review_round=pending_review_round(session, learner_id, stack_id, now) is not None,
-    )
-
-
-def waiting_for_review(
-    session: Session, learner_id: int, stack_id: str, now: datetime
-) -> str | None:
-    """The Lesson (permanent ID) that would be the Unlocked Lesson but is locked by a Pending
-    Review Round; None when no round is pending."""
-    if pending_review_round(session, learner_id, stack_id, now) is None:
-        return None
-    states = updated_lessons.lesson_states(session, learner_id, stack_id)
-    return next((lesson for lesson, state in states.items() if state == "unlocked"), None)
-
-
-def pending_review_round(
-    session: Session, learner_id: int, stack_id: str, now: datetime
-) -> ReviewRound | None:
-    """The Learner's Pending Review Round on the Stack at `now`, if any: a round of the
-    current Day (UTC) that is unfinished two hours after it opened. Rounds of
-    earlier days were dropped at the end of their day and never block."""
-    unfinished = session.scalars(
-        select(ReviewRound)
-        .where(
-            ReviewRound.learner_id == learner_id,
-            ReviewRound.stack_id == stack_id,
-            ReviewRound.day == review.review_day(now),
-            ReviewRound.finished_at.is_(None),
-        )
-        .order_by(ReviewRound.number)
-    ).all()
-    return next(
-        (r for r in unfinished if review.round_state(r.opened_at, None, now) == "pending"), None
-    )
+def lesson_states(session: Session, learner_id: int, stack_id: str) -> dict[str, LessonState]:
+    """Each Lesson of the Stack's current Syllabus with its state for this Learner, in Syllabus
+    order. Updated Lessons (#13) come from comparing the current version with the ones the
+    Learner completed Lessons in (`updated_lessons`). Empty if the Stack has no current
+    Syllabus."""
+    return updated_lessons.lesson_states(session, learner_id, stack_id)
 
 
 def ticked_milestone_ids(session: Session, learner_id: int, stack_id: str) -> set[str]:

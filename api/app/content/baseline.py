@@ -45,6 +45,8 @@ class BadBaseline(Exception):
 class BaselineQuestion:
     id: str
     concept: str
+    lesson: str | None
+    """The Lesson it was tagged to; it may change (a re-tag)."""
     fields: dict[str, Any]
     """Everything that may never change: the Question without `lesson` and `retired`."""
     retired: dict[str, Any] | None
@@ -180,7 +182,16 @@ def _add(into: dict[str, BaselineQuestion], q: Any, file: str, legacy: bool) -> 
     if not isinstance(q, dict) or not isinstance(q.get("id"), str):
         return
     fields, retired = question_fields(q)
-    into[q["id"]] = BaselineQuestion(q["id"], str(q.get("concept")), fields, retired, file, legacy)
+    lesson = q.get("lesson")
+    into[q["id"]] = BaselineQuestion(
+        q["id"],
+        str(q.get("concept")),
+        lesson if isinstance(lesson, str) else None,
+        fields,
+        retired,
+        file,
+        legacy,
+    )
 
 
 def _json(data: bytes) -> Any:

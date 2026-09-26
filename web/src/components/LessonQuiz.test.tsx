@@ -46,6 +46,7 @@ function missed(n: number): AnsweredQuestion {
     model_answer: written ? { summary: "Agents loop.", key_points: ["loop", "tools"] } : null,
     explanation: `Because of ${n}.`,
     materials: [],
+    sources: [],
   };
 }
 

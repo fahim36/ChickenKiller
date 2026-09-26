@@ -1,5 +1,5 @@
 """What a new Syllabus version means for one Learner's progress (#13): their Updated Lessons, the
-Updated Lessons' new Questions they owe the Daily Review, the Lessons they reached past a removed
+Updated Lessons' new Questions that come in their Review, the Lessons they reached past a removed
 Completed Lesson, and the Completed Lessons no longer in the Syllabus.
 
 Nothing is copied or rewritten when a version is imported. Progress is keyed by permanent IDs
@@ -19,9 +19,9 @@ comparing the current version with the ones the Learner completed Lessons in:
   `Standing`. An Updated Lesson stays Updated; it never locks anything.
 - **New Questions** of an Updated Lesson are the Questions the current version tags to it that
   the version the Learner completed it in didn't: all of them, for a Lesson that isn't
-  Completed. A Question retired since is never owed. The Learner owes each one to the Daily
-  Review until they answer it anywhere, right or wrong (`updated_question_ids`); a wrong
-  answer makes it a Missed Question, which the Daily Review asks first anyway.
+  Completed. A Question retired since is never owed. Each one waits in the Learner's Review
+  until they answer it anywhere, right or wrong (`updated_question_ids`); a wrong answer makes
+  it a Missed Question, which Review asks first anyway.
 - **Removed Lessons** drop out of the path. A Completed one stays in the Learner's history
   (`removed_completed_lessons`), and the Learner has still reached the Lesson that followed it
   in the last version that had it (`Standing.reached_ids`), so their Unlocked Lesson is the
@@ -57,14 +57,13 @@ class Standing:
     reached_ids: set[str]
     """Lessons of the current Syllabus the Learner reached past a removed Completed Lesson."""
 
-    def states(self, *, pending_review_round: bool = False) -> dict[str, LessonState]:
+    def states(self) -> dict[str, LessonState]:
         """Each current Lesson's state for the Learner (`unlocking.lesson_states`)."""
         return unlocking.lesson_states(
             self.lesson_ids,
             self.completed.keys(),
             changed_ids=self.changed_ids,
             reached_ids=self.reached_ids,
-            pending_review_round=pending_review_round,
         )
 
 
@@ -107,17 +106,15 @@ def standing(session: Session, learner_id: int, stack_id: str) -> Standing:
     return Standing(lesson_ids, completed, changed, reached)
 
 
-def lesson_states(
-    session: Session, learner_id: int, stack_id: str, *, pending_review_round: bool = False
-) -> dict[str, LessonState]:
+def lesson_states(session: Session, learner_id: int, stack_id: str) -> dict[str, LessonState]:
     """Each Lesson of the current Syllabus with its state for the Learner, in order."""
-    return standing(session, learner_id, stack_id).states(pending_review_round=pending_review_round)
+    return standing(session, learner_id, stack_id).states()
 
 
 def updated_question_ids(session: Session, learner_id: int, stack_id: str) -> list[str]:
     """The new Questions of the Learner's Updated Lessons that they haven't answered yet, from
     the current Syllabus, in Syllabus order (Lesson, then Question Bank order), leaving out
-    Retired Questions. The Daily Review asks them after the Missed Questions."""
+    Retired Questions. Review asks them after the Missed Questions."""
     learner_standing = standing(session, learner_id, stack_id)
     states = learner_standing.states()
     updated = [

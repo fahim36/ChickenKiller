@@ -38,8 +38,8 @@ from tests.conftest import (
     onboard,
     source,
 )
-from tests.test_daily_review import answer, current_round, daily_review, finish, right_answer
 from tests.test_lesson_quiz import answer_all, code, learner_id, lesson_states, start, submit
+from tests.test_review import answer, answer_right, asked, review_set
 
 V1, V2 = "v2026-01-01", "v2026-02-01"
 STACK = "/stacks/mini-stack"
@@ -167,7 +167,7 @@ def learner(
     [retake] = result["retakes"]
     retaken = api.post(
         f"{STACK}/lessons/w01-l02/retakes/{retake['id']}/answers",
-        json={"answer": right_answer(retake["question"])},
+        json={"answer": "a"},
     ).json()
     assert retaken["lesson_completed"] is True
 
@@ -320,73 +320,63 @@ def test_a_lesson_completed_on_the_old_version_after_the_import_is_updated_if_it
     assert owed == ["w01-l01-q09"]
 
 
-# --- The Daily Review --------------------------------------------------------------------------
+# --- Review --------------------------------------------------------------------------------
 
 
-def next_day(client: TestClient, clock: FakeClock) -> None:
-    """Finish today's open Review Round, so nothing carries over, and move to the next day."""
-    current = daily_review(client)["current"]
-    if current is not None:
-        finish(client, current)
-    clock.advance(days=1)
+def fail_the_third_lesson_s_quiz(client: TestClient) -> list[str]:
+    """Submit the w01-l03 quiz started before the update with its first two answers wrong:
+    below the Pass Mark. The two Missed Questions, in the order asked."""
+    resumed = start(client, quiz_url("w01-l03"))
+    submit(client, resumed, answer_all(resumed, wrong=2), quiz_url("w01-l03"))
+    return [q["id"] for q in resumed["questions"][:2]]
 
 
-def test_the_updated_lessons_new_questions_come_after_the_missed_questions_next_day(
-    session: Session, make_content: ContentFactory, learner: TestClient, clock: FakeClock
+def test_the_updated_lessons_new_questions_come_after_the_missed_questions(
+    session: Session, make_content: ContentFactory, learner: TestClient
 ) -> None:
-    """Round 1 the next day: the Missed Questions still in use first (the one missed in the
-    removed w01-l02 was retired with it), then the Updated Lessons' new Questions in
-    Syllabus order: w01-l01's q09, then the added Lesson's bank, up to ten."""
+    """The Missed Questions still in use first (the one missed in the removed w01-l02 was
+    retired with it), then the Updated Lessons' new Questions in Syllabus order: w01-l01's q09,
+    then the added Lesson's bank, up to ten."""
     import_version_2(session, make_content)
-    resumed = start(learner, quiz_url("w01-l03"))
-    submit(learner, resumed, answer_all(resumed, wrong=2), quiz_url("w01-l03"))
-    missed_in_l03 = [q["id"] for q in resumed["questions"][:2]]
+    missed_in_l03 = fail_the_third_lesson_s_quiz(learner)
 
-    next_day(learner, clock)
-    round_ = current_round(learner)
+    questions = asked(learner)
 
-    asked = [q["id"] for q in round_["remaining"]]
-    assert asked == [
+    assert questions == [
         *missed_in_l03,
         "w01-l01-q09",
         *[f"w01-new-q{n:02}" for n in range(1, 8)],
     ]
-    assert not [q for q in asked if q.startswith("w01-l02")]
+    assert not [q for q in questions if q.startswith("w01-l02")]
 
 
-def test_round_2_asks_the_new_questions_round_1_had_no_room_for(
+def test_the_next_set_asks_the_new_questions_the_first_had_no_room_for(
     session: Session, make_content: ContentFactory, learner: TestClient, clock: FakeClock
 ) -> None:
-    """Round 1 had no room for the added Lesson's last Question, q08: Round 2 leads with it,
-    and none of Round 1's Missed or new Questions come back the same day. (Completed Lessons'
-    Questions may repeat to fill a short round: here that pool is w01-l01's nine.)"""
+    """Once the first set is answered, the next leads with the added Lesson's last Question,
+    q08, and none of the first set's Questions come back the same day."""
     import_version_2(session, make_content)
-    resumed = start(learner, quiz_url("w01-l03"))
-    submit(learner, resumed, answer_all(resumed, wrong=2), quiz_url("w01-l03"))
-    next_day(learner, clock)
-    round_1 = current_round(learner)
-    finish(learner, round_1)
+    fail_the_third_lesson_s_quiz(learner)
+    clock.advance(minutes=10)
+    first = asked(learner)
+    for question_id in first:
+        answer_right(learner, question_id)
 
-    clock.advance(hours=4)
-    round_2 = current_round(learner)
+    second = asked(learner)
 
-    assert round_2["number"] == 2
-    asked = [q["id"] for q in round_2["remaining"]]
-    assert asked[0] == "w01-new-q08"
-    led_round_1 = {q["id"] for q in round_1["remaining"] if not q["id"].startswith("w01-l01-q0")}
-    assert led_round_1 and not led_round_1 & set(asked)
+    assert second[0] == "w01-new-q08"
+    assert not set(first) & set(second)
 
 
-def test_a_new_question_is_owed_until_the_learner_answers_it(
-    session: Session, make_content: ContentFactory, learner: TestClient, clock: FakeClock
+def test_a_new_question_waits_in_review_until_the_learner_answers_it(
+    session: Session, make_content: ContentFactory, learner: TestClient
 ) -> None:
     import_version_2(session, make_content)
-    next_day(learner, clock)
-    round_ = current_round(learner)
     owed_before = updated_lessons.updated_question_ids(session, learner_id(session), "mini-stack")
     assert owed_before[0] == "w01-l01-q09"
+    assert "w01-l01-q09" in {q["id"] for q in review_set(learner)}
 
-    assert answer(learner, round_, "w01-l01-q09", "b").status_code == 200
+    assert answer(learner, "w01-l01-q09", "b").status_code == 200
 
     owed = updated_lessons.updated_question_ids(session, learner_id(session), "mini-stack")
     assert owed == owed_before[1:]

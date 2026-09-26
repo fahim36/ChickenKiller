@@ -6,7 +6,6 @@ from typing import Literal
 from pydantic import BaseModel as _BaseModel
 from pydantic import ConfigDict, field_validator
 
-from app.review import RoundState
 from app.unlocking import LessonState
 
 
@@ -35,8 +34,6 @@ class LessonSummary(BaseModel):
     title: str
     minutes: int
     state: LessonState
-    waiting_for_review: bool = False
-    """The Lesson would be the Unlocked Lesson, but a Pending Review Round locks it."""
 
 
 class MilestoneOut(BaseModel):
@@ -83,12 +80,8 @@ class RemovedLessonOut(BaseModel):
 
 class SyllabusOut(StackSummary):
     weeks: list[WeekOut]
-    daily_review: "DailyReviewOut | None" = None
-    """Today's Daily Review; null on a day with nothing owed."""
     removed_lessons: list[RemovedLessonOut] = []
     """The Learner's Completed Lessons that a Syllabus Update removed, first completed first."""
-    streak: int = 0
-    """The consecutive days on which the Learner finished their whole Daily Review (#11)."""
 
 
 class WeekRef(BaseModel):
@@ -107,8 +100,6 @@ class LessonOut(BaseModel):
     minutes: int
     materials: list[MaterialOut]
     state: LessonState
-    waiting_for_review: bool = False
-    """Its Lesson Quiz would be open, but a Pending Review Round locks it."""
     previous_lesson_id: str | None
     next_lesson_id: str | None
 
@@ -225,10 +216,21 @@ class ModelAnswerOut(BaseModel):
     key_points: list[str]
 
 
+class SourceOut(BaseModel):
+    """Where a Question's content came from, for checking it (ADR-0004)."""
+
+    url: str
+    title: str
+    publisher: str
+    accessed: date
+    claim: str
+    """The claim the Question relies on."""
+
+
 class AnsweredQuestionOut(BaseModel):
     """A Question the Learner has answered, with everything shown afterwards: their response,
-    the correct answer (a choice ID) or Model Answer, the Explanation and the Materials. Only
-    ever sent after the answer is submitted."""
+    the correct answer (a choice ID) or Model Answer, the Explanation, the Materials and the
+    Sources. Only ever sent after the answer is submitted."""
 
     id: str
     type: Literal["multiple_choice", "written"]
@@ -245,6 +247,8 @@ class AnsweredQuestionOut(BaseModel):
     """For a written Question."""
     explanation: str
     materials: list[MaterialOut]
+    sources: list[SourceOut]
+    """Every Source, in order: shown after the Explanation."""
 
 
 class RetakeOut(BaseModel):
@@ -315,78 +319,41 @@ class RetakeResultOut(BaseModel):
     lesson_completed: bool
 
 
-# --- Daily Review ----------------------------------------------------------------------------
+# --- Review ----------------------------------------------------------------------------------
 
 
-class ReviewRoundSummaryOut(BaseModel):
-    """A Review Round of today's Daily Review.
+class ReviewQuestionOut(QuizQuestionOut):
+    """A Question of a Review set, without its answer, and the Active Stack it is asked on.
+    Answer it on that Stack."""
 
-    `state` is "optional" for two hours after `opened_at`, then "pending" (a Pending Review
-    Round: the Unlocked Lesson is locked until it's finished) from `pending_at`, and "finished"
-    once every Question is answered."""
-
-    id: uuid.UUID
-    number: int
-    """1 to 3 within the day."""
-    state: RoundState
-    opened_at: datetime
-    pending_at: datetime
-    finished_at: datetime | None
-    answered: int
-    total: int
+    stack_id: str
+    stack_name: str
 
 
-class ReviewResultOut(BaseModel):
-    """A Question answered in a Review Round, with its answer and Explanation."""
+class ReviewSetOut(BaseModel):
+    """A Review set: up to `size` Questions across the Learner's Active Stacks, asked one at a
+    time in order. Missed Questions come first, then Updated Lessons' new Questions, then
+    spaced repeats. Empty when nothing is due. Sets aren't stored: asking again draws the next
+    one."""
 
-    correct: bool
-    question: AnsweredQuestionOut
-
-
-class ReviewRoundOut(ReviewRoundSummaryOut):
-    """A Review Round to answer: `remaining` are asked one at a time, in order, without their
-    answers; `results` are the ones answered so far, in the order asked."""
-
+    size: int
     max_answer_chars: int
     """The longest written answer accepted."""
-    remaining: list[QuizQuestionOut]
-    results: list[ReviewResultOut]
-
-
-class DailyReviewOut(BaseModel):
-    """Today's Daily Review (a UTC Day): its Review Rounds so far, in order.
-
-    Rounds 2 and 3 each open four hours after the previous round is finished, never past the
-    day's end: `next_round_at` is when the next one opens, or null when none is to open today
-    (the last round isn't finished yet, the day has had its three rounds, or it's too late)."""
-
-    day: date
-    rounds: list[ReviewRoundSummaryOut]
-    next_round_at: datetime | None
-
-
-class DailyReviewDetailOut(DailyReviewOut):
-    """Today's Daily Review, with the round waiting to be answered (`current`), if any. No
-    rounds means no Daily Review is owed today."""
-
-    current: ReviewRoundOut | None
+    questions: list[ReviewQuestionOut]
 
 
 class ReviewAnswerIn(BaseModel):
-    """The answer to one Question of a Review Round: a choice ID, a written answer, or null
-    for unanswered (which counts as wrong)."""
+    """The answer to one Question of a Review set, on its Stack: a choice ID, a written answer,
+    or null for unanswered (which counts as wrong)."""
 
+    stack_id: str
     question_id: str
     answer: str | None
 
 
 class ReviewAnswerOut(BaseModel):
-    """An answered Review Round Question. `question` carries the correct answer or Model
-    Answer, the grader's feedback (written) and the Explanation, shown after a miss."""
+    """An answered Review Question. `question` carries the correct answer or Model Answer, the
+    grader's feedback (written) and the Explanation, shown after a miss."""
 
     correct: bool
     question: AnsweredQuestionOut
-    round: ReviewRoundSummaryOut
-
-
-SyllabusOut.model_rebuild()  # it refers to DailyReviewOut, defined further down

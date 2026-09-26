@@ -5,7 +5,6 @@ Question's Sources are from this run. A new Question on a Concept already tested
 
 import copy
 import json
-import subprocess
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -20,10 +19,14 @@ from tests.conftest import (
     SOURCES_ACCESSED,
     SYLLABUS,
     ContentFactory,
+    bank_now,
+    commit,
+    git,
     make_bank,
     mc_question,
     source,
-    write_folder,
+    stack_dir,
+    write_bank,
 )
 
 TODAY = date(2026, 1, 2)
@@ -193,47 +196,6 @@ def test_a_concept_can_be_declared_in_another_file(make_content: ContentFactory)
 # --- Against the git baseline ----------------------------------------------------------------
 
 
-def git(root: Path, *args: str) -> str:
-    return subprocess.run(
-        ["git", "-c", "user.name=Test", "-c", "user.email=test@example.com", *args],
-        cwd=root,
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout
-
-
-@pytest.fixture
-def repo(tmp_path: Path) -> Path:
-    """A git repository holding the test Stack, committed: the baseline."""
-    root = tmp_path / "repo"
-    root.mkdir()
-    git(root, "init", "-q")
-    write_bank(root, copy.deepcopy(BANK))
-    commit(root)
-    return root
-
-
-def stack_dir(root: Path) -> Path:
-    return root / "content" / "mini-stack"
-
-
-def write_bank(root: Path, bank: dict[str, Any], **extra: dict[str, Any]) -> Path:
-    return write_folder(root / "content", copy.deepcopy(SYLLABUS), {LESSON: bank, **extra})
-
-
-def commit(root: Path) -> None:
-    git(root, "add", "-A")
-    git(root, "commit", "-q", "-m", "content")
-
-
-def bank_now(root: Path) -> dict[str, Any]:
-    doc: dict[str, Any] = json.loads(
-        (stack_dir(root) / "question-bank" / f"{LESSON}.json").read_text(encoding="utf-8")
-    )
-    return doc
-
-
 def check_repo(root: Path, today: date = TODAY, baseline: str = "HEAD") -> list[Problem]:
     return check_stack(stack_dir(root), baseline=baseline, today=today)
 
@@ -388,6 +350,52 @@ def test_new_questions_on_a_new_concept_are_no_warning(tmp_path: Path) -> None:
 
     assert errors(problems) == []
     assert not [w for w in warnings(problems) if "tests the Concept" in w]
+
+
+@pytest.mark.parametrize(
+    ("right", "longest_wrong", "warned"),
+    [
+        ("Use a retry with exponential backoff and jitter", "Retry at once", True),
+        ("Use a retry with backoff", "Retry at once, forever", False),  # within 25%
+        ("`[]`", "`0`", False),  # over 25% longer, but by one character
+    ],
+)
+def test_a_new_question_whose_answer_is_clearly_the_longest_is_a_warning(
+    repo: Path, right: str, longest_wrong: str, warned: bool
+) -> None:
+    bank = bank_now(repo)
+    question = mc_question("w01-l01-q09", "concept-a") | {"sources": [source(1, "2026-01-02")]}
+    question["choices"] = [
+        {"id": "a", "text": right},
+        {"id": "b", "text": longest_wrong},
+        {"id": "c", "text": "No"},
+    ]
+    bank["questions"].append(question)
+    write_bank(repo, bank)
+
+    found = [w for w in warnings(check_repo(repo)) if "clearly the longest" in w]
+
+    assert found == (
+        [
+            "w01-l01-q09: the correct choice (a) is clearly the longest, which gives it away: "
+            "make a wrong choice as long, or the correct one shorter"
+        ]
+        if warned
+        else []
+    )
+
+
+def test_a_committed_question_is_not_warned_about_its_choice_lengths(tmp_path: Path) -> None:
+    """A committed Question can't be edited, so warning about it would only be noise."""
+    root = tmp_path / "repo"
+    root.mkdir()
+    git(root, "init", "-q")
+    bank = copy.deepcopy(BANK)
+    bank["questions"][0]["choices"][0]["text"] = "A much longer correct choice than the others"
+    write_bank(root, bank)
+    commit(root)
+
+    assert not [w for w in warnings(check_repo(root)) if "clearly the longest" in w]
 
 
 def test_without_git_the_baseline_rules_are_skipped_and_say_so(

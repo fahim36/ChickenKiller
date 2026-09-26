@@ -1,6 +1,6 @@
 """After a Lesson Quiz, over the API (#8): the results for each Missed Question, Retakes on a
 sibling Question, the Lesson completing only once every Retake is correct, a fresh quiz below
-the Pass Mark, and the record of Missed Questions the Daily Review reads (#9). The sibling and
+the Pass Mark, and the record of Missed Questions Review reads (#9). The sibling and
 drawing rules themselves are tested in test_lesson_quiz_rules.py. Written answers are graded
 by the fake grader (conftest.py), which passes an answer saying "right"."""
 
@@ -173,6 +173,15 @@ def test_the_results_show_each_missed_question_with_the_answers_explanation_and_
                     "title": "Some docs",
                     "url": "https://example.com/docs",
                     "type": "docs",
+                }
+            ],
+            "sources": [
+                {
+                    "url": "https://example.com/docs/page-1",
+                    "title": "Docs page 1",
+                    "publisher": "Example",
+                    "accessed": "2026-01-01",
+                    "claim": "What the Question relies on.",
                 }
             ],
         }
@@ -376,10 +385,10 @@ def test_a_fresh_quiz_repeats_questions_only_when_the_bank_is_too_small(
     assert len(fresh_ids - first_ids) == 2
 
 
-# --- Missed Questions for the Daily Review ---------------------------------------------------
+# --- Missed Questions for Review ---------------------------------------------------------------
 
 
-def test_every_missed_question_is_recorded_for_the_daily_review(
+def test_every_missed_question_is_recorded_for_review(
     session: Session, api: TestClient, make_content: ContentFactory
 ) -> None:
     setup(session, api, make_content, five_on_concept_a)

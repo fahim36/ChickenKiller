@@ -2,6 +2,7 @@ import copy
 import json
 import os
 import shutil
+import subprocess
 import time
 from collections.abc import Callable, Iterator
 from datetime import UTC, date, datetime, timedelta
@@ -524,3 +525,47 @@ def complete_lessons(
     ).one()
     for lesson_id in lesson_ids:
         progress.complete_lesson(session, record, lesson_id, datetime.now(UTC), version)
+
+
+# --- A git repository: the baseline the Question Bank is held to --------------------------------
+
+
+def git(root: Path, *args: str) -> str:
+    return subprocess.run(
+        ["git", "-c", "user.name=Test", "-c", "user.email=test@example.com", *args],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+
+
+@pytest.fixture
+def repo(tmp_path: Path) -> Path:
+    """A git repository holding the test Stack, committed: the baseline."""
+    root = tmp_path / "repo"
+    root.mkdir()
+    git(root, "init", "-q")
+    write_bank(root, copy.deepcopy(BANK))
+    commit(root)
+    return root
+
+
+def stack_dir(root: Path) -> Path:
+    return root / "content" / "mini-stack"
+
+
+def write_bank(root: Path, bank: dict[str, Any], **extra: dict[str, Any]) -> Path:
+    return write_folder(root / "content", copy.deepcopy(SYLLABUS), {LESSON: bank, **extra})
+
+
+def commit(root: Path) -> None:
+    git(root, "add", "-A")
+    git(root, "commit", "-q", "-m", "content")
+
+
+def bank_now(root: Path) -> dict[str, Any]:
+    doc: dict[str, Any] = json.loads(
+        (stack_dir(root) / "question-bank" / f"{LESSON}.json").read_text(encoding="utf-8")
+    )
+    return doc

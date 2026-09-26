@@ -1,7 +1,7 @@
 """Upcoming and released Daily Challenges (#16)
 
-Revision ID: 0012_daily_challenges
-Revises: 0011_stack_question_bank
+Revision ID: 0013_daily_challenges
+Revises: 0012_optional_review
 Create Date: 2026-09-27 00:00:00.000000
 
 `daily_challenges`: one row per Daily Challenge of a Stack, with its number, UTC Day and three
@@ -15,8 +15,8 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = "0012_daily_challenges"
-down_revision: str | Sequence[str] | None = "0011_stack_question_bank"
+revision: str = "0013_daily_challenges"
+down_revision: str | Sequence[str] | None = "0012_optional_review"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

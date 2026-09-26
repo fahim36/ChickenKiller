@@ -53,7 +53,7 @@ Each Challenge is **two multiple-choice Questions and one written**, in that ord
 Fan out one sub-agent per Day (or per two Days). Give each one:
 - the Challenge numbers and Days, and each Day's three Concepts;
 - the paths of both rules files and of the Syllabus;
-- the Question and Concept IDs it may use (`c<number>-q01`, ... and `c<number>-<slug>`, see the rules).
+- the Question and Concept IDs it may use. A Question with no Lesson is `c<number>-q01`, `-q02`, ... after the Challenge it is written for (`c001-q01`), and a new Concept `c<number>-<slug>`; a Question tagged to a Lesson takes the Lesson's `<lesson-id>-qNN` (see the rules).
 
 Each sub-agent:
 - fetches the primary sources for its Concepts **in this run**, with WebFetch, and checks every claim against them;
@@ -83,7 +83,7 @@ For each Day write `content/$stack/challenges/<number>.json` (zero-padded to thr
 uv run --project api content-check content/$stack
 ```
 
-Fix every error and run it again. Done when it reports **no errors**, and its line for the Stack says "Challenges written through <the last Day you wrote>". A Concept-repeat warning is fine only for a repeat you chose in step 3.
+Fix every error and run it again. Done when it reports **no errors**, **no "clearly the longest" warning** for a Question you wrote (for a Challenge Question it is blocking: rebalance the choices), and its line for the Stack says "Challenges written through <the last Day you wrote>". A Concept-repeat warning is fine only for a repeat you chose in step 3.
 
 ## 7. Report
 

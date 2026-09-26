@@ -23,6 +23,7 @@ from app import (
 )
 from app.auth import TokenVerifier
 from app.deps import (
+    ONBOARDING_NEEDED,
     ActiveStackInPath,
     AdminLearner,
     CurrentLearner,
@@ -32,14 +33,13 @@ from app.deps import (
     SessionDep,
     UnlockedLesson,
     VerifierDep,
+    get_active_stack_in_path,
     get_current_learner,
-    open_daily_review,
 )
 from app.models import Learner, Question
 
-# Everything except the health check: only a signed-in, invited Learner gets in (app/deps.py),
-# and each request counts as using the app for the Daily Review (`open_daily_review`).
-router = APIRouter(dependencies=[Depends(get_current_learner), Depends(open_daily_review)])
+# Everything except the health check: only a signed-in, invited Learner gets in (app/deps.py).
+router = APIRouter(dependencies=[Depends(get_current_learner)])
 
 
 def _me(session: SessionDep, learner: Learner, verifier: VerifierDep) -> schemas.MeOut:
@@ -131,21 +131,18 @@ def list_stacks(session: SessionDep) -> list[schemas.StackSummary]:
 
 @router.get("/stacks/{stack_id}")
 def get_week_map(
-    stack_id: str, session: SessionDep, learner: CurrentLearner, _: ActiveStackInPath, now: Now
+    stack_id: str, session: SessionDep, learner: CurrentLearner, _: ActiveStackInPath
 ) -> schemas.SyllabusOut:
     """The Week map: the current Syllabus's Weeks, each with its Lessons (and their states) and
     Milestones (and whether they're ticked), in Syllabus order, for the signed-in Learner.
+    Lesson states follow from Completed Lessons only; Milestone ticks never change them.
 
-    `daily_review` is today's Daily Review (null when nothing is owed today). While a round is
-    pending, the Lesson it locks has `waiting_for_review`, so the page can say why.
     `removed_lessons` are the Learner's Completed Lessons that a Syllabus Update removed: no
-    longer on the path, kept as history (#13). `streak` is the Learner's Streak (#11)."""
+    longer on the path, kept as history (#13)."""
     syllabus = lessons.current_syllabus(session, stack_id)
     if syllabus is None:
         raise HTTPException(404, "Stack not found")
-    states = progress.lesson_states(session, learner.id, stack_id, now)
-    waiting = progress.waiting_for_review(session, learner.id, stack_id, now)
-    today = reviews.daily_review(session, learner.id, stack_id, now)
+    states = progress.lesson_states(session, learner.id, stack_id)
     ticked = progress.ticked_milestone_ids(session, learner.id, stack_id)
     stack = syllabus.stack
     return schemas.SyllabusOut(
@@ -166,7 +163,6 @@ def get_week_map(
                         title=lesson.title,
                         minutes=lesson.minutes,
                         state=states[lesson.id],
-                        waiting_for_review=lesson.id == waiting,
                     )
                     for lesson in week.lessons
                 ],
@@ -183,14 +179,12 @@ def get_week_map(
             )
             for week in syllabus.weeks
         ],
-        daily_review=_daily_review(today) if today.rounds else None,
         removed_lessons=[
             schemas.RemovedLessonOut(
                 id=r.id, title=r.title, completed_at=r.completed_at, version=r.syllabus_version
             )
             for r in updated_lessons.removed_completed_lessons(session, learner.id, stack_id)
         ],
-        streak=reviews.streak(session, learner.id, stack_id, now),
     )
 
 
@@ -201,7 +195,6 @@ def get_lesson(
     session: SessionDep,
     learner: CurrentLearner,
     _: ActiveStackInPath,
-    now: Now,
 ) -> schemas.LessonOut:
     """A Lesson page. Locked Lessons can be read too, so Learners may read ahead: only the
     Lesson Quiz is gated (`UnlockedLesson`)."""
@@ -218,9 +211,7 @@ def get_lesson(
         exercise=lesson.exercise,
         minutes=lesson.minutes,
         materials=[schemas.MaterialOut.model_validate(m) for m in lesson.materials],
-        state=progress.lesson_states(session, learner.id, stack_id, now)[lesson.id],
-        waiting_for_review=progress.waiting_for_review(session, learner.id, stack_id, now)
-        == lesson.id,
+        state=progress.lesson_states(session, learner.id, stack_id)[lesson.id],
         previous_lesson_id=previous_id,
         next_lesson_id=next_id,
     )
@@ -263,7 +254,7 @@ def _answered_question(
     q: Question, response: str | None, feedback: str | None
 ) -> schemas.AnsweredQuestionOut:
     """A Question after it was answered, with its answer, the grader's feedback (written),
-    Explanation and Materials."""
+    Explanation, Materials and Sources."""
     return schemas.AnsweredQuestionOut(
         id=q.id,
         type="written" if q.type == "written" else "multiple_choice",
@@ -275,6 +266,7 @@ def _answered_question(
         model_answer=None if q.model_answer is None else schemas.ModelAnswerOut(**q.model_answer),
         explanation=q.explanation,
         materials=[schemas.MaterialOut.model_validate(m) for m in q.materials],
+        sources=[schemas.SourceOut.model_validate(s) for s in q.sources],
     )
 
 
@@ -362,10 +354,10 @@ def submit_lesson_quiz(
     a pass with no Missed Question makes the Lesson a Completed Lesson and unlocks the next one;
     a pass with Missed Questions opens their Retakes; below the Pass Mark comes a fresh quiz.
 
-    Not guarded by `UnlockedLesson`: a quiz already started can always be finished (#9's
-    Pending Review Round). 404 for an attempt that isn't the Learner's; 409 `quiz_submitted`
-    the second time; 422 `question_not_in_quiz`, `not_a_choice` or `answer_too_long` for
-    answers that don't fit the quiz, and then nothing is recorded.
+    Not guarded by `UnlockedLesson`: a quiz already started can always be finished. 404 for an
+    attempt that isn't the Learner's; 409 `quiz_submitted` the second time; 422
+    `question_not_in_quiz`, `not_a_choice` or `answer_too_long` for answers that don't fit the
+    quiz, and then nothing is recorded.
 
     Written answers are graded against their Model Answers (app/grading.py), and each result
     carries the grader's one-line `feedback`. 503 `grading_failed` when grading fails (a timeout,
@@ -504,122 +496,65 @@ def answer_retake(
     )
 
 
-# --- Daily Review ----------------------------------------------------------------------------
+# --- Review ----------------------------------------------------------------------------------
 
-REVIEW_ROUND_FINISHED = {
-    "code": "review_round_finished",
-    "message": "You've already answered every Question of this Review Round.",
-}
-REVIEW_ROUND_DROPPED = {
-    "code": "review_round_dropped",
-    "message": "This Review Round was from an earlier day and has been dropped.",
-}
-QUESTION_ANSWERED = {
-    "code": "question_answered",
-    "message": "You've already answered this Question in this Review Round.",
+NOT_IN_REVIEW = {
+    "code": "not_in_review",
+    "message": "This Question isn't in your Review right now.",
 }
 
 
-def _round_summary(view: reviews.RoundView) -> schemas.ReviewRoundSummaryOut:
-    r = view.round
-    return schemas.ReviewRoundSummaryOut(
-        id=r.id,
-        number=r.number,
-        state=view.state,
-        opened_at=r.opened_at,
-        pending_at=review.pending_at(r.opened_at),
-        finished_at=r.finished_at,
-        answered=len(view.answers),
-        total=len(view.questions),
-    )
+@router.get("/review")
+def get_review_set(learner: CurrentLearner, session: SessionDep, now: Now) -> schemas.ReviewSetOut:
+    """A Review set across all the Learner's Active Stacks: up to ten Questions, without their
+    answers, to answer one at a time. Missed Questions come first (oldest first), then Updated
+    Lessons' new Questions, then spaced repeats from Completed Lessons (app/review.py). Empty
+    when nothing is due.
 
-
-def _daily_review(today: reviews.DailyReview) -> schemas.DailyReviewOut:
-    return schemas.DailyReviewOut(
-        day=today.day,
-        rounds=[_round_summary(r) for r in today.rounds],
-        next_round_at=today.next_round_at,
-    )
-
-
-def _round(view: reviews.RoundView) -> schemas.ReviewRoundOut:
-    return schemas.ReviewRoundOut(
-        **_round_summary(view).model_dump(),
+    Review is optional and never blocks anything. Sets aren't stored: every request draws the
+    set afresh, so once its Questions are answered the next request draws the next set. 409
+    `onboarding_needed` before onboarding."""
+    records = onboarding.active_stacks(session, learner)
+    if not records:
+        raise HTTPException(409, ONBOARDING_NEEDED)
+    return schemas.ReviewSetOut(
+        size=review.SET_SIZE,
         max_answer_chars=grading.MAX_ANSWER_CHARS,
-        remaining=[_quiz_question(q) for q in view.remaining],
-        results=[
-            schemas.ReviewResultOut(
-                correct=bool(a.correct), question=_answered_question(q, a.response, a.feedback)
+        questions=[
+            schemas.ReviewQuestionOut(
+                **_quiz_question(r.question).model_dump(),
+                stack_id=r.stack.id,
+                stack_name=r.stack.name,
             )
-            for q, a in view.answered
+            for r in reviews.review_set(session, records, now)
         ],
     )
 
 
-@router.get("/stacks/{stack_id}/review")
-def get_daily_review(
-    active: ActiveStackInPath, session: SessionDep, now: Now
-) -> schemas.DailyReviewDetailOut:
-    """Today's Daily Review on this Active Stack, for the current UTC Day: its Review Rounds,
-    and the round waiting to be answered (`current`) with its remaining Questions (without their
-    answers) and the results so far. No rounds means nothing is owed today: the Learner has no
-    Completed Lesson yet, or had none at their first use of the day.
-
-    Round 1 opens on the first request of the Learner's Day, and Rounds 2 and 3 on the first
-    request once due, to any route (`open_daily_review`
-    runs before this one). 409 `not_active_stack` for another Stack."""
-    today = reviews.daily_review(session, active.learner_id, active.stack_id, now)
-    current = today.current
-    return schemas.DailyReviewDetailOut(
-        **_daily_review(today).model_dump(),
-        current=None if current is None else _round(current),
-    )
-
-
-@router.post("/stacks/{stack_id}/review/rounds/{round_id}/answers")
+@router.post("/review/answers")
 def answer_review_question(
-    round_id: str,
     body: schemas.ReviewAnswerIn,
-    active: ActiveStackInPath,
+    learner: CurrentLearner,
     session: SessionDep,
     grader: GraderDep,
     now: Now,
 ) -> schemas.ReviewAnswerOut:
-    """Answer one Question of a Review Round of today: a choice ID, a written answer, or null.
-    The result carries the Question's correct answer or Model Answer, the grader's feedback
-    (written) and its Explanation, for the page to show after a miss. The last answer finishes
-    the round, and a finished Pending Review Round unlocks the Unlocked Lesson again.
+    """Answer one Question of the Learner's Review on its Active Stack: a choice ID, a written
+    answer, or null. The result carries the Question's correct answer or Model Answer, the
+    grader's feedback (written) and its Explanation, for the page to show after a miss.
 
-    404 for a round that isn't the Learner's; 409 `review_round_finished`,
-    `review_round_dropped` (a round of an earlier day) or `question_answered` (each Question is
-    answered once); 422 `question_not_in_round`, `not_a_choice` or `answer_too_long`; 503
-    `grading_failed` when a written answer can't be graded. In each of those nothing is
-    recorded.
+    409 `not_in_review` for a Question that isn't in the Learner's Review queue now (a Locked
+    Lesson's, or one already answered correctly today); 409 `not_active_stack` or 404 for the
+    Stack; 422 `not_a_choice` or `answer_too_long`; 503 `grading_failed` when a written answer
+    can't be graded. In each of those nothing is recorded.
     """
+    record = get_active_stack_in_path(body.stack_id, learner, session)
     try:
         result = reviews.answer_question(
-            session,
-            active,
-            uuid.UUID(round_id),
-            body.question_id,
-            body.answer,
-            grader,
-            now,
+            session, record, body.question_id, body.answer, grader, now
         )
-    except (ValueError, reviews.RoundNotFound) as error:
-        raise HTTPException(404, "Review Round not found") from error
-    except reviews.RoundFinished as error:
-        raise HTTPException(409, REVIEW_ROUND_FINISHED) from error
-    except reviews.RoundDropped as error:
-        raise HTTPException(409, REVIEW_ROUND_DROPPED) from error
-    except reviews.QuestionAnswered as error:
-        raise HTTPException(409, QUESTION_ANSWERED) from error
-    except reviews.QuestionNotInRound as error:
-        detail = {
-            "code": "question_not_in_round",
-            "message": f"Not a Question of this Review Round: {error.question_id}",
-        }
-        raise HTTPException(422, detail) from error
+    except reviews.NotInReview as error:
+        raise HTTPException(409, NOT_IN_REVIEW) from error
     except marking.NotAChoice as error:
         raise _not_a_choice(error) from error
     except marking.AnswerTooLong as error:
@@ -629,7 +564,6 @@ def answer_review_question(
     return schemas.ReviewAnswerOut(
         correct=result.correct,
         question=_answered_question(result.question, result.response, result.feedback),
-        round=_round_summary(result.round),
     )
 
 
