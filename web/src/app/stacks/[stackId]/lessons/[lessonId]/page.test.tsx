@@ -22,7 +22,6 @@ const lesson: Lesson = {
     { id: "py-docs", title: "Data model", url: "https://example.com/dm", type: "docs" },
   ],
   state: "locked",
-  waiting_for_review: false,
   previous_lesson_id: null,
   next_lesson_id: "w01-l02",
 };
@@ -70,21 +69,7 @@ it("lets a Learner read a Locked Lesson and says its quiz waits", async () => {
   );
 });
 
-it("says the quiz waits for the Review Round while a round is pending", async () => {
-  const waiting = { ...lesson, state: "locked", waiting_for_review: true };
-  vi.stubGlobal("fetch", vi.fn(async () => Response.json(waiting)));
-
-  await renderLessonPage("agentic-ai-engineer", "w01-l01");
-
-  expect(screen.getByRole("note").textContent).toBe(
-    "Finish your Review Round to unlock this Lesson's quiz.",
-  );
-  expect(screen.getByRole("link", { name: "Review Round" }).getAttribute("href")).toBe(
-    "/stacks/agentic-ai-engineer/review",
-  );
-});
-
-it("says nothing about waiting on the Unlocked Lesson", async () => {
+it("adds no note to the Unlocked Lesson", async () => {
   vi.stubGlobal("fetch", vi.fn(async () => Response.json({ ...lesson, state: "unlocked" })));
 
   await renderLessonPage("agentic-ai-engineer", "w01-l01");
@@ -120,13 +105,13 @@ it("offers no quiz on a Locked, Completed or Updated Lesson", async () => {
   }
 });
 
-it("says an Updated Lesson's new Questions come in the Daily Review", async () => {
+it("says an Updated Lesson's new Questions come in Review", async () => {
   vi.stubGlobal("fetch", vi.fn(async () => Response.json({ ...lesson, state: "updated" })));
 
   await renderLessonPage("agentic-ai-engineer", "w01-l01");
 
   expect(screen.getByText("Updated")).toBeTruthy();
   expect(screen.getByRole("note").textContent).toBe(
-    "A Syllabus Update added or changed this Lesson after you'd passed it. Its new Questions come in your Daily Review.",
+    "A Syllabus Update added or changed this Lesson after you'd passed it. Its new Questions come in your Review.",
   );
 });

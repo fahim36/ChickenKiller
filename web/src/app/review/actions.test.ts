@@ -7,26 +7,26 @@ vi.mock("@clerk/nextjs/server", () => ({
 
 afterEach(() => vi.unstubAllGlobals());
 
-it("sends the answer to that Question of the round and returns the API's result", async () => {
-  const marked = { correct: false, round: { answered: 1 } };
+it("sends the answer to that Question on its Stack and returns the API's result", async () => {
+  const marked = { correct: false, question: { id: "w01-l01-q01" } };
   const fetch = vi.fn(async () => Response.json(marked));
   vi.stubGlobal("fetch", fetch);
 
-  const result = await answerReviewQuestion("agentic-ai-engineer", "round-1", "w01-l01-q01", "b");
+  const result = await answerReviewQuestion("agentic-ai-engineer", "w01-l01-q01", "b");
 
   expect(result).toEqual(marked);
   expect(fetch).toHaveBeenCalledWith(
-    "http://localhost:8000/stacks/agentic-ai-engineer/review/rounds/round-1/answers",
+    "http://localhost:8000/review/answers",
     expect.objectContaining({
       method: "POST",
-      body: JSON.stringify({ question_id: "w01-l01-q01", answer: "b" }),
+      body: JSON.stringify({ stack_id: "agentic-ai-engineer", question_id: "w01-l01-q01", answer: "b" }),
     }),
   );
 });
 
-it("returns the grading failure instead of throwing, so the round can offer to resubmit", async () => {
+it("returns the grading failure instead of throwing, so the Learner can resubmit", async () => {
   const detail = { code: "grading_failed", message: "Couldn't grade: submit again." };
   vi.stubGlobal("fetch", vi.fn(async () => Response.json({ detail }, { status: 503 })));
 
-  await expect(answerReviewQuestion("s", "r", "q", "An answer.")).resolves.toEqual(detail);
+  await expect(answerReviewQuestion("s", "q", "An answer.")).resolves.toEqual(detail);
 });

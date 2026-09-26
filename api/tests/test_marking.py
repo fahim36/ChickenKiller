@@ -1,5 +1,5 @@
 """`marking.mark`: one answer to one Question, marked the same way wherever it is asked (Lesson
-Quiz now; Retakes and Review Rounds call it too). No database: Questions are plain objects."""
+Quiz, Retakes and Review). No database: Questions are plain objects."""
 
 import pytest
 

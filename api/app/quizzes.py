@@ -14,7 +14,7 @@ stores what they decide.
   Question makes the Lesson a Completed Lesson (`progress.complete_lesson`); a pass with Missed
   Questions leaves it to their Retakes (`app/retakes.py`, which the caller opens next).
 - **Missed Questions** are read back with `missed_questions` / `missed_question_ids`, the
-  record the Daily Review uses (#9, #10).
+  record Review uses (#9).
 
 A Lesson Quiz is four multiple-choice and two written Questions (`quiz.draw_quiz`). Answers are
 marked by `marking.mark_all`, which grades written ones with the injected `Grader` (#7). If
@@ -241,7 +241,7 @@ def recorded_answers(session: Session, learner_id: int, stack_id: str) -> list[A
 @dataclass(frozen=True)
 class MissedQuestion:
     """A Question the Learner has answered wrongly or left unanswered at least once, anywhere:
-    a Lesson Quiz, a Retake (a wrong sibling is a Missed Question too) or a Review Round."""
+    a Lesson Quiz, a Retake (a wrong sibling is a Missed Question too) or Review."""
 
     question_id: str
     """Permanent ID."""
@@ -253,9 +253,9 @@ class MissedQuestion:
 
 def missed_questions(session: Session, learner_id: int, stack_id: str) -> list[MissedQuestion]:
     """The Learner's Missed Questions on the Stack, first missed first. This is the record the
-    Daily Review draws on (#9). A later correct answer doesn't remove one: the Daily Review
-    decides when a Missed Question leaves the rotation (correct on three different days since
-    `last_missed_at`: `review.in_rotation`, read by `reviews._missed_in_rotation`)."""
+    Review draws on (#9). A later correct answer doesn't remove one: Review decides when a
+    Missed Question leaves its queue (correct on three different Days since `last_missed_at`:
+    `review.in_queue`, read by `reviews._sources`)."""
     rows = session.execute(
         select(Answer.question_id, Answer.syllabus_version, Answer.answered_at)
         .where(

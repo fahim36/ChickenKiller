@@ -1,5 +1,7 @@
 """The lock-state rule (app/unlocking.py): which Lessons are Completed, Updated, Unlocked or
-Locked."""
+Locked. Lock states depend only on Completed Lessons (and, after a Syllabus Update, how the
+Syllabus changed since): the rule takes nothing else, so neither the calendar, Milestone ticks
+nor Review can lock a Lesson (test_week_map.py and test_review.py check that over the API)."""
 
 from app.unlocking import lesson_states
 
@@ -32,21 +34,6 @@ def test_unlocking_crosses_into_the_next_week() -> None:
 
 def test_with_every_lesson_completed_nothing_is_unlocked_or_locked() -> None:
     assert set(lesson_states(SYLLABUS, set(SYLLABUS)).values()) == {"completed"}
-
-
-def test_a_pending_review_round_locks_the_unlocked_lesson_too() -> None:
-    assert lesson_states(SYLLABUS, {"w01-l01"}, pending_review_round=True) == {
-        "w01-l01": "completed",
-        "w01-l02": "locked",
-        "w01-l03": "locked",
-        "w02-l01": "locked",
-    }
-
-
-def test_a_pending_review_round_does_not_undo_completed_lessons() -> None:
-    states = lesson_states(SYLLABUS, set(SYLLABUS), pending_review_round=True)
-
-    assert set(states.values()) == {"completed"}
 
 
 def test_completed_lessons_no_longer_in_the_syllabus_are_ignored() -> None:
@@ -141,19 +128,6 @@ def test_without_a_reached_lesson_a_removed_completed_lesson_is_just_ignored() -
     assert lesson_states(["w01-l01", "w01-l02", "w02-l01"], {"w01-l01", "w01-l03"}) == {
         "w01-l01": "completed",
         "w01-l02": "unlocked",
-        "w02-l01": "locked",
-    }
-
-
-def test_a_pending_review_round_leaves_updated_lessons_updated() -> None:
-    states = lesson_states(
-        SYLLABUS, {"w01-l01", "w01-l03"}, changed_ids={"w01-l01"}, pending_review_round=True
-    )
-
-    assert states == {
-        "w01-l01": "updated",
-        "w01-l02": "updated",
-        "w01-l03": "completed",
         "w02-l01": "locked",
     }
 

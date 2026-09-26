@@ -9,14 +9,14 @@ Version 1 is six milestones. Each one ends with something you can show a person 
 | [M2 Your own Learner](#m2-your-own-learner) | #3, #4 | An invited Learner signs in and activates one or more Stacks |
 | [M3 The core loop](#m3-the-core-loop) | #5, #6 | Study a Lesson, pass its quiz, watch the next one unlock |
 | [M4 Learning from mistakes](#m4-learning-from-mistakes) | #8, #7 | A wrong answer is explained; the Retake asks a sibling Question |
-| [M5 Daily Review](#m5-daily-review) | #9, #10, #11 | A missed Review Round blocks the next Lesson until it's done |
+| [M5 Review](#m5-review) | #9 | A Missed Question comes back in Review until it's right on three Days |
 | [M6 A Syllabus that updates itself](#m6-a-syllabus-that-updates-itself) | #12, #13 | Claude Code rewrites a Lesson; the Learner's progress survives |
 
 #12 runs alongside M2–M5. Real Question Banks mean every quiz milestone is tested and demoed on real content, not placeholders.
 
 ## How every milestone is tested
 
-- **Domain rules are plain functions with a fake clock.** Unlocking, Pass Mark, Review Round timing and Streaks take `now` as an argument, and every Day turns at 00:00 UTC (ADR-0005). Tests can then say "it is 23:59 UTC" without waiting or patching time.
+- **Domain rules are plain functions with a fake clock.** Unlocking, Pass Mark, Review's three-Days rule and Streaks take the time or the Day as an argument, and every Day turns at 00:00 UTC (ADR-0005). Tests can then say "it is 23:59 UTC" without waiting or patching time.
 - **API tests** run FastAPI's test client against a real Postgres (Docker Compose locally, a service container in CI). The database is built from the Alembic migrations and seeded from a small content folder (`api/tests/conftest.py`). Each test's writes are rolled back.
 - **Component tests** use Vitest and Testing Library in `web/`.
 - **The demo script is an end-to-end test.** From M2 on, each milestone's demo is also a Playwright test that clicks through the same steps. If the test passes, the demo will work live.
@@ -139,34 +139,29 @@ There are also 11 Vitest tests for the page helpers, the components and the Less
 - the cost per graded answer;
 - what happens when the Claude call fails: the answer is saved as "pending grade" and graded again later.
 
-## M5 Daily Review
+## M5 Review
 
-**Tickets:** #9 Round 1 and blocking, #10 Rounds 2 and 3, carry-over and leaving the rotation, #11 Streak.
+**Tickets:** #9 Review. (#10 Rounds 2 and 3 and #11 the Daily Review Streak were closed: see ADR-0003.)
 
 **Build:**
-- A Review Round has up to 10 Questions, drawn from Missed Questions and recently learned Concepts.
-- Round 1 opens the first time the Learner uses the app that day.
-- Each later round opens 4 hours after the previous one is finished, and becomes pending 2 hours after that. A day has at most 3 rounds.
-- A Pending Review Round blocks unlocking.
-- At day end, unfinished rounds are dropped, but their Questions carry over first.
-- A Question leaves the rotation once it has been answered correctly on 3 different days.
-- A Streak counts the days on which every round that opened was finished.
+- Review is one optional page across all Active Stacks, in sets of up to 10 Questions, answered one at a time. It has no rounds or timers and never blocks anything.
+- Missed Questions come first, oldest first. Then the Updated Lessons' new Questions, then spaced repeats: Questions of Completed Lessons (and, from #17, played Daily Challenges) not answered in the last 3 Days, least recently answered first.
+- A Missed Question leaves the queue once it has been answered correctly on 3 different Days since it was last missed.
+- A wrong answer shows its Explanation (and, from #15, its Sources). Retired Questions are never drawn.
 
 **Tests (all fake-clock):**
-- Round 2 opens exactly 4 hours after Round 1 is finished, and becomes pending 2 hours after that.
-- Only 3 rounds are created, even for a Learner who uses the app for 24 hours.
-- The day ends at local midnight for a Dhaka Learner, and again for a Learner in UTC-8.
-- Carried-over Questions come first the next day.
-- A Question answered correctly twice on one day counts as one day.
-- A Streak survives a day with only Round 1 and breaks on a day with a Pending Review Round.
+- A Missed Question answered correctly on Days 2, 3 and 4 leads each of those Days' sets and is gone on Day 5.
+- A Question answered correctly twice on one Day counts as one Day; the Day turns at 00:00 UTC.
+- A spaced repeat answered today comes back three Days later.
+- With Missed Questions waiting in Review, the next Lesson's quiz still starts.
 
 **Demo:**
-1. Finish Round 1.
-2. Move the demo clock forward 6 hours.
-3. Round 2 is pending, and the next Lesson shows "Finish your Review Round to unlock".
-4. Finish the round and the Lesson unlocks.
+1. Miss a Question in a Lesson Quiz.
+2. Open Review: the Missed Question comes first, from whichever Stack it belongs to.
+3. Answer it wrongly and read the Explanation; the next set asks it again.
+4. Move the demo clock forward a Day at a time: three correct Days take it out of the queue.
 
-**Portfolio note:** scheduling that has to be correct across Day boundaries. Show the round state machine (not open → open → pending → finished or dropped) and how the fake-clock tests cover every transition.
+**Portfolio note:** a small, fully tested scheduling rule. Show how Review stays optional (no stored sets, nothing to finish) and how the fake-clock tests cover the three-Days rule across Day boundaries.
 
 ## M6 A Syllabus that updates itself
 
@@ -175,14 +170,14 @@ There are also 11 Vitest tests for the page helpers, the components and the Less
 **Build:**
 - The `/update-syllabus` Claude Code command researches each Lesson and writes a new version folder with Question Banks for all 80 Lessons.
 - The importer adds that version beside the old one.
-- Learners keep their progress by permanent id: Completed Lessons, Missed Questions, Milestone ticks and the Streak all carry over.
-- A Lesson changed since the Learner completed it, or a new Lesson added behind them, is an Updated Lesson. It is marked on the Week map, its new Questions go into the Daily Review, and it never locks anything.
-- A removed Lesson leaves the path. A Learner who completed it keeps it in their history, and its Questions leave the review rotation. If it was their furthest Completed Lesson, the next surviving Lesson after it unlocks.
+- Learners keep their progress by permanent id: Completed Lessons, Missed Questions and Milestone ticks all carry over.
+- A Lesson changed since the Learner completed it, or a new Lesson added behind them, is an Updated Lesson. It is marked on the Week map, its new Questions go into Review, and it never locks anything.
+- A removed Lesson leaves the path. A Learner who completed it keeps it in their history, and its Questions leave Review. If it was their furthest Completed Lesson, the next surviving Lesson after it unlocks.
 - A Lesson Quiz in progress finishes on the old version; the next attempt uses the new one.
 
 **Tests:**
 - Import v1, record progress, then import v2 (with one Lesson added, one changed and one removed).
-- Completions survive. The changed Lesson, and the new Lesson added behind the Learner, are Updated Lessons, and their new Questions come in the next day's Review Round. The removed Lesson's Questions leave the rotation. The Unlocked Lesson is still correct.
+- Completions survive. The changed Lesson, and the new Lesson added behind the Learner, are Updated Lessons, and their new Questions come in Review after the Missed Questions. The removed Lesson's Questions leave Review. The Unlocked Lesson is still correct.
 - The content check passes on the generated folder.
 
 **Demo:**
@@ -206,7 +201,7 @@ Use this once M6 is finished. Each section can reuse the milestone notes above.
 2. **What it does:** a 90-second screen recording of the M3 → M5 demos joined together.
 3. **Architecture:** Next.js → FastAPI → Postgres; Claude Code writes the content repo; the importer reads it. Reuse the diagram in the README.
 4. **Three decisions and their trade-offs:** ADR-0001 (the content pipeline), ADR-0002 (the stack), and completion-based unlocking.
-5. **The hard parts:** Review Round scheduling across Day boundaries, the grader's eval, and importing a new version without losing progress.
+5. **The hard parts:** the Daily Challenge's shared Day boundary, the grader's eval, and importing a new version without losing progress.
 6. **Numbers:**
    - test count and CI time;
    - the grader's agreement on the eval set;

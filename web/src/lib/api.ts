@@ -29,9 +29,9 @@ export interface Material {
 
 /**
  * A Lesson's state for the signed-in Learner. Only the Unlocked Lesson's quiz can be started;
- * every Lesson can be read. An Updated Lesson is one a Syllabus Update changed after the
- * Learner completed it, or added behind them: its new Questions come in the Daily Review, and
- * it never locks anything.
+ * every Lesson can be read. Only completion unlocks the next Lesson. An Updated Lesson is one a
+ * Syllabus Update changed after the Learner completed it, or added behind them: its new
+ * Questions come in Review, and it never locks anything.
  */
 export type LessonState = "completed" | "updated" | "unlocked" | "locked";
 
@@ -40,8 +40,6 @@ export interface LessonSummary {
   title: string;
   minutes: number;
   state: LessonState;
-  /** It would be the Unlocked Lesson, but a Pending Review Round locks it. */
-  waiting_for_review: boolean;
 }
 
 export interface Milestone {
@@ -70,12 +68,8 @@ export interface Week {
 
 export interface Syllabus extends StackSummary {
   weeks: Week[];
-  /** Today's Daily Review; null on a day with nothing owed. */
-  daily_review: DailyReview | null;
   /** The Learner's Completed Lessons that a Syllabus Update removed: history only. */
   removed_lessons: RemovedLesson[];
-  /** The consecutive days on which the Learner finished their whole Daily Review. */
-  streak: number;
 }
 
 /** A Completed Lesson the current Syllabus no longer has. */
@@ -98,8 +92,6 @@ export interface Lesson {
   minutes: number;
   materials: Material[];
   state: LessonState;
-  /** Its Lesson Quiz would be open, but a Pending Review Round locks it. */
-  waiting_for_review: boolean;
   previous_lesson_id: string | null;
   next_lesson_id: string | null;
 }
@@ -219,59 +211,29 @@ export interface RetakeResult {
   lesson_completed: boolean;
 }
 
-/**
- * A Review Round's state: "optional" for two hours after it opens, then "pending" (a Pending
- * Review Round: the Unlocked Lesson is locked until it's finished), and "finished" once every
- * Question is answered.
- */
-export type ReviewRoundState = "optional" | "pending" | "finished";
-
-/** A Review Round of today's Daily Review. */
-export interface ReviewRoundSummary {
-  id: string;
-  /** 1 to 3 within the day. */
-  number: number;
-  state: ReviewRoundState;
-  opened_at: string;
-  /** When it becomes pending, unless finished first. */
-  pending_at: string;
-  finished_at: string | null;
-  answered: number;
-  total: number;
+/** A Question of a Review set, without its answer, and the Active Stack it is asked on. */
+export interface ReviewQuestion extends QuizQuestion {
+  stack_id: string;
+  stack_name: string;
 }
 
-/** A Review Round to answer, one Question at a time. */
-export interface ReviewRound extends ReviewRoundSummary {
+/**
+ * A Review set: up to `size` Questions across the Learner's Active Stacks, answered one at a
+ * time. Missed Questions first, then Updated Lessons' new Questions, then spaced repeats from
+ * Completed Lessons. Empty when nothing is due. Review is optional and never blocks anything;
+ * sets aren't stored, so loading the page again draws the next set.
+ */
+export interface ReviewSet {
+  size: number;
   /** The longest written answer the API accepts. */
   max_answer_chars: number;
-  /** The Questions still to answer, in order, without their answers. */
-  remaining: QuizQuestion[];
-  /** The Questions answered so far, in the order asked. */
-  results: { correct: boolean; question: AnsweredQuestion }[];
+  questions: ReviewQuestion[];
 }
 
-/** Today's Daily Review. No rounds means nothing is owed today. */
-export interface DailyReview {
-  /** The Day (UTC, ADR-0005), as YYYY-MM-DD. */
-  day: string;
-  rounds: ReviewRoundSummary[];
-  /**
-   * When the day's next round opens: four hours after the previous one is finished. Null when
-   * none is to open today (the last round is unfinished, the day has had three, or it's late).
-   */
-  next_round_at: string | null;
-}
-
-/** Today's Daily Review with the round waiting to be answered, if any. */
-export interface DailyReviewDetail extends DailyReview {
-  current: ReviewRound | null;
-}
-
-/** An answered Review Round Question: its answer, feedback (written) and Explanation. */
+/** An answered Review Question: its answer, feedback (written) and Explanation. */
 export interface ReviewAnswerResult {
   correct: boolean;
   question: AnsweredQuestion;
-  round: ReviewRoundSummary;
 }
 
 /** One of the Learner's Active Stacks, and when they first started studying it. */

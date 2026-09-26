@@ -149,7 +149,7 @@ A Lesson whose Lesson Quiz met the pass mark and whose Missed Questions have all
 _Avoid_: Finished, passed, done
 
 **Review**:
-An optional queue of Questions to practise, in sets of up to 10, whenever the Learner likes. Missed Questions come first, then spaced repeats from Completed Lessons and played Daily Challenges, across all Active Stacks. It has no rounds or timers and never blocks anything.
+An optional queue of Questions to practise, in sets of up to 10, whenever the Learner likes. Missed Questions come first, then spaced repeats from Completed Lessons and played Daily Challenges, across all Active Stacks. A Missed Question leaves it once answered correctly on three different Days since it was last missed. It has no rounds or timers and never blocks anything.
 _Avoid_: Daily Review, revision, daily quiz
 
 **Weak Concept**:

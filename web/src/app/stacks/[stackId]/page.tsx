@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
-import { DailyReviewBanner } from "@/components/DailyReviewBanner";
 import { Inline } from "@/components/Inline";
 import { LessonStateBadge } from "@/components/LessonStateBadge";
 import { MilestoneChecklist } from "@/components/MilestoneChecklist";
@@ -11,11 +10,11 @@ import { setMilestoneTicked } from "./actions";
 
 /**
  * The Week map: one Active Stack's Weeks in Syllabus order, each with its Lessons (Completed,
- * Updated, Unlocked or Locked) and its Milestone checklist. Every Lesson links to its page, so a Learner
- * can read ahead; only the quiz is locked, and the API enforces that. The Learner's Streak and
- * today's Daily Review sit on top; while its round is pending, the Lesson it locks says so.
- * Completed Lessons a Syllabus Update removed are listed last, as history: they're no longer on
- * the path, so no links.
+ * Updated, Unlocked or Locked) and its Milestone checklist. Every Lesson links to its page, so a
+ * Learner can read ahead; only the quiz is locked, and the API enforces that. Only completing a
+ * Lesson unlocks the next: Milestone ticks and Review never change a lock. Completed Lessons a
+ * Syllabus Update removed are listed last, as history: they're no longer on the path, so no
+ * links.
  */
 export default async function WeekMapPage({ params }: PageProps<"/stacks/[stackId]">) {
   await connection();
@@ -33,12 +32,10 @@ export default async function WeekMapPage({ params }: PageProps<"/stacks/[stackI
       <p className="muted">
         {syllabus.summary} · Syllabus {syllabus.version}
       </p>
-      <p role="status" aria-label="Streak">
-        <strong>Streak:</strong> {syllabus.streak} {syllabus.streak === 1 ? "day" : "days"}
+      <p className="small">
+        Practise your Missed Questions and past Lessons in <Link href="/review">Review</Link>{" "}
+        whenever you like. It&apos;s optional and never locks anything.
       </p>
-      {syllabus.daily_review && (
-        <DailyReviewBanner review={syllabus.daily_review} stackId={syllabus.id} now={new Date()} />
-      )}
 
       {syllabus.weeks.map((week) => (
         <section key={week.id} className="week" aria-labelledby={`week-${week.id}`}>
@@ -54,9 +51,6 @@ export default async function WeekMapPage({ params }: PageProps<"/stacks/[stackI
                 <Link href={`/stacks/${syllabus.id}/lessons/${lesson.id}`}>
                   <Inline text={lesson.title} />
                 </Link>
-                {lesson.waiting_for_review && (
-                  <span className="small muted"> · Finish your Review Round to unlock</span>
-                )}
               </li>
             ))}
           </ol>

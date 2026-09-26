@@ -34,7 +34,7 @@ from app.content.versions import VersionKey, earlier_versions, is_version, versi
 
 __all__ = ["Problem", "check_folder", "load_checked_folder", "main", "version_folders"]
 
-# A Lesson Quiz is 4 multiple-choice + 2 written Questions; Retakes and Review Rounds
+# A Lesson Quiz is 4 multiple-choice + 2 written Questions; Retakes and Review
 # need spare siblings, so a Question Bank holds 8-12.
 BANK_MIN, BANK_MAX = 8, 12
 QUIZ_MULTIPLE_CHOICE, QUIZ_WRITTEN = 4, 2

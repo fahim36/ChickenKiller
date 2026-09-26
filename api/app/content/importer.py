@@ -14,7 +14,7 @@ Each Stack version is imported once, as its own set of rows:
   imported before fingerprints existed fills them in.
 
 Learner progress needs no carrying over: it is keyed by permanent IDs, never by a version's rows,
-so a new version leaves Completed Lessons, Missed Questions, Milestone ticks and Review Days as
+so a new version leaves Completed Lessons, Missed Questions, Milestone ticks and answers as
 they are. What a new version means for each Learner (Updated Lessons, removed Lessons, their
 Unlocked Lesson) is worked out when read, in `app.updated_lessons`.
 """

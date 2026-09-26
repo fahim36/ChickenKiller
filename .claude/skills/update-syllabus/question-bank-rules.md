@@ -12,7 +12,7 @@ The Lesson's `topics` and `exercise` in `syllabus.json`, and nothing beyond them
 
 - **8–12 Questions** over **3–6 Concepts**.
 - **Every Concept has at least 2 Questions**, so a Retake always has a sibling to ask.
-- **At least 6 multiple choice and at least 3 written.** A Lesson Quiz draws 4 multiple choice and 2 written; the rest are spares for Retakes and Review Rounds.
+- **At least 6 multiple choice and at least 3 written.** A Lesson Quiz draws 4 multiple choice and 2 written; the rest are spares for Retakes and Review.
 - **At least 4 Concepts have a multiple-choice Question**, so a Lesson Quiz can cover four different Concepts.
 
 ## Each Question
