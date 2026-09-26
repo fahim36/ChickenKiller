@@ -168,16 +168,16 @@ There are also 11 Vitest tests for the page helpers, the components and the Less
 **Tickets:** #12 `/update-syllabus` and the first Stack (started in M0), #13 importing a new Syllabus version without losing progress.
 
 **Build:**
-- The `/update-syllabus` Claude Code command researches each Lesson and writes a new version folder with Question Banks for all 80 Lessons.
-- The importer adds that version beside the old one.
+- The `/update-syllabus` Claude Code command researches each Lesson, writes a new version folder, and adds, retires or re-tags Questions in the Stack's Question Bank.
+- The importer adds that version beside the old one and appends to the Question Bank (ADR-0004).
 - Learners keep their progress by permanent id: Completed Lessons, Missed Questions and Milestone ticks all carry over.
 - A Lesson changed since the Learner completed it, or a new Lesson added behind them, is an Updated Lesson. It is marked on the Week map, its new Questions go into Review, and it never locks anything.
-- A removed Lesson leaves the path. A Learner who completed it keeps it in their history, and its Questions leave Review. If it was their furthest Completed Lesson, the next surviving Lesson after it unlocks.
+- A removed Lesson leaves the path. A Learner who completed it keeps it in their history. Its Questions stay in the Question Bank, retired, re-tagged or tagged to no Lesson, and no Lesson Quiz draws them; a Missed Question among them that isn't retired stays in Review. If it was their furthest Completed Lesson, the next surviving Lesson after it unlocks.
 - A Lesson Quiz in progress finishes on the old version; the next attempt uses the new one.
 
 **Tests:**
 - Import v1, record progress, then import v2 (with one Lesson added, one changed and one removed).
-- Completions survive. The changed Lesson, and the new Lesson added behind the Learner, are Updated Lessons, and their new Questions come in Review after the Missed Questions. The removed Lesson's Questions leave Review. The Unlocked Lesson is still correct.
+- Completions survive. The changed Lesson, and the new Lesson added behind the Learner, are Updated Lessons, and their new Questions come in Review after the Missed Questions. The removed Lesson's Questions stay in the bank, and a Missed Question among them stays in Review. Each Learner's Unlocked Lesson is still correct.
 - The content check passes on the generated folder.
 
 **Demo:**

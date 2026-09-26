@@ -9,25 +9,43 @@ differ by one added, one changed and one removed Lesson:
 - `w01-l01` is changed: the Question Bank gains `w01-l01-q09`, tagged to it. Its Syllabus
   fields don't change, so the changelog doesn't list it (the changelog covers the Syllabus
   only), but its fingerprint does (#15).
-- `w01-l02` is removed, and its Questions retired; `w01-new` is added in its place, which is
-  behind a Learner who had completed `w01-l02`.
+- `w01-l02` is removed, and its Questions are un-tagged: they stay in the Question Bank, not
+  retired, but no Lesson draws them. `w01-new` is added in its place, which is behind a Learner
+  who had completed `w01-l02`.
 
 Every Lesson has a bank of eight Questions: six multiple choice (choice "a" is right) and two
-written (the fake grader passes an answer saying "right"). The clock is the test's."""
+written (the fake grader passes an answer saying "right"). The clock is the test's.
 
+Streaks and Daily Challenge results must survive an import too. They don't exist yet: #17
+(Daily Challenge plays) and #18 (Streaks) add their tables to `PROGRESS_TABLES`, so
+`test_an_import_changes_no_learner_data` covers them, and play a Challenge in the `learner`
+fixture."""
+
+import copy
 from collections.abc import Iterator
 from datetime import UTC, datetime
 from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import select
+from sqlalchemy import inspect, select
 from sqlalchemy.orm import Session
 
 from app import updated_lessons
 from app.content.importer import import_folder
-from app.models import Answer, Lesson, Syllabus
+from app.models import (
+    Answer,
+    CompletedLesson,
+    LearnerStack,
+    Lesson,
+    LessonQuizAttempt,
+    MilestoneTick,
+    Question,
+    Retake,
+    Syllabus,
+)
 from tests.conftest import (
+    ClientFactory,
     ContentFactory,
     FakeClock,
     as_version,
@@ -118,14 +136,17 @@ V1_BANKS = {
 }
 
 
-def retired(bank: dict[str, Any]) -> dict[str, Any]:
+def untagged(bank: dict[str, Any]) -> dict[str, Any]:
+    """`bank` with its Questions tagged to no Lesson, as a Syllabus Update that removes their
+    Lesson leaves them (a Question that isn't retired must be tagged to a current Lesson, or
+    none)."""
     for question in bank["questions"]:
-        question["retired"] = {"reason": "Its Lesson was removed."}
+        question["lesson"] = None
     return bank
 
 
 V2_BANKS = {
-    "w01-l02": retired(make_bank("w01-l02", "second")),
+    "w01-l02": untagged(make_bank("w01-l02", "second")),
     "w01-new": make_bank("w01-new", "new"),
     "w01-l03": make_bank("w01-l03", "third"),
     "w02-l01": make_bank("w02-l01", "fourth"),
@@ -141,10 +162,12 @@ V2_CHANGELOG = make_changelog(
 MORNING = datetime(2026, 9, 26, 9, 0, tzinfo=UTC)
 
 
-def import_version_2(session: Session, make_content: ContentFactory) -> None:
+def import_version_2(
+    session: Session, make_content: ContentFactory, banks: dict[str, Any] = V2_BANKS
+) -> None:
     result = import_folder(
         session,
-        make_content(as_version(V2, version_2), extra_banks=V2_BANKS, changelog=V2_CHANGELOG),
+        make_content(as_version(V2, version_2), extra_banks=banks, changelog=V2_CHANGELOG),
     )
     assert (result.status, result.is_current) == ("imported", True)
 
@@ -194,7 +217,38 @@ def missed_in(session: Session, lesson: str) -> list[str]:
     )
 
 
+PROGRESS_TABLES = (LearnerStack, CompletedLesson, MilestoneTick, LessonQuizAttempt, Retake, Answer)
+"""Every table of Learner data. An import writes none of them: #17 and #18 add theirs."""
+
+
+def learner_data(session: Session) -> dict[str, list[tuple[Any, ...]]]:
+    """Every row of `PROGRESS_TABLES`, each as the tuple of its columns."""
+    session.expire_all()
+    data = {}
+    for table in PROGRESS_TABLES:
+        columns = [c.key for c in inspect(table).column_attrs]
+        rows = session.scalars(select(table)).all()
+        data[table.__tablename__] = sorted(
+            (tuple(getattr(row, c) for c in columns) for row in rows), key=repr
+        )
+    return data
+
+
 # --- Progress carries over ---------------------------------------------------------------------
+
+
+def test_an_import_changes_no_learner_data(
+    session: Session, make_content: ContentFactory, learner: TestClient
+) -> None:
+    """Completed Lessons, Milestone ticks, quiz attempts, Retakes and every answer (so every
+    Missed Question) are exactly as they were."""
+    before = learner_data(session)
+    assert before["completed_lessons"] and before["milestone_ticks"] and before["retakes"]
+    assert missed_in(session, "w01-l02")
+
+    import_version_2(session, make_content)
+
+    assert learner_data(session) == before
 
 
 def test_the_week_map_before_the_update(learner: TestClient) -> None:
@@ -260,6 +314,44 @@ def test_a_removed_lesson_disappears_from_the_path_of_a_learner_who_had_not_reac
     assert week_map(api)["removed_lessons"] == []
 
 
+@pytest.mark.parametrize(
+    ("completed", "states"),
+    [
+        ((), ["unlocked", "locked", "locked", "locked"]),
+        (("w01-l01",), ["updated", "unlocked", "locked", "locked"]),
+        (("w01-l01", "w01-l02"), ["updated", "updated", "unlocked", "locked"]),
+        (("w01-l01", "w01-l02", "w01-l03"), ["updated", "updated", "completed", "unlocked"]),
+        (
+            ("w01-l01", "w01-l02", "w01-l03", "w02-l01"),
+            ["updated", "updated", "completed", "completed"],
+        ),
+    ],
+    ids=["none", "before-the-removed-lesson", "the-removed-lesson", "past-it", "all"],
+)
+def test_each_learners_unlocked_lesson_is_still_correct(
+    session: Session,
+    admin: TestClient,
+    signed_in: ClientFactory,
+    make_content: ContentFactory,
+    completed: tuple[str, ...],
+    states: list[str],
+) -> None:
+    """Learners at every point of version 1's path. The added Lesson is Unlocked for a Learner
+    who stood just before it, and behind (Updated) for everyone past it; the changed w01-l01 is
+    Updated for everyone who completed it."""
+    import_folder(session, make_content(as_version(V1, version_1), extra_banks=V1_BANKS))
+    email = f"learner-{len(completed)}@example.com"
+    admin.post("/invitations", json={"email": email}).raise_for_status()
+    client = signed_in(email)
+    onboard(client)
+    complete_lessons(session, *completed, email=email)
+
+    import_version_2(session, make_content)
+
+    lessons = ["w01-l01", "w01-new", "w01-l03", "w02-l01"]
+    assert lesson_states(client) == dict(zip(lessons, states, strict=True))
+
+
 def test_milestone_ticks_and_missed_questions_are_kept(
     session: Session, make_content: ContentFactory, learner: TestClient
 ) -> None:
@@ -283,6 +375,99 @@ def test_an_updated_lesson_has_no_lesson_quiz(
         assert learner.get(f"{STACK}/lessons/{lesson}").json()["state"] == "updated"
 
 
+# --- The removed Lesson's Questions -----------------------------------------------------------
+
+
+def test_the_removed_lessons_questions_stay_in_the_bank_and_no_quiz_draws_them(
+    session: Session, make_content: ContentFactory, learner: TestClient
+) -> None:
+    import_version_2(session, make_content)
+
+    kept = session.scalars(
+        select(Question).where(Question.id.startswith("w01-l02-")).order_by(Question.id)
+    ).all()
+    assert [(q.id, q.lesson_id, q.retired_reason) for q in kept] == [
+        (f"w01-l02-q{n:02}", None, None) for n in range(1, 9)
+    ]
+    assert learner.post(quiz_url("w01-l02")).status_code == 404
+    fail_the_third_lesson_s_quiz(learner)
+    drawn = start(learner, quiz_url("w01-l03"))
+    assert all(q["id"].startswith("w01-l03-") for q in drawn["questions"])
+
+
+# --- Re-tagged and later Questions ------------------------------------------------------------
+
+
+def owed(session: Session) -> list[str]:
+    return updated_lessons.updated_question_ids(session, learner_id(session), "mini-stack")
+
+
+def reimport_version_2(
+    session: Session, make_content: ContentFactory, banks: dict[str, Any]
+) -> None:
+    """Import version 2 again with a changed Question Bank: the bank grows without a new
+    version, as writing a Daily Challenge does."""
+    result = import_folder(
+        session,
+        make_content(as_version(V2, version_2), extra_banks=banks, changelog=V2_CHANGELOG),
+    )
+    assert result.status == "unchanged"
+
+
+def mc(question_id: str, lesson: str, concept: str) -> dict[str, Any]:
+    question = copy.deepcopy(V2_BANKS["w01-new"]["questions"][0])
+    question.update(id=question_id, lesson=lesson, concept=concept)
+    return question
+
+
+def test_a_question_re_tagged_to_a_completed_lesson_is_new_unless_the_learner_answered_it(
+    session: Session, make_content: ContentFactory, learner: TestClient
+) -> None:
+    """Version 2 re-tags two of the removed Lesson's Questions to w01-l01: one the Learner
+    answered in w01-l02's quiz, and one they never saw. Only the unseen one is owed."""
+    answered = set(
+        session.scalars(select(Answer.question_id).where(Answer.question_id.startswith("w01-l02")))
+    )
+    banks = copy.deepcopy(V2_BANKS)
+    questions = banks["w01-l02"]["questions"]
+    seen = next(q for q in questions if q["id"] in answered)
+    unseen = next(q for q in questions if q["id"] not in answered)
+    seen["lesson"] = unseen["lesson"] = "w01-l01"
+
+    import_version_2(session, make_content, banks)
+
+    first_lesson = [q for q in owed(session) if not q.startswith("w01-new")]
+    assert sorted(first_lesson) == sorted(["w01-l01-q09", unseen["id"]])
+
+
+def test_a_question_added_to_an_updated_lesson_without_a_new_version_is_new_too(
+    session: Session, make_content: ContentFactory, learner: TestClient
+) -> None:
+    import_version_2(session, make_content)
+    banks = copy.deepcopy(V2_BANKS)
+    banks["w01-new"]["questions"].append(mc("w01-l01-q10", "w01-l01", "new-a"))
+
+    reimport_version_2(session, make_content, banks)
+
+    assert owed(session)[:2] == ["w01-l01-q09", "w01-l01-q10"]
+
+
+def test_a_question_re_tagged_away_from_an_updated_lesson_is_no_longer_owed(
+    session: Session, make_content: ContentFactory, learner: TestClient
+) -> None:
+    import_version_2(session, make_content)
+    assert "w01-new-q01" in owed(session)
+    banks = copy.deepcopy(V2_BANKS)
+    questions = banks["w01-new"]["questions"]
+    questions[0]["lesson"] = "w01-l03"
+    questions.append(mc("w01-new-q09", "w01-new", "new-a"))
+
+    reimport_version_2(session, make_content, banks)
+
+    assert "w01-new-q01" not in owed(session)
+    assert "w01-new-q09" in owed(session)
+
+
 # --- A Lesson Quiz in progress ----------------------------------------------------------------
 
 
@@ -300,6 +485,31 @@ def test_a_quiz_in_progress_finishes_on_the_old_version_and_the_next_attempt_use
     fresh = start(learner, quiz_url("w01-l03"))
     assert fresh["attempt_id"] != resumed["attempt_id"]
     assert fresh["version"] == V2
+
+
+def test_a_quiz_in_progress_on_the_removed_lesson_finishes_and_completes_it_on_the_old_version(
+    session: Session, api: TestClient, make_content: ContentFactory, clock: FakeClock
+) -> None:
+    """Passing it makes w01-l02 a Completed Lesson of version 1: it goes in the Learner's
+    history, and they reach w01-l03 past it."""
+    clock.set(MORNING)
+    import_folder(session, make_content(as_version(V1, version_1), extra_banks=V1_BANKS))
+    onboard(api)
+    complete_lessons(session, "w01-l01")
+    quiz = start(api, quiz_url("w01-l02"))
+    import_version_2(session, make_content)
+
+    result = submit(api, quiz, answer_all(quiz), quiz_url("w01-l02"))
+    assert result.status_code == 200, result.text
+    assert result.json()["lesson_completed"] is True
+
+    assert [(r["id"], r["version"]) for r in week_map(api)["removed_lessons"]] == [("w01-l02", V1)]
+    assert lesson_states(api) == {
+        "w01-l01": "updated",
+        "w01-new": "updated",
+        "w01-l03": "unlocked",
+        "w02-l01": "locked",
+    }
 
 
 def test_a_lesson_completed_on_the_old_version_after_the_import_is_updated_if_it_changed(
@@ -334,27 +544,29 @@ def fail_the_third_lesson_s_quiz(client: TestClient) -> list[str]:
 def test_the_updated_lessons_new_questions_come_after_the_missed_questions(
     session: Session, make_content: ContentFactory, learner: TestClient
 ) -> None:
-    """The Missed Questions still in use first (the one missed in the removed w01-l02 was
-    retired with it), then the Updated Lessons' new Questions in Syllabus order: w01-l01's q09,
-    then the added Lesson's bank, up to ten."""
+    """The Missed Questions first, first missed first: the one missed in the removed w01-l02
+    stays missed. Then the Updated Lessons' new Questions in Syllabus order: w01-l01's q09, then
+    the added Lesson's bank, up to ten. The removed Lesson's other Questions aren't spaced
+    repeats: no Lesson has them now."""
+    [missed_in_l02] = missed_in(session, "w01-l02")
     import_version_2(session, make_content)
     missed_in_l03 = fail_the_third_lesson_s_quiz(learner)
 
     questions = asked(learner)
 
     assert questions == [
+        missed_in_l02,
         *missed_in_l03,
         "w01-l01-q09",
-        *[f"w01-new-q{n:02}" for n in range(1, 8)],
+        *[f"w01-new-q{n:02}" for n in range(1, 7)],
     ]
-    assert not [q for q in questions if q.startswith("w01-l02")]
 
 
 def test_the_next_set_asks_the_new_questions_the_first_had_no_room_for(
     session: Session, make_content: ContentFactory, learner: TestClient, clock: FakeClock
 ) -> None:
-    """Once the first set is answered, the next leads with the added Lesson's last Question,
-    q08, and none of the first set's Questions come back the same day."""
+    """Once the first set is answered, the next leads with the added Lesson's q07 and q08, and
+    none of the first set's Questions come back the same day."""
     import_version_2(session, make_content)
     fail_the_third_lesson_s_quiz(learner)
     clock.advance(minutes=10)
@@ -364,7 +576,7 @@ def test_the_next_set_asks_the_new_questions_the_first_had_no_room_for(
 
     second = asked(learner)
 
-    assert second[0] == "w01-new-q08"
+    assert second[:2] == ["w01-new-q07", "w01-new-q08"]
     assert not set(first) & set(second)
 
 

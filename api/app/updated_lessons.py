@@ -17,17 +17,22 @@ comparing the current version with the ones the Learner completed Lessons in:
 - **Updated Lessons** are those changed Completed Lessons, plus Lessons behind the Learner that
   aren't Completed (new ones a version added there): `unlocking.lesson_states` decides from
   `Standing`. An Updated Lesson stays Updated; it never locks anything.
-- **New Questions** of an Updated Lesson are the Questions the current version tags to it that
-  the version the Learner completed it in didn't: all of them, for a Lesson that isn't
-  Completed. A Question retired since is never owed. Each one waits in the Learner's Review
-  until they answer it anywhere, right or wrong (`updated_question_ids`); a wrong answer makes
-  it a Missed Question, which Review asks first anyway.
+- **New Questions** of an Updated Lesson are the Questions the Question Bank tags to it now
+  that the version the Learner completed it in didn't: all of them, for a Lesson that isn't
+  Completed. The bank is the Stack's, not a version's (ADR-0004), so this counts a Question
+  re-tagged to the Lesson, or added to the bank since the import, and drops one re-tagged
+  away. A Retired Question is never owed. Each one waits in the Learner's Review until they
+  answer it anywhere, right or wrong (`updated_question_ids`), so a re-tagged Question they
+  already answered under its old Lesson isn't owed; a wrong answer makes it a Missed
+  Question, which Review asks first anyway.
 - **Removed Lessons** drop out of the path. A Completed one stays in the Learner's history
   (`removed_completed_lessons`), and the Learner has still reached the Lesson that followed it
   in the last version that had it (`Standing.reached_ids`), so their Unlocked Lesson is the
   next surviving Lesson after it. When nothing after it survived, the reached Lesson is the one
   after the last surviving Lesson before it. Its Questions stay in the Question Bank: a
-  Syllabus Update that removes a Lesson retires or re-tags them.
+  Syllabus Update that removes a Lesson retires them, re-tags them to another Lesson, or tags
+  them to none. No Lesson Quiz draws them then, but a Missed Question among them stays in
+  Review until it leaves the usual way, unless it is retired.
 """
 
 from collections.abc import Collection
@@ -112,9 +117,10 @@ def lesson_states(session: Session, learner_id: int, stack_id: str) -> dict[str,
 
 
 def updated_question_ids(session: Session, learner_id: int, stack_id: str) -> list[str]:
-    """The new Questions of the Learner's Updated Lessons that they haven't answered yet, from
-    the current Syllabus, in Syllabus order (Lesson, then Question Bank order), leaving out
-    Retired Questions. Review asks them after the Missed Questions."""
+    """The new Questions of the Learner's Updated Lessons that they haven't answered yet, in
+    Syllabus order (Lesson, then Question Bank order). They are the Question Bank's Questions
+    tagged to each Lesson now, leaving out Retired Questions and the ones tagged to it in the
+    version the Learner completed it in. Review asks them after the Missed Questions."""
     learner_standing = standing(session, learner_id, stack_id)
     states = learner_standing.states()
     updated = [
@@ -122,27 +128,19 @@ def updated_question_ids(session: Session, learner_id: int, stack_id: str) -> li
     ]
     if not updated:
         return []
-    tagged = session.execute(
-        select(Lesson.id, Lesson.question_ids)
-        .join(Stack, Stack.current_syllabus_pk == Lesson.syllabus_pk)
-        .where(Stack.id == stack_id, Lesson.id.in_(updated))
-        .order_by(Lesson.position)
-    ).all()
-    retired = set(
-        session.scalars(
-            select(Question.id).where(
-                Question.stack_id == stack_id,
-                Question.retired_reason.is_not(None),
-                Question.id.in_([q for _, ids in tagged for q in ids]),
-            )
+    tagged: dict[str, list[str]] = {lesson_id: [] for lesson_id in updated}
+    for question_id, lesson_id in session.execute(
+        select(Question.id, Question.lesson_id)
+        .where(
+            Question.stack_id == stack_id,
+            Question.lesson_id.in_(updated),
+            Question.retired_reason.is_(None),
         )
-    )
-    bank = [
-        (question_id, lesson_id)
-        for lesson_id, ids in tagged
-        for question_id in ids
-        if question_id not in retired
-    ]
+        .order_by(Question.position)
+    ):
+        assert lesson_id is not None  # tagged to one of `updated`
+        tagged[lesson_id].append(question_id)
+    bank = [(question_id, lesson_id) for lesson_id, ids in tagged.items() for question_id in ids]
     had = _questions_then(
         session,
         stack_id,

@@ -12,8 +12,10 @@ stores what they decide.
   after a pass whose Retakes are still pending, starting is refused (`RetakesPending`).
 - **Submitting** marks the answers against the attempt's own Questions. A Question never
   changes (ADR-0004), so a quiz in progress when a new version is imported, or when one of its
-  Questions is retired, finishes on the Questions it drew. Every
-  Question drawn gets an `Answer` row, unanswered ones included. A pass with no Missed
+  Questions is retired, finishes on the Questions it drew and completes the Lesson in the
+  attempt's version (#13): a Lesson the new version changed is then Updated, and one it removed
+  goes in the Learner's history. Every Question drawn gets an `Answer` row, unanswered ones
+  included. A pass with no Missed
   Question makes the Lesson a Completed Lesson (`progress.complete_lesson`); a pass with Missed
   Questions leaves it to their Retakes (`app/retakes.py`, which the caller opens next).
 - **Missed Questions** are read back with `missed_questions` / `missed_question_ids`, the
