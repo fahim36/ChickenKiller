@@ -35,7 +35,7 @@ from tests.conftest import (
     make_changelog,
     onboard,
 )
-from tests.test_daily_review import answer, current_round, right_answer
+from tests.test_daily_review import answer, current_round, daily_review, finish, right_answer
 from tests.test_lesson_quiz import answer_all, code, learner_id, lesson_states, start, submit
 
 V1, V2 = "v2026-01-01", "v2026-02-01"
@@ -314,6 +314,14 @@ def test_a_lesson_completed_on_the_old_version_after_the_import_is_updated_if_it
 # --- The Daily Review --------------------------------------------------------------------------
 
 
+def next_day(client: TestClient, clock: FakeClock) -> None:
+    """Finish today's open Review Round, so nothing carries over, and move to the next day."""
+    current = daily_review(client)["current"]
+    if current is not None:
+        finish(client, current)
+    clock.advance(days=1)
+
+
 def test_the_updated_lessons_new_questions_come_after_the_missed_questions_next_day(
     session: Session, make_content: ContentFactory, learner: TestClient, clock: FakeClock
 ) -> None:
@@ -325,7 +333,7 @@ def test_the_updated_lessons_new_questions_come_after_the_missed_questions_next_
     submit(learner, resumed, answer_all(resumed, wrong=2), quiz_url("w01-l03"))
     missed_in_l03 = [q["id"] for q in resumed["questions"][:2]]
 
-    clock.advance(days=1)
+    next_day(learner, clock)
     round_ = current_round(learner)
 
     asked = [q["id"] for q in round_["remaining"]]
@@ -337,11 +345,34 @@ def test_the_updated_lessons_new_questions_come_after_the_missed_questions_next_
     assert not [q for q in asked if q.startswith("w01-l02")]
 
 
+def test_round_2_asks_the_new_questions_round_1_had_no_room_for(
+    session: Session, make_content: ContentFactory, learner: TestClient, clock: FakeClock
+) -> None:
+    """Round 1 had no room for the added Lesson's last Question, q08: Round 2 leads with it,
+    and none of Round 1's Missed or new Questions come back the same day. (Completed Lessons'
+    Questions may repeat to fill a short round: here that pool is w01-l01's nine.)"""
+    import_version_2(session, make_content)
+    resumed = start(learner, quiz_url("w01-l03"))
+    submit(learner, resumed, answer_all(resumed, wrong=2), quiz_url("w01-l03"))
+    next_day(learner, clock)
+    round_1 = current_round(learner)
+    finish(learner, round_1)
+
+    clock.advance(hours=4)
+    round_2 = current_round(learner)
+
+    assert round_2["number"] == 2
+    asked = [q["id"] for q in round_2["remaining"]]
+    assert asked[0] == "w01-new-q08"
+    led_round_1 = {q["id"] for q in round_1["remaining"] if not q["id"].startswith("w01-l01-q0")}
+    assert led_round_1 and not led_round_1 & set(asked)
+
+
 def test_a_new_question_is_owed_until_the_learner_answers_it(
     session: Session, make_content: ContentFactory, learner: TestClient, clock: FakeClock
 ) -> None:
     import_version_2(session, make_content)
-    clock.advance(days=1)
+    next_day(learner, clock)
     round_ = current_round(learner)
     owed_before = updated_lessons.updated_question_ids(session, learner_id(session), "mini-stack")
     assert owed_before[0] == "w01-l01-q09"

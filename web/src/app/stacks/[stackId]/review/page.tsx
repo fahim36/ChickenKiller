@@ -1,14 +1,16 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
+import { nextRoundText } from "@/components/DailyReviewBanner";
 import { ReviewRoundFlow } from "@/components/ReviewRoundFlow";
 import { api, type DailyReviewDetail } from "@/lib/api";
 import { answerReviewQuestion } from "./actions";
 
 /**
- * Today's Daily Review: the Review Round waiting to be answered, one Question at a time. The
- * API opens Round 1 on the Learner's first use of the day, so this page only reads it. With no
- * round waiting it says why: today's rounds are done, or nothing is owed today.
+ * Today's Daily Review: the Review Round waiting to be answered (Round 1, 2 or 3), one Question
+ * at a time. The API opens rounds on the Learner's requests, so this page only reads them. With
+ * no round waiting it says why: when the next round opens, today's rounds are done, or nothing
+ * is owed today.
  */
 export default async function DailyReviewPage({ params }: PageProps<"/stacks/[stackId]/review">) {
   await connection();
@@ -16,6 +18,7 @@ export default async function DailyReviewPage({ params }: PageProps<"/stacks/[st
   const review = await api<DailyReviewDetail>(`/stacks/${encodeURIComponent(stackId)}/review`);
   if (!review) notFound();
   const current = review.current;
+  const latest = review.rounds.at(-1);
 
   return (
     <main>
@@ -38,8 +41,8 @@ export default async function DailyReviewPage({ params }: PageProps<"/stacks/[st
         </>
       ) : (
         <p role="status" className="notice">
-          {review.rounds.length > 0
-            ? "Today's Review Round is done."
+          {latest
+            ? nextRoundText(review, latest.number)
             : "No Daily Review today. One opens each day you start with a Completed Lesson."}
         </p>
       )}

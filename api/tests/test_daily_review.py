@@ -305,6 +305,7 @@ def test_a_wrong_answer_in_a_round_is_a_missed_question_the_next_day(
     round_ = current_round(learner)
     last = round_["remaining"][-1]
     answer(learner, round_, last["id"], wrong_answer(last))
+    finish(learner, current_round(learner))  # nothing carries over (#10)
     clock.advance(days=1)
 
     assert current_round(learner)["remaining"][0]["id"] == last["id"]
@@ -420,3 +421,247 @@ def test_a_round_left_unfinished_yesterday_blocks_nothing_today(
     assert learner.post(SECOND_QUIZ).status_code == 200
     question = yesterday["remaining"][0]["id"]
     assert code(answer(learner, yesterday, question, "a")) == (409, "review_round_dropped")
+
+
+# --- Rounds 2 and 3 (#10) ----------------------------------------------------------------------
+
+
+def rounds(client: TestClient) -> list[tuple[int, str]]:
+    return [(r["number"], r["state"]) for r in daily_review(client)["rounds"]]
+
+
+def test_round_2_opens_four_hours_after_round_1_is_finished(
+    learner: TestClient, clock: FakeClock
+) -> None:
+    finish(learner, current_round(learner))  # at 10:00 in Dhaka
+    clock.advance(hours=3, minutes=59, seconds=59)
+
+    before = daily_review(learner)
+    clock.advance(seconds=1)
+    after = daily_review(learner)
+
+    assert (before["current"], before["next_round_at"]) == (None, "2026-09-26T08:00:00Z")
+    assert [r["number"] for r in before["rounds"]] == [1]
+    round_2 = after["rounds"][1]
+    assert (round_2["number"], round_2["state"]) == (2, "optional")
+    assert (round_2["opened_at"], round_2["pending_at"]) == (
+        "2026-09-26T08:00:00Z",
+        "2026-09-26T10:00:00Z",
+    )
+    assert after["current"]["id"] == round_2["id"]
+    assert after["next_round_at"] is None
+
+
+def test_round_2_is_pending_two_hours_after_it_opens_and_blocks_the_next_lesson_quiz(
+    learner: TestClient, clock: FakeClock
+) -> None:
+    finish(learner, current_round(learner))
+    clock.advance(hours=4)
+    round_2 = current_round(learner)
+    clock.advance(hours=1, minutes=59)
+    assert learner.post(SECOND_QUIZ).status_code == 200  # still optional; this quiz may finish
+    clock.advance(minutes=1)
+
+    refused = learner.post(SECOND_QUIZ)
+
+    assert rounds(learner) == [(1, "finished"), (2, "pending")]
+    assert code(refused) == (409, "review_round_pending")
+    assert refused.json()["detail"]["round_id"] == round_2["id"]
+
+
+def test_a_round_opens_on_time_even_while_the_learner_is_away(
+    learner: TestClient, clock: FakeClock
+) -> None:
+    """Nobody asks at 14:00, so the round is stored on the next request, but it opened at
+    14:00: back at 16:30, it is already pending."""
+    finish(learner, current_round(learner))
+    clock.advance(hours=6, minutes=30)
+
+    review = daily_review(learner)
+
+    round_2 = review["rounds"][1]
+    assert (round_2["opened_at"], round_2["state"]) == ("2026-09-26T08:00:00Z", "pending")
+    assert code(learner.post(SECOND_QUIZ)) == (409, "review_round_pending")
+
+
+def test_no_round_opens_while_the_previous_one_is_unfinished(
+    learner: TestClient, clock: FakeClock
+) -> None:
+    round_1 = current_round(learner)
+    answer(learner, round_1, round_1["remaining"][0]["id"], "a")
+    clock.advance(hours=10)
+
+    review = daily_review(learner)
+
+    assert rounds(learner) == [(1, "pending")]
+    assert review["next_round_at"] is None
+
+
+def test_a_full_day_has_three_rounds_and_no_fourth(learner: TestClient, clock: FakeClock) -> None:
+    opened = []
+    for _ in range(3):
+        round_ = current_round(learner)
+        opened.append(round_["opened_at"])
+        finish(learner, round_)
+        clock.advance(hours=4)
+
+    review = daily_review(learner)
+
+    assert opened == ["2026-09-26T04:00:00Z", "2026-09-26T08:00:00Z", "2026-09-26T12:00:00Z"]
+    assert rounds(learner) == [(1, "finished"), (2, "finished"), (3, "finished")]
+    assert (review["current"], review["next_round_at"]) == (None, None)
+    assert learner.post(SECOND_QUIZ).status_code == 200
+
+
+def test_using_the_app_all_day_opens_only_three_rounds(
+    learner: TestClient, clock: FakeClock
+) -> None:
+    clock.set(datetime(2026, 9, 25, 18, 0, tzinfo=UTC))  # midnight in Dhaka
+    for _ in range(24 * 4 - 1):  # every 15 minutes until 23:45, finishing each round at once
+        current = daily_review(learner)["current"]
+        if current is not None:
+            finish(learner, current)
+        clock.advance(minutes=15)
+
+    assert rounds(learner) == [(1, "finished"), (2, "finished"), (3, "finished")]
+
+
+def test_a_round_that_would_open_after_midnight_does_not_open(
+    learner: TestClient, clock: FakeClock
+) -> None:
+    clock.set(datetime(2026, 9, 26, 14, 30, tzinfo=UTC))  # 20:30 in Dhaka
+    finish(learner, current_round(learner))
+
+    assert daily_review(learner)["next_round_at"] is None
+    clock.advance(hours=3, minutes=29)  # 23:59
+    assert rounds(learner) == [(1, "finished")]
+
+
+def test_every_round_asks_the_completed_lessons_questions(
+    learner: TestClient, clock: FakeClock
+) -> None:
+    """The mini Stack has only eight Questions of Completed Lessons, so once Round 1 has asked
+    them all, Round 2 asks them again rather than nothing."""
+    finish(learner, current_round(learner))
+    clock.advance(hours=4)
+
+    assert {q["id"] for q in current_round(learner)["remaining"]} == FIRST_BANK
+
+
+# --- Carry-over (#10) ----------------------------------------------------------------------------
+
+
+def leave_round_2_half_done(learner: TestClient, clock: FakeClock) -> tuple[list[str], str]:
+    """Finish Round 1 at 10:00 in Dhaka, then answer three of Round 2's Questions at 14:00 (the
+    first one wrong) and leave the rest. The unanswered Questions in order, and the missed one."""
+    finish(learner, current_round(learner))
+    clock.advance(hours=4)
+    round_2 = current_round(learner)
+    asked = round_2["remaining"]
+    answer(learner, round_2, asked[0]["id"], wrong_answer(asked[0]))
+    for question in asked[1:3]:
+        answer(learner, round_2, question["id"], right_answer(question))
+    return [q["id"] for q in asked[3:]], asked[0]["id"]
+
+
+def test_an_unfinished_round_is_dropped_and_its_unanswered_questions_lead_the_next_day(
+    learner: TestClient, clock: FakeClock
+) -> None:
+    unanswered, missed = leave_round_2_half_done(learner, clock)
+    yesterday = current_round(learner)
+    clock.set(datetime(2026, 9, 26, 18, 0, tzinfo=UTC))  # midnight in Dhaka
+
+    today = daily_review(learner)
+
+    assert today["day"] == "2026-09-27"
+    [round_1] = today["rounds"]
+    assert round_1["number"] == 1
+    remaining = [q["id"] for q in today["current"]["remaining"]]
+    assert remaining[: len(unanswered)] == unanswered
+    assert remaining[len(unanswered)] == missed  # Missed Questions come after the carry-over
+    question = yesterday["remaining"][0]["id"]
+    assert code(answer(learner, yesterday, question, "a")) == (409, "review_round_dropped")
+
+
+def test_a_round_left_optional_at_midnight_is_dropped_too(
+    learner: TestClient, clock: FakeClock
+) -> None:
+    clock.set(datetime(2026, 9, 26, 17, 30, tzinfo=UTC))  # 23:30 in Dhaka
+    first = current_round(learner)
+    asked = [q["id"] for q in first["remaining"]]
+    answer_by_id(learner, first, asked[0], right=True)
+    clock.advance(hours=1)  # 00:30
+
+    remaining = [q["id"] for q in current_round(learner)["remaining"]]
+
+    assert remaining[:7] == asked[1:]
+
+
+def test_carried_over_questions_wait_for_the_learner_s_next_day_with_rounds(
+    learner: TestClient, clock: FakeClock
+) -> None:
+    unanswered, _ = leave_round_2_half_done(learner, clock)
+    clock.advance(days=3)
+
+    remaining = [q["id"] for q in current_round(learner)["remaining"]]
+
+    assert remaining[: len(unanswered)] == unanswered
+
+
+# --- Leaving the rotation (#10) ------------------------------------------------------------------
+
+
+def answer_by_id(
+    client: TestClient, round_: dict[str, Any], question_id: str, *, right: bool
+) -> None:
+    question = next(q for q in round_["remaining"] if q["id"] == question_id)
+    given = right_answer(question) if right else wrong_answer(question)
+    response = answer(client, round_, question_id, given)
+    assert response.status_code == 200, response.text
+
+
+def test_a_missed_question_leaves_the_rotation_after_correct_answers_on_three_days(
+    learner: TestClient, clock: FakeClock
+) -> None:
+    """q01 is missed on day 1, then answered correctly on days 2, 3 and 4; q02 is missed every
+    day. Both lead the round while in the rotation, first missed first; on day 5 q01 has left
+    it, so q02 leads alone. Each day's round is finished, so nothing carries over."""
+    round_ = current_round(learner)
+    answer_by_id(learner, round_, "w01-l01-q01", right=False)
+    answer_by_id(learner, round_, "w01-l01-q02", right=False)
+    finish(learner, current_round(learner))
+    leads = []
+    for _ in range(3):
+        clock.advance(days=1)
+        round_ = current_round(learner)
+        leads.append([q["id"] for q in round_["remaining"][:2]])
+        answer_by_id(learner, round_, "w01-l01-q01", right=True)
+        answer_by_id(learner, round_, "w01-l01-q02", right=False)
+        finish(learner, current_round(learner))
+    clock.advance(days=1)
+
+    assert leads == [["w01-l01-q01", "w01-l01-q02"]] * 3
+    assert current_round(learner)["remaining"][0]["id"] == "w01-l01-q02"
+
+
+def test_correct_answers_on_one_day_count_once_towards_leaving_the_rotation(
+    learner: TestClient, clock: FakeClock
+) -> None:
+    """Missed in Round 1, then right in Rounds 2 and 3 the same day and in Round 1 the next day:
+    three correct answers, but on two days, so it still leads on the third day."""
+    round_ = current_round(learner)
+    answer_by_id(learner, round_, "w01-l01-q01", right=False)
+    finish(learner, current_round(learner))
+    for _ in range(2):  # Rounds 2 and 3
+        clock.advance(hours=4)
+        round_ = current_round(learner)
+        answer_by_id(learner, round_, "w01-l01-q01", right=True)
+        finish(learner, current_round(learner))
+    clock.advance(days=1)
+    round_ = current_round(learner)
+    assert round_["remaining"][0]["id"] == "w01-l01-q01"
+    answer_by_id(learner, round_, "w01-l01-q01", right=True)
+    finish(learner, current_round(learner))
+    clock.advance(days=1)
+
+    assert current_round(learner)["remaining"][0]["id"] == "w01-l01-q01"

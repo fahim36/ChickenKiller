@@ -175,12 +175,14 @@ There are also 11 Vitest tests for the page helpers, the components and the Less
 **Build:**
 - The `/update-syllabus` Claude Code command researches each Lesson and writes a new version folder with Question Banks for all 80 Lessons.
 - The importer adds that version beside the old one.
-- Learners keep their progress by permanent id: a Completed Lesson stays completed, and an Updated Lesson is marked as changed.
-- Questions that were removed leave the review rotation cleanly.
+- Learners keep their progress by permanent id: Completed Lessons, Missed Questions, Milestone ticks and the Streak all carry over.
+- A Lesson changed since the Learner completed it, or a new Lesson added behind them, is an Updated Lesson. It is marked on the Week map, its new Questions go into the Daily Review, and it never locks anything.
+- A removed Lesson leaves the path. A Learner who completed it keeps it in their history, and its Questions leave the review rotation. If it was their furthest Completed Lesson, the next surviving Lesson after it unlocks.
+- A Lesson Quiz in progress finishes on the old version; the next attempt uses the new one.
 
 **Tests:**
-- Import v1, record progress, then import v2 (with one Lesson changed, one Question removed and one Lesson added).
-- Completions survive, the changed Lesson is marked as an Updated Lesson, the removed Question leaves the rotation, and the new Lesson is unlocked in its place.
+- Import v1, record progress, then import v2 (with one Lesson added, one changed and one removed).
+- Completions survive. The changed Lesson, and the new Lesson added behind the Learner, are Updated Lessons, and their new Questions come in the next day's Review Round. The removed Lesson's Questions leave the rotation. The Unlocked Lesson is still correct.
 - The content check passes on the generated folder.
 
 **Demo:**

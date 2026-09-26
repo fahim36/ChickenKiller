@@ -252,7 +252,14 @@ export interface ReviewRound extends ReviewRoundSummary {
 export interface DailyReview {
   /** The calendar day, as YYYY-MM-DD. */
   day: string;
+  /** The Learner's IANA time zone, which `day` is in. */
+  time_zone: string;
   rounds: ReviewRoundSummary[];
+  /**
+   * When the day's next round opens: four hours after the previous one is finished. Null when
+   * none is to open today (the last round is unfinished, the day has had three, or it's late).
+   */
+  next_round_at: string | null;
 }
 
 /** Today's Daily Review with the round waiting to be answered, if any. */

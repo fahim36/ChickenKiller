@@ -253,8 +253,9 @@ class MissedQuestion:
 
 def missed_questions(session: Session, learner_id: int, stack_id: str) -> list[MissedQuestion]:
     """The Learner's Missed Questions on the Stack, first missed first. This is the record the
-    Daily Review draws on (#9). A later correct answer doesn't remove one: #10 decides when a
-    Missed Question leaves the rotation (correct on three different days), from `answers`."""
+    Daily Review draws on (#9). A later correct answer doesn't remove one: the Daily Review
+    decides when a Missed Question leaves the rotation (correct on three different days since
+    `last_missed_at`: `review.in_rotation`, read by `reviews._missed_in_rotation`)."""
     rows = session.execute(
         select(Answer.question_id, Answer.syllabus_version, Answer.answered_at)
         .where(

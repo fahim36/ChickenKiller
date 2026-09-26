@@ -460,7 +460,9 @@ class ReviewRound(Base):
     """One Review Round of a Learner's Daily Review on a Stack. Read and written through
     app/reviews.py; the timing and picking rules are app/review.py.
 
-    - `number` is 1 to 3 within its day (#9 opens Round 1; #10 opens Rounds 2 and 3).
+    - `number` is 1 to 3 within its day. Round 1 opens on the day's first use; Rounds 2 and 3
+      four hours after the previous one is finished, with `opened_at` that time even when the
+      row is written later (on the next request).
     - The round is pinned to `syllabus_version`, the version current when it opened: its
       Questions are read and marked from that version, like a Lesson Quiz attempt (#13).
     - Each Question is answered once, one at a time, as an `Answer` with

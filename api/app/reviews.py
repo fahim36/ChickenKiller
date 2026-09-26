@@ -1,19 +1,31 @@
-"""The Daily Review (#9): opening Round 1 on the Learner's first use of the day, reading the
-day's Review Rounds, and answering their Questions. The timing and picking rules are the plain
-functions in `app/review.py`; this module stores what they decide.
+"""The Daily Review (#9, #10): opening Review Rounds, reading the day's rounds, and answering
+their Questions. The timing and picking rules are the plain functions in `app/review.py`; this
+module stores what they decide.
 
-- **The first use of the day** (`start_day`) is any signed-in request by an onboarded Learner:
+- **Opening rounds** (`start_day`) happens on any signed-in request by an onboarded Learner:
   the `deps.open_daily_review` dependency runs it on every route of the main router, before the
-  route itself. The first one on a calendar day (in the Learner's time zone) records a
-  `ReviewDay` and opens Round 1, if a Daily Review is owed. Later requests that day find the
-  `ReviewDay` and open nothing. A Learner with no Completed Lesson at that moment owes nothing
-  that day, even if they complete a Lesson later the same day.
-- **Round 1** asks up to ten Questions (`review.pick_round_questions`): the Learner's Missed
-  Questions first (`quizzes.missed_question_ids`, first missed first), then the new Questions
-  of their Updated Lessons they haven't answered yet (`updated_lessons.updated_question_ids`,
-  #13), then Questions of their Completed Lessons at random. All come from the Stack's current
-  Syllabus version, which the round is pinned to, so a round in progress when a new version is
-  imported finishes on the old one (#13).
+  route itself.
+  - The first request on a calendar day (in the Learner's time zone) records a `ReviewDay` and
+    opens Round 1, if a Daily Review is owed. A Learner with no Completed Lesson at that moment
+    owes nothing that day, even if they complete a Lesson later the same day.
+  - Every later request opens the next round once its time has come
+    (`review.next_round_opens_at`: four hours after the previous round is finished, at most
+    three rounds, never past the day's end). The round's `opened_at` is that time, not the
+    request's, so a Learner who comes back late finds it already pending.
+- **A round's Questions** (`_round_questions`, up to ten, `review.pick_round_questions`) come
+  from these sources, in order:
+  1. the unanswered Questions of the rounds dropped on the Learner's previous day with rounds
+     (`_carried_over`), whichever day that was;
+  2. Missed Questions still in the rotation, first missed first (`_missed_in_rotation`): a
+     Missed Question leaves it once answered correctly on three different days since it was
+     last missed;
+  3. the new Questions of the Learner's Updated Lessons they haven't answered yet
+     (`updated_lessons.updated_question_ids`, #13), in Syllabus order;
+  4. Questions of Completed Lessons at random.
+  Questions already asked that day are left out unless a round would be short (then Completed
+  Lessons' Questions repeat). All come from the Stack's current Syllabus version, which the
+  round is pinned to, so a round in progress when a new version is imported finishes on the
+  old one (#13).
 - **Answering** is one Question at a time (`answer_question`), marked by `marking.mark` like a
   Lesson Quiz: a written answer is graded against its Model Answer, and if grading fails
   nothing is recorded and the Learner answers again. Every answer is an `Answer` with
@@ -21,14 +33,13 @@ functions in `app/review.py`; this module stores what they decide.
   once; the round is finished when the last one is.
 - **Pending**: two hours after opening, an unfinished round is a Pending Review Round, and the
   Unlocked Lesson is locked until it's finished (`progress.pending_review_round`, which the
-  lock states and the Lesson Quiz guard read). Only rounds of the Learner's current day count:
+  lock states and the Lesson Quiz guard read). A round opens only once the one before it is
+  finished, so at most one round is pending. Only rounds of the Learner's current day count:
   an unfinished round from an earlier day is dropped (answering it is refused with
   `RoundDropped`) and blocks nothing.
 
-Not built yet: Rounds 2 and 3 and carry-over (#10: open them in `start_day`'s place on each
-request, and lead with the dropped rounds' unanswered Questions), leaving the rotation (#10:
-filter `missed_ids` by correct answers on three different days), the Streak (#11: read
-`ReviewDay`s and their rounds in day order).
+Not built yet: the Streak (#11: read `ReviewDay`s and their rounds in day order; a day's rounds
+were all finished when each is finished and `review.next_round_opens_at` of the day is None).
 """
 
 import random
@@ -37,7 +48,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date, datetime
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
@@ -111,7 +122,11 @@ class DailyReview:
     day with nothing owed."""
 
     day: date
+    time_zone: str
+    """The Learner's, which `day` is in."""
     rounds: list[RoundView]
+    next_round_at: datetime | None
+    """When the day's next round opens, if one is still to open today."""
 
     @property
     def current(self) -> RoundView | None:
@@ -133,37 +148,78 @@ class AnswerResult:
 def start_day(
     session: Session, record: LearnerStack, time_zone: str, now: datetime, rng: random.Random
 ) -> None:
-    """Record the Learner's use of the app at `now`. The first use of a calendar day (in
-    `time_zone`) opens Round 1 of that day's Daily Review, if one is owed; later uses that day
-    change nothing. Safe to call on every request, concurrently too."""
+    """Record the Learner's use of the app at `now`, and open any Review Round due by then.
+
+    The first use of a calendar day (in `time_zone`) opens Round 1 of that day's Daily Review,
+    if one is owed. Later uses open Round 2 or 3 once due, with `opened_at` the time it became
+    due. Safe to call on every request, concurrently too: a round is opened once."""
     day = review.review_day(time_zone, now)
     key = (record.learner_id, record.stack_id, day)
-    if session.get(ReviewDay, key) is not None:
-        return
-    first_use = session.execute(
-        insert(ReviewDay)
-        .values(learner_id=record.learner_id, stack_id=record.stack_id, day=day, first_used_at=now)
-        .on_conflict_do_nothing()
-        .returning(ReviewDay.day)
-    ).first()
-    if first_use is None:  # another request got there first
-        return
-    picked = _round_1_questions(session, record, rng)
-    if picked is not None:
-        version, question_ids = picked
-        session.add(
-            ReviewRound(
-                id=uuid.uuid4(),
-                learner_id=record.learner_id,
-                stack_id=record.stack_id,
-                day=day,
-                number=1,
-                syllabus_version=version,
-                question_ids=question_ids,
-                opened_at=now,
+    if session.get(ReviewDay, key) is None:
+        first_use = session.execute(
+            insert(ReviewDay)
+            .values(
+                learner_id=record.learner_id, stack_id=record.stack_id, day=day, first_used_at=now
             )
+            .on_conflict_do_nothing()
+            .returning(ReviewDay.day)
+        ).first()
+        if first_use is None:  # another request got there first
+            return
+        _open_round(session, record, time_zone, day, 1, now, rng)
+        session.commit()
+        return
+    rounds = _rounds_of(session, record.learner_id, record.stack_id, day)
+    opens_at = review.next_round_opens_at([r.finished_at for r in rounds], time_zone, day)
+    if opens_at is not None and now >= opens_at:
+        _open_round(session, record, time_zone, day, len(rounds) + 1, opens_at, rng)
+        session.commit()
+
+
+def _open_round(
+    session: Session,
+    record: LearnerStack,
+    time_zone: str,
+    day: date,
+    number: int,
+    opened_at: datetime,
+    rng: random.Random,
+) -> None:
+    """Open round `number` of `day`, unless there is nothing to ask or another request already
+    opened it."""
+    picked = _round_questions(session, record, time_zone, day, rng)
+    if picked is None:
+        return
+    version, question_ids = picked
+    session.execute(
+        insert(ReviewRound)
+        .values(
+            id=uuid.uuid4(),
+            learner_id=record.learner_id,
+            stack_id=record.stack_id,
+            day=day,
+            number=number,
+            syllabus_version=version,
+            question_ids=question_ids,
+            opened_at=opened_at,
         )
-    session.commit()
+        .on_conflict_do_nothing(index_elements=["learner_id", "stack_id", "day", "number"])
+    )
+
+
+def _rounds_of(session: Session, learner_id: int, stack_id: str, day: date) -> list[ReviewRound]:
+    """The Learner's Review Rounds of `day`, in order."""
+    return list(
+        session.scalars(
+            select(ReviewRound)
+            .where(
+                ReviewRound.learner_id == learner_id,
+                ReviewRound.stack_id == stack_id,
+                ReviewRound.day == day,
+            )
+            .order_by(ReviewRound.number)
+        )
+    )
 
 
 def daily_review(
@@ -171,16 +227,15 @@ def daily_review(
 ) -> DailyReview:
     """The Learner's Daily Review for the day it is at `now` in `time_zone`."""
     day = review.review_day(time_zone, now)
-    rounds = session.scalars(
-        select(ReviewRound)
-        .where(
-            ReviewRound.learner_id == learner_id,
-            ReviewRound.stack_id == stack_id,
-            ReviewRound.day == day,
-        )
-        .order_by(ReviewRound.number)
-    ).all()
-    return DailyReview(day, [_view(session, r, now) for r in rounds])
+    rounds = _rounds_of(session, learner_id, stack_id, day)
+    opens_at = review.next_round_opens_at([r.finished_at for r in rounds], time_zone, day)
+    return DailyReview(
+        day,
+        time_zone,
+        [_view(session, r, now) for r in rounds],
+        # Past its time but not opened: there was nothing to ask, so it never opens.
+        opens_at if opens_at is not None and opens_at > now else None,
+    )
 
 
 def answer_question(
@@ -250,16 +305,19 @@ def answer_question(
     )
 
 
-def _round_1_questions(
-    session: Session, record: LearnerStack, rng: random.Random
+def _round_questions(
+    session: Session, record: LearnerStack, time_zone: str, day: date, rng: random.Random
 ) -> tuple[str, list[str]] | None:
-    """The current Syllabus version and the Questions for Round 1, or None when no Daily Review
-    is owed: no Completed Lesson, or nothing to ask."""
-    completed = progress.completed_lesson_ids(session, record.learner_id, record.stack_id)
+    """The current Syllabus version and the Questions for the next round of `day`, or None when
+    no Daily Review is owed: no Completed Lesson, or nothing to ask. The sources, in order, are
+    `review.RoundSources`; each keeps only Questions of the current version (a Question a later
+    version removed has left the rotation)."""
+    learner_id, stack_id = record.learner_id, record.stack_id
+    completed = progress.completed_lesson_ids(session, learner_id, stack_id)
     syllabus = session.scalar(
         select(Syllabus)
         .join(Stack, Stack.current_syllabus_pk == Syllabus.pk)
-        .where(Stack.id == record.stack_id)
+        .where(Stack.id == stack_id)
     )
     if not completed or syllabus is None:
         return None
@@ -270,15 +328,68 @@ def _round_1_questions(
         .order_by(Lesson.position, Question.position)
     ).all()
     in_version = {question_id for question_id, _ in bank}
-    missed = [
-        q
-        for q in quizzes.missed_question_ids(session, record.learner_id, record.stack_id)
-        if q in in_version  # a Question a later version removed has left the rotation
-    ]
-    from_completed = [question_id for question_id, lesson_id in bank if lesson_id in completed]
-    owed = updated_lessons.updated_question_ids(session, record.learner_id, record.stack_id)
-    picked = review.pick_round_questions(missed + owed, from_completed, rng)
+
+    def current(question_ids: Sequence[str]) -> list[str]:
+        return [q for q in question_ids if q in in_version]
+
+    sources = review.RoundSources(
+        carried_over=current(_carried_over(session, learner_id, stack_id, day)),
+        missed=current(_missed_in_rotation(session, learner_id, stack_id, time_zone)),
+        updated=updated_lessons.updated_question_ids(session, learner_id, stack_id),
+        completed=[question_id for question_id, lesson_id in bank if lesson_id in completed],
+        asked_today={
+            q for r in _rounds_of(session, learner_id, stack_id, day) for q in r.question_ids
+        },
+    )
+    picked = review.pick_round_questions(sources, rng)
     return (syllabus.version, picked) if picked else None
+
+
+def _carried_over(session: Session, learner_id: int, stack_id: str, day: date) -> list[str]:
+    """The unanswered Questions of the rounds left unfinished (so dropped) on the Learner's
+    last day with rounds before `day`, in the order they were asked. That day need not be
+    yesterday: they wait for the Learner's next day with rounds."""
+    previous = session.scalar(
+        select(func.max(ReviewRound.day)).where(
+            ReviewRound.learner_id == learner_id,
+            ReviewRound.stack_id == stack_id,
+            ReviewRound.day < day,
+        )
+    )
+    if previous is None:
+        return []
+    dropped = [
+        r for r in _rounds_of(session, learner_id, stack_id, previous) if r.finished_at is None
+    ]
+    answers = session.execute(
+        select(Answer.review_round_id, Answer.question_id).where(
+            Answer.review_round_id.in_([r.id for r in dropped])
+        )
+    ).all()
+    return review.carried_over(
+        (r.question_ids, {q for round_id, q in answers if round_id == r.id}) for r in dropped
+    )
+
+
+def _missed_in_rotation(
+    session: Session, learner_id: int, stack_id: str, time_zone: str
+) -> list[str]:
+    """The Learner's Missed Questions still in the rotation (`review.in_rotation`), first
+    missed first. Correct answers in any context count, on days in `time_zone`."""
+    correct: dict[str, list[datetime]] = {}
+    for question_id, answered_at in session.execute(
+        select(Answer.question_id, Answer.answered_at).where(
+            Answer.learner_id == learner_id,
+            Answer.stack_id == stack_id,
+            Answer.correct.is_(True),
+        )
+    ):
+        correct.setdefault(question_id, []).append(answered_at)
+    return [
+        m.question_id
+        for m in quizzes.missed_questions(session, learner_id, stack_id)
+        if review.in_rotation(m.last_missed_at, correct.get(m.question_id, []), time_zone)
+    ]
 
 
 def _view(session: Session, round_: ReviewRound, now: datetime) -> RoundView:
