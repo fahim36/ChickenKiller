@@ -39,3 +39,11 @@ it("gives each Active Stack its own card, linking to its Week map", async () => 
     "/settings",
   );
 });
+
+it("links to Review, one page across every Active Stack", async () => {
+  stubApi({ "/me": ONBOARDED_TWICE });
+
+  render(await Home());
+
+  expect(screen.getByRole("link", { name: "Review" }).getAttribute("href")).toBe("/review");
+});

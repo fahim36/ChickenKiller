@@ -1,5 +1,5 @@
 """Marking one answer to one Question: the same rules wherever the Question is asked (Lesson
-Quiz, and #8's Retakes and #9's Review Rounds).
+Quiz, #8's Retakes and #9's Review).
 
     mark(question, response, grader) -> Marked(correct, feedback)
 

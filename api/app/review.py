@@ -1,206 +1,120 @@
-"""The Daily Review rules: which day a Review Round belongs to, when it opens and when it
-becomes a Pending Review Round, what carries over from a day with rounds left unfinished, when
-a Missed Question leaves the rotation, and which Questions a round asks.
+"""The Review rules: which Questions are due, and in what order the queue asks them.
 
-Plain functions with no database or HTTP, tested directly (tests/test_review_rules.py). The
-clock (`now`, timezone-aware) and the random source (`rng`) are passed in, so a test can say
-"it is 23:59 UTC" without waiting. `app/reviews.py` stores what
-these decide.
+Review is optional: a queue the Learner practises from, in sets of up to `SET_SIZE`, whenever
+they like, across all their Active Stacks. It has no rounds or timers and never blocks anything
+(ADR-0003). Plain functions with no database or HTTP, tested directly
+(tests/test_review_rules.py). The day (`today`, a UTC Day, ADR-0005) is passed in, so a test can
+say "it is the next day" without waiting. `app/reviews.py` gathers the Learner's data into
+`ReviewSources` and asks these.
 
-The round state machine: not open -> open ("optional") -> "pending" -> "finished", or dropped
-at the end of its day if not finished.
-
-- A **Daily Review** belongs to one Day, a UTC calendar day (`review_day`, ADR-0005).
-  Round 1 opens the first time the Learner uses the app that Day.
-- **Rounds 2 and 3** each open `REOPEN_AFTER` (four hours) after the previous round is
-  finished (`next_round_opens_at`), never more than `ROUNDS_PER_DAY` in a day, and only while
-  the opening time is still on that day. A round opens at that time whether or not the Learner
-  is using the app then: `app/reviews.py` stores it lazily on the next request, with the true
-  opening time, so it is pending two hours after that.
-- A **Review Round** is optional for `OPTIONAL_PERIOD` (two hours) after it opens, then it is a
-  **Pending Review Round** until it's finished (`round_state`). A round only opens once the one
-  before it is finished, so there is never more than one Pending Review Round.
-- **Dropped rounds**: rounds not finished by the end of their day are dropped. Their unanswered
-  Questions (`carried_over`) come first in the Learner's next day with rounds.
-- **The rotation** (`in_rotation`): a Missed Question stays in the rotation until it has been
-  answered correctly on `ROTATION_DAYS` (three) different Days since it was last missed.
-- A round asks up to `ROUND_SIZE` Questions (`pick_round_questions`) from its `RoundSources`, in
-  order: carried-over Questions, Missed Questions still in the rotation, Updated Lessons' new
-  Questions (#13), then Questions from Completed Lessons at random. A Question already asked
-  earlier that day is left out, unless the round would otherwise be short.
-- **The Streak** (`streak`, #11): the consecutive days on which the Learner finished their
-  whole Daily Review (`day_outcome`). A past day with a round left unfinished, or not used at
-  all, resets it to zero; a day with nothing owed, and today while still in progress, neither
-  extend nor break it.
+- **Missed Questions** come first, oldest (first missed) first, across Active Stacks. A Missed
+  Question leaves the queue once answered correctly on `CORRECT_DAYS` (three) different Days
+  since it was last missed (`in_queue`). Until then it is due every Day, except that once it
+  has been answered correctly today it waits for tomorrow, since another correct answer today
+  couldn't count towards a new Day (`missed_is_due`).
+- **Updated Lessons' new Questions** (#13) come next, in Syllabus order, until answered.
+- **Spaced repeats** come last: Questions of Completed Lessons and of played Daily Challenges
+  that weren't answered, anywhere, in the last `SPACING_DAYS` (three) Days (`repeat_is_due`).
+  Least recently answered first; a Question never answered counts as the least recent. Ties
+  keep the order they were given in (Stack, then Syllabus order).
+- Each Question is queued once, in its first place (`queue`). A set is the first `SET_SIZE`.
 """
 
-import random
-from collections.abc import Collection, Iterable, Mapping, Sequence
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from datetime import UTC, date, datetime, timedelta
-from typing import Literal
+from datetime import UTC, date, datetime
+from typing import NamedTuple
 
-ROUND_SIZE = 10
-"""The most Questions a Review Round asks."""
+SET_SIZE = 10
+"""The most Questions a Review set asks."""
 
-OPTIONAL_PERIOD = timedelta(hours=2)
-"""How long a Review Round stays optional after it opens."""
+CORRECT_DAYS = 3
+"""On how many different Days a Missed Question must be answered correctly to leave the queue."""
 
-REOPEN_AFTER = timedelta(hours=4)
-"""How long after a round is finished the next round of the day opens."""
-
-ROUNDS_PER_DAY = 3
-"""The most Review Rounds in one Daily Review."""
-
-ROTATION_DAYS = 3
-"""On how many different days a Missed Question must be answered correctly to leave the
-rotation."""
-
-RoundState = Literal["optional", "pending", "finished"]
+SPACING_DAYS = 3
+"""How many Days a spaced repeat waits after it was last answered: one answered on the 26th is
+due again on the 29th."""
 
 
-def review_day(now: datetime) -> date:
-    """The Day whose Daily Review `now` (timezone-aware) falls in: its calendar day in UTC."""
-    return now.astimezone(UTC).date()
+def utc_day(at: datetime) -> date:
+    """The Day `at` (timezone-aware) falls on: its calendar day in UTC."""
+    return at.astimezone(UTC).date()
 
 
-def pending_at(opened_at: datetime) -> datetime:
-    """When a round that opened at `opened_at` becomes a Pending Review Round, unless finished."""
-    return opened_at + OPTIONAL_PERIOD
+def in_queue(last_missed_at: datetime, correct_at: Iterable[datetime]) -> bool:
+    """Whether a Missed Question is still in the queue: it hasn't been answered correctly on
+    three different Days since it was last missed (`last_missed_at`). Correct answers anywhere
+    count (Lesson Quiz, Retake, Review); several on one Day count once, and the Day of the miss
+    counts for a correct answer given after it. A later miss starts the count again."""
+    days = {utc_day(at) for at in correct_at if at > last_missed_at}
+    return len(days) < CORRECT_DAYS
 
 
-def round_state(opened_at: datetime, finished_at: datetime | None, now: datetime) -> RoundState:
-    """A Review Round's state at `now`: "finished" once every Question is answered, otherwise
-    "optional" for its first two hours and "pending" from exactly two hours after it opened."""
-    if finished_at is not None:
-        return "finished"
-    return "pending" if now >= pending_at(opened_at) else "optional"
+def missed_is_due(last_missed_at: datetime, correct_at: Iterable[datetime], today: date) -> bool:
+    """Whether a Missed Question is due in Review `today`: still in the queue, and not answered
+    correctly yet today since it was last missed."""
+    correct = [at for at in correct_at if at > last_missed_at]
+    return in_queue(last_missed_at, correct) and all(utc_day(at) != today for at in correct)
 
 
-def next_round_opens_at(finished_ats: Sequence[datetime | None], day: date) -> datetime | None:
-    """When the next Review Round of `day` opens, given the `finished_at` of the day's rounds so
-    far, in order: four hours after the last one is finished.
-
-    None when no further round opens that day: no round yet (Round 1 opens on the day's first
-    use instead), the last one isn't finished, the day already has three rounds, or the opening
-    time falls after the Day's end (00:00 UTC).
-
-    #11: a day's rounds were all finished when every round is finished and this is None, since
-    a round that opened with nobody using the app is only stored on the next request.
-    """
-    if not finished_ats or len(finished_ats) >= ROUNDS_PER_DAY:
-        return None
-    last = finished_ats[-1]
-    if last is None:
-        return None
-    opens_at = last + REOPEN_AFTER
-    return opens_at if review_day(opens_at) == day else None
+def repeat_is_due(last_answered_at: datetime | None, today: date) -> bool:
+    """Whether a spaced repeat is due `today`: never answered, or last answered (anywhere) at
+    least `SPACING_DAYS` Days ago."""
+    return last_answered_at is None or (today - utc_day(last_answered_at)).days >= SPACING_DAYS
 
 
-def carried_over(unfinished: Iterable[tuple[Sequence[str], Collection[str]]]) -> list[str]:
-    """The Questions a day's unfinished (dropped) rounds carry over: each round's Questions (in
-    the order asked) minus those it answered, given as `(question_ids, answered_ids)` in round
-    order. Each Question once."""
-    carried = (
-        q for question_ids, answered in unfinished for q in question_ids if q not in answered
-    )
-    return list(dict.fromkeys(carried))
+class QuestionRef(NamedTuple):
+    """A Question in Review, which spans Stacks: its Stack and permanent ID."""
 
-
-def in_rotation(last_missed_at: datetime, correct_at: Iterable[datetime]) -> bool:
-    """Whether a Missed Question is still in the rotation: it hasn't been answered correctly on
-    three different Days since it was last missed (`last_missed_at`). Correct
-    answers anywhere count (Lesson Quiz, Retake, Review Round); several on one day count once,
-    and the day of the miss counts for a correct answer given after it. A later miss starts the
-    count again."""
-    days = {review_day(at) for at in correct_at if at > last_missed_at}
-    return len(days) < ROTATION_DAYS
+    stack_id: str
+    question_id: str
 
 
 @dataclass(frozen=True)
-class RoundSources:
-    """Where a Review Round's Questions (permanent IDs) come from, in the order they are used."""
+class Missed:
+    """A Missed Question, with the Learner's correct answers to it (any time, any context)."""
 
-    carried_over: Sequence[str] = ()
-    """Unanswered Questions of the rounds dropped on the Learner's previous day with rounds."""
-    missed: Sequence[str] = ()
-    """Missed Questions still in the rotation, first missed first."""
-    updated: Sequence[str] = ()
-    """New Questions of Updated Lessons (#13)."""
-    completed: Sequence[str] = ()
-    """Questions of Completed Lessons: the random fill."""
-    asked_today: Collection[str] = frozenset()
-    """Questions already asked in the day's earlier rounds."""
+    ref: QuestionRef
+    first_missed_at: datetime
+    last_missed_at: datetime
+    correct_at: Sequence[datetime]
 
 
-def pick_round_questions(
-    sources: RoundSources, rng: random.Random, size: int = ROUND_SIZE
-) -> list[str]:
-    """A Review Round's Questions (permanent IDs), in the order they are asked.
+@dataclass(frozen=True)
+class Repeat:
+    """A Question that can come back as a spaced repeat, and when the Learner last answered it."""
 
-    - `carried_over`, then `missed`, then `updated` come first, each in its own order, up to
-      `size`.
-    - The rest is filled at random from `completed`.
-    - Questions in `asked_today` are left out. If that leaves the round short, it is topped up
-      at random with Questions of `completed` that were asked earlier today.
-    - No Question is asked twice. With fewer Questions than `size`, the round asks them all;
-      with none, it's empty.
-    """
-    asked = set(sources.asked_today)
-    ordered = [
-        q
-        for q in dict.fromkeys([*sources.carried_over, *sources.missed, *sources.updated])
-        if q not in asked
-    ]
-    picked = ordered[:size]
-    taken = set(picked)
-    completed = [q for q in dict.fromkeys(sources.completed) if q not in taken]
-    fresh = [q for q in completed if q not in asked]
-    picked += rng.sample(fresh, min(size - len(picked), len(fresh)))
-    repeats = [q for q in completed if q in asked]
-    return picked + rng.sample(repeats, min(size - len(picked), len(repeats)))
+    ref: QuestionRef
+    last_answered_at: datetime | None
 
 
-DayOutcome = Literal["finished", "unfinished", "nothing_owed", "in_progress"]
-"""How one day's Daily Review went, for the Streak."""
+@dataclass(frozen=True)
+class ReviewSources:
+    """Where the Review queue's Questions come from, in the order they are used."""
+
+    missed: Sequence[Missed] = ()
+    """The Learner's Missed Questions, in any order: the queue sorts them oldest first."""
+    updated: Sequence[QuestionRef] = ()
+    """New Questions of Updated Lessons not answered yet (#13), in Syllabus order."""
+    repeats: Sequence[Repeat] = ()
+    """Questions of Completed Lessons and played Daily Challenges, in Stack then Syllabus
+    order."""
 
 
-def day_outcome(finished_ats: Sequence[datetime | None], day: date, today: date) -> DayOutcome:
-    """How the Daily Review of `day`, a day the Learner used the app, went by `today`, given the
-    `finished_at` of the day's stored rounds in order.
-
-    - "nothing_owed": no round opened (the Learner had no Completed Lesson at the day's first use).
-    - "finished": every round is finished and no further round opens that day
-      (`next_round_opens_at`). Rows alone aren't enough: a round that came due while the Learner
-      was away is never stored.
-    - "in_progress": today, not finished yet.
-    - "unfinished": a past day, not finished.
-    """
-    if not finished_ats:
-        return "nothing_owed"
-    if all(finished_ats) and next_round_opens_at(finished_ats, day) is None:
-        return "finished"
-    return "in_progress" if day == today else "unfinished"
-
-
-def streak(days: Mapping[date, DayOutcome], today: date) -> int:
-    """The Streak on `today`: the finished days since the last unfinished one.
-
-    `days` holds the outcome of each day the Learner used the app (`day_outcome`). A day with
-    nothing owed neither extends nor breaks the Streak, and nor does today while in progress
-    (or not yet used). A past day missing from `days`, on which the Learner never used the app,
-    breaks it: its Round 1 was owed but never opened. Before the Learner's first day with
-    rounds the Streak is zero anyway, so such a day costs nothing there.
-    """
-    count = 0
-    if not days:
-        return count
-    day = min(days)
-    while day <= today:
-        outcome = days.get(day, "in_progress" if day == today else "unfinished")
-        if outcome == "finished":
-            count += 1
-        elif outcome == "unfinished":
-            count = 0
-        day += timedelta(days=1)
-    return count
+def queue(sources: ReviewSources, today: date) -> list[QuestionRef]:
+    """The whole Review queue `today`, in the order it is asked: due Missed Questions oldest
+    first, then the Updated Lessons' new Questions, then due spaced repeats least recently
+    answered first. Each Question once. A set is its first `SET_SIZE`."""
+    missed = sorted(
+        (m for m in sources.missed if missed_is_due(m.last_missed_at, m.correct_at, today)),
+        key=lambda m: m.first_missed_at,
+    )
+    repeats = sorted(
+        (r for r in sources.repeats if repeat_is_due(r.last_answered_at, today)),
+        key=lambda r: (r.last_answered_at is not None, r.last_answered_at or datetime.min),
+    )
+    # A Missed Question that has left the queue can still come back as a repeat. One answered
+    # correctly today can't: that answer makes it a repeat answered today.
+    return list(
+        dict.fromkeys([*(m.ref for m in missed), *sources.updated, *(r.ref for r in repeats)])
+    )

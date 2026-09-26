@@ -34,6 +34,7 @@ function answered(n: number, response: string): AnsweredQuestion {
     model_answer: null,
     explanation: `Because of sibling ${n}.`,
     materials: [],
+    sources: [],
   };
 }
 
@@ -208,6 +209,7 @@ it("after a wrong written Retake shows the grader's feedback and the Model Answe
       model_answer: { summary: "Agents loop.", key_points: ["loop", "tools"] },
       explanation: "Because of sibling 8.",
       materials: [],
+      sources: [],
     },
     next_question: writtenSibling,
     pending: 1,

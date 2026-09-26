@@ -1,69 +1,71 @@
 "use client";
 
-import Link from "next/link";
 import { type FormEvent, useState } from "react";
 import { Inline } from "@/components/Inline";
 import { AnsweredQuestionDetail } from "@/components/MissedQuestions";
 import { WrittenAnswer } from "@/components/WrittenAnswer";
-import type { GradingFailed, QuizQuestion, ReviewAnswerResult, ReviewRound } from "@/lib/api";
+import type { GradingFailed, ReviewAnswerResult, ReviewQuestion, ReviewSet } from "@/lib/api";
 
 export type AnswerReviewAction = (
+  stackId: string,
   questionId: string,
   answer: string | null,
 ) => Promise<ReviewAnswerResult | GradingFailed>;
 
 /**
- * A Review Round, answered one Question at a time in the order the API gives. Each answer is
- * marked straight away: a right one says so, a wrong one shows the Question's correct answer
- * or Model Answer, the grader's feedback (written) and the Explanation before moving on. The
- * last answer finishes the round. If grading fails, nothing was counted and the Learner submits
- * again.
+ * A Review set, answered one Question at a time in the order the API gives, each on its own
+ * Stack. Each answer is marked straight away: a right one says so, a wrong one shows the
+ * Question's correct answer or Model Answer, the grader's feedback (written), the
+ * Explanation and its Sources before moving on. Any Question can be skipped: Review is optional. If grading
+ * fails, nothing was counted and the Learner submits again. After the last one, "Next set"
+ * loads the page again, which draws a fresh set.
  */
-export function ReviewRoundFlow({
-  round,
-  stackId,
+export function ReviewFlow({
+  reviewSet,
   answerAction,
 }: {
-  round: ReviewRound;
-  stackId: string;
+  reviewSet: ReviewSet;
   answerAction: AnswerReviewAction;
 }) {
   const [position, setPosition] = useState(0);
   const [outcome, setOutcome] = useState<ReviewAnswerResult | null>(null);
-  const [right, setRight] = useState(() => round.results.filter((r) => r.correct).length);
-  const [finished, setFinished] = useState(false);
-  const question = round.remaining[position];
+  const [right, setRight] = useState(0);
+  const [answered, setAnswered] = useState(0);
+  const questions = reviewSet.questions;
+  const question = questions[position];
+  const isLast = position + 1 >= questions.length;
 
-  function answered(result: ReviewAnswerResult) {
+  function marked(result: ReviewAnswerResult) {
     setOutcome(result);
+    setAnswered((n) => n + 1);
     if (result.correct) setRight((n) => n + 1);
   }
 
   function next() {
-    const isLast = outcome?.round.state === "finished" || position + 1 >= round.remaining.length;
     setOutcome(null);
-    if (isLast) setFinished(true);
-    else setPosition((p) => p + 1);
+    setPosition((p) => p + 1);
   }
 
-  if (finished || !question) {
+  if (!question) {
     return (
       <div role="status" className="notice">
         <p>
-          Review Round {round.number} is done: {right} of {round.total} right.
+          Set done: {right} of {answered} right.
         </p>
         <p>
-          <Link href={`/stacks/${stackId}`}>Back to the Week map</Link>
+          {/* A full page load, so the server draws the next set. */}
+          <a className="button" href="/review">
+            Next set
+          </a>
         </p>
       </div>
     );
   }
 
-  const isLast = outcome?.round.state === "finished" || position + 1 >= round.remaining.length;
   return (
-    <section className="review-round">
+    <section className="review">
       <p className="muted">
-        Question {round.answered + position + 1} of {round.total}
+        {question.stack_name} · Question {position + 1} of {questions.length}
       </p>
       {outcome ? (
         <div>
@@ -81,11 +83,12 @@ export function ReviewRoundFlow({
         </div>
       ) : (
         <QuestionForm
-          key={question.id}
+          key={`${question.stack_id}/${question.id}`}
           question={question}
-          maxAnswerChars={round.max_answer_chars}
+          maxAnswerChars={reviewSet.max_answer_chars}
           answerAction={answerAction}
-          onAnswered={answered}
+          onAnswered={marked}
+          onSkip={next}
         />
       )}
     </section>
@@ -97,11 +100,13 @@ function QuestionForm({
   maxAnswerChars,
   answerAction,
   onAnswered,
+  onSkip,
 }: {
-  question: QuizQuestion;
+  question: ReviewQuestion;
   maxAnswerChars: number;
   answerAction: AnswerReviewAction;
   onAnswered: (result: ReviewAnswerResult) => void;
+  onSkip: () => void;
 }) {
   const [answer, setAnswer] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -114,7 +119,7 @@ function QuestionForm({
     setGradingFailed(null);
     setSubmitting(true);
     try {
-      const outcome = await answerAction(q.id, answer.trim() === "" ? null : answer);
+      const outcome = await answerAction(q.stack_id, q.id, answer.trim() === "" ? null : answer);
       if ("code" in outcome) setGradingFailed(outcome.message);
       else onAnswered(outcome);
     } catch {
@@ -155,7 +160,7 @@ function QuestionForm({
       </fieldset>
       {failed && (
         <p role="alert" className="notice notice-error">
-          Couldn&apos;t submit your answer. Try again.
+          Couldn&apos;t submit your answer. Try again, or skip this Question.
         </p>
       )}
       {gradingFailed && (
@@ -165,6 +170,9 @@ function QuestionForm({
       )}
       <button type="submit" disabled={submitting}>
         {submitting ? "Grading…" : gradingFailed ? "Submit again" : "Submit answer"}
+      </button>{" "}
+      <button type="button" className="secondary" onClick={onSkip} disabled={submitting}>
+        Skip
       </button>
     </form>
   );
