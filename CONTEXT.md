@@ -111,11 +111,11 @@ The Daily Challenges in the Archive a Learner hasn't played, across their Active
 _Avoid_: Backlog, missed challenges, debt
 
 **Result Card**:
-A shareable summary of a Learner's score on one Daily Challenge, showing how they did on each Question but not the Questions or answers.
+A shareable summary of a Learner's score on one Daily Challenge, showing how they did on each Question but not the Questions or answers: "Agentic AI Engineer #40 · 26 Sep · 2/3 ✅❌✅". A Question whose first try couldn't be graded has its own mark.
 _Avoid_: Share image, score card
 
 **Streak**:
-For one Active Stack, the number of consecutive Days on which the Learner played that Day's Daily Challenge. Breaking it resets the count and nothing else.
+For one Active Stack, the number of consecutive Days on which the Learner played that Day's Daily Challenge, finishing it on that Day. A Day with no Daily Challenge is skipped, and today's, until played, doesn't break it. Breaking it resets the count and nothing else.
 _Avoid_: Chain, run
 
 ### Progress

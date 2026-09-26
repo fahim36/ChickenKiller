@@ -25,9 +25,13 @@ only counts Days.
   Questions that can be. Once each of those has its first answer the play is finished: its
   score, its UTC Day and whether that was the Challenge's own Day are set once, for the Streak
   (#18) and the Result Card.
+
+**Streaks and Result Cards** (`streak`, `result_card`, #18). A Streak is never stored: it is
+counted from the plays each time (`streak_length` is the rule), so no import or replay can
+change it. A Result Card is a finished play's score and marks, never its Questions or answers.
 """
 
-from collections.abc import Sequence
+from collections.abc import Collection, Iterable, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Literal
@@ -348,3 +352,71 @@ def _questions(session: Session, stack_id: str, question_ids: Sequence[str]) -> 
     ).all()
     by_id = {q.id: q for q in rows}
     return [by_id[qid] for qid in question_ids]
+
+
+# --- Streaks and Result Cards (#18) ----------------------------------------------------------
+
+
+def streak_length(challenge_days: Iterable[date], played: Collection[date], today: date) -> int:
+    """The Streak rule. Walking back from `today` over the Days that have a released Challenge
+    (`challenge_days`; later ones are ignored), count each whose Challenge the Learner played on
+    its Day (`played`), and stop at the first they didn't: missing a Day resets the Streak to 0.
+    A Day with no Challenge is skipped, so it neither extends nor breaks it. Today's Challenge,
+    until it is played, doesn't break it either: the Streak is still yesterday's run.
+
+    So a Streak can't start before the Learner's first play: every Day before it is unplayed."""
+    count = 0
+    for day in sorted((d for d in challenge_days if d <= today), reverse=True):
+        if day in played:
+            count += 1
+        elif day != today:
+            break
+    return count
+
+
+def streak(session: Session, learner_id: int, stack_id: str, now: datetime) -> int:
+    """The Learner's Streak on the Stack at `now` (UTC Days). A Day counts only if its play was
+    *finished* on the Challenge's own Day (`ChallengePlay.on_its_day`): a play started at 23:59
+    and finished after midnight doesn't count, nor does any play from the Archive (#19)."""
+    today = utc_day(now)
+    days = session.scalars(
+        select(DailyChallenge.day).where(
+            DailyChallenge.stack_id == stack_id, DailyChallenge.day <= today
+        )
+    )
+    played = set(
+        session.scalars(
+            select(DailyChallenge.day)
+            .join(
+                ChallengePlay,
+                (ChallengePlay.stack_id == DailyChallenge.stack_id)
+                & (ChallengePlay.challenge_number == DailyChallenge.number),
+            )
+            .where(
+                ChallengePlay.learner_id == learner_id,
+                ChallengePlay.stack_id == stack_id,
+                ChallengePlay.on_its_day.is_(True),
+            )
+        )
+    )
+    return streak_length(days, played, today)
+
+
+RESULT_MARKS: dict[Outcome, str] = {"correct": "✅", "wrong": "❌", "ungraded": "⬜"}
+"""A Result Card's mark for each first try: ungraded is a written answer whose grading failed."""
+
+
+def result_card(label: str, state: ChallengeState) -> str | None:
+    """The Result Card of a finished play, as text to share: the Challenge's `label` (Stack,
+    number and UTC Day), the score, and a mark per answered Question in Challenge order:
+    "Agentic AI Engineer #40 · 26 Sep · 2/3 ✅❌✅". A Retired Question that was never answered
+    isn't scored, so it has no mark. None until the play is finished."""
+    play = state.play
+    if play is None or play.finished_at is None:
+        return None
+    marks = "".join(
+        RESULT_MARKS[outcome(q.first_try.correct)]
+        for q in state.questions
+        if q.first_try is not None
+    )
+    return f"{label} · {play.score}/{play.out_of} {marks}"

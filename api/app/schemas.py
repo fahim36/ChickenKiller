@@ -395,6 +395,10 @@ class ChallengeOut(BaseModel):
     status: Literal["not_started", "in_progress", "finished"]
     score: int | None
     out_of: int | None
+    result_card: str | None
+    """Set once finished: the Result Card to share, "Agentic AI Engineer #40 · 26 Sep · 2/3
+    ✅❌⬜", a mark per answered Question (✅ correct, ❌ wrong, ⬜ ungraded) and never the
+    Questions or answers."""
     max_answer_chars: int
     """The longest written answer accepted."""
     questions: list[ChallengeQuestionOut]
@@ -403,11 +407,15 @@ class ChallengeOut(BaseModel):
 
 class TodaysChallengeOut(BaseModel):
     """An Active Stack's Daily Challenge for today (`day`, UTC), or null when none is written
-    for today."""
+    for today, and the Learner's Streak on the Stack.
+
+    `streak` counts the consecutive Days, back from today, whose Challenge the Learner finished
+    on its Day. A Day with no Challenge is skipped; today's, until finished, doesn't break it."""
 
     stack_id: str
     stack_name: str
     day: date
+    streak: int
     challenge: ChallengeOut | None
 
 

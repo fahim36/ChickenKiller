@@ -4,10 +4,10 @@ import { connection } from "next/server";
 import { api, type Me, type TodaysChallenge } from "@/lib/api";
 
 /**
- * Home: one card per Active Stack, with today's Daily Challenge (Play, Continue, or the score
- * and a Replay) and a link to its Week map, and a link to Review, which spans every Active
- * Stack. A first sign-in has no Active Stack yet, so it goes to onboarding. Each Stack's card
- * is its own section, for what later belongs to one Stack (its Streak, #18).
+ * Home: one card per Active Stack, with its Streak, today's Daily Challenge (Play, Continue, or
+ * the score and a Replay) and a link to its Week map, and a link to Review, which spans every
+ * Active Stack. A first sign-in has no Active Stack yet, so it goes to onboarding. Each Stack's
+ * card is its own section.
  */
 export default async function Home() {
   await connection();
@@ -27,6 +27,7 @@ export default async function Home() {
           <li key={stack.id}>
             <section className="card" aria-labelledby={`stack-${stack.id}`}>
               <h2 id={`stack-${stack.id}`}>{stack.name}</h2>
+              {todays[i] && <StreakLine streak={todays[i].streak} />}
               <TodaysChallengeLine stackId={stack.id} today={todays[i]} />
               <p>
                 <Link href={`/stacks/${encodeURIComponent(stack.id)}`}>Week map</Link>
@@ -46,6 +47,15 @@ export default async function Home() {
       </p>
     </main>
   );
+}
+
+/**
+ * A Stack's Streak: consecutive Days whose Challenge the Learner finished on its Day. Today's,
+ * until played, doesn't break it, and a Day with no Challenge is skipped.
+ */
+function StreakLine({ streak }: { streak: number }) {
+  if (streak === 0) return <p className="small muted">No Streak running</p>;
+  return <p className="streak">🔥 {streak}-Day Streak</p>;
 }
 
 /** A Stack's Daily Challenge for today (UTC): Play, Continue, or "Played: 2/3 · Replay". */
