@@ -509,6 +509,55 @@ class Retake(Base):
     )
 
 
+class ChallengePlay(Base):
+    """A Learner's play of one released Daily Challenge on one of their Active Stacks (#17).
+    Read and written through app/challenges.py.
+
+    Created by the Learner's first answer to it. Each first answer to one of its Questions is an
+    `Answer` with `context='daily_challenge'`, linked here: only those are scored. Later answers,
+    and every answer of a replay, are marked for learning and never stored, so they change no
+    score, Streak or Missed Question.
+
+    Once every Question that can be answered has its first answer, the play is finished:
+    `finished_at`, its UTC Day, whether that was the Challenge's own Day, and the score are set
+    then, and never change. The first answers' `correct` gives each Question's first-try
+    outcome for the Result Card (#18): true, false, or null for ungraded (grading failed).
+    """
+
+    __tablename__ = "challenge_plays"
+    __table_args__ = (
+        _of_learner_stack(),
+        ForeignKeyConstraint(
+            ["stack_id", "challenge_number"],
+            ["daily_challenges.stack_id", "daily_challenges.number"],
+            ondelete="CASCADE",
+        ),
+        UniqueConstraint("learner_id", "stack_id", "challenge_number"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    learner_id: Mapped[int] = mapped_column(Integer)
+    stack_id: Mapped[str] = mapped_column(ID)
+    challenge_number: Mapped[int] = mapped_column(Integer, comment="The Daily Challenge's number.")
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), comment="The first answer."
+    )
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    finished_day: Mapped[date | None] = mapped_column(
+        Date, comment="The UTC Day it was finished on."
+    )
+    on_its_day: Mapped[bool | None] = mapped_column(
+        Boolean,
+        comment="Finished on the Challenge's own Day: only these count toward a Streak (#18).",
+    )
+    score: Mapped[int | None] = mapped_column(
+        Integer, comment="First answers that were correct. Set when finished."
+    )
+    out_of: Mapped[int | None] = mapped_column(
+        Integer, comment="Questions answered, ungraded ones included. Set when finished."
+    )
+
+
 class Answer(Base):
     """One answer a Learner gave to one Question, wherever it was asked.
 
@@ -518,11 +567,13 @@ class Answer(Base):
 
     - `context` says where it was asked. A context with something to link to has its own
       nullable link column, and a check constraint requires the matching one: `lesson_quiz` uses
-      `lesson_quiz_attempt_id`, `retake` uses `retake_id`. `review` links to nothing: Review
-      sets aren't stored (app/reviews.py).
+      `lesson_quiz_attempt_id`, `retake` uses `retake_id`, `daily_challenge` uses
+      `challenge_play_id` (one per Question of the play: its first answer). `review` links to
+      nothing: Review sets aren't stored (app/reviews.py).
     - `response` is the choice ID or the written answer; null means left unanswered.
-    - `correct` is null while a written answer waits for grading. (#7 grades before recording,
-      and records nothing if grading fails, so a Lesson Quiz answer always has it.)
+    - `correct` is null for a Daily Challenge's first answer whose grading failed: that
+      Question is ungraded for good, earns no point and is no Missed Question. Everywhere else
+      grading comes before recording, and nothing is recorded if it fails, so it is set.
     - `feedback` is the grader's one line on a graded written answer (app/marking.py).
     """
 
@@ -530,11 +581,16 @@ class Answer(Base):
     __table_args__ = (
         _of_learner_stack(),
         UniqueConstraint("lesson_quiz_attempt_id", "question_id"),
+        UniqueConstraint("challenge_play_id", "question_id"),
         CheckConstraint(
             "context <> 'lesson_quiz' OR lesson_quiz_attempt_id IS NOT NULL",
             name="context_link",
         ),
         CheckConstraint("context <> 'retake' OR retake_id IS NOT NULL", name="retake_link"),
+        CheckConstraint(
+            "context <> 'daily_challenge' OR challenge_play_id IS NOT NULL",
+            name="challenge_play_link",
+        ),
         Index("ix_answers_learner_question", "learner_id", "stack_id", "question_id"),
     )
 
@@ -542,12 +598,17 @@ class Answer(Base):
     learner_id: Mapped[int] = mapped_column(Integer)
     stack_id: Mapped[str] = mapped_column(ID)
     question_id: Mapped[str] = mapped_column(ID, comment="Permanent ID.")
-    context: Mapped[str] = mapped_column(String(20), comment="lesson_quiz, retake or review")
+    context: Mapped[str] = mapped_column(
+        String(20), comment="lesson_quiz, retake, review or daily_challenge"
+    )
     lesson_quiz_attempt_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("lesson_quiz_attempts.id", ondelete="CASCADE")
     )
     retake_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("retakes.id", ondelete="CASCADE"), index=True
+    )
+    challenge_play_id: Mapped[int | None] = mapped_column(
+        ForeignKey("challenge_plays.id", ondelete="CASCADE")
     )
     response: Mapped[str | None] = mapped_column(Text)
     correct: Mapped[bool | None] = mapped_column(Boolean)

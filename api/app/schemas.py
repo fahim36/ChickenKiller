@@ -357,3 +357,76 @@ class ReviewAnswerOut(BaseModel):
 
     correct: bool
     question: AnsweredQuestionOut
+
+
+# --- Daily Challenges ------------------------------------------------------------------------
+
+ChallengeOutcome = Literal["correct", "wrong", "ungraded"]
+
+
+class ChallengeQuestionOut(BaseModel):
+    """A Question of a Daily Challenge. Until the Learner's first answer, `answered` is null and
+    nothing about its answer is sent. A Retired Question can't be answered: it has no choices.
+
+    `outcome` is the first try's: "ungraded" when grading that written answer failed, which
+    earns no point."""
+
+    id: str
+    type: Literal["multiple_choice", "written"]
+    prompt: str
+    choices: list[ChoiceOut]
+    retired: bool
+    outcome: ChallengeOutcome | None
+    answered: AnsweredQuestionOut | None
+    """The first answer, with the correct answer, Explanation, Sources and Materials."""
+
+
+class ChallengeOut(BaseModel):
+    """A released Daily Challenge as the Learner has played it. `label` is how it is named:
+    "Agentic AI Engineer #40 · 26 Sep" (its number and UTC Day).
+
+    `status` is "not_started", "in_progress" or "finished". `score` / `out_of` are set once
+    finished: first tries that were correct, out of the Questions that could be answered (an
+    ungraded one included). After that it can be replayed, which changes nothing."""
+
+    number: int
+    day: date
+    label: str
+    status: Literal["not_started", "in_progress", "finished"]
+    score: int | None
+    out_of: int | None
+    max_answer_chars: int
+    """The longest written answer accepted."""
+    questions: list[ChallengeQuestionOut]
+    """In the order they are asked."""
+
+
+class TodaysChallengeOut(BaseModel):
+    """An Active Stack's Daily Challenge for today (`day`, UTC), or null when none is written
+    for today."""
+
+    stack_id: str
+    stack_name: str
+    day: date
+    challenge: ChallengeOut | None
+
+
+class ChallengeAnswerIn(BaseModel):
+    """The answer to one Question of a Daily Challenge: a choice ID, a written answer, or null
+    for unanswered (which counts as wrong)."""
+
+    question_id: str
+    answer: str | None
+
+
+class ChallengeAnswerOut(BaseModel):
+    """A marked answer. `counted` is true only for the first answer to the Question, the one
+    scored; a later one (after a grading failure, or in a replay) is marked for learning and
+    changes nothing. `question` carries the result's details: the correct answer or Model
+    Answer, the grader's feedback (written), the Explanation and every Source. `challenge` is
+    the Challenge after this answer."""
+
+    counted: bool
+    outcome: ChallengeOutcome
+    question: AnsweredQuestionOut
+    challenge: ChallengeOut
