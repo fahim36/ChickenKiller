@@ -62,26 +62,30 @@ def draw_questions(
     rng: random.Random,
     size: int = QUIZ_SIZE,
     avoid: Collection[str] = (),
+    seen: Collection[str] = (),
 ) -> list[str]:
     """Draw `size` distinct Questions (their permanent IDs) for a quiz, in the order they are
     asked.
 
     - Questions in `avoid` (a previous attempt's, #8) are drawn only once every other Question
       is used, so a fresh quiz repeats as few of them as the bank allows.
+    - Next, Questions in `seen` (the Learner has answered them anywhere, #6) are drawn only
+      once every unseen one is used.
     - Within that, Concepts are covered as evenly as possible: no Concept is used twice while
-      an unused one remains, and so on for a third use.
+      an unused one remains, and so on for a third use. An unseen Question still comes before
+      a seen one on an unused Concept.
 
     A bank with fewer than `size` Questions gives them all. A Lesson Quiz draws through
     `draw_quiz`, which calls this once per Question type.
     """
-    avoided = set(avoid)
+    avoided, seen_ids = set(avoid), set(seen)
     pool = list(bank)
     rng.shuffle(pool)
     uses: Counter[str] = Counter()
     drawn: list[str] = []
     while pool and len(drawn) < size:
         # `min` keeps the first of equals, so the shuffle breaks ties at random.
-        best = min(pool, key=lambda q: (q.id in avoided, uses[q.concept]))
+        best = min(pool, key=lambda q: (q.id in avoided, q.id in seen_ids, uses[q.concept]))
         pool.remove(best)
         uses[best.concept] += 1
         drawn.append(best.id)
@@ -94,6 +98,7 @@ def draw_quiz(
     rng: random.Random,
     composition: Mapping[str, int] = QUIZ_COMPOSITION,
     avoid: Collection[str] = (),
+    seen: Collection[str] = (),
 ) -> list[str]:
     """Draw a Lesson Quiz (permanent IDs, in the order they are asked): each type's share of
     `composition` drawn with `draw_questions`, the types in `composition` order.
@@ -101,19 +106,21 @@ def draw_quiz(
     A bank short of one type still gives a full-size quiz when it can: the shortfall is made up
     from the bank's other Questions (so a bank with no written Questions gives six multiple
     choice). A bank with fewer Questions than the quiz size gives them all. Questions in
-    `avoid` (a previous attempt's, #8) are drawn only where a type has too few others.
+    `avoid` (a previous attempt's, #8), then those in `seen` (#6), are drawn only where a type
+    has too few others: a type short of unseen Questions repeats seen ones of its own type
+    before borrowing another type's, so the quiz keeps its mix.
     """
     by_type: dict[str, list[BankQuestion]] = {t: [] for t in composition}
     for question in bank:
         if question.type in by_type:
             by_type[question.type].append(question)
-    drawn = {t: draw_questions(by_type[t], rng, n, avoid) for t, n in composition.items()}
+    drawn = {t: draw_questions(by_type[t], rng, n, avoid, seen) for t, n in composition.items()}
 
     shortfall = sum(composition.values()) - sum(len(ids) for ids in drawn.values())
     if shortfall > 0:
         taken = {qid for ids in drawn.values() for qid in ids}
         rest = [q for qs in by_type.values() for q in qs if q.id not in taken]
-        extra = set(draw_questions(rest, rng, shortfall, avoid))
+        extra = set(draw_questions(rest, rng, shortfall, avoid, seen))
         for question in rest:
             if question.id in extra:
                 drawn[question.type].append(question.id)

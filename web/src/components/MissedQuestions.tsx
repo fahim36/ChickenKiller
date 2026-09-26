@@ -4,8 +4,8 @@ import type { AnsweredQuestion } from "@/lib/api";
 
 /**
  * The results screen's Missed Questions: for each, the Learner's answer, the grader's
- * feedback (written), the correct answer or Model Answer, the Explanation and the Materials. The API only sends these after the
- * answers are submitted.
+ * feedback (written), the correct answer or Model Answer, the Explanation, the Sources and the
+ * Materials. The API only sends these after the answers are submitted.
  */
 export function MissedQuestions({ missed }: { missed: AnsweredQuestion[] }) {
   if (missed.length === 0) return null;

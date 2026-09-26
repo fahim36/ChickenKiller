@@ -146,7 +146,7 @@ def answer_retake(client: TestClient, retake: dict[str, Any], answer: str | None
 # --- The results screen ----------------------------------------------------------------------
 
 
-def test_the_results_show_each_missed_question_with_the_answers_explanation_and_materials(
+def test_the_results_show_each_missed_question_with_its_answers_explanation_sources_materials(
     learner: TestClient,
 ) -> None:
     quiz = start(learner)
@@ -279,6 +279,10 @@ def test_a_wrong_retake_shows_its_explanation_and_offers_another_sibling(
     assert answered["question"]["response"] == "b"
     assert answered["question"]["answer"] == "a"
     assert answered["question"]["explanation"] == f"Because of {first}."
+    assert [s["url"] for s in answered["question"]["sources"]] == [
+        "https://example.com/docs/page-1"
+    ]
+    assert [m["id"] for m in answered["question"]["materials"]] == ["mat-docs"]
     assert answered["next_question"]["id"] in concept_siblings(missed) - {first}
     assert (answered["pending"], answered["lesson_completed"]) == (1, False)
     assert lesson_states(api)["w01-l01"] == "unlocked"
@@ -339,6 +343,33 @@ def test_a_retake_never_asks_a_retired_sibling(
     asked = [answer_retake(api, retake, "b").json()["next_question"]["id"] for _ in range(3)]
 
     assert asked == [waiting] * 3
+
+
+def test_wrong_retakes_cycle_through_the_siblings_in_use_and_skip_retired_ones(
+    session: Session, api: TestClient, make_content: ContentFactory
+) -> None:
+    """Concept a has five Questions, two of them (q09 and q10) retired before the quiz: a Retake
+    cycles through the siblings still in use and never asks a retired one."""
+    retired = {question_number(9), question_number(10)}
+
+    def two_retired(syllabus: dict[str, Any], bank: dict[str, Any]) -> None:
+        five_on_concept_a(syllabus, bank)
+        for question in bank["questions"]:
+            if question["id"] in retired:
+                question["retired"] = {"reason": "Out of date."}
+
+    setup(session, api, make_content, two_retired)
+    missed, result = pass_missing_one(api)
+    [retake] = result["retakes"]
+    asked = [retake["question"]["id"]]
+
+    for _ in range(5):
+        asked.append(answer_retake(api, retake, "b").json()["next_question"]["id"])
+
+    in_use = concept_siblings(missed) - retired
+    assert len(in_use) == 2
+    assert set(asked) == in_use
+    assert all(a != b for a, b in zip(asked, asked[1:], strict=False))
 
 
 # --- Below the Pass Mark: a fresh quiz -------------------------------------------------------

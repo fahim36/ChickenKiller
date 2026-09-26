@@ -252,6 +252,43 @@ it("after submitting shows each Missed Question's Explanation", async () => {
   expect(within(written).getByText("Agents loop.")).toBeTruthy();
 });
 
+it("shows each Missed Question's Sources and Materials on the results screen", async () => {
+  const withSources: LessonQuizResult = {
+    ...result(5),
+    missed: [
+      {
+        ...missed(6),
+        sources: [
+          {
+            url: "https://example.com/agents",
+            title: "Building agents",
+            publisher: "Example",
+            accessed: "2026-09-20",
+            claim: "An agent calls tools in a loop.",
+          },
+        ],
+        materials: [
+          { id: "mat-course", title: "Agents course", url: "https://example.com/course", type: "free" },
+        ],
+      },
+    ],
+  };
+  renderQuiz(vi.fn(async () => withSources));
+
+  fireEvent.click(submitButton());
+
+  const explained = await screen.findByRole("article", { name: "Question 6?" });
+  expect(within(explained).getByRole("list", { name: "Sources" }).textContent).toBe(
+    "Building agents · Example: An agent calls tools in a loop.",
+  );
+  expect(within(explained).getByRole("link", { name: "Building agents" }).getAttribute("href")).toBe(
+    "https://example.com/agents",
+  );
+  expect(within(explained).getByRole("link", { name: "Agents course" }).getAttribute("href")).toBe(
+    "https://example.com/course",
+  );
+});
+
 it("a pass with a Missed Question goes on to its Retake, and a correct one completes the Lesson", async () => {
   const answerRetake = vi.fn<AnswerRetake>(async () => ({
     retake_id: "retake-6",

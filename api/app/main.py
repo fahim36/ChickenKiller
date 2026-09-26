@@ -288,7 +288,8 @@ def start_lesson_quiz(
     now: Now,
 ) -> schemas.LessonQuizOut:
     """Start a Lesson Quiz on the Learner's Unlocked Lesson, or resume the one they started and
-    haven't submitted. The Questions come without their answers.
+    haven't submitted. The Questions come without their answers. It skips Questions the
+    Learner has already seen, anywhere, as far as the Question Bank allows.
 
     The guard (`UnlockedLesson`) is final: the backend refuses a Locked Lesson's quiz whatever
     the browser shows. 409 `quiz_unavailable` if the Lesson's Question Bank has no Questions to
@@ -329,7 +330,7 @@ def submit_lesson_quiz(
     now: Now,
 ) -> schemas.LessonQuizResultOut:
     """Submit a Lesson Quiz's answers and get its score, each Missed Question's answer,
-    Explanation and Materials, and what comes next (`next_step`). Scoring is the server's:
+    Explanation, Sources and Materials, and what comes next (`next_step`). Scoring is the server's:
     a pass with no Missed Question makes the Lesson a Completed Lesson and unlocks the next one;
     a pass with Missed Questions opens their Retakes; below the Pass Mark comes a fresh quiz.
 

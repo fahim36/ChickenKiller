@@ -3,7 +3,8 @@
 test_written_grading.py."""
 
 import json
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest
@@ -14,7 +15,7 @@ from sqlalchemy.orm import Session
 
 from app import quizzes
 from app.content.importer import import_folder
-from app.models import Learner
+from app.models import Answer, Learner
 from tests.conftest import (
     LEARNER_EMAIL,
     ClientFactory,
@@ -377,6 +378,80 @@ def test_a_lesson_quiz_never_draws_a_retired_question(
     for quiz in (first, fresh):
         drawn = {q["id"] for q in quiz["questions"]}
         assert len(drawn) == 6 and drawn <= live
+
+
+# --- Skipping seen Questions ---------------------------------------------------------------
+
+
+def answered_elsewhere(
+    session: Session, question_ids: Iterable[str], email: str = LEARNER_EMAIL
+) -> None:
+    """Record an answer to each Question outside a Lesson Quiz, as Review (or, from #17, a Daily
+    Challenge) would: the Learner has seen them."""
+    for question_id in question_ids:
+        session.add(
+            Answer(
+                learner_id=learner_id(session, email),
+                stack_id="mini-stack",
+                question_id=question_id,
+                context="review",
+                response="a",
+                correct=True,
+                answered_at=datetime(2026, 9, 1, tzinfo=UTC),
+            )
+        )
+    session.commit()
+
+
+def test_the_quiz_skips_questions_the_learner_has_already_seen(
+    session: Session, learner: TestClient
+) -> None:
+    answered_elsewhere(session, ["w01-l01-q01", "w01-l01-q02"])
+
+    quiz = start(learner)
+
+    drawn = [q["id"] for q in quiz["questions"]]
+    assert sorted(drawn[:4]) == [f"w01-l01-q{n:02}" for n in range(3, 7)]
+    assert sorted(drawn[4:]) == WRITTEN
+
+
+def test_seen_questions_are_drawn_only_when_the_bank_runs_short_keeping_four_and_two(
+    session: Session, learner: TestClient
+) -> None:
+    answered_elsewhere(session, [f"w01-l01-q{n:02}" for n in range(1, 5)] + ["w01-l01-q07"])
+
+    quiz = start(learner)
+
+    questions = quiz["questions"]
+    assert [q["type"] for q in questions] == ["multiple_choice"] * 4 + ["written"] * 2
+    assert {"w01-l01-q05", "w01-l01-q06"} <= {q["id"] for q in questions[:4]}
+    assert sorted(q["id"] for q in questions[4:]) == WRITTEN
+
+
+def test_what_another_learner_has_seen_does_not_count(
+    session: Session, learner: TestClient, admin: TestClient, signed_in: ClientFactory
+) -> None:
+    admin.post("/invitations", json={"email": "other@example.com"}).raise_for_status()
+    onboard(signed_in("other@example.com"))
+    unseen = ["w01-l01-q05", "w01-l01-q06"]
+    answered_elsewhere(session, [f"w01-l01-q{n:02}" for n in range(1, 5)], "other@example.com")
+    answered_elsewhere(session, unseen)
+
+    quiz = start(learner)
+
+    assert {q["id"] for q in quiz["questions"][:4]} == MULTIPLE_CHOICE - set(unseen)
+
+
+def test_seen_questions_are_every_question_the_learner_has_answered_in_any_context(
+    session: Session, learner: TestClient
+) -> None:
+    quiz = start(learner)
+    submit(learner, quiz, answer_all(quiz, wrong=2))
+    answered_elsewhere(session, ["w01-l01-q05"])
+
+    seen = quizzes.seen_question_ids(session, learner_id(session), "mini-stack")
+
+    assert seen == {q["id"] for q in quiz["questions"]} | {"w01-l01-q05"}
 
 
 def test_the_quiz_start_response_is_plain_json(learner: TestClient) -> None:

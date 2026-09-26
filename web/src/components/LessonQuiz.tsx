@@ -13,7 +13,8 @@ import type { GradingFailed, LessonQuiz as Quiz, LessonQuizResult, QuizAnswers }
  * answered in a text box. Submitting sends the answers through `submitAction`; the API scores
  * them (grading written answers against their Model Answers), and this shows the score, whether
  * it met the Pass Mark, which Questions were missed, the grader's feedback on each written
- * answer and, for each Missed Question, the answers, the Explanation and the Materials.
+ * answer and, for each Missed Question, the answers, the Explanation, the Sources and the
+ * Materials.
  * Unanswered Questions are left out, so they count as missed.
  *
  * If grading fails, nothing was counted: the answers stay as they are and the Learner can
