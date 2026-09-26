@@ -3,33 +3,26 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { SettingsState } from "@/components/StackSettingsForm";
-import { ApiError, apiPut, type Me, type Settings } from "@/lib/api";
+import { ApiError, apiPut, type ActiveStacksIn, type Me } from "@/lib/api";
 
-/** Onboarding and settings: save the Active Stack and time zone, then land on that Stack. */
-export async function saveSettings(_previous: SettingsState, form: FormData): Promise<SettingsState> {
-  const settings: Settings = {
-    active_stack_id: String(form.get("active_stack_id") ?? ""),
-    time_zone: String(form.get("time_zone") ?? "").trim(),
-  };
+/**
+ * Onboarding and settings: save the ticked Stacks as the Learner's Active Stacks, then land on
+ * the home screen. Unticked Stacks are deactivated and keep their progress.
+ */
+export async function saveActiveStacks(
+  _previous: SettingsState,
+  form: FormData,
+): Promise<SettingsState> {
+  const body: ActiveStacksIn = { stack_ids: form.getAll("stack_ids").map(String) };
+  if (body.stack_ids.length === 0) return { error: "Pick at least one Stack." };
   try {
-    await apiPut<Me>("/me/settings", settings);
+    await apiPut<Me>("/me/active-stacks", body);
   } catch (error) {
     if (error instanceof ApiError && error.status === 422) {
-      return { error: validationMessage(error.detail, settings.time_zone) };
+      return { error: typeof error.detail === "string" ? error.detail : "Pick at least one Stack." };
     }
     throw error;
   }
   revalidatePath("/", "layout");
-  redirect(`/stacks/${encodeURIComponent(settings.active_stack_id)}`);
-}
-
-function validationMessage(detail: unknown, timeZone: string): string {
-  if (typeof detail === "string") return detail;
-  const aboutTimeZone =
-    Array.isArray(detail) &&
-    detail.some((d: { loc?: unknown[] }) => d.loc?.includes("time_zone") ?? false);
-  if (aboutTimeZone) {
-    return `“${timeZone}” isn't a time zone. Pick one from the list, such as Asia/Dhaka.`;
-  }
-  return "Choose a Stack and a time zone.";
+  redirect("/");
 }

@@ -1,4 +1,7 @@
-"""Onboarding: a Learner picks an Active Stack and confirms their time zone (#4)."""
+"""Onboarding: a Learner activates one or more Stacks, and changes them later in settings (#4).
+
+There is no time zone step: every Day is a UTC Day (ADR-0005).
+"""
 
 from collections.abc import Iterator
 from typing import Any
@@ -9,7 +12,13 @@ from httpx import Response
 from sqlalchemy.orm import Session
 
 from app.content.importer import import_folder
-from tests.conftest import LEARNER_EMAIL, ClientFactory, ContentFactory, make_changelog
+from tests.conftest import (
+    LEARNER_EMAIL,
+    ClientFactory,
+    ContentFactory,
+    complete_lessons,
+    make_changelog,
+)
 
 
 def other_stack(syllabus: dict[str, Any], bank: dict[str, Any]) -> None:
@@ -26,77 +35,103 @@ def learner(
     yield api
 
 
-def choose(
-    client: TestClient, stack_id: str = "mini-stack", time_zone: str = "Asia/Dhaka"
-) -> Response:
-    return client.put("/me/settings", json={"active_stack_id": stack_id, "time_zone": time_zone})
+def activate(client: TestClient, *stack_ids: str) -> Response:
+    """Save the Learner's Active Stacks, as onboarding and settings do."""
+    return client.put("/me/active-stacks", json={"stack_ids": list(stack_ids)})
+
+
+def active_ids(me: dict[str, Any]) -> list[str]:
+    return [s["id"] for s in me["active_stacks"]]
 
 
 def test_a_first_sign_in_needs_onboarding(learner: TestClient) -> None:
     me = learner.get("/me").json()
 
     assert me["needs_onboarding"] is True
-    assert (me["active_stack"], me["time_zone"]) == (None, None)
+    assert me["active_stacks"] == []
+    assert "time_zone" not in me
 
 
-def test_onboarding_sets_the_active_stack_and_time_zone(learner: TestClient) -> None:
-    response = choose(learner)
+def test_onboarding_activates_one_stack(learner: TestClient) -> None:
+    response = activate(learner, "mini-stack")
 
     assert response.status_code == 200
     me = learner.get("/me").json()
     assert me["needs_onboarding"] is False
-    assert (me["active_stack"]["id"], me["active_stack"]["name"]) == ("mini-stack", "Mini Stack")
-    assert me["time_zone"] == "Asia/Dhaka"
+    assert [(s["id"], s["name"]) for s in me["active_stacks"]] == [("mini-stack", "Mini Stack")]
     assert response.json() == me
 
 
-@pytest.mark.parametrize("time_zone", ["UTC", "America/Los_Angeles", "Asia/Calcutta"])
-def test_any_iana_time_zone_is_accepted(learner: TestClient, time_zone: str) -> None:
-    assert choose(learner, time_zone=time_zone).status_code == 200
-    assert learner.get("/me").json()["time_zone"] == time_zone
+def test_onboarding_activates_several_stacks(learner: TestClient) -> None:
+    me = activate(learner, "mini-stack", "other-stack").json()
+
+    assert me["needs_onboarding"] is False
+    assert sorted(active_ids(me)) == ["mini-stack", "other-stack"]
+    for stack_id in ["mini-stack", "other-stack"]:
+        assert learner.get(f"/stacks/{stack_id}").status_code == 200
 
 
-@pytest.mark.parametrize("time_zone", ["", "Mars/Olympus_Mons", "asia/dhaka", "GMT+6", "../etc"])
-def test_a_time_zone_that_is_not_an_iana_name_is_refused(
-    learner: TestClient, time_zone: str
-) -> None:
-    response = choose(learner, time_zone=time_zone)
+def test_naming_a_stack_twice_activates_it_once(learner: TestClient) -> None:
+    assert active_ids(activate(learner, "mini-stack", "mini-stack").json()) == ["mini-stack"]
+
+
+def test_at_least_one_stack_must_be_picked(learner: TestClient) -> None:
+    response = activate(learner)
 
     assert response.status_code == 422
-    assert "time zone" in str(response.json()["detail"])
+    assert response.json()["detail"] == "Pick at least one Stack."
     assert learner.get("/me").json()["needs_onboarding"] is True
 
 
 def test_a_returning_learner_does_not_need_onboarding(
     learner: TestClient, signed_in: ClientFactory
 ) -> None:
-    choose(learner)
+    activate(learner, "mini-stack", "other-stack")
 
     again = signed_in(LEARNER_EMAIL).get("/me").json()
 
     assert again["needs_onboarding"] is False
-    assert again["active_stack"]["id"] == "mini-stack"
+    assert sorted(active_ids(again)) == ["mini-stack", "other-stack"]
 
 
-def test_switching_the_active_stack_keeps_the_record_on_the_previous_one(
-    learner: TestClient,
+def test_settings_can_activate_another_stack(learner: TestClient) -> None:
+    started = activate(learner, "mini-stack").json()["active_stacks"][0]
+
+    me = activate(learner, "mini-stack", "other-stack").json()
+
+    assert sorted(active_ids(me)) == ["mini-stack", "other-stack"]
+    assert next(s for s in me["active_stacks"] if s["id"] == "mini-stack") == started
+
+
+def test_a_deactivated_stack_is_no_longer_studied(learner: TestClient) -> None:
+    activate(learner, "mini-stack", "other-stack")
+
+    me = activate(learner, "other-stack").json()
+
+    assert active_ids(me) == ["other-stack"]
+    response = learner.get("/stacks/mini-stack")
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == "not_active_stack"
+
+
+def test_deactivating_then_reactivating_a_stack_keeps_its_progress(
+    session: Session, learner: TestClient
 ) -> None:
-    started = choose(learner, "mini-stack").json()["active_stack"]
+    started = activate(learner, "mini-stack", "other-stack").json()["active_stacks"]
+    complete_lessons(session, "w01-l01")
+    learner.put("/stacks/mini-stack/milestones/w01-m01", json={"ticked": True})
 
-    switched = choose(learner, "other-stack").json()
-    back = choose(learner, "mini-stack").json()
+    activate(learner, "other-stack")
+    back = activate(learner, "mini-stack", "other-stack").json()
 
-    assert switched["active_stack"]["id"] == "other-stack"
-    assert switched["active_stack"]["started_at"] != started["started_at"]
-    assert back["active_stack"] == started
-
-
-def test_settings_can_change_the_time_zone_alone(learner: TestClient) -> None:
-    started = choose(learner, time_zone="Asia/Dhaka").json()["active_stack"]
-
-    me = choose(learner, time_zone="Europe/Berlin").json()
-
-    assert (me["time_zone"], me["active_stack"]) == ("Europe/Berlin", started)
+    assert sorted(back["active_stacks"], key=lambda s: s["id"]) == sorted(
+        started, key=lambda s: s["id"]
+    )
+    week_map = learner.get("/stacks/mini-stack").json()
+    lessons = {lesson["id"]: lesson["state"] for w in week_map["weeks"] for lesson in w["lessons"]}
+    assert (lessons["w01-l01"], lessons["w01-l02"]) == ("completed", "unlocked")
+    ticked = [m["id"] for w in week_map["weeks"] for m in w["milestones"] if m["ticked"]]
+    assert ticked == ["w01-m01"]
 
 
 def unpublished(syllabus: dict[str, Any], bank: dict[str, Any]) -> None:
@@ -117,12 +152,12 @@ def test_only_published_stacks_are_listed(
 
 
 @pytest.mark.parametrize("stack_id", ["draft-stack", "no-such-stack"])
-def test_only_a_published_stack_can_be_chosen(
+def test_only_published_stacks_can_be_activated(
     session: Session, learner: TestClient, make_content: ContentFactory, stack_id: str
 ) -> None:
     import_folder(session, make_content(unpublished))
 
-    response = choose(learner, stack_id)
+    response = activate(learner, "mini-stack", stack_id)
 
     assert response.status_code == 422
     assert response.json()["detail"] == "Choose one of the published Stacks."
@@ -133,35 +168,43 @@ def test_only_a_published_stack_can_be_chosen(
 WITHDRAWN_CHANGELOG = make_changelog("v2026-02-01", "v2026-01-01")
 
 
+def withdrawn(syllabus: dict[str, Any], bank: dict[str, Any]) -> None:
+    syllabus["version"] = "v2026-02-01"
+    syllabus["stack"]["published"] = False
+
+
 def test_a_newer_version_can_unpublish_a_stack(
     session: Session, learner: TestClient, make_content: ContentFactory
 ) -> None:
-    def withdrawn(syllabus: dict[str, Any], bank: dict[str, Any]) -> None:
-        syllabus["version"] = "v2026-02-01"
-        syllabus["stack"]["published"] = False
-
     import_folder(session, make_content(withdrawn, changelog=WITHDRAWN_CHANGELOG))
 
     assert [s["id"] for s in learner.get("/stacks").json()] == ["other-stack"]
 
 
-def test_a_learner_on_a_withdrawn_stack_keeps_it_and_can_change_their_time_zone(
+def test_a_learner_keeps_a_withdrawn_active_stack(
     session: Session, learner: TestClient, make_content: ContentFactory
 ) -> None:
-    started = choose(learner).json()["active_stack"]
-
-    def withdrawn(syllabus: dict[str, Any], bank: dict[str, Any]) -> None:
-        syllabus["version"] = "v2026-02-01"
-        syllabus["stack"]["published"] = False
-
+    started = activate(learner, "mini-stack").json()["active_stacks"]
     import_folder(session, make_content(withdrawn, changelog=WITHDRAWN_CHANGELOG))
-    response = choose(learner, "mini-stack", time_zone="Europe/Berlin")
+
+    response = activate(learner, "mini-stack", "other-stack")
 
     assert response.status_code == 200
-    assert (response.json()["active_stack"], response.json()["time_zone"]) == (
-        started,
-        "Europe/Berlin",
-    )
+    assert started[0] in response.json()["active_stacks"]
+    assert learner.get("/stacks/mini-stack").status_code == 200
+
+
+def test_a_withdrawn_stack_once_deactivated_cannot_be_reactivated(
+    session: Session, learner: TestClient, make_content: ContentFactory
+) -> None:
+    activate(learner, "mini-stack", "other-stack")
+    import_folder(session, make_content(withdrawn, changelog=WITHDRAWN_CHANGELOG))
+    activate(learner, "other-stack")
+
+    response = activate(learner, "mini-stack", "other-stack")
+
+    assert response.status_code == 422
+    assert active_ids(learner.get("/me").json()) == ["other-stack"]
 
 
 @pytest.mark.parametrize("path", ["/stacks/mini-stack", "/stacks/mini-stack/lessons/w01-l01"])
@@ -172,7 +215,7 @@ def test_onboarding_is_required_before_any_syllabus_or_lesson(
 
     assert response.status_code == 409
     assert response.json()["detail"]["code"] == "onboarding_needed"
-    choose(learner)
+    activate(learner, "mini-stack")
     assert learner.get(path).status_code == 200
 
 

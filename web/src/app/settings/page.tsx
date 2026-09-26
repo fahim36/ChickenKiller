@@ -3,24 +3,23 @@ import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { StackSettingsForm } from "@/components/StackSettingsForm";
 import { api, type Me, type StackSummary } from "@/lib/api";
-import { saveSettings } from "./actions";
+import { saveActiveStacks } from "./actions";
 
 export default async function SettingsPage() {
   await connection();
   const [me, stackList] = await Promise.all([api<Me>("/me"), api<StackSummary[]>("/stacks")]);
-  if (!me?.active_stack || !me.time_zone || me.needs_onboarding) redirect("/onboarding");
-  const { active_stack: active, time_zone: timeZone } = me;
+  if (!me || me.needs_onboarding) redirect("/onboarding");
 
-  // A Stack the Admin has since withdrawn is no longer listed, but its Learners may stay on it.
+  // A Stack the Admin has since withdrawn is no longer listed, but its Learners may keep it.
   const stacks = stackList ?? [];
-  const choices: StackSummary[] = stacks.some((s) => s.id === active.id)
-    ? stacks
-    : [{ id: active.id, name: active.name, summary: "Your Active Stack.", version: "" }, ...stacks];
+  const withdrawn: StackSummary[] = me.active_stacks
+    .filter((a) => !stacks.some((s) => s.id === a.id))
+    .map((a) => ({ id: a.id, name: a.name, summary: "One of your Active Stacks.", version: "" }));
 
   return (
     <main>
       <p className="crumbs">
-        <Link href={`/stacks/${active.id}`}>{active.name}</Link>
+        <Link href="/">Your Stacks</Link>
         {me.is_admin && (
           <>
             {" "}
@@ -30,14 +29,14 @@ export default async function SettingsPage() {
       </p>
       <h1>Settings</h1>
       <p className="muted">
-        Switch your Active Stack or change your time zone. Your progress on each Stack is kept, so
-        switching back picks up where you left off.
+        Tick the Stacks you want to study. Your progress on each Stack is kept, so a Stack you
+        untick picks up where you left off when you tick it again.
       </p>
       <StackSettingsForm
-        stacks={choices}
-        action={saveSettings}
+        stacks={[...withdrawn, ...stacks]}
+        action={saveActiveStacks}
         submitLabel="Save"
-        current={{ active_stack_id: active.id, time_zone: timeZone }}
+        current={me.active_stacks.map((a) => a.id)}
       />
     </main>
   );

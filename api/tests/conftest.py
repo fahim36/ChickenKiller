@@ -396,7 +396,7 @@ def grader() -> FakeGrader:
 
 # --- The clock ---------------------------------------------------------------------------------
 # The API reads the time from `deps.get_now`; tests replace it with this clock, so a test can
-# say "it is 23:59 in Dhaka" and move time on without waiting.
+# say "it is 23:59 UTC" and move time on without waiting.
 
 
 class FakeClock:
@@ -462,10 +462,11 @@ def api(admin: TestClient, signed_in: ClientFactory) -> TestClient:
     return signed_in(LEARNER_EMAIL)
 
 
-def onboard(client: TestClient, stack_id: str = "mini-stack", time_zone: str = "UTC") -> None:
-    """Onboard the client's Learner onto an imported Stack, as the onboarding screen does."""
+def onboard(client: TestClient, *stack_ids: str) -> None:
+    """Make these imported Stacks (the mini Stack by default) the client's Learner's Active
+    Stacks, as the onboarding screen does. Any other Stack is deactivated."""
     client.put(
-        "/me/settings", json={"active_stack_id": stack_id, "time_zone": time_zone}
+        "/me/active-stacks", json={"stack_ids": list(stack_ids or ["mini-stack"])}
     ).raise_for_status()
 
 

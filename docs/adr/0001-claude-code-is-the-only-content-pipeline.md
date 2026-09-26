@@ -5,5 +5,5 @@ All Syllabus content (Lessons, Question Banks, Explanations, Materials) is produ
 ## Consequences
 
 - A Learner cannot get a newly researched Stack instantly. New Stacks arrive through Stack Requests that the Admin works through.
-- The server does call the Claude API in exactly one place: grading written answers. That call never generates or changes content.
+- The server does call Claude in exactly one place: grading written answers, through the Claude Code CLI on the API's machine (ADR-0006). That call never generates or changes content.
 - Content only updates when the Admin runs Claude Code, whether by hand or from a scheduled task on the Admin's machine.

@@ -1,7 +1,7 @@
 """the Stack's Question Bank, with Sources and Retired Questions (#15)
 
-Revision ID: 0010_stack_question_bank
-Revises: 0009_updated_lessons
+Revision ID: 0011_stack_question_bank
+Revises: 0010_active_stacks
 Create Date: 2026-09-26 22:00:00.000000
 
 The Question Bank stops being part of each Syllabus version (ADR-0004):
@@ -25,8 +25,8 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = "0010_stack_question_bank"
-down_revision: str | Sequence[str] | None = "0009_updated_lessons"
+revision: str = "0011_stack_question_bank"
+down_revision: str | Sequence[str] | None = "0010_active_stacks"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

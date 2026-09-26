@@ -137,11 +137,11 @@ def test_an_overlong_written_answer_is_refused_before_any_grading(
     assert recorded(session) == []
 
 
-def test_without_an_api_key_grading_fails_cleanly_and_can_be_retried(
+def test_without_the_claude_code_cli_grading_fails_cleanly_and_can_be_retried(
     app: FastAPI, learner: TestClient
 ) -> None:
     del app.dependency_overrides[get_grader]
-    app.state.grader = grading.grader_from_config("")
+    app.state.grader = grading.ClaudeCodeGrader(None)
     quiz = start(learner)
 
     assert code(submit(learner, quiz, answer_all(quiz))) == (503, "grading_failed")

@@ -8,21 +8,11 @@ const stacks: StackSummary[] = [
   { id: "data-engineer", name: "Data Engineer", summary: "Pipelines.", version: "v1" },
 ];
 
-/** The time zone the browser reports, as `Intl.DateTimeFormat().resolvedOptions()` does. */
-function browserTimeZone(timeZone: string) {
-  const real = Intl.DateTimeFormat.prototype.resolvedOptions;
-  vi.spyOn(Intl.DateTimeFormat.prototype, "resolvedOptions").mockImplementation(function (
-    this: Intl.DateTimeFormat,
-  ) {
-    return { ...real.call(this), timeZone };
-  });
-}
-
-/** An action that records what was submitted. */
+/** An action that records the Stacks submitted. */
 function recordingAction() {
-  const sent: Record<string, string>[] = [];
+  const sent: string[][] = [];
   const action = vi.fn(async (_: SettingsState, form: FormData): Promise<SettingsState> => {
-    sent.push(Object.fromEntries(form.entries()) as Record<string, string>);
+    sent.push(form.getAll("stack_ids").map(String));
     return null;
   });
   return { action, sent };
@@ -33,66 +23,60 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-const timeZoneField = () => screen.getByRole("combobox", { name: "Time zone" }) as HTMLInputElement;
+const box = (name: RegExp) => screen.getByRole("checkbox", { name }) as HTMLInputElement;
 
-it("lists the published Stacks to choose from", () => {
+it("lists the published Stacks to choose from, none ticked yet", () => {
   render(<StackSettingsForm stacks={stacks} action={recordingAction().action} submitLabel="Start" />);
 
-  expect(screen.getAllByRole("radio").map((r) => r.getAttribute("value"))).toEqual([
+  expect(screen.getAllByRole("checkbox").map((r) => r.getAttribute("value"))).toEqual([
     "agentic-ai-engineer",
     "data-engineer",
   ]);
-  expect(screen.getByRole("radio", { name: /Agentic AI Engineer/ })).toBeTruthy();
+  expect(box(/Agentic AI Engineer/).checked).toBe(false);
 });
 
-it("pre-fills the time zone from the browser", () => {
-  browserTimeZone("Asia/Dhaka");
+it("ticks the only Stack when there is just one", () => {
+  render(
+    <StackSettingsForm stacks={stacks.slice(0, 1)} action={recordingAction().action} submitLabel="Start" />,
+  );
 
-  render(<StackSettingsForm stacks={stacks} action={recordingAction().action} submitLabel="Start" />);
-
-  expect(timeZoneField().value).toBe("Asia/Dhaka");
+  expect(box(/Agentic AI Engineer/).checked).toBe(true);
 });
 
-it("sends the chosen Stack and a changed time zone", async () => {
-  browserTimeZone("Asia/Dhaka");
+it("sends every ticked Stack", async () => {
   const { action, sent } = recordingAction();
   render(<StackSettingsForm stacks={stacks} action={action} submitLabel="Start studying" />);
 
-  fireEvent.click(screen.getByRole("radio", { name: /Data Engineer/ }));
-  fireEvent.change(timeZoneField(), { target: { value: "Europe/Berlin" } });
+  fireEvent.click(box(/Agentic AI Engineer/));
+  fireEvent.click(box(/Data Engineer/));
   fireEvent.click(screen.getByRole("button", { name: "Start studying" }));
 
-  await vi.waitFor(() =>
-    expect(sent).toEqual([{ active_stack_id: "data-engineer", time_zone: "Europe/Berlin" }]),
-  );
+  await vi.waitFor(() => expect(sent).toEqual([["agentic-ai-engineer", "data-engineer"]]));
 });
 
-it("starts from the saved Active Stack and time zone, not the browser's", () => {
-  browserTimeZone("Asia/Dhaka");
-
+it("starts from the Learner's Active Stacks, and an unticked one is left out", async () => {
+  const { action, sent } = recordingAction();
   render(
     <StackSettingsForm
       stacks={stacks}
-      action={recordingAction().action}
+      action={action}
       submitLabel="Save"
-      current={{ active_stack_id: "data-engineer", time_zone: "America/Los_Angeles" }}
+      current={["agentic-ai-engineer", "data-engineer"]}
     />,
   );
+  expect(box(/Data Engineer/).checked).toBe(true);
 
-  expect((screen.getByRole("radio", { name: /Data Engineer/ }) as HTMLInputElement).checked).toBe(
-    true,
-  );
-  expect(timeZoneField().value).toBe("America/Los_Angeles");
-});
-
-it("shows why the settings weren't saved", async () => {
-  const action = vi.fn(
-    async (): Promise<SettingsState> => ({ error: "Choose a time zone from the list." }),
-  );
-  render(<StackSettingsForm stacks={stacks} action={action} submitLabel="Save" />);
-
-  fireEvent.click(screen.getByRole("radio", { name: /Agentic AI Engineer/ }));
+  fireEvent.click(box(/Agentic AI Engineer/));
   fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
-  expect((await screen.findByRole("alert")).textContent).toBe("Choose a time zone from the list.");
+  await vi.waitFor(() => expect(sent).toEqual([["data-engineer"]]));
+});
+
+it("shows why the Stacks weren't saved", async () => {
+  const action = vi.fn(async (): Promise<SettingsState> => ({ error: "Pick at least one Stack." }));
+  render(<StackSettingsForm stacks={stacks} action={action} submitLabel="Save" />);
+
+  fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+  expect((await screen.findByRole("alert")).textContent).toBe("Pick at least one Stack.");
 });

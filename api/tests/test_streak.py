@@ -2,9 +2,9 @@
 finished their whole Daily Review. The clock is the test's (`clock`, conftest.py); the rules
 themselves are tested in test_review_rules.py.
 
-The Learner is in Asia/Dhaka (UTC+6) with a Completed Lesson (test_daily_review's `learner`).
-A day's Daily Review is finished in one round by starting it at 21:00 in Dhaka: Round 2 would
-open four hours after Round 1 is finished, after midnight, so it never opens."""
+Days are UTC Days (ADR-0005). The Learner has a Completed Lesson (test_daily_review's
+`learner`). A day's Daily Review is finished in one round by starting it at 21:00 UTC: Round 2
+would open four hours after Round 1 is finished, after midnight, so it never opens."""
 
 from datetime import UTC, date, datetime, timedelta
 
@@ -20,8 +20,8 @@ from tests.test_lesson_quiz import lesson_states
 
 learner = test_daily_review.learner  # the fixture
 
-# 21:00 in Dhaka on 26 September, the Learner's first day.
-FIRST_EVENING = datetime(2026, 9, 26, 15, 0, tzinfo=UTC)
+# 21:00 UTC on 26 September, the Learner's first day.
+FIRST_EVENING = datetime(2026, 9, 26, 21, 0, tzinfo=UTC)
 
 
 def streak(client: TestClient) -> int:
@@ -32,12 +32,12 @@ def streak(client: TestClient) -> int:
 
 
 def evening(day: int) -> datetime:
-    """21:00 in Dhaka on the Learner's `day`-th day (0 is the first)."""
+    """21:00 UTC on the Learner's `day`-th day (0 is the first)."""
     return FIRST_EVENING + timedelta(days=day)
 
 
 def finish_day(client: TestClient, clock: FakeClock, day: int) -> None:
-    """Use the app at 21:00 in Dhaka on `day` and finish its only Review Round."""
+    """Use the app at 21:00 UTC on `day` and finish its only Review Round."""
     clock.set(evening(day))
     finish(client, current_round(client))
 
@@ -95,7 +95,7 @@ def test_a_round_that_came_due_while_the_learner_was_away_counts_as_unfinished(
     """Round 1 finished at 10:00, so Round 2 opened at 14:00, while nobody was using the app. It
     was never stored, but it was owed."""
     finish_day(learner, clock, 0)
-    clock.set(evening(1) - timedelta(hours=11))  # 10:00 in Dhaka
+    clock.set(evening(1) - timedelta(hours=11))  # 10:00 UTC
     finish(learner, current_round(learner))
     assert streak(learner) == 1  # still today, Round 2 not due yet
 

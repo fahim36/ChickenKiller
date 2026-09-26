@@ -124,7 +124,6 @@ it("shows today's pending Review Round and says which Lesson waits for it", asyn
     ],
     daily_review: {
       day: "2026-09-26",
-      time_zone: "Asia/Dhaka",
       next_round_at: null,
       rounds: [
         {

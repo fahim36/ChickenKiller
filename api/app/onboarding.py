@@ -1,12 +1,14 @@
-"""A Learner's Active Stack and time zone: chosen at onboarding, changed later in settings.
+"""A Learner's Active Stacks: picked at onboarding, activated and deactivated later in settings.
 
-Choosing a Stack for the first time creates the Learner's record on it (`LearnerStack`), which
-their progress on that Stack hangs off. Switching to another Stack keeps that record, so
-switching back resumes it.
+Activating a Stack for the first time creates the Learner's record on it (`LearnerStack`), which
+their progress on that Stack hangs off. Deactivating a Stack only marks that record inactive, so
+reactivating it resumes where the Learner left off.
+
+A Learner always keeps at least one Active Stack once onboarded: saving none is refused
+(`NoStack`), so deactivating the last one means activating another in the same save.
 """
 
-from datetime import UTC, date, datetime
-from zoneinfo import ZoneInfo
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -18,40 +20,68 @@ class NotPublished(Exception):
     """The Stack doesn't exist or isn't on the published list."""
 
 
-def needs_onboarding(learner: Learner) -> bool:
-    return learner.active_stack_id is None or learner.time_zone is None
+class NoStack(Exception):
+    """No Stack was picked: a Learner needs at least one Active Stack."""
 
 
-def today_for(time_zone: str, now: datetime) -> date:
-    """The calendar day it is at `now` (timezone-aware) in the IANA `time_zone`."""
-    return now.astimezone(ZoneInfo(time_zone)).date()
-
-
-def active_stack(session: Session, learner: Learner) -> LearnerStack | None:
-    """The Learner's record on their Active Stack, or None before onboarding."""
-    if learner.active_stack_id is None:
-        return None
-    return session.get(LearnerStack, (learner.id, learner.active_stack_id))
-
-
-def choose(session: Session, learner: Learner, stack_id: str, time_zone: str) -> LearnerStack:
-    """Make `stack_id` the Learner's Active Stack and save their time zone (an IANA name that
-    the caller has checked).
-
-    Only a published Stack can be chosen. A Learner whose Active Stack was later withdrawn keeps
-    it, so they can still save their time zone without switching.
-    """
-    stack = session.scalar(
-        select(Stack).where(Stack.id == stack_id, Stack.current_syllabus_pk.is_not(None))
+def active_stacks(session: Session, learner: Learner) -> list[LearnerStack]:
+    """The Learner's records on their Active Stacks, the first started first. Empty before
+    onboarding."""
+    return list(
+        session.scalars(
+            select(LearnerStack)
+            .where(LearnerStack.learner_id == learner.id, LearnerStack.active)
+            .order_by(LearnerStack.started_at, LearnerStack.stack_id)
+        )
     )
-    if stack is None or not (stack.published or stack.id == learner.active_stack_id):
-        raise NotPublished(stack_id)
 
-    record = session.get(LearnerStack, (learner.id, stack.id))
-    if record is None:
-        record = LearnerStack(learner_id=learner.id, stack=stack, started_at=datetime.now(UTC))
-        session.add(record)
-    learner.active_stack_id = stack.id
-    learner.time_zone = time_zone
+
+def needs_onboarding(session: Session, learner: Learner) -> bool:
+    return not active_stacks(session, learner)
+
+
+def active_stack(session: Session, learner: Learner, stack_id: str) -> LearnerStack | None:
+    """The Learner's record on `stack_id` if it is one of their Active Stacks, else None."""
+    record = session.get(LearnerStack, (learner.id, stack_id))
+    return record if record is not None and record.active else None
+
+
+def set_active_stacks(session: Session, learner: Learner, stack_ids: list[str]) -> None:
+    """Make exactly `stack_ids` the Learner's Active Stacks: activate each (creating its record
+    the first time) and deactivate the rest, keeping their records and progress.
+
+    At least one Stack must be picked (`NoStack`), and each must be a published Stack
+    (`NotPublished`), except that a Learner keeps an Active Stack the Admin has since withdrawn.
+    Once deactivated, a withdrawn Stack can't be activated again. Nothing changes on a refusal.
+    """
+    wanted = list(dict.fromkeys(stack_ids))
+    if not wanted:
+        raise NoStack()
+    records = {
+        r.stack_id: r
+        for r in session.scalars(select(LearnerStack).where(LearnerStack.learner_id == learner.id))
+    }
+    stacks = {
+        s.id: s
+        for s in session.scalars(
+            select(Stack).where(Stack.id.in_(wanted), Stack.current_syllabus_pk.is_not(None))
+        )
+    }
+    for stack_id in wanted:
+        stack, record = stacks.get(stack_id), records.get(stack_id)
+        if stack is None or not (stack.published or (record is not None and record.active)):
+            raise NotPublished(stack_id)
+
+    for stack_id, record in records.items():
+        record.active = stack_id in wanted
+    for stack_id in wanted:
+        if stack_id not in records:
+            session.add(
+                LearnerStack(
+                    learner_id=learner.id,
+                    stack=stacks[stack_id],
+                    started_at=datetime.now(UTC),
+                    active=True,
+                )
+            )
     session.commit()
-    return record

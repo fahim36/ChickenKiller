@@ -326,19 +326,15 @@ class Learner(Base):
     clerk_user_id: Mapped[str] = mapped_column(String(64), unique=True)
     email: Mapped[str] = mapped_column(Text, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    # Both are set during onboarding (#4) and empty until then.
-    active_stack_id: Mapped[str | None] = mapped_column(
-        ForeignKey("stacks.id", ondelete="SET NULL")
-    )
-    time_zone: Mapped[str | None] = mapped_column(String(64), comment="An IANA name.")
 
 
 class LearnerStack(Base):
-    """One Learner on one Stack: created the first time that Stack becomes their Active Stack.
+    """One Learner on one Stack: created the first time the Learner activates that Stack
+    (app/onboarding.py).
 
     A Learner's progress on a Stack hangs off this record, keyed by `(learner_id, stack_id)` and
-    the content's permanent IDs. Switching the Active Stack never deletes it, so switching back
-    resumes where the Learner left off.
+    the content's permanent IDs. `active` says whether it is one of their Active Stacks now.
+    Deactivating the Stack only clears it, so reactivating resumes where the Learner left off.
     """
 
     __tablename__ = "learner_stacks"
@@ -350,6 +346,9 @@ class LearnerStack(Base):
         ForeignKey("stacks.id", ondelete="CASCADE"), primary_key=True
     )
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    active: Mapped[bool] = mapped_column(
+        Boolean, server_default=true(), comment="Whether it is one of the Learner's Active Stacks."
+    )
 
     stack: Mapped[Stack] = relationship(lazy="joined")
 
@@ -485,9 +484,9 @@ class Retake(Base):
 
 
 class ReviewDay(Base):
-    """One calendar day, in the Learner's time zone, on which the Learner used the app while
-    studying this Stack. Written by the first request of that day (app/reviews.py), which is
-    also when Round 1 of the day's Daily Review opens, if one is owed.
+    """One Day (in UTC, ADR-0005) on which the Learner used the app while studying this Stack.
+    Written by the first request of that day (app/reviews.py), which is also when Round 1 of the
+    day's Daily Review opens, if one is owed.
 
     A day with no Review Round owed nothing (the Learner had no Completed Lesson yet), so it
     neither extends nor breaks the Streak (#11).
@@ -498,7 +497,7 @@ class ReviewDay(Base):
 
     learner_id: Mapped[int] = mapped_column(Integer, primary_key=True)
     stack_id: Mapped[str] = mapped_column(ID, primary_key=True)
-    day: Mapped[date] = mapped_column(Date, primary_key=True, comment="In the Learner's zone.")
+    day: Mapped[date] = mapped_column(Date, primary_key=True, comment="A UTC Day.")
     first_used_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
@@ -529,7 +528,7 @@ class ReviewRound(Base):
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     learner_id: Mapped[int] = mapped_column(Integer)
     stack_id: Mapped[str] = mapped_column(ID)
-    day: Mapped[date] = mapped_column(Date, comment="The review day, in the Learner's zone.")
+    day: Mapped[date] = mapped_column(Date, comment="The review Day, in UTC.")
     number: Mapped[int] = mapped_column(Integer, comment="1 to 3 within the day.")
     question_ids: Mapped[list[str]] = mapped_column(
         JSONB, comment="Permanent IDs of the Questions, in the order they are asked."

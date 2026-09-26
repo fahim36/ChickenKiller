@@ -5,18 +5,19 @@
   so a route that needs the Learner just declares `learner: CurrentLearner`; FastAPI runs the
   check once per request.
 - `AdminLearner`: the same, but refused with 403 unless the Learner is the Admin.
-- `ActiveStack`: the signed-in Learner's record on their Active Stack (`LearnerStack`, with its
-  `stack` loaded). Refused with 409 `onboarding_needed` until the Learner has onboarded, so any
-  route about studying declares `active: ActiveStack` and gets `active.learner_id` /
-  `active.stack_id` for the progress it reads or writes.
-- `ActiveStackInPath`: the same, for a route under `/stacks/{stack_id}` that changes progress;
-  refused with 409 `not_active_stack` unless the path names the Active Stack.
+- `ActiveStackInPath`: for a route about studying, all under `/stacks/{stack_id}`: the
+  signed-in Learner's record on the Stack in the path (`LearnerStack`, with its `stack`
+  loaded), which must be one of their Active Stacks. Refused with 409 `onboarding_needed` until
+  the Learner has onboarded, 404 for an unknown Stack, and 409 `not_active_stack` for any other
+  Stack. The route gets `active.learner_id` / `active.stack_id` for the progress it reads or
+  writes.
 - `UnlockedLesson`: the guard on starting a Lesson Quiz. Only the Learner's Unlocked Lesson
   gets through, whatever the browser shows, and not while a Pending Review Round exists.
 - `Now`: the current time (timezone-aware UTC). Every route reads the clock through it, never
   `datetime.now`, so tests override `get_now` with a clock they control.
-- `open_daily_review`: the Daily Review's "first use of the day" hook. The main router runs it
-  on every request, after signing in and before the route; see `reviews.start_day`.
+- `open_daily_review`: the Daily Review's "first use of the Day" hook, on each Active Stack.
+  The main router runs it on every request, after signing in and before the route; see
+  `reviews.start_day`.
 - `QuizRandom`: the random source that draws a quiz's, a Retake's and a Review Round's
   Questions. Tests override `get_quiz_rng` with a seeded one.
 - `GraderDep`: the `Grader` that grades written answers (app/grading.py), set on the app by
@@ -35,7 +36,7 @@ from app import learners, lessons, onboarding, progress, reviews
 from app.auth import Identity, InvalidToken, KeysUnavailable, TokenVerifier
 from app.db import get_session
 from app.grading import Grader
-from app.models import Learner, LearnerStack, Lesson
+from app.models import Learner, LearnerStack, Lesson, Stack
 
 SessionDep = Annotated[Session, Depends(get_session)]
 
@@ -60,7 +61,7 @@ NOT_INVITED = {
 
 ONBOARDING_NEEDED = {
     "code": "onboarding_needed",
-    "message": "Pick your Active Stack and time zone first.",
+    "message": "Pick the Stacks you want to study first.",
 }
 
 _bearer = HTTPBearer(auto_error=False)
@@ -119,39 +120,36 @@ def open_daily_review(
     learner: CurrentLearner, session: SessionDep, now: Now, rng: QuizRandom
 ) -> None:
     """ "Using the app", for the Daily Review: any signed-in request by an onboarded Learner.
-    The first one of the Learner's day opens Round 1 on their Active Stack, if one is owed
-    (`reviews.start_day`). The main router runs this on every route, before the route, so the
-    route already sees the round."""
-    record = onboarding.active_stack(session, learner)
-    if record is None or learner.time_zone is None:
-        return
-    reviews.start_day(session, record, learner.time_zone, now, rng)
+    The first one of the Learner's Day opens Round 1 on each of their Active Stacks, if one is
+    owed (`reviews.start_day`). The main router runs this on every route, before the route, so
+    the route already sees the round."""
+    for record in onboarding.active_stacks(session, learner):
+        reviews.start_day(session, record, now, rng)
 
-
-def get_active_stack(learner: CurrentLearner, session: SessionDep) -> LearnerStack:
-    record = onboarding.active_stack(session, learner)
-    if record is None or onboarding.needs_onboarding(learner):
-        raise HTTPException(409, ONBOARDING_NEEDED)
-    return record
-
-
-ActiveStack = Annotated[LearnerStack, Depends(get_active_stack)]
 
 NOT_ACTIVE_STACK = {
     "code": "not_active_stack",
-    "message": "This isn't your Active Stack. Switch to it in Settings first.",
+    "message": "This isn't one of your Active Stacks. Activate it in Settings first.",
 }
 
 
-def get_active_stack_in_path(stack_id: str, active: ActiveStack) -> LearnerStack:
-    if stack_id != active.stack_id:
-        raise HTTPException(409, NOT_ACTIVE_STACK)
-    return active
+def get_active_stack_in_path(
+    stack_id: str, learner: CurrentLearner, session: SessionDep
+) -> LearnerStack:
+    record = onboarding.active_stack(session, learner, stack_id)
+    if record is not None:
+        return record
+    if onboarding.needs_onboarding(session, learner):
+        raise HTTPException(409, ONBOARDING_NEEDED)
+    if session.get(Stack, stack_id) is None:
+        raise HTTPException(404, "Stack not found")
+    raise HTTPException(409, NOT_ACTIVE_STACK)
 
 
 ActiveStackInPath = Annotated[LearnerStack, Depends(get_active_stack_in_path)]
-"""For a route under `/stacks/{stack_id}` that changes progress: the Learner's record on their
-Active Stack, refused with 409 `not_active_stack` unless `stack_id` is that Stack."""
+"""For a route under `/stacks/{stack_id}`: the Learner's record on that Stack, which must be one
+of their Active Stacks. 409 `onboarding_needed` before onboarding, 404 for a Stack that doesn't
+exist, and 409 `not_active_stack` for one that isn't Active."""
 
 LESSON_LOCKED = {
     "code": "lesson_locked",
@@ -180,22 +178,21 @@ REVIEW_ROUND_PENDING = {
 def get_unlocked_lesson(
     lesson_id: str,
     active: ActiveStackInPath,
-    learner: CurrentLearner,
     session: SessionDep,
     now: Now,
 ) -> Lesson:
     lesson = lessons.find_current_lesson(session, active.stack_id, lesson_id)
     if lesson is None:
         raise HTTPException(404, "Lesson not found")
-    learner_id, stack_id, time_zone = active.learner_id, active.stack_id, learner.time_zone
-    state = progress.lesson_states(session, learner_id, stack_id, time_zone, now)[lesson.id]
+    learner_id, stack_id = active.learner_id, active.stack_id
+    state = progress.lesson_states(session, learner_id, stack_id, now)[lesson.id]
     if state == "completed":
         raise HTTPException(409, LESSON_COMPLETED)
     if state == "updated":
         raise HTTPException(409, LESSON_UPDATED)
     if state == "locked":
-        pending = progress.pending_review_round(session, learner_id, stack_id, time_zone, now)
-        waiting = progress.waiting_for_review(session, learner_id, stack_id, time_zone, now)
+        pending = progress.pending_review_round(session, learner_id, stack_id, now)
+        waiting = progress.waiting_for_review(session, learner_id, stack_id, now)
         if pending is not None and waiting == lesson.id:
             raise HTTPException(409, {**REVIEW_ROUND_PENDING, "round_id": str(pending.id)})
         raise HTTPException(409, LESSON_LOCKED)

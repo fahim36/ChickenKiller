@@ -5,19 +5,25 @@ export const NEW_LEARNER: Me = {
   email: "ada@example.com",
   is_admin: false,
   needs_onboarding: true,
-  active_stack: null,
-  time_zone: null,
+  active_stacks: [],
 };
 
+/** A Learner studying one Stack. */
 export const ONBOARDED: Me = {
   ...NEW_LEARNER,
   needs_onboarding: false,
-  active_stack: {
-    id: "agentic-ai-engineer",
-    name: "Agentic AI Engineer",
-    started_at: "2026-09-26T10:00:00Z",
-  },
-  time_zone: "Asia/Dhaka",
+  active_stacks: [
+    { id: "agentic-ai-engineer", name: "Agentic AI Engineer", started_at: "2026-09-26T10:00:00Z" },
+  ],
+};
+
+/** A Learner studying both of `STACKS`. */
+export const ONBOARDED_TWICE: Me = {
+  ...ONBOARDED,
+  active_stacks: [
+    ...ONBOARDED.active_stacks,
+    { id: "data-engineer", name: "Data Engineer", started_at: "2026-09-27T10:00:00Z" },
+  ],
 };
 
 export const STACKS: StackSummary[] = [

@@ -2,11 +2,11 @@
 their Questions. The timing and picking rules are the plain functions in `app/review.py`; this
 module stores what they decide.
 
-- **Opening rounds** (`start_day`) happens on any signed-in request by an onboarded Learner:
-  the `deps.open_daily_review` dependency runs it on every route of the main router, before the
-  route itself.
-  - The first request on a calendar day (in the Learner's time zone) records a `ReviewDay` and
-    opens Round 1, if a Daily Review is owed. A Learner with no Completed Lesson at that moment
+- **Opening rounds** (`start_day`) happens on any signed-in request by an onboarded Learner,
+  on each of their Active Stacks: the `deps.open_daily_review` dependency runs it on every
+  route of the main router, before the route itself.
+  - The first request on a Day (UTC, ADR-0005) records a `ReviewDay` and opens Round 1, if a
+    Daily Review is owed. A Learner with no Completed Lesson at that moment
     owes nothing that day, even if they complete a Lesson later the same day.
   - Every later request opens the next round once its time has come
     (`review.next_round_opens_at`: four hours after the previous round is finished, at most
@@ -121,8 +121,6 @@ class DailyReview:
     day with nothing owed."""
 
     day: date
-    time_zone: str
-    """The Learner's, which `day` is in."""
     rounds: list[RoundView]
     next_round_at: datetime | None
     """When the day's next round opens, if one is still to open today."""
@@ -144,15 +142,13 @@ class AnswerResult:
     """The grader's one line, for a graded written answer."""
 
 
-def start_day(
-    session: Session, record: LearnerStack, time_zone: str, now: datetime, rng: random.Random
-) -> None:
+def start_day(session: Session, record: LearnerStack, now: datetime, rng: random.Random) -> None:
     """Record the Learner's use of the app at `now`, and open any Review Round due by then.
 
-    The first use of a calendar day (in `time_zone`) opens Round 1 of that day's Daily Review,
+    The first use of a Day opens Round 1 of that day's Daily Review,
     if one is owed. Later uses open Round 2 or 3 once due, with `opened_at` the time it became
     due. Safe to call on every request, concurrently too: a round is opened once."""
-    day = review.review_day(time_zone, now)
+    day = review.review_day(now)
     key = (record.learner_id, record.stack_id, day)
     if session.get(ReviewDay, key) is None:
         first_use = session.execute(
@@ -165,20 +161,19 @@ def start_day(
         ).first()
         if first_use is None:  # another request got there first
             return
-        _open_round(session, record, time_zone, day, 1, now, rng)
+        _open_round(session, record, day, 1, now, rng)
         session.commit()
         return
     rounds = _rounds_of(session, record.learner_id, record.stack_id, day)
-    opens_at = review.next_round_opens_at([r.finished_at for r in rounds], time_zone, day)
+    opens_at = review.next_round_opens_at([r.finished_at for r in rounds], day)
     if opens_at is not None and now >= opens_at:
-        _open_round(session, record, time_zone, day, len(rounds) + 1, opens_at, rng)
+        _open_round(session, record, day, len(rounds) + 1, opens_at, rng)
         session.commit()
 
 
 def _open_round(
     session: Session,
     record: LearnerStack,
-    time_zone: str,
     day: date,
     number: int,
     opened_at: datetime,
@@ -186,7 +181,7 @@ def _open_round(
 ) -> None:
     """Open round `number` of `day`, unless there is nothing to ask or another request already
     opened it."""
-    question_ids = _round_questions(session, record, time_zone, day, rng)
+    question_ids = _round_questions(session, record, day, rng)
     if question_ids is None:
         return
     session.execute(
@@ -219,23 +214,20 @@ def _rounds_of(session: Session, learner_id: int, stack_id: str, day: date) -> l
     )
 
 
-def daily_review(
-    session: Session, learner_id: int, stack_id: str, time_zone: str, now: datetime
-) -> DailyReview:
-    """The Learner's Daily Review for the day it is at `now` in `time_zone`."""
-    day = review.review_day(time_zone, now)
+def daily_review(session: Session, learner_id: int, stack_id: str, now: datetime) -> DailyReview:
+    """The Learner's Daily Review for the Day it is at `now`."""
+    day = review.review_day(now)
     rounds = _rounds_of(session, learner_id, stack_id, day)
-    opens_at = review.next_round_opens_at([r.finished_at for r in rounds], time_zone, day)
+    opens_at = review.next_round_opens_at([r.finished_at for r in rounds], day)
     return DailyReview(
         day,
-        time_zone,
         [_view(session, r, now) for r in rounds],
         # Past its time but not opened: there was nothing to ask, so it never opens.
         opens_at if opens_at is not None and opens_at > now else None,
     )
 
 
-def streak(session: Session, learner_id: int, stack_id: str, time_zone: str, now: datetime) -> int:
+def streak(session: Session, learner_id: int, stack_id: str, now: datetime) -> int:
     """The Learner's Streak on this Stack at `now` (`review.streak`): each day they used the app
     (a `ReviewDay`) judged by its stored rounds (`review.day_outcome`)."""
     finished_ats: dict[date, list[datetime | None]] = {
@@ -252,9 +244,9 @@ def streak(session: Session, learner_id: int, stack_id: str, time_zone: str, now
         .order_by(ReviewRound.day, ReviewRound.number)
     ):
         finished_ats[day].append(finished_at)
-    today = review.review_day(time_zone, now)
+    today = review.review_day(now)
     return review.streak(
-        {day: review.day_outcome(f, time_zone, day, today) for day, f in finished_ats.items()},
+        {day: review.day_outcome(f, day, today) for day, f in finished_ats.items()},
         today,
     )
 
@@ -262,7 +254,6 @@ def streak(session: Session, learner_id: int, stack_id: str, time_zone: str, now
 def answer_question(
     session: Session,
     record: LearnerStack,
-    time_zone: str,
     round_id: uuid.UUID,
     question_id: str,
     response: str | None,
@@ -290,7 +281,7 @@ def answer_question(
         raise RoundNotFound(round_id)
     if round_.finished_at is not None:
         raise RoundFinished(round_id)
-    if round_.day != review.review_day(time_zone, now):
+    if round_.day != review.review_day(now):
         raise RoundDropped(round_id)
     if question_id not in round_.question_ids:
         raise QuestionNotInRound(question_id)
@@ -326,7 +317,7 @@ def answer_question(
 
 
 def _round_questions(
-    session: Session, record: LearnerStack, time_zone: str, day: date, rng: random.Random
+    session: Session, record: LearnerStack, day: date, rng: random.Random
 ) -> list[str] | None:
     """The Questions for the next round of `day`, or None when no Daily Review is owed: no
     Completed Lesson, or nothing to ask. The sources, in order, are `review.RoundSources`; each
@@ -349,7 +340,7 @@ def _round_questions(
 
     sources = review.RoundSources(
         carried_over=current(_carried_over(session, learner_id, stack_id, day)),
-        missed=current(_missed_in_rotation(session, learner_id, stack_id, time_zone)),
+        missed=current(_missed_in_rotation(session, learner_id, stack_id)),
         updated=current(updated_lessons.updated_question_ids(session, learner_id, stack_id)),
         completed=[question_id for question_id, lesson_id in bank if lesson_id in completed],
         asked_today={
@@ -386,11 +377,9 @@ def _carried_over(session: Session, learner_id: int, stack_id: str, day: date) -
     )
 
 
-def _missed_in_rotation(
-    session: Session, learner_id: int, stack_id: str, time_zone: str
-) -> list[str]:
+def _missed_in_rotation(session: Session, learner_id: int, stack_id: str) -> list[str]:
     """The Learner's Missed Questions still in the rotation (`review.in_rotation`), first
-    missed first. Correct answers in any context count, on days in `time_zone`."""
+    missed first. Correct answers in any context count."""
     correct: dict[str, list[datetime]] = {}
     for question_id, answered_at in session.execute(
         select(Answer.question_id, Answer.answered_at).where(
@@ -403,7 +392,7 @@ def _missed_in_rotation(
     return [
         m.question_id
         for m in quizzes.missed_questions(session, learner_id, stack_id)
-        if review.in_rotation(m.last_missed_at, correct.get(m.question_id, []), time_zone)
+        if review.in_rotation(m.last_missed_at, correct.get(m.question_id, []))
     ]
 
 
