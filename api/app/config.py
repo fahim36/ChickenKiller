@@ -31,9 +31,10 @@ CLERK_JWKS_URL = os.environ.get("CLERK_JWKS_URL") or (
 CLERK_AUTHORIZED_PARTIES = env_list("CLERK_AUTHORIZED_PARTIES")
 ADMIN_EMAILS = frozenset(email.lower() for email in env_list("ADMIN_EMAILS"))
 
-# Grading written answers (app/grading.py, docs/deploy.md). Without it the app still runs, but
-# every written answer fails to grade (503 `grading_failed`) and can be resubmitted later.
-ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+# Grading written answers runs the Claude Code CLI (app/grading.py, ADR-0006): this path, else
+# `claude` on the PATH. Without it the app still runs, but every written answer fails to grade
+# (503 `grading_failed`) and can be resubmitted later.
+CLAUDE_BIN = os.environ.get("CLAUDE_BIN", "")
 
 CONTENT_DIR = Path(os.environ.get("CONTENT_DIR", REPO_ROOT / "content"))
 CONTENT_SCHEMA_DIR = Path(os.environ.get("CONTENT_SCHEMA_DIR", CONTENT_DIR / "schema"))
