@@ -6,6 +6,8 @@ from functools import cache
 from pydantic import BaseModel as _BaseModel
 from pydantic import ConfigDict, field_validator
 
+from app.unlocking import LessonState
+
 
 class BaseModel(_BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -26,19 +28,36 @@ class MaterialOut(BaseModel):
 
 
 class LessonSummary(BaseModel):
+    """A Lesson on the Week map, with its state for the signed-in Learner."""
+
     id: str
     title: str
     minutes: int
+    state: LessonState
 
 
 class MilestoneOut(BaseModel):
+    """A Milestone on the Week map, and whether the signed-in Learner has ticked it."""
+
     id: str
     title: str
     kind: str
     minutes: int
+    ticked: bool
+
+
+class MilestoneTickIn(BaseModel):
+    ticked: bool
+
+
+class MilestoneTickOut(BaseModel):
+    id: str
+    ticked: bool
 
 
 class WeekOut(BaseModel):
+    """A Week of the Week map: its Lessons and Milestones in Syllabus order."""
+
     id: str
     number: int
     title: str
@@ -67,6 +86,7 @@ class LessonOut(BaseModel):
     exercise: str | None
     minutes: int
     materials: list[MaterialOut]
+    state: LessonState
     previous_lesson_id: str | None
     next_lesson_id: str | None
 

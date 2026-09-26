@@ -22,6 +22,7 @@ from sqlalchemy import (
     Boolean,
     DateTime,
     ForeignKey,
+    ForeignKeyConstraint,
     Integer,
     String,
     Text,
@@ -298,3 +299,42 @@ class Invitation(Base):
     email: Mapped[str] = mapped_column(Text, unique=True, comment="Lower-cased.")
     invited_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+# --- Progress --------------------------------------------------------------------------------
+# A Learner's progress on one Stack hangs off their `learner_stacks` record, and names content by
+# permanent ID only, so it survives a new Syllabus version (#13). It is read and written through
+# app/progress.py.
+
+
+def _of_learner_stack() -> ForeignKeyConstraint:
+    return ForeignKeyConstraint(
+        ["learner_id", "stack_id"],
+        ["learner_stacks.learner_id", "learner_stacks.stack_id"],
+        ondelete="CASCADE",
+    )
+
+
+class CompletedLesson(Base):
+    """A Completed Lesson: its Lesson Quiz met the Pass Mark and every Retake was correct."""
+
+    __tablename__ = "completed_lessons"
+    __table_args__ = (_of_learner_stack(),)
+
+    learner_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    stack_id: Mapped[str] = mapped_column(ID, primary_key=True)
+    lesson_id: Mapped[str] = mapped_column(ID, primary_key=True, comment="Permanent ID.")
+    completed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class MilestoneTick(Base):
+    """A Milestone the Learner ticked off. Unticking deletes the row. Ticks never affect
+    unlocking."""
+
+    __tablename__ = "milestone_ticks"
+    __table_args__ = (_of_learner_stack(),)
+
+    learner_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    stack_id: Mapped[str] = mapped_column(ID, primary_key=True)
+    milestone_id: Mapped[str] = mapped_column(ID, primary_key=True, comment="Permanent ID.")
+    ticked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

@@ -3,7 +3,7 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload, selectinload
 
-from app.models import Lesson, LessonMaterial, Stack, Syllabus, Week
+from app.models import Lesson, LessonMaterial, Milestone, Stack, Syllabus, Week
 
 
 def list_stacks(session: Session) -> list[Stack]:
@@ -43,6 +43,15 @@ def find_current_lesson(session: Session, stack_id: str, lesson_id: str) -> Less
             joinedload(Lesson.week),
             selectinload(Lesson.material_links).joinedload(LessonMaterial.material),
         )
+    )
+
+
+def find_current_milestone(session: Session, stack_id: str, milestone_id: str) -> Milestone | None:
+    """The Milestone with this permanent ID in the Stack's current Syllabus."""
+    return session.scalar(
+        select(Milestone)
+        .join(Stack, Stack.current_syllabus_pk == Milestone.syllabus_pk)
+        .where(Stack.id == stack_id, Milestone.id == milestone_id)
     )
 
 

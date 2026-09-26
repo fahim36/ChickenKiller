@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Inline } from "@/components/Inline";
+import { LessonStateBadge } from "@/components/LessonStateBadge";
 import { MaterialList } from "@/components/MaterialList";
 import { api, type Lesson } from "@/lib/api";
 import { formatMinutes } from "@/lib/format";
@@ -25,7 +26,15 @@ export default async function LessonPage({
       <h1>
         <Inline text={lesson.title} />
       </h1>
-      <p className="muted">{formatMinutes(lesson.minutes)}</p>
+      <p className="muted">
+        <LessonStateBadge state={lesson.state} /> {formatMinutes(lesson.minutes)}
+      </p>
+      {lesson.state === "locked" && (
+        <p role="note" className="small">
+          You can read ahead. The Lesson Quiz opens once you&apos;ve completed the Lessons before
+          this one.
+        </p>
+      )}
 
       <h2>Topics</h2>
       <ul>

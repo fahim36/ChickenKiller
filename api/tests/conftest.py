@@ -3,6 +3,7 @@ import json
 import os
 import time
 from collections.abc import Callable, Iterator
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -13,14 +14,16 @@ from alembic.config import Config
 from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from sqlalchemy import Engine, create_engine, text
+from sqlalchemy import Engine, create_engine, select, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
 
+from app import progress
 from app.auth import AuthSettings, TokenVerifier
 from app.config import normalize_database_url
 from app.db import get_session
 from app.main import create_app
+from app.models import Learner, LearnerStack
 
 API_DIR = Path(__file__).resolve().parents[1]
 # Tests need a real Postgres (ADR-0002): `docker compose up -d db` locally, a service in CI.
@@ -364,3 +367,15 @@ def onboard(client: TestClient, stack_id: str = "mini-stack", time_zone: str = "
     client.put(
         "/me/settings", json={"active_stack_id": stack_id, "time_zone": time_zone}
     ).raise_for_status()
+
+
+def complete_lessons(
+    session: Session, *lesson_ids: str, email: str = LEARNER_EMAIL, stack_id: str = "mini-stack"
+) -> None:
+    """Make these Completed Lessons for an onboarded Learner, the way passing a Lesson Quiz
+    does (`progress.complete_lesson`)."""
+    learner = session.scalars(select(Learner).where(Learner.email == email)).one()
+    record = session.get(LearnerStack, (learner.id, stack_id))
+    assert record is not None, f"{email} has never studied {stack_id}"
+    for lesson_id in lesson_ids:
+        progress.complete_lesson(session, record, lesson_id, datetime.now(UTC))
