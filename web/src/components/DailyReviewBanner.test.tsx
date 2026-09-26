@@ -23,7 +23,6 @@ function renderBanner(
 ) {
   const daily: DailyReview = {
     day: "2026-09-26",
-    time_zone: "Asia/Dhaka",
     rounds: [{ ...round, ...changes }],
     next_round_at: null,
     ...review,
@@ -61,13 +60,13 @@ it("shows the latest round of the day, such as a pending Round 2", () => {
   );
 });
 
-it("says when the next round opens, in the Learner's time zone", () => {
+it("says when the next round opens, in UTC", () => {
   const banner = renderBanner({ state: "finished", answered: 10 }, "2026-09-26T04:25:00Z", {
     next_round_at: "2026-09-26T08:25:00Z",
   });
 
   expect(banner.textContent).toBe(
-    "Review Round 1 is done. Review Round 2 opens at 14:25, in 4 h.",
+    "Review Round 1 is done. Review Round 2 opens at 08:25 UTC, in 4 h.",
   );
   expect(screen.queryByRole("link")).toBeNull();
 });

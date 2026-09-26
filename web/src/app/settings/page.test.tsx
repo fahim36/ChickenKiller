@@ -1,6 +1,6 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import { NEW_LEARNER, ONBOARDED, STACKS, stubApi } from "@/test/stubApi";
+import { NEW_LEARNER, ONBOARDED, ONBOARDED_TWICE, STACKS, stubApi } from "@/test/stubApi";
 import SettingsPage from "./page";
 
 vi.mock("next/server", () => ({ connection: async () => {} }));
@@ -14,29 +14,41 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-it("starts from the Learner's Active Stack and saved time zone", async () => {
+const ticked = () =>
+  (screen.getAllByRole("checkbox") as HTMLInputElement[])
+    .filter((c) => c.checked)
+    .map((c) => c.value);
+
+it("starts from the Learner's Active Stacks", async () => {
   stubApi({ "/me": ONBOARDED, "/stacks": STACKS });
 
   render(await SettingsPage());
 
   expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Settings");
-  const active = screen.getByRole("radio", { name: /Agentic AI Engineer/ }) as HTMLInputElement;
-  expect(active.checked).toBe(true);
-  const timeZone = screen.getByRole("combobox", { name: "Time zone" }) as HTMLInputElement;
-  expect(timeZone.value).toBe("Asia/Dhaka");
+  expect(ticked()).toEqual(["agentic-ai-engineer"]);
+  expect(screen.queryByRole("combobox")).toBeNull();
   expect(screen.getByRole("button", { name: "Save" })).toBeTruthy();
   expect(screen.getByText(/progress on each Stack is kept/)).toBeTruthy();
 });
 
-it("keeps a withdrawn Active Stack on the list so the Learner can stay on it", async () => {
+it("ticks every Active Stack", async () => {
+  stubApi({ "/me": ONBOARDED_TWICE, "/stacks": STACKS });
+
+  render(await SettingsPage());
+
+  expect(ticked()).toEqual(["agentic-ai-engineer", "data-engineer"]);
+});
+
+it("keeps a withdrawn Active Stack on the list so the Learner can keep it", async () => {
   stubApi({ "/me": ONBOARDED, "/stacks": STACKS.slice(1) });
 
   render(await SettingsPage());
 
-  expect(screen.getAllByRole("radio").map((r) => r.getAttribute("value"))).toEqual([
+  expect(screen.getAllByRole("checkbox").map((r) => r.getAttribute("value"))).toEqual([
     "agentic-ai-engineer",
     "data-engineer",
   ]);
+  expect(ticked()).toEqual(["agentic-ai-engineer"]);
 });
 
 it("shows the Admin the way to invitations", async () => {

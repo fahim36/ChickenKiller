@@ -3,15 +3,15 @@ becomes a Pending Review Round, what carries over from a day with rounds left un
 a Missed Question leaves the rotation, and which Questions a round asks.
 
 Plain functions with no database or HTTP, tested directly (tests/test_review_rules.py). The
-clock (`now`, timezone-aware), the Learner's time zone and the random source (`rng`) are passed
-in, so a test can say "it is 23:59 in Dhaka" without waiting. `app/reviews.py` stores what
+clock (`now`, timezone-aware) and the random source (`rng`) are passed in, so a test can say
+"it is 23:59 UTC" without waiting. `app/reviews.py` stores what
 these decide.
 
 The round state machine: not open -> open ("optional") -> "pending" -> "finished", or dropped
 at the end of its day if not finished.
 
-- A **Daily Review** belongs to one calendar day in the Learner's own time zone
-  (`review_day`). Round 1 opens the first time the Learner uses the app that day.
+- A **Daily Review** belongs to one Day, a UTC calendar day (`review_day`, ADR-0005).
+  Round 1 opens the first time the Learner uses the app that Day.
 - **Rounds 2 and 3** each open `REOPEN_AFTER` (four hours) after the previous round is
   finished (`next_round_opens_at`), never more than `ROUNDS_PER_DAY` in a day, and only while
   the opening time is still on that day. A round opens at that time whether or not the Learner
@@ -23,8 +23,7 @@ at the end of its day if not finished.
 - **Dropped rounds**: rounds not finished by the end of their day are dropped. Their unanswered
   Questions (`carried_over`) come first in the Learner's next day with rounds.
 - **The rotation** (`in_rotation`): a Missed Question stays in the rotation until it has been
-  answered correctly on `ROTATION_DAYS` (three) different days, in the Learner's time zone,
-  since it was last missed.
+  answered correctly on `ROTATION_DAYS` (three) different Days since it was last missed.
 - A round asks up to `ROUND_SIZE` Questions (`pick_round_questions`) from its `RoundSources`, in
   order: carried-over Questions, Missed Questions still in the rotation, Updated Lessons' new
   Questions (#13), then Questions from Completed Lessons at random. A Question already asked
@@ -38,10 +37,8 @@ at the end of its day if not finished.
 import random
 from collections.abc import Collection, Iterable, Mapping, Sequence
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Literal
-
-from app.onboarding import today_for
 
 ROUND_SIZE = 10
 """The most Questions a Review Round asks."""
@@ -62,9 +59,9 @@ rotation."""
 RoundState = Literal["optional", "pending", "finished"]
 
 
-def review_day(time_zone: str, now: datetime) -> date:
-    """The day whose Daily Review `now` falls in: the calendar day in the IANA `time_zone`."""
-    return today_for(time_zone, now)
+def review_day(now: datetime) -> date:
+    """The Day whose Daily Review `now` (timezone-aware) falls in: its calendar day in UTC."""
+    return now.astimezone(UTC).date()
 
 
 def pending_at(opened_at: datetime) -> datetime:
@@ -80,15 +77,13 @@ def round_state(opened_at: datetime, finished_at: datetime | None, now: datetime
     return "pending" if now >= pending_at(opened_at) else "optional"
 
 
-def next_round_opens_at(
-    finished_ats: Sequence[datetime | None], time_zone: str, day: date
-) -> datetime | None:
+def next_round_opens_at(finished_ats: Sequence[datetime | None], day: date) -> datetime | None:
     """When the next Review Round of `day` opens, given the `finished_at` of the day's rounds so
     far, in order: four hours after the last one is finished.
 
     None when no further round opens that day: no round yet (Round 1 opens on the day's first
     use instead), the last one isn't finished, the day already has three rounds, or the opening
-    time falls after the day's end (in `time_zone`).
+    time falls after the Day's end (00:00 UTC).
 
     #11: a day's rounds were all finished when every round is finished and this is None, since
     a round that opened with nobody using the app is only stored on the next request.
@@ -99,7 +94,7 @@ def next_round_opens_at(
     if last is None:
         return None
     opens_at = last + REOPEN_AFTER
-    return opens_at if review_day(time_zone, opens_at) == day else None
+    return opens_at if review_day(opens_at) == day else None
 
 
 def carried_over(unfinished: Iterable[tuple[Sequence[str], Collection[str]]]) -> list[str]:
@@ -112,13 +107,13 @@ def carried_over(unfinished: Iterable[tuple[Sequence[str], Collection[str]]]) ->
     return list(dict.fromkeys(carried))
 
 
-def in_rotation(last_missed_at: datetime, correct_at: Iterable[datetime], time_zone: str) -> bool:
+def in_rotation(last_missed_at: datetime, correct_at: Iterable[datetime]) -> bool:
     """Whether a Missed Question is still in the rotation: it hasn't been answered correctly on
-    three different days (in `time_zone`) since it was last missed (`last_missed_at`). Correct
+    three different Days since it was last missed (`last_missed_at`). Correct
     answers anywhere count (Lesson Quiz, Retake, Review Round); several on one day count once,
     and the day of the miss counts for a correct answer given after it. A later miss starts the
     count again."""
-    days = {review_day(time_zone, at) for at in correct_at if at > last_missed_at}
+    days = {review_day(at) for at in correct_at if at > last_missed_at}
     return len(days) < ROTATION_DAYS
 
 
@@ -170,9 +165,7 @@ DayOutcome = Literal["finished", "unfinished", "nothing_owed", "in_progress"]
 """How one day's Daily Review went, for the Streak."""
 
 
-def day_outcome(
-    finished_ats: Sequence[datetime | None], time_zone: str, day: date, today: date
-) -> DayOutcome:
+def day_outcome(finished_ats: Sequence[datetime | None], day: date, today: date) -> DayOutcome:
     """How the Daily Review of `day`, a day the Learner used the app, went by `today`, given the
     `finished_at` of the day's stored rounds in order.
 
@@ -185,7 +178,7 @@ def day_outcome(
     """
     if not finished_ats:
         return "nothing_owed"
-    if all(finished_ats) and next_round_opens_at(finished_ats, time_zone, day) is None:
+    if all(finished_ats) and next_round_opens_at(finished_ats, day) is None:
         return "finished"
     return "in_progress" if day == today else "unfinished"
 

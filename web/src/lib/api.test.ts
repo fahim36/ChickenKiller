@@ -30,7 +30,7 @@ it("sends a person who wasn't invited to the not-invited page", async () => {
 });
 
 it("sends a Learner who hasn't onboarded yet to onboarding", async () => {
-  const detail = { code: "onboarding_needed", message: "Pick your Active Stack and time zone first." };
+  const detail = { code: "onboarding_needed", message: "Pick the Stacks you want to study first." };
   vi.stubGlobal("fetch", vi.fn(async () => Response.json({ detail }, { status: 409 })));
 
   await expect(api("/stacks/agentic-ai-engineer")).rejects.toThrow(
@@ -38,16 +38,27 @@ it("sends a Learner who hasn't onboarded yet to onboarding", async () => {
   );
 });
 
+it("sends a Learner to settings for a Stack that isn't one of their Active Stacks", async () => {
+  const detail = { code: "not_active_stack", message: "This isn't one of your Active Stacks." };
+  vi.stubGlobal("fetch", vi.fn(async () => Response.json({ detail }, { status: 409 })));
+
+  await expect(api("/stacks/data-engineer")).rejects.toThrow(
+    expect.objectContaining({ digest: expect.stringContaining(";/settings;") }),
+  );
+});
+
 it("PUTs JSON with the session token", async () => {
   const fetch = vi.fn(async () => Response.json({ ok: true }));
   vi.stubGlobal("fetch", fetch);
 
-  expect(await apiPut("/me/settings", { time_zone: "Asia/Dhaka" })).toEqual({ ok: true });
+  expect(await apiPut("/me/active-stacks", { stack_ids: ["data-engineer"] })).toEqual({
+    ok: true,
+  });
   expect(fetch).toHaveBeenCalledWith(
-    "http://localhost:8000/me/settings",
+    "http://localhost:8000/me/active-stacks",
     expect.objectContaining({
       method: "PUT",
-      body: JSON.stringify({ time_zone: "Asia/Dhaka" }),
+      body: JSON.stringify({ stack_ids: ["data-engineer"] }),
       headers: { Authorization: "Bearer session-token", "Content-Type": "application/json" },
     }),
   );

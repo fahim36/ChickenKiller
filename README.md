@@ -70,7 +70,7 @@ Needs [uv](https://docs.astral.sh/uv/), Node 24, Docker, and a Clerk development
    cd web && npm install && npm run dev
    ```
 
-Open http://localhost:3000 and sign in with the `ADMIN_EMAILS` address. A first sign-in goes to onboarding: pick an Active Stack and confirm your time zone. **Settings** switches the Active Stack or time zone later, and for the Admin it links to **Invitations**, where you invite other people.
+Open http://localhost:3000 and sign in with the `ADMIN_EMAILS` address. A first sign-in goes to onboarding: pick one or more Stacks to study, and land on the home screen with a card for each. **Settings** activates or deactivates Stacks later (a deactivated Stack keeps its progress), and for the Admin it links to **Invitations**, where you invite other people.
 
 | Variable | Read by | Default |
 |---|---|---|

@@ -250,12 +250,10 @@ export interface ReviewRound extends ReviewRoundSummary {
   results: { correct: boolean; question: AnsweredQuestion }[];
 }
 
-/** Today's Daily Review, in the Learner's time zone. No rounds means nothing is owed today. */
+/** Today's Daily Review. No rounds means nothing is owed today. */
 export interface DailyReview {
-  /** The calendar day, as YYYY-MM-DD. */
+  /** The Day (UTC, ADR-0005), as YYYY-MM-DD. */
   day: string;
-  /** The Learner's IANA time zone, which `day` is in. */
-  time_zone: string;
   rounds: ReviewRoundSummary[];
   /**
    * When the day's next round opens: four hours after the previous one is finished. Null when
@@ -276,6 +274,7 @@ export interface ReviewAnswerResult {
   round: ReviewRoundSummary;
 }
 
+/** One of the Learner's Active Stacks, and when they first started studying it. */
 export interface ActiveStack {
   id: string;
   name: string;
@@ -285,17 +284,18 @@ export interface ActiveStack {
 export interface Me {
   email: string;
   is_admin: boolean;
-  /** True until the Learner has picked an Active Stack and a time zone. */
+  /** True until the Learner has activated at least one Stack. */
   needs_onboarding: boolean;
-  active_stack: ActiveStack | null;
-  /** An IANA name, such as Asia/Dhaka. */
-  time_zone: string | null;
+  /** The first started first. */
+  active_stacks: ActiveStack[];
 }
 
-/** What onboarding sets, and settings change. */
-export interface Settings {
-  active_stack_id: string;
-  time_zone: string;
+/**
+ * What onboarding sets, and settings change: all of the Learner's Active Stacks. A Stack left
+ * out is deactivated, with its progress kept.
+ */
+export interface ActiveStacksIn {
+  stack_ids: string[];
 }
 
 export interface Invitation {
@@ -318,8 +318,9 @@ export class ApiError extends Error {
 
 /**
  * Call the API as the signed-in person: every request carries their Clerk session token.
- * A person who signed in but was never invited is sent to /not-invited, and a Learner who
- * hasn't picked an Active Stack yet is sent to /onboarding.
+ * A person who signed in but was never invited is sent to /not-invited, a Learner who
+ * hasn't picked any Stack yet is sent to /onboarding, and one asking about a Stack that isn't
+ * one of their Active Stacks is sent to /settings, where they can activate it.
  */
 async function request(method: string, path: string, body?: unknown): Promise<Response> {
   const { getToken } = await auth();
@@ -342,6 +343,7 @@ async function request(method: string, path: string, body?: unknown): Promise<Re
     .catch(() => null);
   if (res.status === 403 && hasCode(detail, "not_invited")) redirect("/not-invited");
   if (res.status === 409 && hasCode(detail, "onboarding_needed")) redirect("/onboarding");
+  if (res.status === 409 && hasCode(detail, "not_active_stack")) redirect("/settings");
   throw new ApiError(res.status, detail, `${method} ${path}`);
 }
 

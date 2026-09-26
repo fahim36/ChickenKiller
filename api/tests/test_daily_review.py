@@ -1,5 +1,5 @@
-"""The Daily Review over the API (#9): Round 1 opening on the first use of the day, in the
-Learner's time zone; its Questions; answering them one at a time; and a Pending Review Round
+"""The Daily Review over the API (#9): Round 1 opening on the first use of the Day (UTC,
+ADR-0005); its Questions; answering them one at a time; and a Pending Review Round
 locking the Unlocked Lesson until it's finished. The clock is the test's (`clock`, conftest.py),
 so time moves only when a test moves it. The rules themselves are tested in
 test_review_rules.py.
@@ -34,25 +34,26 @@ from tests.test_lesson_quiz import (
     start,
     submit,
 )
+from tests.test_onboarding import other_stack
 
 REVIEW = "/stacks/mini-stack/review"
 SECOND_QUIZ = "/stacks/mini-stack/lessons/w01-l02/quiz"
 FIRST_BANK = {f"w01-l01-q{n:02}" for n in range(1, 9)}
 FIRST_WRITTEN = {"w01-l01-q07", "w01-l01-q08"}
 
-# 10:00 in Dhaka (UTC+6) on 26 September.
-MORNING = datetime(2026, 9, 26, 4, 0, tzinfo=UTC)
+# 10:00 UTC on 26 September.
+MORNING = datetime(2026, 9, 26, 10, 0, tzinfo=UTC)
 
 
 @pytest.fixture
 def learner(
     session: Session, api: TestClient, make_content: ContentFactory, clock: FakeClock
 ) -> TestClient:
-    """A Learner in Asia/Dhaka on the mini Stack, whose first Lesson (w01-l01) is a Completed
-    Lesson, and who hasn't used the app yet today. It is 10:00 in Dhaka."""
+    """A Learner on the mini Stack, whose first Lesson (w01-l01) is a Completed Lesson, and
+    who hasn't used the app yet today. It is 10:00 UTC."""
     clock.set(MORNING)
     import_folder(session, make_content(extra_banks={"w01-l02": make_bank("w01-l02", "second")}))
-    onboard(api, time_zone="Asia/Dhaka")
+    onboard(api)
     complete_lessons(session, "w01-l01")
     return api
 
@@ -113,8 +114,8 @@ def test_the_first_use_of_the_day_opens_round_1_with_the_completed_lessons_quest
         "id": summary["id"],
         "number": 1,
         "state": "optional",
-        "opened_at": "2026-09-26T04:00:00Z",
-        "pending_at": "2026-09-26T06:00:00Z",
+        "opened_at": "2026-09-26T10:00:00Z",
+        "pending_at": "2026-09-26T12:00:00Z",
         "finished_at": None,
         "answered": 0,
         "total": 8,
@@ -124,6 +125,25 @@ def test_the_first_use_of_the_day_opens_round_1_with_the_completed_lessons_quest
     assert {q["id"] for q in current["remaining"]} == FIRST_BANK
     assert current["results"] == []
     assert current["max_answer_chars"] == 4000
+
+
+def test_each_active_stack_opens_its_own_round_1(
+    session: Session, api: TestClient, make_content: ContentFactory, clock: FakeClock
+) -> None:
+    clock.set(MORNING)
+    import_folder(session, make_content())
+    import_folder(session, make_content(other_stack))
+    onboard(api, "mini-stack", "other-stack")
+    complete_lessons(session, "w01-l01")
+    complete_lessons(session, "w01-l01", stack_id="other-stack")
+
+    api.get("/me")
+
+    for stack_id in ["mini-stack", "other-stack"]:
+        review = api.get(f"/stacks/{stack_id}/review").json()
+        assert [(r["number"], r["opened_at"]) for r in review["rounds"]] == [
+            (1, "2026-09-26T10:00:00Z")
+        ]
 
 
 def test_a_round_s_questions_come_without_their_answers(learner: TestClient) -> None:
@@ -140,19 +160,19 @@ def test_using_the_app_again_the_same_day_opens_no_other_round(
 ) -> None:
     first = daily_review(learner)["rounds"]
     learner.get("/stacks/mini-stack")
-    clock.advance(hours=13, minutes=59)  # 23:59 in Dhaka
+    clock.advance(hours=13, minutes=59)  # 23:59
 
     rounds = daily_review(learner)["rounds"]
 
     assert [r["id"] for r in rounds] == [first[0]["id"]]
 
 
-def test_the_next_day_starts_at_midnight_in_dhaka_with_a_new_round_1(
+def test_the_next_day_starts_at_midnight_utc_with_a_new_round_1(
     learner: TestClient, clock: FakeClock
 ) -> None:
-    clock.set(datetime(2026, 9, 26, 17, 59, 59, tzinfo=UTC))  # 23:59:59 in Dhaka
+    clock.set(datetime(2026, 9, 26, 23, 59, 59, tzinfo=UTC))  # 23:59:59
     yesterday = daily_review(learner)
-    clock.advance(seconds=1)  # midnight in Dhaka, still the 26th in UTC
+    clock.advance(seconds=1)  # midnight UTC
 
     today = daily_review(learner)
 
@@ -160,7 +180,7 @@ def test_the_next_day_starts_at_midnight_in_dhaka_with_a_new_round_1(
     [round_1] = today["rounds"]
     assert round_1["number"] == 1
     assert round_1["id"] != yesterday["rounds"][0]["id"]
-    assert round_1["opened_at"] == "2026-09-26T18:00:00Z"
+    assert round_1["opened_at"] == "2026-09-27T00:00:00Z"
 
 
 def test_a_learner_with_no_completed_lesson_gets_no_daily_review(
@@ -168,7 +188,7 @@ def test_a_learner_with_no_completed_lesson_gets_no_daily_review(
 ) -> None:
     clock.set(MORNING)
     import_folder(session, make_content())
-    onboard(api, time_zone="Asia/Dhaka")
+    onboard(api)
 
     review = daily_review(api)
 
@@ -184,7 +204,7 @@ def test_a_lesson_completed_during_the_day_brings_a_daily_review_the_next_day(
     nothing that day, even after completing a Lesson."""
     clock.set(MORNING)
     import_folder(session, make_content())
-    onboard(api, time_zone="Asia/Dhaka")
+    onboard(api)
     quiz = start(api, "/stacks/mini-stack/lessons/w01-l01/quiz")
     submit(api, quiz, answer_all(quiz), "/stacks/mini-stack/lessons/w01-l01/quiz")
 
@@ -198,7 +218,7 @@ def test_missed_questions_lead_the_round_ahead_of_the_completed_lessons_question
 ) -> None:
     clock.set(MORNING)
     import_folder(session, make_content())
-    onboard(api, time_zone="Asia/Dhaka")
+    onboard(api)
     url = "/stacks/mini-stack/lessons/w01-l01/quiz"
     quiz = start(api, url)
     missed = quiz["questions"][0]["id"]
@@ -315,7 +335,7 @@ def test_answering_the_last_question_finishes_the_round(learner: TestClient) -> 
     result = finish(learner, current_round(learner))
 
     assert result["round"]["state"] == "finished"
-    assert result["round"]["finished_at"] == "2026-09-26T04:00:00Z"
+    assert result["round"]["finished_at"] == "2026-09-26T10:00:00Z"
     review = daily_review(learner)
     assert review["current"] is None
     assert [r["state"] for r in review["rounds"]] == ["finished"]
@@ -414,9 +434,9 @@ def test_finishing_the_pending_round_unlocks_the_lesson_again(
 def test_a_round_left_unfinished_yesterday_blocks_nothing_today(
     learner: TestClient, clock: FakeClock
 ) -> None:
-    clock.set(datetime(2026, 9, 26, 17, 0, tzinfo=UTC))  # 23:00 in Dhaka
+    clock.set(datetime(2026, 9, 26, 23, 0, tzinfo=UTC))  # 23:00
     yesterday = current_round(learner)
-    clock.set(datetime(2026, 9, 26, 19, 30, tzinfo=UTC))  # 01:30 the next day in Dhaka
+    clock.set(datetime(2026, 9, 27, 1, 30, tzinfo=UTC))  # 01:30 the next day
 
     assert learner.post(SECOND_QUIZ).status_code == 200
     question = yesterday["remaining"][0]["id"]
@@ -433,20 +453,20 @@ def rounds(client: TestClient) -> list[tuple[int, str]]:
 def test_round_2_opens_four_hours_after_round_1_is_finished(
     learner: TestClient, clock: FakeClock
 ) -> None:
-    finish(learner, current_round(learner))  # at 10:00 in Dhaka
+    finish(learner, current_round(learner))  # at 10:00
     clock.advance(hours=3, minutes=59, seconds=59)
 
     before = daily_review(learner)
     clock.advance(seconds=1)
     after = daily_review(learner)
 
-    assert (before["current"], before["next_round_at"]) == (None, "2026-09-26T08:00:00Z")
+    assert (before["current"], before["next_round_at"]) == (None, "2026-09-26T14:00:00Z")
     assert [r["number"] for r in before["rounds"]] == [1]
     round_2 = after["rounds"][1]
     assert (round_2["number"], round_2["state"]) == (2, "optional")
     assert (round_2["opened_at"], round_2["pending_at"]) == (
-        "2026-09-26T08:00:00Z",
-        "2026-09-26T10:00:00Z",
+        "2026-09-26T14:00:00Z",
+        "2026-09-26T16:00:00Z",
     )
     assert after["current"]["id"] == round_2["id"]
     assert after["next_round_at"] is None
@@ -480,7 +500,7 @@ def test_a_round_opens_on_time_even_while_the_learner_is_away(
     review = daily_review(learner)
 
     round_2 = review["rounds"][1]
-    assert (round_2["opened_at"], round_2["state"]) == ("2026-09-26T08:00:00Z", "pending")
+    assert (round_2["opened_at"], round_2["state"]) == ("2026-09-26T14:00:00Z", "pending")
     assert code(learner.post(SECOND_QUIZ)) == (409, "review_round_pending")
 
 
@@ -507,7 +527,7 @@ def test_a_full_day_has_three_rounds_and_no_fourth(learner: TestClient, clock: F
 
     review = daily_review(learner)
 
-    assert opened == ["2026-09-26T04:00:00Z", "2026-09-26T08:00:00Z", "2026-09-26T12:00:00Z"]
+    assert opened == ["2026-09-26T10:00:00Z", "2026-09-26T14:00:00Z", "2026-09-26T18:00:00Z"]
     assert rounds(learner) == [(1, "finished"), (2, "finished"), (3, "finished")]
     assert (review["current"], review["next_round_at"]) == (None, None)
     assert learner.post(SECOND_QUIZ).status_code == 200
@@ -516,7 +536,7 @@ def test_a_full_day_has_three_rounds_and_no_fourth(learner: TestClient, clock: F
 def test_using_the_app_all_day_opens_only_three_rounds(
     learner: TestClient, clock: FakeClock
 ) -> None:
-    clock.set(datetime(2026, 9, 25, 18, 0, tzinfo=UTC))  # midnight in Dhaka
+    clock.set(datetime(2026, 9, 26, 0, 0, tzinfo=UTC))  # midnight
     for _ in range(24 * 4 - 1):  # every 15 minutes until 23:45, finishing each round at once
         current = daily_review(learner)["current"]
         if current is not None:
@@ -529,7 +549,7 @@ def test_using_the_app_all_day_opens_only_three_rounds(
 def test_a_round_that_would_open_after_midnight_does_not_open(
     learner: TestClient, clock: FakeClock
 ) -> None:
-    clock.set(datetime(2026, 9, 26, 14, 30, tzinfo=UTC))  # 20:30 in Dhaka
+    clock.set(datetime(2026, 9, 26, 20, 30, tzinfo=UTC))  # 20:30
     finish(learner, current_round(learner))
 
     assert daily_review(learner)["next_round_at"] is None
@@ -552,7 +572,7 @@ def test_every_round_asks_the_completed_lessons_questions(
 
 
 def leave_round_2_half_done(learner: TestClient, clock: FakeClock) -> tuple[list[str], str]:
-    """Finish Round 1 at 10:00 in Dhaka, then answer three of Round 2's Questions at 14:00 (the
+    """Finish Round 1 at 10:00, then answer three of Round 2's Questions at 14:00 (the
     first one wrong) and leave the rest. The unanswered Questions in order, and the missed one."""
     finish(learner, current_round(learner))
     clock.advance(hours=4)
@@ -569,7 +589,7 @@ def test_an_unfinished_round_is_dropped_and_its_unanswered_questions_lead_the_ne
 ) -> None:
     unanswered, missed = leave_round_2_half_done(learner, clock)
     yesterday = current_round(learner)
-    clock.set(datetime(2026, 9, 26, 18, 0, tzinfo=UTC))  # midnight in Dhaka
+    clock.set(datetime(2026, 9, 27, 0, 0, tzinfo=UTC))  # midnight
 
     today = daily_review(learner)
 
@@ -586,7 +606,7 @@ def test_an_unfinished_round_is_dropped_and_its_unanswered_questions_lead_the_ne
 def test_a_round_left_optional_at_midnight_is_dropped_too(
     learner: TestClient, clock: FakeClock
 ) -> None:
-    clock.set(datetime(2026, 9, 26, 17, 30, tzinfo=UTC))  # 23:30 in Dhaka
+    clock.set(datetime(2026, 9, 26, 23, 30, tzinfo=UTC))  # 23:30
     first = current_round(learner)
     asked = [q["id"] for q in first["remaining"]]
     answer_by_id(learner, first, asked[0], right=True)

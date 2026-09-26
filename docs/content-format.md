@@ -73,7 +73,7 @@ Learners can only pick a published Stack, during onboarding or in settings. A St
 
 - Leave `published` out (or set it to `true`) to publish the Stack when that version is imported.
 - Set `"published": false` to import a Stack before it is ready, for example while working through a Stack Request. It is left off the list of Stacks.
-- A later version can publish it, or withdraw it by setting `false`. Learners whose Active Stack is withdrawn keep it and their progress; nobody new can pick it.
+- A later version can publish it, or withdraw it by setting `false`. Learners who have it as an Active Stack keep it and their progress; nobody new can activate it, and a Learner who deactivates it cannot activate it again.
 
 Leaving `published` out and writing `"published": true` are the same content, so versions written before the field existed still import unchanged.
 

@@ -3,7 +3,7 @@
 import { refresh } from "next/cache";
 import { apiPut, type MilestoneTick } from "@/lib/api";
 
-/** Tick or untick one of the Active Stack's Milestones. Ticks never change any lock state. */
+/** Tick or untick one of an Active Stack's Milestones. Ticks never change any lock state. */
 export async function setMilestoneTicked(
   stackId: string,
   milestoneId: string,

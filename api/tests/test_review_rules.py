@@ -1,11 +1,11 @@
-"""The Daily Review rules (#9, #10): which calendar day a Review Round belongs to, when a round
+"""The Daily Review rules (#9, #10): which Day (UTC) a Review Round belongs to, when a round
 becomes a Pending Review Round, when Rounds 2 and 3 open, which Questions carry over from a day
 with rounds left unfinished, when a Missed Question leaves the rotation, and which Questions a
 round asks, and the Streak (#11). Plain functions with a fake clock (`now`) and a seeded random
 source; the API is tested in test_daily_review.py and test_streak.py."""
 
 import random
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta, timezone
 
 import pytest
 
@@ -28,18 +28,17 @@ OPENED = datetime(2026, 9, 26, 4, 0, tzinfo=UTC)
 # --- The review day ---------------------------------------------------------------------------
 
 
-def test_the_review_day_turns_at_midnight_in_dhaka_not_at_midnight_utc() -> None:
-    # Midnight in Dhaka (UTC+6) is 18:00 UTC.
-    before = datetime(2026, 9, 26, 17, 59, 59, tzinfo=UTC)
-    assert review_day("Asia/Dhaka", before) == date(2026, 9, 26)
-    assert review_day("Asia/Dhaka", before + timedelta(seconds=1)) == date(2026, 9, 27)
+def test_the_review_day_turns_at_midnight_utc() -> None:
+    before = datetime(2026, 9, 26, 23, 59, 59, tzinfo=UTC)
+    assert review_day(before) == date(2026, 9, 26)
+    assert review_day(before + timedelta(seconds=1)) == date(2026, 9, 27)
 
 
-def test_the_review_day_is_still_yesterday_west_of_utc() -> None:
-    now = datetime(2026, 9, 27, 7, 59, tzinfo=UTC)  # 23:59 in UTC-8 (Pacific standard time)
+def test_the_review_day_is_the_utc_day_whatever_zone_the_clock_is_read_in() -> None:
+    # 01:00 on the 27th in Dhaka (UTC+6) is still the 26th in UTC.
+    dhaka = timezone(timedelta(hours=6))
 
-    assert review_day("Etc/GMT+8", now) == date(2026, 9, 26)
-    assert review_day("Etc/GMT+8", now + timedelta(minutes=1)) == date(2026, 9, 27)
+    assert review_day(datetime(2026, 9, 27, 1, 0, tzinfo=dhaka)) == date(2026, 9, 26)
 
 
 # --- Round state ------------------------------------------------------------------------------
@@ -67,40 +66,38 @@ def test_a_finished_round_is_finished_whether_it_finished_in_time_or_late() -> N
 
 # --- Rounds 2 and 3 ----------------------------------------------------------------------------
 
-DAY = date(2026, 9, 26)  # in Dhaka (UTC+6), from 25 Sep 18:00 UTC to 26 Sep 18:00 UTC
+DAY = date(2026, 9, 26)
 
 
 def test_the_next_round_opens_four_hours_after_the_previous_one_is_finished() -> None:
     finished = datetime(2026, 9, 26, 4, 30, tzinfo=UTC)
 
-    assert next_round_opens_at([finished], "Asia/Dhaka", DAY) == finished + timedelta(hours=4)
-    assert next_round_opens_at([OPENED, finished], "Asia/Dhaka", DAY) == finished + timedelta(
-        hours=4
-    )
+    assert next_round_opens_at([finished], DAY) == finished + timedelta(hours=4)
+    assert next_round_opens_at([OPENED, finished], DAY) == finished + timedelta(hours=4)
 
 
 def test_no_round_opens_while_the_previous_one_is_unfinished() -> None:
-    assert next_round_opens_at([None], "Asia/Dhaka", DAY) is None
-    assert next_round_opens_at([OPENED, None], "Asia/Dhaka", DAY) is None
+    assert next_round_opens_at([None], DAY) is None
+    assert next_round_opens_at([OPENED, None], DAY) is None
 
 
 def test_a_day_never_has_more_than_three_rounds() -> None:
-    assert next_round_opens_at([OPENED, OPENED, OPENED], "Asia/Dhaka", DAY) is None
+    assert next_round_opens_at([OPENED, OPENED, OPENED], DAY) is None
 
 
 def test_round_1_is_not_opened_by_this_rule() -> None:
     # Round 1 opens on the day's first use, not four hours after anything.
-    assert next_round_opens_at([], "Asia/Dhaka", DAY) is None
+    assert next_round_opens_at([], DAY) is None
 
 
 def test_no_round_opens_once_its_opening_time_falls_on_the_next_day() -> None:
-    # Finished at 19:59:59 in Dhaka: the next round opens at 23:59:59. At 20:00, it would open
-    # at midnight, on the next day, whose Round 1 opens on its first use instead.
-    last_in_day = datetime(2026, 9, 26, 13, 59, 59, tzinfo=UTC)
-    too_late = datetime(2026, 9, 26, 14, 0, tzinfo=UTC)
+    # Finished at 19:59:59: the next round opens at 23:59:59. At 20:00, it would open at
+    # midnight, on the next day, whose Round 1 opens on its first use instead.
+    last_in_day = datetime(2026, 9, 26, 19, 59, 59, tzinfo=UTC)
+    too_late = datetime(2026, 9, 26, 20, 0, tzinfo=UTC)
 
-    assert next_round_opens_at([last_in_day], "Asia/Dhaka", DAY) == last_in_day + timedelta(hours=4)
-    assert next_round_opens_at([too_late], "Asia/Dhaka", DAY) is None
+    assert next_round_opens_at([last_in_day], DAY) == last_in_day + timedelta(hours=4)
+    assert next_round_opens_at([too_late], DAY) is None
 
 
 # --- Carry-over -------------------------------------------------------------------------------
@@ -120,7 +117,7 @@ def test_nothing_carries_over_from_rounds_answered_in_full() -> None:
 
 # --- Leaving the rotation ---------------------------------------------------------------------
 
-MISSED = datetime(2026, 9, 26, 4, 0, tzinfo=UTC)  # 10:00 in Dhaka on the 26th
+MISSED = datetime(2026, 9, 26, 4, 0, tzinfo=UTC)
 
 
 def days_later(days: int, hours: float = 0) -> datetime:
@@ -128,44 +125,31 @@ def days_later(days: int, hours: float = 0) -> datetime:
 
 
 def test_a_missed_question_stays_in_the_rotation_until_correct_on_three_different_days() -> None:
-    assert in_rotation(MISSED, [], "Asia/Dhaka")
-    assert in_rotation(MISSED, [days_later(1), days_later(2)], "Asia/Dhaka")
-    assert not in_rotation(MISSED, [days_later(1), days_later(2), days_later(3)], "Asia/Dhaka")
+    assert in_rotation(MISSED, [])
+    assert in_rotation(MISSED, [days_later(1), days_later(2)])
+    assert not in_rotation(MISSED, [days_later(1), days_later(2), days_later(3)])
 
 
 def test_correct_answers_on_one_day_count_as_one_day() -> None:
     same_day = [days_later(1), days_later(1, hours=4), days_later(1, hours=7)]
 
-    assert in_rotation(MISSED, same_day, "Asia/Dhaka")
-    assert not in_rotation(MISSED, [*same_day, days_later(2), days_later(3)], "Asia/Dhaka")
+    assert in_rotation(MISSED, same_day)
+    assert not in_rotation(MISSED, [*same_day, days_later(2), days_later(3)])
 
 
 def test_the_day_of_the_miss_counts_for_a_correct_answer_given_after_it() -> None:
     later_that_day = MISSED + timedelta(hours=5)
 
-    assert not in_rotation(MISSED, [later_that_day, days_later(1), days_later(2)], "Asia/Dhaka")
-
-
-def test_days_are_counted_in_the_learner_s_time_zone() -> None:
-    # 17:00 and 19:00 UTC on the 26th: one day in UTC, but 23:00 on the 26th and 01:00 on the
-    # 27th in Dhaka.
-    evening = datetime(2026, 9, 26, 17, 0, tzinfo=UTC)
-    after_midnight = datetime(2026, 9, 26, 19, 0, tzinfo=UTC)
-    correct = [evening, after_midnight, days_later(2)]
-
-    assert not in_rotation(MISSED, correct, "Asia/Dhaka")
-    assert in_rotation(MISSED, correct, "UTC")
+    assert not in_rotation(MISSED, [later_that_day, days_later(1), days_later(2)])
 
 
 def test_correct_answers_before_a_later_miss_do_not_count() -> None:
     missed_again = days_later(3)
     before = [days_later(0, hours=5), days_later(1), days_later(2)]
 
-    assert in_rotation(missed_again, before, "Asia/Dhaka")
-    assert in_rotation(missed_again, [*before, days_later(4), days_later(5)], "Asia/Dhaka")
-    assert not in_rotation(
-        missed_again, [*before, days_later(4), days_later(5), days_later(6)], "Asia/Dhaka"
-    )
+    assert in_rotation(missed_again, before)
+    assert in_rotation(missed_again, [*before, days_later(4), days_later(5)])
+    assert not in_rotation(missed_again, [*before, days_later(4), days_later(5), days_later(6)])
 
 
 # --- Picking a round's Questions ----------------------------------------------------------------
@@ -257,7 +241,7 @@ TODAY = date(2026, 9, 26)
 
 
 def at(day: date, hour: int) -> datetime:
-    """`hour` o'clock on `day`, in UTC (these tests' time zone)."""
+    """`hour` o'clock on `day`, in UTC."""
     return datetime(day.year, day.month, day.day, hour, tzinfo=UTC)
 
 
@@ -284,7 +268,7 @@ def at(day: date, hour: int) -> datetime:
 def test_a_day_s_outcome_follows_from_its_rounds(
     finished_ats: list[datetime | None], day: date, outcome: DayOutcome
 ) -> None:
-    assert day_outcome(finished_ats, "UTC", day, TODAY) == outcome
+    assert day_outcome(finished_ats, day, TODAY) == outcome
 
 
 @pytest.mark.parametrize(

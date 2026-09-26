@@ -1,8 +1,6 @@
 import re
 import uuid
-import zoneinfo
 from datetime import date, datetime
-from functools import cache
 from typing import Literal
 
 from pydantic import BaseModel as _BaseModel
@@ -116,7 +114,7 @@ class LessonOut(BaseModel):
 
 
 class ActiveStackOut(BaseModel):
-    """The Learner's Active Stack, and when they started studying it."""
+    """One of the Learner's Active Stacks, and when they first started studying it."""
 
     id: str
     name: str
@@ -126,35 +124,21 @@ class ActiveStackOut(BaseModel):
 class MeOut(BaseModel):
     """The signed-in Learner. Admin-only screens check `is_admin`.
 
-    `needs_onboarding` is true until the Learner has picked an Active Stack and a time zone.
+    `needs_onboarding` is true until the Learner has activated at least one Stack.
+    `active_stacks` are the first started first.
     """
 
     email: str
     is_admin: bool
     needs_onboarding: bool
-    active_stack: ActiveStackOut | None
-    time_zone: str | None
+    active_stacks: list[ActiveStackOut]
 
 
-class SettingsIn(BaseModel):
-    """What onboarding sets, and settings change: the Active Stack and the time zone."""
+class ActiveStacksIn(BaseModel):
+    """What onboarding sets, and settings change: the Learner's Active Stacks, all of them. A
+    Stack left out is deactivated, with its progress kept."""
 
-    active_stack_id: str
-    time_zone: str
-
-    @field_validator("time_zone")
-    @classmethod
-    def _is_an_iana_name(cls, value: str) -> str:
-        if value not in _iana_time_zones():
-            raise ValueError("Choose a time zone from the list, such as Asia/Dhaka")
-        return value
-
-
-@cache
-def _iana_time_zones() -> frozenset[str]:
-    # Exact names only: looking a name up with ZoneInfo would also accept file paths, and any
-    # letter case on Windows.
-    return frozenset(zoneinfo.available_timezones())
+    stack_ids: list[str]
 
 
 # Deliberately loose: Clerk verifies the address when the person signs up.
@@ -358,15 +342,13 @@ class ReviewRoundOut(ReviewRoundSummaryOut):
 
 
 class DailyReviewOut(BaseModel):
-    """Today's Daily Review, in the Learner's time zone: its Review Rounds so far, in order.
+    """Today's Daily Review (a UTC Day): its Review Rounds so far, in order.
 
     Rounds 2 and 3 each open four hours after the previous round is finished, never past the
     day's end: `next_round_at` is when the next one opens, or null when none is to open today
     (the last round isn't finished yet, the day has had its three rounds, or it's too late)."""
 
     day: date
-    time_zone: str
-    """The Learner's IANA time zone, which `day` is in."""
     rounds: list[ReviewRoundSummaryOut]
     next_round_at: datetime | None
 

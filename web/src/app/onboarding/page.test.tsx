@@ -14,25 +14,25 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-it("offers a new Learner the published Stacks and their time zone", async () => {
+it("offers a new Learner every published Stack, to pick one or more", async () => {
   stubApi({ "/me": NEW_LEARNER, "/stacks": STACKS });
 
   render(await OnboardingPage());
 
-  expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Pick your Stack");
-  expect(screen.getAllByRole("radio").map((r) => r.getAttribute("value"))).toEqual([
+  expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Pick your Stacks");
+  expect(screen.getAllByRole("checkbox").map((r) => r.getAttribute("value"))).toEqual([
     "agentic-ai-engineer",
     "data-engineer",
   ]);
-  expect(screen.getByRole("combobox", { name: "Time zone" })).toBeTruthy();
+  expect(screen.queryByRole("combobox")).toBeNull();
   expect(screen.getByRole("button", { name: "Start studying" })).toBeTruthy();
 });
 
-it("sends a returning Learner straight to their Active Stack", async () => {
+it("sends a returning Learner straight to the home screen", async () => {
   stubApi({ "/me": ONBOARDED, "/stacks": STACKS });
 
   await expect(OnboardingPage()).rejects.toThrow(
-    expect.objectContaining({ digest: expect.stringContaining("/stacks/agentic-ai-engineer") }),
+    expect.objectContaining({ digest: expect.stringContaining(";/;") }),
   );
 });
 
