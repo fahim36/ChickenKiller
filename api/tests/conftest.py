@@ -1,6 +1,7 @@
 import copy
 import json
 import os
+import shutil
 import time
 from collections.abc import Callable, Iterator
 from datetime import UTC, datetime, timedelta
@@ -37,10 +38,42 @@ TEST_DATABASE_URL = normalize_database_url(
 
 LESSON = "w01-l01"
 
+SOURCES_ACCESSED = "2026-01-01"
+"""The day every test Question's Source was accessed. Tests of the rule that a new Question's
+Sources are from this run pass `today` to the content check."""
+
+
+def source(n: int = 1, accessed: str = SOURCES_ACCESSED) -> dict[str, Any]:
+    """A Source for a test Question."""
+    return {
+        "url": f"https://example.com/docs/page-{n}",
+        "title": f"Docs page {n}",
+        "publisher": "Example",
+        "accessed": accessed,
+        "claim": "What the Question relies on.",
+    }
+
+
+def mc_question(qid: str, concept: str, lesson: str | None = LESSON) -> dict[str, Any]:
+    """A multiple-choice Question whose right answer is "a"."""
+    return {
+        "id": qid,
+        "lesson": lesson,
+        "concept": concept,
+        "type": "multiple_choice",
+        "prompt": f"Question {qid}?",
+        "choices": [{"id": "a", "text": "Right"}, {"id": "b", "text": "Wrong"}],
+        "answer": "a",
+        "explanation": "Because.",
+        "materials": [],
+        "sources": [source()],
+    }
+
 
 def _mc(lesson: str, n: int, concept: str) -> dict[str, Any]:
     return {
         "id": f"{lesson}-q{n:02}",
+        "lesson": lesson,
         "concept": concept,
         "type": "multiple_choice",
         "prompt": f"Question {n}?",
@@ -48,18 +81,21 @@ def _mc(lesson: str, n: int, concept: str) -> dict[str, Any]:
         "answer": "a",
         "explanation": "Because.",
         "materials": ["mat-docs"],
+        "sources": [source()],
     }
 
 
 def _written(lesson: str, n: int, concept: str) -> dict[str, Any]:
     return {
         "id": f"{lesson}-q{n:02}",
+        "lesson": lesson,
         "concept": concept,
         "type": "written",
         "prompt": f"Explain {n}.",
         "model_answer": {"summary": "S", "key_points": ["one", "two"]},
         "explanation": "Because.",
         "materials": [],
+        "sources": [source()],
     }
 
 
@@ -124,11 +160,11 @@ SYLLABUS: dict[str, Any] = {
 
 
 def make_bank(lesson: str = LESSON, concept_prefix: str = "concept") -> dict[str, Any]:
-    """A valid Question Bank for `lesson`: 4 Concepts, 6 multiple-choice and 2 written."""
+    """A valid Question Bank file for `lesson`: 4 Concepts, 6 multiple-choice and 2 written
+    Questions, all tagged to the Lesson."""
     c = [f"{concept_prefix}-{x}" for x in "abcd"]
     return {
-        "schema_version": 1,
-        "lesson_id": lesson,
+        "schema_version": 2,
         "concepts": [{"id": cid, "name": f"Concept {cid}"} for cid in c],
         "questions": [
             _mc(lesson, 1, c[0]),
@@ -173,11 +209,16 @@ def write_folder(
     banks: dict[str, dict[str, Any]],
     changelog: dict[str, Any] | None = None,
 ) -> Path:
+    """Write a version folder, and replace the Stack's Question Bank with `banks` ({file stem:
+    bank file}). Returns the version folder."""
     folder = root / syllabus["stack"]["id"] / syllabus["version"]
-    (folder / "questions").mkdir(parents=True, exist_ok=True)
+    folder.mkdir(parents=True, exist_ok=True)
     (folder / "syllabus.json").write_text(json.dumps(syllabus), encoding="utf-8")
+    bank_dir = folder.parent / "question-bank"
+    shutil.rmtree(bank_dir, ignore_errors=True)
+    bank_dir.mkdir()
     for name, bank in banks.items():
-        (folder / "questions" / f"{name}.json").write_text(json.dumps(bank), encoding="utf-8")
+        (bank_dir / f"{name}.json").write_text(json.dumps(bank), encoding="utf-8")
     if changelog is not None:
         (folder / "changelog.json").write_text(json.dumps(changelog), encoding="utf-8")
     return folder
@@ -200,9 +241,10 @@ def as_version(version: str, edit: Edit | None = None) -> Edit:
 
 @pytest.fixture
 def make_content(tmp_path: Path) -> ContentFactory:
-    """Write a valid folder; pass `edit(syllabus, bank)` to break it for a test,
-    `extra_banks` ({file stem: bank}) to add more Question Banks (see `make_bank`), and
-    `changelog` (see `make_changelog`) for a version that follows another."""
+    """Write a valid version folder and the Stack's Question Bank; pass `edit(syllabus, bank)`
+    to break them for a test (`bank` is the file for w01-l01), `extra_banks` ({file stem: bank})
+    to add more Question Bank files (see `make_bank`), and `changelog` (see `make_changelog`) for
+    a version that follows another. Each call replaces the Stack's Question Bank."""
 
     def factory(
         edit: Callable[[dict, dict], None] | None = None,
@@ -213,7 +255,7 @@ def make_content(tmp_path: Path) -> ContentFactory:
         syllabus, bank = copy.deepcopy(SYLLABUS), copy.deepcopy(BANK)
         if edit:
             edit(syllabus, bank)
-        banks = {bank.get("lesson_id", LESSON): bank, **(extra_banks or {})}
+        banks = {LESSON: bank, **(extra_banks or {})}
         return write_folder(tmp_path, syllabus, banks, changelog)
 
     return factory

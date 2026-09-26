@@ -23,9 +23,9 @@ module stores what they decide.
      (`updated_lessons.updated_question_ids`, #13), in Syllabus order;
   4. Questions of Completed Lessons at random.
   Questions already asked that day are left out unless a round would be short (then Completed
-  Lessons' Questions repeat). All come from the Stack's current Syllabus version, which the
-  round is pinned to, so a round in progress when a new version is imported finishes on the
-  old one (#13).
+  Lessons' Questions repeat). All come from the Stack's Question Bank, and none is a Retired
+  Question. A Question never changes, so a round in progress finishes on the Questions it
+  opened with, whatever is imported meanwhile.
 - **Answering** is one Question at a time (`answer_question`), marked by `marking.mark` like a
   Lesson Quiz: a written answer is graded against its Model Answer, and if grading fails
   nothing is recorded and the Learner answers again. Every answer is an `Answer` with
@@ -63,7 +63,6 @@ from app.models import (
     ReviewDay,
     ReviewRound,
     Stack,
-    Syllabus,
 )
 from app.review import RoundState
 
@@ -100,7 +99,7 @@ class RoundView:
     round: ReviewRound
     state: RoundState
     questions: list[Question]
-    """From the round's pinned version, in the order they are asked. They include the correct
+    """In the order they are asked. They include the correct
     answers: never send those for a Question not yet answered."""
     answers: dict[str, Answer]
     """The answers given so far, by Question ID."""
@@ -187,10 +186,9 @@ def _open_round(
 ) -> None:
     """Open round `number` of `day`, unless there is nothing to ask or another request already
     opened it."""
-    picked = _round_questions(session, record, time_zone, day, rng)
-    if picked is None:
+    question_ids = _round_questions(session, record, time_zone, day, rng)
+    if question_ids is None:
         return
-    version, question_ids = picked
     session.execute(
         insert(ReviewRound)
         .values(
@@ -199,7 +197,6 @@ def _open_round(
             stack_id=record.stack_id,
             day=day,
             number=number,
-            syllabus_version=version,
             question_ids=question_ids,
             opened_at=opened_at,
         )
@@ -312,7 +309,6 @@ def answer_question(
             learner_id=record.learner_id,
             stack_id=record.stack_id,
             question_id=question.id,
-            syllabus_version=round_.syllabus_version,
             context=REVIEW_ROUND,
             review_round_id=round_.id,
             response=response,
@@ -331,42 +327,37 @@ def answer_question(
 
 def _round_questions(
     session: Session, record: LearnerStack, time_zone: str, day: date, rng: random.Random
-) -> tuple[str, list[str]] | None:
-    """The current Syllabus version and the Questions for the next round of `day`, or None when
-    no Daily Review is owed: no Completed Lesson, or nothing to ask. The sources, in order, are
-    `review.RoundSources`; each keeps only Questions of the current version (a Question a later
-    version removed has left the rotation)."""
+) -> list[str] | None:
+    """The Questions for the next round of `day`, or None when no Daily Review is owed: no
+    Completed Lesson, or nothing to ask. The sources, in order, are `review.RoundSources`; each
+    leaves out Retired Questions, which are never drawn."""
     learner_id, stack_id = record.learner_id, record.stack_id
     completed = progress.completed_lesson_ids(session, learner_id, stack_id)
-    syllabus = session.scalar(
-        select(Syllabus)
-        .join(Stack, Stack.current_syllabus_pk == Syllabus.pk)
-        .where(Stack.id == stack_id)
-    )
-    if not completed or syllabus is None:
+    current_pk = session.scalar(select(Stack.current_syllabus_pk).where(Stack.id == stack_id))
+    if not completed or current_pk is None:
         return None
     bank = session.execute(
-        select(Question.id, Lesson.id)
-        .join(Lesson, Lesson.pk == Question.lesson_pk)
-        .where(Question.syllabus_pk == syllabus.pk)
-        .order_by(Lesson.position, Question.position)
+        select(Question.id, Question.lesson_id)
+        .outerjoin(Lesson, (Lesson.syllabus_pk == current_pk) & (Lesson.id == Question.lesson_id))
+        .where(Question.stack_id == stack_id, Question.retired_reason.is_(None))
+        .order_by(Lesson.position.nulls_last(), Question.position)
     ).all()
-    in_version = {question_id for question_id, _ in bank}
+    drawable = {question_id for question_id, _ in bank}
 
     def current(question_ids: Sequence[str]) -> list[str]:
-        return [q for q in question_ids if q in in_version]
+        return [q for q in question_ids if q in drawable]
 
     sources = review.RoundSources(
         carried_over=current(_carried_over(session, learner_id, stack_id, day)),
         missed=current(_missed_in_rotation(session, learner_id, stack_id, time_zone)),
-        updated=updated_lessons.updated_question_ids(session, learner_id, stack_id),
+        updated=current(updated_lessons.updated_question_ids(session, learner_id, stack_id)),
         completed=[question_id for question_id, lesson_id in bank if lesson_id in completed],
         asked_today={
             q for r in _rounds_of(session, learner_id, stack_id, day) for q in r.question_ids
         },
     )
     picked = review.pick_round_questions(sources, rng)
-    return (syllabus.version, picked) if picked else None
+    return picked or None
 
 
 def _carried_over(session: Session, learner_id: int, stack_id: str, day: date) -> list[str]:
@@ -421,23 +412,6 @@ def _view(session: Session, round_: ReviewRound, now: datetime) -> RoundView:
     return RoundView(
         round_,
         review.round_state(round_.opened_at, round_.finished_at, now),
-        _version_questions(session, round_.stack_id, round_.syllabus_version, round_.question_ids),
+        quizzes.questions_by_id(session, round_.stack_id, round_.question_ids),
         {a.question_id: a for a in answers},
     )
-
-
-def _version_questions(
-    session: Session, stack_id: str, version: str, question_ids: Sequence[str]
-) -> list[Question]:
-    """Questions of one Syllabus version, in the order of `question_ids`."""
-    rows = session.scalars(
-        select(Question)
-        .join(Syllabus, Syllabus.pk == Question.syllabus_pk)
-        .where(
-            Syllabus.stack_id == stack_id,
-            Syllabus.version == version,
-            Question.id.in_(question_ids),
-        )
-    ).all()
-    by_id = {q.id: q for q in rows}
-    return [by_id[qid] for qid in question_ids]

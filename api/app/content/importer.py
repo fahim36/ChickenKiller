@@ -1,17 +1,28 @@
-"""Load a checked Stack version folder into the database.
+"""Load checked Stack content into the database.
 
-    content-import <folder> [<folder> ...]   (a Stack version folder, or a content root)
+    content-import <folder> [<folder> ...]   (a Stack version folder, a Stack folder, or a
+                                              content root)
 
-Each Stack version is imported once, as its own set of rows:
+Each Syllabus version is imported once, as its own set of rows:
 
 - Importing a folder that is already imported changes nothing.
-- Importing different content under a version that already exists is refused: Learner progress
+- Importing a different Syllabus under a version that already exists is refused: Learner progress
   is only safe if a published version never changes underneath it. Publish a new version instead.
 - The newest version of a Stack (see `app.content.versions` for the order) becomes its current
   Syllabus.
-- Each Lesson row stores its fingerprint (`diff.lesson_fingerprints`), so a Learner's Completed
-  Lesson can be compared with the version it was completed in (#13). Re-importing a version
-  imported before fingerprints existed fills them in.
+- Each Lesson row stores the Questions tagged to it (not retired) and its fingerprint
+  (`diff.lesson_fingerprints`), so a Learner's Completed Lesson can be compared with the version
+  it was completed in (#13).
+
+Every import also loads the Stack's Question Bank, which is not versioned (ADR-0004). It is only
+ever added to, so re-running an import changes nothing:
+
+- a new Concept or Question is added, with its Sources;
+- a Question already imported may be retired or re-tagged to another Lesson, and nothing else:
+  an edit to anything else is refused, like a changed version (retire it and add a new one);
+- a Question missing from the files stays in the database (the content check refuses deleting
+  one), and a retirement is never undone;
+- each Question's Materials are linked to the Stack's current Syllabus, where they resolve.
 
 Learner progress needs no carrying over: it is keyed by permanent IDs, never by a version's rows,
 so a new version leaves Completed Lessons, Missed Questions, Milestone ticks and Review Days as
@@ -21,18 +32,20 @@ Unlocked Lesson) is worked out when read, in `app.updated_lessons`.
 
 import argparse
 import hashlib
+import json
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
-from sqlalchemy import select, update
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.orm import Session, selectinload
 
 from app.content import format as fmt
+from app.content.baseline import question_fields
 from app.content.check import load_checked_folder, version_folders
-from app.content.diff import lesson_fingerprints
-from app.content.loader import ContentError, ContentFolder, Problem
+from app.content.diff import lesson_fingerprints, lesson_questions
+from app.content.loader import Bank, ContentError, ContentFolder, Problem
 from app.content.versions import version_key
 from app.models import (
     Concept,
@@ -43,10 +56,29 @@ from app.models import (
     MilestoneMaterial,
     Question,
     QuestionMaterial,
+    QuestionSource,
     Stack,
     Syllabus,
     Week,
 )
+
+
+@dataclass
+class BankChanges:
+    """What an import changed in a Stack's Question Bank."""
+
+    added: list[str] = field(default_factory=list)
+    retired: list[str] = field(default_factory=list)
+    retagged: list[str] = field(default_factory=list)
+
+    def __bool__(self) -> bool:
+        return bool(self.added or self.retired or self.retagged)
+
+    def __str__(self) -> str:
+        return (
+            f"{len(self.added)} Questions added, {len(self.retired)} retired, "
+            f"{len(self.retagged)} re-tagged"
+        )
 
 
 @dataclass(frozen=True)
@@ -55,15 +87,18 @@ class ImportResult:
     version: str
     status: Literal["imported", "unchanged"]
     is_current: bool
+    bank: BankChanges = field(default_factory=BankChanges)
 
     def __str__(self) -> str:
-        return f"{self.stack_id} {self.version}: {self.status}" + (
+        line = f"{self.stack_id} {self.version}: {self.status}" + (
             " (current)" if self.is_current else ""
         )
+        return line + (f"; Question Bank: {self.bank}" if self.bank else "")
 
 
 def import_folder(session: Session, path: Path) -> ImportResult:
-    """Check and import one Stack version folder. Flushes; the caller commits."""
+    """Check and import one Stack version folder, and its Stack's Question Bank. Flushes; the
+    caller commits."""
     return import_content(session, load_checked_folder(path))
 
 
@@ -89,9 +124,13 @@ def import_content(session: Session, content: ContentFolder) -> ImportResult:
                     )
                 ]
             )
-        _fill_in_fingerprints(session, existing.pk, content)
+        bank = import_bank(session, syllabus.stack.id, content.bank)
         return ImportResult(
-            syllabus.stack.id, syllabus.version, "unchanged", _is_current(session, existing)
+            syllabus.stack.id,
+            syllabus.version,
+            "unchanged",
+            _is_current(session, existing),
+            bank,
         )
 
     stack = session.get(Stack, syllabus.stack.id)
@@ -118,22 +157,145 @@ def import_content(session: Session, content: ContentFolder) -> ImportResult:
         stack.summary = syllabus.stack.summary
         stack.published = syllabus.stack.published
     session.flush()
-    return ImportResult(syllabus.stack.id, syllabus.version, "imported", _is_current(session, row))
+    bank = import_bank(session, syllabus.stack.id, content.bank)
+    return ImportResult(
+        syllabus.stack.id, syllabus.version, "imported", _is_current(session, row), bank
+    )
 
 
-def _fill_in_fingerprints(session: Session, syllabus_pk: int, content: ContentFolder) -> None:
-    """Store the fingerprints of a version's Lessons imported before fingerprints existed."""
-    for lesson_id, fingerprint in lesson_fingerprints(content).items():
-        session.execute(
-            update(Lesson)
-            .where(
-                Lesson.syllabus_pk == syllabus_pk,
-                Lesson.id == lesson_id,
-                Lesson.content_hash.is_(None),
-            )
-            .values(content_hash=fingerprint)
+def import_bank(session: Session, stack_id: str, bank: Bank) -> BankChanges:
+    """Load the Stack's Question Bank (see the module docstring), then link every Question's
+    Materials to the current Syllabus. Raises ContentError, changing nothing, if a Question
+    already imported was edited or un-retired. Flushes."""
+    concepts = {
+        c.id: c for c in session.scalars(select(Concept).where(Concept.stack_id == stack_id))
+    }
+    for _, concept in bank.concepts():
+        known = concepts.get(concept.id)
+        if known is None:
+            concepts[concept.id] = Concept(stack_id=stack_id, id=concept.id, name=concept.name)
+            session.add(concepts[concept.id])
+        elif known.name != concept.name:
+            known.name = concept.name  # a Concept's name is not part of any Question
+
+    imported = {
+        q.id: q
+        for q in session.scalars(
+            select(Question)
+            .where(Question.stack_id == stack_id)
+            .options(selectinload(Question.material_links))
         )
+    }
+    changes = BankChanges()
+    refused: list[Problem] = []
+    for position, (path, question) in enumerate(bank.questions()):
+        content_hash = _question_hash(question)
+        row = imported.get(question.id)
+        if row is None:
+            row = _new_question(stack_id, question, concepts[question.concept], content_hash)
+            session.add(row)
+            imported[question.id] = row
+            changes.added.append(question.id)
+        elif row.content_hash != content_hash:
+            refused.append(
+                Problem(
+                    "error",
+                    str(path),
+                    question.id,
+                    "already imported with different content: a Question is never edited; "
+                    "retire it and add a new one",
+                )
+            )
+            continue
+        elif question.retired is None and row.retired:
+            refused.append(
+                Problem("error", str(path), question.id, "already retired: a retirement is final")
+            )
+            continue
+        else:
+            if row.lesson_id != question.lesson:
+                row.lesson_id = question.lesson
+                changes.retagged.append(question.id)
+            if question.retired is not None and not row.retired:
+                changes.retired.append(question.id)
+        if question.retired is not None:
+            row.retired_reason = question.retired.reason
+            row.replaced_by = question.retired.replaced_by
+            row.retired_on = question.retired.on
+        row.position = position
+    if refused:
+        raise ContentError(refused)
     session.flush()
+    _link_materials(session, stack_id, list(imported.values()))
+    return changes
+
+
+def _new_question(
+    stack_id: str, question: fmt.Question, concept: Concept, content_hash: str
+) -> Question:
+    row = Question(
+        stack_id=stack_id,
+        id=question.id,
+        lesson_id=question.lesson,
+        concept=concept,
+        type=question.type,
+        prompt=question.prompt,
+        explanation=question.explanation,
+        material_ids=list(question.materials),
+        content_hash=content_hash,
+        material_links=[],
+        sources=[
+            QuestionSource(
+                position=i,
+                url=s.url,
+                title=s.title,
+                publisher=s.publisher,
+                accessed=s.accessed,
+                claim=s.claim,
+            )
+            for i, s in enumerate(question.sources)
+        ],
+    )
+    if isinstance(question, fmt.MultipleChoiceQuestion):
+        row.choices = [choice.model_dump() for choice in question.choices]
+        row.answer = question.answer
+    else:
+        row.model_answer = question.model_answer.model_dump()
+    return row
+
+
+def _link_materials(session: Session, stack_id: str, questions: list[Question]) -> None:
+    """Link each Question's Materials to their rows in the Stack's current Syllabus. A link
+    already right is left alone, so an unchanged import writes nothing."""
+    stack = session.get_one(Stack, stack_id)
+    materials = {
+        m.id: m
+        for m in session.scalars(
+            select(Material).where(Material.syllabus_pk == stack.current_syllabus_pk)
+        )
+    }
+    for question in questions:
+        wanted = [
+            (materials[ref].pk, i)
+            for i, ref in enumerate(question.material_ids)
+            if ref in materials
+        ]
+        if [(link.material_pk, link.position) for link in question.material_links] == wanted:
+            continue
+        question.material_links = []
+        session.flush()
+        question.material_links = [
+            QuestionMaterial(material=materials[ref], position=i)
+            for i, ref in enumerate(question.material_ids)
+            if ref in materials
+        ]
+    session.flush()
+
+
+def _question_hash(question: fmt.Question) -> str:
+    """Everything about a Question that never changes: all but its Lesson tag and retirement."""
+    fields, _ = question_fields(question.model_dump(mode="json"))
+    return hashlib.sha256(json.dumps(fields, sort_keys=True).encode()).hexdigest()
 
 
 def _is_current(session: Session, row: Syllabus) -> bool:
@@ -143,11 +305,11 @@ def _is_current(session: Session, row: Syllabus) -> bool:
 
 def _content_hash(content: ContentFolder) -> str:
     # Fields left at their default are skipped, so adding an optional field to the format
-    # doesn't change the hash of a version that is already imported.
-    digest = hashlib.sha256(content.syllabus.model_dump_json(exclude_defaults=True).encode())
-    for bank in sorted(content.banks.values(), key=lambda b: b.lesson_id):
-        digest.update(bank.model_dump_json(exclude_defaults=True).encode())
-    return digest.hexdigest()
+    # doesn't change the hash of a version that is already imported. The Question Bank isn't
+    # part of a version.
+    return hashlib.sha256(
+        content.syllabus.model_dump_json(exclude_defaults=True).encode()
+    ).hexdigest()
 
 
 def _add_content(session: Session, syllabus_pk: int, content: ContentFolder) -> None:
@@ -166,6 +328,7 @@ def _add_content(session: Session, syllabus_pk: int, content: ContentFolder) -> 
     session.add_all(materials.values())
 
     fingerprints = lesson_fingerprints(content)
+    tagged = lesson_questions(content)
     lessons: dict[str, Lesson] = {}
     for week_position, week in enumerate(syllabus.weeks):
         week_row = Week(
@@ -189,6 +352,7 @@ def _add_content(session: Session, syllabus_pk: int, content: ContentFolder) -> 
                 exercise=lesson.exercise,
                 minutes=lesson.minutes,
                 content_hash=fingerprints[lesson.id],
+                question_ids=tagged[lesson.id],
                 material_links=[
                     LessonMaterial(material=materials[ref], position=i)
                     for i, ref in enumerate(lesson.materials)
@@ -212,49 +376,11 @@ def _add_content(session: Session, syllabus_pk: int, content: ContentFolder) -> 
         )
     session.add_all(lessons.values())
 
-    for bank in content.banks.values():
-        _add_question_bank(session, syllabus_pk, lessons[bank.lesson_id], bank, materials)
-
-
-def _add_question_bank(
-    session: Session,
-    syllabus_pk: int,
-    lesson: Lesson,
-    bank: fmt.QuestionBank,
-    materials: dict[str, Material],
-) -> None:
-    concepts = {
-        c.id: Concept(syllabus_pk=syllabus_pk, lesson=lesson, id=c.id, name=c.name)
-        for c in bank.concepts
-    }
-    session.add_all(concepts.values())
-    for position, question in enumerate(bank.questions):
-        row = Question(
-            syllabus_pk=syllabus_pk,
-            lesson=lesson,
-            concept=concepts[question.concept],
-            id=question.id,
-            position=position,
-            type=question.type,
-            prompt=question.prompt,
-            explanation=question.explanation,
-            material_links=[
-                QuestionMaterial(material=materials[ref], position=i)
-                for i, ref in enumerate(question.materials)
-            ],
-        )
-        if isinstance(question, fmt.MultipleChoiceQuestion):
-            row.choices = [choice.model_dump() for choice in question.choices]
-            row.answer = question.answer
-        else:
-            row.model_answer = question.model_answer.model_dump()
-        session.add(row)
-
 
 def main(argv: list[str] | None = None) -> int:
     from app.db import SessionLocal
 
-    parser = argparse.ArgumentParser(description="Import Stack version folders into the database.")
+    parser = argparse.ArgumentParser(description="Import Stack content into the database.")
     parser.add_argument("folders", nargs="+", type=Path)
     args = parser.parse_args(argv)
 

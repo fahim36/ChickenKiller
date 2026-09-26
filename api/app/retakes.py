@@ -11,7 +11,7 @@ becomes a Completed Lesson only when every Retake is correct.
   grader's feedback) is shown and another sibling is asked (`quiz.pick_sibling`: unused ones
   first, then cycling, never the original). If grading fails, nothing is recorded and the
   Learner answers again.
-- Siblings come from the attempt's pinned Syllabus version, like the quiz itself (#13).
+- Siblings come from the Stack's Question Bank, and are never Retired Questions.
 - Every answer is an `Answer` with `context='retake'`, so a wrong sibling is a Missed Question
   too (`quizzes.missed_questions`).
 
@@ -35,7 +35,7 @@ from sqlalchemy.orm import Session
 from app import progress, quiz
 from app.grading import Grader
 from app.marking import AnswerTooLong, GradingFailed, NotAChoice, mark
-from app.models import Answer, LearnerStack, LessonQuizAttempt, Question, Retake, Syllabus
+from app.models import Answer, LearnerStack, LessonQuizAttempt, Question, Retake
 
 RETAKE = "retake"
 """`Answer.context` for an answer given in a Retake."""
@@ -124,7 +124,7 @@ def open_retakes(
         )
     )
     for question_id in sorted(set(missed) - opened):
-        original = _version_question(session, attempt, question_id)
+        original = _question(session, attempt, question_id)
         sibling = quiz.pick_sibling(_concept_questions(session, original), original.id, [], rng)
         if sibling is None:
             continue  # a Concept with one Question: the content check rules this out
@@ -185,7 +185,7 @@ def answer_retake(
     if retake.done_at is not None:
         raise RetakeDone(retake_id)
     attempt = session.get_one(LessonQuizAttempt, retake.lesson_quiz_attempt_id)
-    question = _version_question(session, attempt, retake.asked_question_ids[-1])
+    question = _question(session, attempt, retake.asked_question_ids[-1])
     try:
         marked = mark(question, response, grader)
     except (NotAChoice, AnswerTooLong, GradingFailed):
@@ -197,7 +197,6 @@ def answer_retake(
             learner_id=record.learner_id,
             stack_id=record.stack_id,
             question_id=question.id,
-            syllabus_version=attempt.syllabus_version,
             context=RETAKE,
             retake_id=retake.id,
             response=response,
@@ -211,13 +210,13 @@ def answer_retake(
     if correct:
         retake.done_at = now
     else:
-        original = _version_question(session, attempt, retake.missed_question_id)
+        original = _question(session, attempt, retake.missed_question_id)
         next_id = quiz.pick_sibling(
             _concept_questions(session, original), original.id, retake.asked_question_ids, rng
         )
         assert next_id is not None  # the Retake was opened, so a sibling exists
         retake.asked_question_ids = [*retake.asked_question_ids, next_id]
-        next_question = _version_question(session, attempt, next_id)
+        next_question = _question(session, attempt, next_id)
     session.flush()
 
     pending = len(_pending(session, attempt))
@@ -239,29 +238,27 @@ def _pending(session: Session, attempt: LessonQuizAttempt) -> list[PendingRetake
     ).all()
     order = {qid: i for i, qid in enumerate(attempt.question_ids)}
     return [
-        PendingRetake(r, _version_question(session, attempt, r.asked_question_ids[-1]))
+        PendingRetake(r, _question(session, attempt, r.asked_question_ids[-1]))
         for r in sorted(retakes, key=lambda r: order.get(r.missed_question_id, len(order)))
     ]
 
 
-def _version_question(session: Session, attempt: LessonQuizAttempt, question_id: str) -> Question:
-    """A Question from the attempt's pinned Syllabus version."""
+def _question(session: Session, attempt: LessonQuizAttempt, question_id: str) -> Question:
+    """A Question of the attempt's Stack."""
     return session.scalars(
-        select(Question)
-        .join(Syllabus, Syllabus.pk == Question.syllabus_pk)
-        .where(
-            Syllabus.stack_id == attempt.stack_id,
-            Syllabus.version == attempt.syllabus_version,
-            Question.id == question_id,
-        )
+        select(Question).where(Question.stack_id == attempt.stack_id, Question.id == question_id)
     ).one()
 
 
 def _concept_questions(session: Session, original: Question) -> Sequence[str]:
-    """Permanent IDs of the Questions a Retake may ask on the original's Concept, in the same
-    version (the original among them)."""
+    """Permanent IDs of the Questions a Retake may ask on the original's Concept (the original
+    may be among them): never a Retired Question."""
     return session.scalars(
         select(Question.id)
-        .where(Question.concept_pk == original.concept_pk, Question.type.in_(RETAKE_TYPES))
+        .where(
+            Question.concept_pk == original.concept_pk,
+            Question.type.in_(RETAKE_TYPES),
+            Question.retired_reason.is_(None),
+        )
         .order_by(Question.position)
     ).all()
