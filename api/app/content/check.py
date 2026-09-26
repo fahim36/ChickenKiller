@@ -496,7 +496,20 @@ def _check_against_baseline(
         differ = sorted(
             k for k in fields.keys() | old.fields.keys() if fields.get(k) != old.fields.get(k)
         )
-        if differ:
+        if differ and old.legacy:
+            # Nothing was released before the move, so a slip found while writing the Sources
+            # is fixed on the way rather than retired; it is still reported.
+            problems.append(
+                Problem(
+                    "warning",
+                    file,
+                    q.id,
+                    f"changed since {ref} ({', '.join(differ)}), which is allowed only in the "
+                    "one-time move out of version folders; from now on a committed Question is "
+                    "never edited",
+                )
+            )
+        elif differ:
             problems.append(
                 Problem(
                     "error",

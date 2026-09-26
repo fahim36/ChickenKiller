@@ -1,0 +1,481 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "w10-l04-logs-metrics-traces",
+      "name": "Logs vs metrics vs traces"
+    },
+    {
+      "id": "w10-l04-spans",
+      "name": "Spans: parents, attributes, events and status"
+    },
+    {
+      "id": "w10-l04-context-propagation",
+      "name": "Context propagation across services"
+    },
+    {
+      "id": "w10-l04-percentiles-vs-averages",
+      "name": "Why percentiles beat averages for latency"
+    },
+    {
+      "id": "w10-l04-computing-percentiles",
+      "name": "Computing and aggregating percentiles"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w10-l04-q01",
+      "lesson": "w10-l04",
+      "concept": "w10-l04-logs-metrics-traces",
+      "type": "multiple_choice",
+      "prompt": "Which signal answers \"what was our error rate over the last hour?\" most cheaply?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Traces, because each one records a whole request"
+        },
+        {
+          "id": "b",
+          "text": "Metrics, because they are numeric aggregations over time"
+        },
+        {
+          "id": "c",
+          "text": "Logs, because every error writes a log line"
+        },
+        {
+          "id": "d",
+          "text": "Span events, because they carry timestamps"
+        }
+      ],
+      "answer": "b",
+      "explanation": "OpenTelemetry defines metrics as aggregations of numeric data over a period of time. A counter of errors and requests answers a rate question directly. You could count logs or traces, but that means storing and scanning every event to get one number.",
+      "materials": [
+        "opentelemetry-observability-primer"
+      ],
+      "sources": [
+        {
+          "url": "https://opentelemetry.io/docs/concepts/observability-primer/",
+          "title": "Observability primer",
+          "publisher": "OpenTelemetry (CNCF)",
+          "accessed": "2026-09-26",
+          "claim": "OpenTelemetry defines metrics as aggregations over a period of time of numeric data about an application or infrastructure."
+        }
+      ]
+    },
+    {
+      "id": "w10-l04-q02",
+      "lesson": "w10-l04",
+      "concept": "w10-l04-logs-metrics-traces",
+      "type": "multiple_choice",
+      "prompt": "One agent run took 40 seconds. Which signal shows you which step was slow?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A metric of average latency per endpoint, broken down by route"
+        },
+        {
+          "id": "b",
+          "text": "The application's error log for that run"
+        },
+        {
+          "id": "c",
+          "text": "A trace, whose spans time each model call and tool call"
+        },
+        {
+          "id": "d",
+          "text": "A daily count of runs and their total duration"
+        }
+      ],
+      "answer": "c",
+      "explanation": "A distributed trace records the path of a single request, and each span is one unit of work with its own start and end timestamps. Averages hide the single slow run, and logs usually lack the context of where in the run they happened.",
+      "materials": [
+        "opentelemetry-observability-primer",
+        "opentelemetry-traces"
+      ],
+      "sources": [
+        {
+          "url": "https://opentelemetry.io/docs/concepts/observability-primer/",
+          "title": "Observability primer",
+          "publisher": "OpenTelemetry (CNCF)",
+          "accessed": "2026-09-26",
+          "claim": "A distributed trace records the path of a single request through a system, and a span is one unit of work with its own timing data."
+        },
+        {
+          "url": "https://opentelemetry.io/docs/concepts/signals/traces/",
+          "title": "Traces",
+          "publisher": "OpenTelemetry (CNCF)",
+          "accessed": "2026-09-26",
+          "claim": "Spans in a trace share a trace_id and nest via parent_id, each with start and end timestamps."
+        }
+      ]
+    },
+    {
+      "id": "w10-l04-q03",
+      "lesson": "w10-l04",
+      "concept": "w10-l04-logs-metrics-traces",
+      "type": "written",
+      "prompt": "Compare logs, metrics and traces for an agent in production. Give one question each answers best.",
+      "model_answer": {
+        "summary": "Logs record individual events, metrics aggregate numbers over time, and traces follow one request through every step. You need all three.",
+        "key_points": [
+          "Logs are timestamped messages, good for the details of one event (for example the exact error a tool returned)",
+          "Metrics are numeric aggregations over time, good for dashboards and alerts (for example p95 latency, error rate, cost per hour)",
+          "Traces follow one request across steps and services as a tree of spans, good for finding which step of a run was slow or failed",
+          "Logs alone lack context such as where they were called from; linking them to a trace fixes that"
+        ]
+      },
+      "explanation": "Each signal answers a different kind of question. Metrics tell you something is wrong, traces tell you where, and logs tell you exactly what happened.",
+      "materials": [
+        "opentelemetry-observability-primer"
+      ],
+      "sources": [
+        {
+          "url": "https://opentelemetry.io/docs/concepts/observability-primer/",
+          "title": "Observability primer",
+          "publisher": "OpenTelemetry (CNCF)",
+          "accessed": "2026-09-26",
+          "claim": "Logs are timestamped messages that lack context unless correlated with a trace, metrics are numeric aggregations over time, and traces record a single request's path as spans."
+        }
+      ]
+    },
+    {
+      "id": "w10-l04-q04",
+      "lesson": "w10-l04",
+      "concept": "w10-l04-spans",
+      "type": "multiple_choice",
+      "prompt": "In a trace of one agent run, with spans for model calls and tool calls, what makes the root span different?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It has no parent span ID and spans the whole operation"
+        },
+        {
+          "id": "b",
+          "text": "It is the span for the first model call in the run"
+        },
+        {
+          "id": "c",
+          "text": "It is the only span allowed to carry attributes and events"
+        },
+        {
+          "id": "d",
+          "text": "It has its own trace ID, different from its children's"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Every span in a trace shares the trace ID. The root span is the one with no parent span ID, and it marks the beginning and end of the whole operation. The model-call and tool-call spans are its children, or its children's children.",
+      "materials": [
+        "opentelemetry-traces"
+      ],
+      "sources": [
+        {
+          "url": "https://opentelemetry.io/docs/concepts/signals/traces/",
+          "title": "Traces",
+          "publisher": "OpenTelemetry (CNCF)",
+          "accessed": "2026-09-26",
+          "claim": "All spans in a trace share the trace_id, and the root span is the one with no parent_id, denoting the start and end of the whole operation."
+        }
+      ]
+    },
+    {
+      "id": "w10-l04-q05",
+      "lesson": "w10-l04",
+      "concept": "w10-l04-spans",
+      "type": "multiple_choice",
+      "prompt": "Inside a model-call span, you want to record the moment the first token arrived. Should it be a span attribute or a span event?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "An attribute, because attributes can hold numbers"
+        },
+        {
+          "id": "b",
+          "text": "Neither: create a separate trace for it"
+        },
+        {
+          "id": "c",
+          "text": "An attribute on the root span"
+        },
+        {
+          "id": "d",
+          "text": "A span event, because the time it happened is the point"
+        }
+      ],
+      "answer": "d",
+      "explanation": "OpenTelemetry's rule of thumb: if the timestamp of the thing is meaningful, attach it as a span event; if not, use an attribute. Time to first token is a moment within the span, so it's an event. The model name or token count, whose timestamp doesn't matter, are attributes.",
+      "materials": [
+        "opentelemetry-traces"
+      ],
+      "sources": [
+        {
+          "url": "https://opentelemetry.io/docs/concepts/signals/traces/",
+          "title": "Traces",
+          "publisher": "OpenTelemetry (CNCF)",
+          "accessed": "2026-09-26",
+          "claim": "If the timestamp of an occurrence is meaningful, attach it as a span event; if not, record it as a span attribute."
+        }
+      ]
+    },
+    {
+      "id": "w10-l04-q06",
+      "lesson": "w10-l04",
+      "concept": "w10-l04-spans",
+      "type": "multiple_choice",
+      "prompt": "Which statement about OpenTelemetry span status is correct?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Every span must be set to `Ok` or `Error` before it ends, or it's dropped"
+        },
+        {
+          "id": "b",
+          "text": "`Unset` (default) means no error; set `Error` on failure; `Ok` is explicit"
+        },
+        {
+          "id": "c",
+          "text": "`Unset` means the span was dropped by the sampler and never reached the exporter"
+        },
+        {
+          "id": "d",
+          "text": "The status is set to `Error` automatically whenever the span records an event"
+        }
+      ],
+      "answer": "b",
+      "explanation": "A span's status is `Unset`, `Error` or `Ok`. `Unset` is the default and means success; you set `Error` when the operation failed, such as a tool that raised; `Ok` is for when a developer explicitly marks it successful. Events and sampling don't set the status.",
+      "materials": [
+        "opentelemetry-traces"
+      ],
+      "sources": [
+        {
+          "url": "https://opentelemetry.io/docs/concepts/signals/traces/",
+          "title": "Traces",
+          "publisher": "OpenTelemetry (CNCF)",
+          "accessed": "2026-09-26",
+          "claim": "Span status is Unset, Error or Ok; Unset is the default and means success, Error marks a failure, and Ok means a developer explicitly marked it successful."
+        }
+      ]
+    },
+    {
+      "id": "w10-l04-q07",
+      "lesson": "w10-l04",
+      "concept": "w10-l04-context-propagation",
+      "type": "multiple_choice",
+      "prompt": "Your agent API calls a separate retrieval service over HTTP. In your tracing backend each request shows up as two unrelated traces. What's the most likely cause?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The retrieval service uses a different metrics exporter from the agent API"
+        },
+        {
+          "id": "b",
+          "text": "The two services' clocks are a few milliseconds apart, so spans don't line up"
+        },
+        {
+          "id": "c",
+          "text": "The spans are missing the attributes that name the calling service"
+        },
+        {
+          "id": "d",
+          "text": "Trace context isn't propagated: the outgoing request has no `traceparent` header"
+        }
+      ],
+      "answer": "d",
+      "explanation": "The receiving service can only join the caller's trace if the caller sends the context, which by default is the W3C Trace Context `traceparent` header carrying the trace ID and parent span ID. Without it, the receiving service starts a new root span and the trace is split. Instrumented HTTP clients inject the header for you.",
+      "materials": [
+        "opentelemetry-context-propagation"
+      ],
+      "sources": [
+        {
+          "url": "https://opentelemetry.io/docs/concepts/context-propagation/",
+          "title": "Context propagation",
+          "publisher": "OpenTelemetry (CNCF)",
+          "accessed": "2026-09-26",
+          "claim": "OpenTelemetry's default propagator uses the W3C Trace Context traceparent header, and the receiving service extracts it so the caller's span becomes the parent; without it the traces are not linked."
+        }
+      ]
+    },
+    {
+      "id": "w10-l04-q08",
+      "lesson": "w10-l04",
+      "concept": "w10-l04-context-propagation",
+      "type": "written",
+      "prompt": "Explain context propagation in OpenTelemetry. What does the `traceparent` header carry, and what does the receiving service do with it?",
+      "model_answer": {
+        "summary": "Propagation moves the trace context from one service to the next so their spans join one trace. The `traceparent` header carries the trace ID and the caller's span ID.",
+        "key_points": [
+          "Context is the information that lets one service's signals be correlated with another's; propagation serialises it into the outgoing request",
+          "The default propagator uses the W3C Trace Context `traceparent` header: version, trace ID, parent span ID and trace flags",
+          "The receiving service reads it and creates its spans with the same trace ID, as children of the caller's span",
+          "Baggage can carry extra key-value pairs across services, but shouldn't hold sensitive data"
+        ]
+      },
+      "explanation": "Without propagation each service produces its own disconnected trace, and you lose the causal chain across the system.",
+      "materials": [
+        "opentelemetry-context-propagation"
+      ],
+      "sources": [
+        {
+          "url": "https://opentelemetry.io/docs/concepts/context-propagation/",
+          "title": "Context propagation",
+          "publisher": "OpenTelemetry (CNCF)",
+          "accessed": "2026-09-26",
+          "claim": "Propagation serializes context into requests; traceparent has the form version-traceid-parentid-traceflags, the receiver uses it as the parent of its spans, and baggage should not carry sensitive data."
+        }
+      ]
+    },
+    {
+      "id": "w10-l04-q09",
+      "lesson": "w10-l04",
+      "concept": "w10-l04-percentiles-vs-averages",
+      "type": "multiple_choice",
+      "prompt": "Ten requests took 100 ms each, except one that took 2,000 ms. What are the mean and the median latency?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Mean 100 ms, median 290 ms"
+        },
+        {
+          "id": "b",
+          "text": "Mean 1,050 ms, median 100 ms"
+        },
+        {
+          "id": "c",
+          "text": "Mean 290 ms, median 100 ms"
+        },
+        {
+          "id": "d",
+          "text": "Mean 290 ms, median 290 ms"
+        }
+      ],
+      "answer": "c",
+      "explanation": "The mean is (9 × 100 + 2,000) / 10 = 290 ms: nearly three times what nine of ten users saw. The median of the ten sorted values is the average of the 5th and 6th, both 100 ms. 1,050 ms is the midpoint of the minimum and maximum, not the mean. One slow request drags the average far from anyone's real experience.",
+      "materials": [
+        "google-sre-book-service-level-objectives",
+        "python-docs-statistics"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/library/statistics.html",
+          "title": "statistics — Mathematical statistics functions — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "statistics.mean is the sum divided by the count, and statistics.median of an even number of points is the mean of the two middle values; for nine 100s and one 2000 that gives 290 and 100."
+        },
+        {
+          "url": "https://sre.google/sre-book/service-level-objectives/",
+          "title": "Google SRE - Chapter 4: Service Level Objectives",
+          "publisher": "Google",
+          "accessed": "2026-09-26",
+          "claim": "The SRE book notes a simple average can obscure tail latencies, so metrics are better thought of as distributions."
+        }
+      ]
+    },
+    {
+      "id": "w10-l04-q10",
+      "lesson": "w10-l04",
+      "concept": "w10-l04-percentiles-vs-averages",
+      "type": "written",
+      "prompt": "Why is p95 latency more useful than the average for an LLM feature?",
+      "model_answer": {
+        "summary": "Latency is a skewed distribution with a long tail. The average blends the tail into one misleading number, while p95 says what the slowest 5% of users experience.",
+        "key_points": [
+          "Latency distributions have a long tail: most requests are fast and a few are much slower",
+          "The average is pulled up by outliers and hides the shape of the distribution, so it describes almost no real request",
+          "p95 means 95% of requests were at least this fast; the slowest 5% took longer, which is what those users feel",
+          "Users prefer a consistently slightly slower system to one with high variance, so SLOs are usually set on high percentiles"
+        ]
+      },
+      "explanation": "The Google SRE book advises thinking of metrics as distributions rather than averages, because an average hides a long tail of much slower requests.",
+      "materials": [
+        "google-sre-book-service-level-objectives"
+      ],
+      "sources": [
+        {
+          "url": "https://sre.google/sre-book/service-level-objectives/",
+          "title": "Google SRE - Chapter 4: Service Level Objectives",
+          "publisher": "Google",
+          "accessed": "2026-09-26",
+          "claim": "Most metrics are better treated as distributions than averages, since an average hides tail latency, and users typically prefer a slightly slower system to one with high variance."
+        }
+      ]
+    },
+    {
+      "id": "w10-l04-q11",
+      "lesson": "w10-l04",
+      "concept": "w10-l04-computing-percentiles",
+      "type": "multiple_choice",
+      "prompt": "Three servers report p95 latencies of 1.0 s, 1.2 s and 3.0 s. What is the p95 across all three?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The average of the three, about 1.73 s, since each server's p95 counts equally"
+        },
+        {
+          "id": "b",
+          "text": "It can't be computed from these; you need raw latencies or mergeable histograms"
+        },
+        {
+          "id": "c",
+          "text": "The maximum, 3.0 s, because the overall p95 always equals the slowest server's p95"
+        },
+        {
+          "id": "d",
+          "text": "The median, 1.2 s, because it ignores the outlier server at 3.0 s"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Percentiles don't average: the result depends on how many requests each server handled and how their distributions look. Prometheus' docs call averaging precomputed quantiles statistically nonsensical. Aggregate histogram buckets and compute the percentile from the merged histogram, or compute it from all the raw values.",
+      "materials": [
+        "prometheus-histograms-and-summaries"
+      ],
+      "sources": [
+        {
+          "url": "https://prometheus.io/docs/practices/histograms/",
+          "title": "Histograms and summaries | Prometheus",
+          "publisher": "Prometheus (CNCF)",
+          "accessed": "2026-09-26",
+          "claim": "Aggregating precomputed quantiles from summaries rarely makes sense and averaging them is statistically nonsensical, whereas histograms can be aggregated with histogram_quantile()."
+        }
+      ]
+    },
+    {
+      "id": "w10-l04-q12",
+      "lesson": "w10-l04",
+      "concept": "w10-l04-computing-percentiles",
+      "type": "multiple_choice",
+      "prompt": "You load latencies from your JSONL traces and run `qs = statistics.quantiles(latencies, n=100)`. Which expression is p95?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`qs[95]`"
+        },
+        {
+          "id": "b",
+          "text": "`qs[-1]`"
+        },
+        {
+          "id": "c",
+          "text": "`qs[0.95]`"
+        },
+        {
+          "id": "d",
+          "text": "`qs[94]`"
+        }
+      ],
+      "answer": "d",
+      "explanation": "With `n=100`, `statistics.quantiles` returns the 99 cut points between 100 equal groups: `qs[0]` is the 1st percentile, so the 95th is `qs[94]`. `qs[-1]` is p99, and a list index must be an integer. The default `method='exclusive'` estimates from a sample; `method='inclusive'` treats the data as the whole population.",
+      "materials": [
+        "python-docs-statistics"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/library/statistics.html",
+          "title": "statistics — Mathematical statistics functions — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "statistics.quantiles(data, n=100) returns the 99 cut points separating 100 equal groups (so index 94 is the 95th percentile), with method 'exclusive' as the default and 'inclusive' for population data."
+        }
+      ]
+    }
+  ]
+}

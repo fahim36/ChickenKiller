@@ -1,0 +1,522 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "w16-l02-trustworthy-llm-judge",
+      "name": "Checking that an LLM judge can be trusted"
+    },
+    {
+      "id": "w16-l02-idempotency-keys",
+      "name": "Safe retries with idempotency keys"
+    },
+    {
+      "id": "w16-l02-latency-percentiles",
+      "name": "Percentiles vs the average for latency"
+    },
+    {
+      "id": "w16-l02-excessive-agency",
+      "name": "Excessive agency and its three root causes"
+    },
+    {
+      "id": "w16-l02-indirect-prompt-injection",
+      "name": "Defending an agent against indirect prompt injection"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w16-l02-q01",
+      "lesson": "w16-l02",
+      "concept": "w16-l02-trustworthy-llm-judge",
+      "type": "multiple_choice",
+      "prompt": "A domain expert labelled 200 traces, and 10 of them are failures. Your new LLM judge marks all 200 as Pass. Which statement is right?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It agrees with the expert 5% of the time, because it never says Fail"
+        },
+        {
+          "id": "b",
+          "text": "It agrees 95% of the time, which is good enough to gate pull requests"
+        },
+        {
+          "id": "c",
+          "text": "Its agreement can't be computed until the judge outputs 1–5 scores"
+        },
+        {
+          "id": "d",
+          "text": "It agrees 95% of the time but catches none of the 10 failures"
+        }
+      ],
+      "answer": "d",
+      "explanation": "It matches the expert on the 190 passing traces, so 190 / 200 = 95% agreement, yet it detects 0 of the 10 failures. Hamel Husain uses this example to show why raw agreement misleads when failures are rare. Measure separately the share of real failures the judge catches and the share of good outputs it passes.",
+      "materials": [
+        "hamel-husain-using-llm-as-a",
+        "hamel-husain-shreya-shankar-llm-evals"
+      ],
+      "sources": [
+        {
+          "url": "https://hamel.dev/blog/posts/llm-judge/",
+          "title": "Using LLM-as-a-Judge For Evaluation: A Complete Guide - Hamel's Blog",
+          "publisher": "Hamel Husain",
+          "accessed": "2026-09-26",
+          "claim": "Husain notes that if errors occur in 5% of examples, a judge that always predicts Pass still has 95% agreement while detecting none of the errors."
+        },
+        {
+          "url": "https://hamel.dev/blog/posts/evals-faq/",
+          "title": "AI Evals: Everything You Need to Know - Hamel's Blog",
+          "publisher": "Hamel Husain and Shreya Shankar",
+          "accessed": "2026-09-26",
+          "claim": "The evals FAQ recommends tracking the share of real failures the judge catches (TPR) and the share of good outputs it passes (TNR) separately."
+        }
+      ]
+    },
+    {
+      "id": "w16-l02-q02",
+      "lesson": "w16-l02",
+      "concept": "w16-l02-trustworthy-llm-judge",
+      "type": "written",
+      "prompt": "An interviewer asks: \"How do you know your LLM judge is trustworthy?\" Describe how you would check it.",
+      "model_answer": {
+        "summary": "Treat the judge as a classifier and measure it against a domain expert's labels. Tune its prompt on some labelled examples and measure it once on examples it has never seen.",
+        "key_points": [
+          "A domain expert labels real traces Pass or Fail, with a short critique, and those labels are the ground truth",
+          "Labelled examples are split: a few go in the judge's prompt, a dev set is used to improve the prompt, and a held-out test set is used once at the end",
+          "Report the share of real failures the judge catches and the share of good outputs it passes (TPR and TNR), not raw agreement",
+          "Binary Pass/Fail labels are preferred to 1–5 scales, because the gap between a 3 and a 4 is subjective",
+          "Generic off-the-shelf metrics (ROUGE, BERTScore, cosine similarity) don't show that a judge agrees with your expert"
+        ]
+      },
+      "explanation": "The judge is only as good as its agreement with the person whose standard it stands in for. Keeping a test set the prompt was never tuned on keeps the reported numbers honest. Tracking both rates matters because catching more failures can cost more false alarms.",
+      "materials": [
+        "hamel-husain-using-llm-as-a",
+        "hamel-husain-shreya-shankar-llm-evals"
+      ],
+      "sources": [
+        {
+          "url": "https://hamel.dev/blog/posts/llm-judge/",
+          "title": "Using LLM-as-a-Judge For Evaluation: A Complete Guide - Hamel's Blog",
+          "publisher": "Hamel Husain",
+          "accessed": "2026-09-26",
+          "claim": "Husain describes using a domain expert's pass/fail labels with critiques as ground truth, splitting labelled data into few-shot, dev and held-out test sets, and measuring TPR and TNR rather than raw agreement."
+        },
+        {
+          "url": "https://hamel.dev/blog/posts/evals-faq/",
+          "title": "AI Evals: Everything You Need to Know - Hamel's Blog",
+          "publisher": "Hamel Husain and Shreya Shankar",
+          "accessed": "2026-09-26",
+          "claim": "The evals FAQ prefers binary pass/fail over Likert scales, uses train/dev/test splits for judges, and says generic metrics like ROUGE and BERTScore don't reflect your product's failures."
+        }
+      ]
+    },
+    {
+      "id": "w16-l02-q03",
+      "lesson": "w16-l02",
+      "concept": "w16-l02-trustworthy-llm-judge",
+      "type": "multiple_choice",
+      "prompt": "Why do Hamel Husain and Shreya Shankar recommend binary Pass/Fail labels over a 1–5 scale for LLM evals?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A binary call forces a clear decision; 3 vs 4 is subjective and inconsistent between labellers"
+        },
+        {
+          "id": "b",
+          "text": "LLM judges can't reliably output numbers, so a scale always fails to parse"
+        },
+        {
+          "id": "c",
+          "text": "Binary labels halve the number of tokens each judge call uses"
+        },
+        {
+          "id": "d",
+          "text": "A 1–5 score can't be averaged across traces, so trends are invisible"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Their evals FAQ says binary evaluations force clearer thinking and more consistent labelling, while the difference between adjacent scale points is subjective and varies between annotators. A middle score also tells nobody what to fix. Scores can be averaged; the problem is that they don't mean the same thing to every labeller.",
+      "materials": [
+        "hamel-husain-shreya-shankar-llm-evals",
+        "hamel-husain-using-llm-as-a"
+      ],
+      "sources": [
+        {
+          "url": "https://hamel.dev/blog/posts/evals-faq/",
+          "title": "AI Evals: Everything You Need to Know - Hamel's Blog",
+          "publisher": "Hamel Husain and Shreya Shankar",
+          "accessed": "2026-09-26",
+          "claim": "The evals FAQ says binary evaluations force clearer thinking and more consistent labelling, while the gap between adjacent Likert points like 3 and 4 is subjective and varies by annotator."
+        },
+        {
+          "url": "https://hamel.dev/blog/posts/llm-judge/",
+          "title": "Using LLM-as-a-Judge For Evaluation: A Complete Guide - Hamel's Blog",
+          "publisher": "Hamel Husain",
+          "accessed": "2026-09-26",
+          "claim": "Husain argues against 1-5 scores and for simple pass/fail decisions with critiques."
+        }
+      ]
+    },
+    {
+      "id": "w16-l02-q04",
+      "lesson": "w16-l02",
+      "concept": "w16-l02-idempotency-keys",
+      "type": "multiple_choice",
+      "prompt": "Your agent sends `POST /v1/charges` to a payments API, and the connection drops before any response arrives. What makes a retry safe?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Resend it as `PUT`, because `PUT` is idempotent"
+        },
+        {
+          "id": "b",
+          "text": "Retry with the same `Idempotency-Key` header, so the server returns the first request's saved result"
+        },
+        {
+          "id": "c",
+          "text": "Retry with a new idempotency key each time, so the server treats it as a fresh request"
+        },
+        {
+          "id": "d",
+          "text": "Retry only on a `500`, because a `500` means nothing was charged"
+        }
+      ],
+      "answer": "b",
+      "explanation": "`POST` isn't idempotent, so a blind retry can charge twice. With an idempotency key the server saves the status code and body of the first request for that key, and returns them for every repeat with the same key. A new key per attempt defeats this. Changing the method doesn't make the endpoint idempotent. And a `500` doesn't prove nothing happened: Stripe even replays a saved `500` for the same key.",
+      "materials": [
+        "stripe-docs-idempotent-requests",
+        "rfc-9110-http-semantics"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.stripe.com/api/idempotent_requests",
+          "title": "Idempotent requests | Stripe API Reference",
+          "publisher": "Stripe",
+          "accessed": "2026-09-26",
+          "claim": "Stripe saves the status code and body of the first request for an idempotency key and returns the same result, including 500 errors, for later requests with that key, so connection-error retries are safe."
+        },
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc9110.html",
+          "title": "RFC 9110: HTTP Semantics",
+          "publisher": "IETF (RFC Editor)",
+          "accessed": "2026-09-26",
+          "claim": "RFC 9110 defines PUT, DELETE and safe methods as idempotent; POST is not idempotent."
+        }
+      ]
+    },
+    {
+      "id": "w16-l02-q05",
+      "lesson": "w16-l02",
+      "concept": "w16-l02-idempotency-keys",
+      "type": "multiple_choice",
+      "prompt": "With Stripe's API, a retry reuses an idempotency key, but its body has a different `amount` from the first request. What does Stripe do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Creates a second charge for the new amount"
+        },
+        {
+          "id": "b",
+          "text": "Returns the first request's result and ignores the new amount"
+        },
+        {
+          "id": "c",
+          "text": "Returns an error, because the parameters don't match the original request"
+        },
+        {
+          "id": "d",
+          "text": "Updates the first charge to the new amount"
+        }
+      ],
+      "answer": "c",
+      "explanation": "Stripe's docs say the idempotency layer compares incoming parameters with the original request's and returns an error if they differ, to prevent accidental misuse. A key names one operation. Reusing it for a different operation is a bug in the client. This is Stripe's behaviour; other APIs that take idempotency keys may differ.",
+      "materials": [
+        "stripe-docs-idempotent-requests"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.stripe.com/api/idempotent_requests",
+          "title": "Idempotent requests | Stripe API Reference",
+          "publisher": "Stripe",
+          "accessed": "2026-09-26",
+          "claim": "Stripe's idempotency layer compares incoming parameters to those of the original request and returns an error if they differ, to prevent accidental misuse."
+        }
+      ]
+    },
+    {
+      "id": "w16-l02-q06",
+      "lesson": "w16-l02",
+      "concept": "w16-l02-idempotency-keys",
+      "type": "written",
+      "prompt": "An interviewer asks: \"How do you safely retry a call that is not idempotent?\" Use an agent tool that sends an invoice as your example.",
+      "model_answer": {
+        "summary": "Give each logical operation a unique idempotency key and send the same key on every retry. The server stores the result under that key and returns it for repeats instead of running the operation again.",
+        "key_points": [
+          "`POST` is not idempotent, unlike `GET`, `HEAD`, `PUT` and `DELETE` (RFC 9110), so a blind retry can send the invoice twice",
+          "The client generates one unique key per operation (for example a UUIDv4) before the first attempt and reuses it on every retry",
+          "The server saves the first result for the key and returns it for later requests with the same key",
+          "A request that reuses a key with different parameters is rejected, not treated as a new operation",
+          "Keys expire (Stripe prunes them after at least 24 hours), so retries must happen inside that window"
+        ]
+      },
+      "explanation": "The key must be created once per operation, not once per HTTP attempt, or every retry looks new. Store it with the agent's step, so a worker that crashes and restarts sends the same key.",
+      "materials": [
+        "stripe-docs-idempotent-requests",
+        "rfc-9110-http-semantics"
+      ],
+      "sources": [
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc9110.html",
+          "title": "RFC 9110: HTTP Semantics",
+          "publisher": "IETF (RFC Editor)",
+          "accessed": "2026-09-26",
+          "claim": "RFC 9110 lists PUT, DELETE and the safe methods (GET, HEAD, OPTIONS, TRACE) as idempotent, which excludes POST."
+        },
+        {
+          "url": "https://docs.stripe.com/api/idempotent_requests",
+          "title": "Idempotent requests | Stripe API Reference",
+          "publisher": "Stripe",
+          "accessed": "2026-09-26",
+          "claim": "Stripe recommends a client-generated V4 UUID key per operation, replays the first saved result for repeats, errors on mismatched parameters, and allows keys to be pruned once at least 24 hours old."
+        }
+      ]
+    },
+    {
+      "id": "w16-l02-q07",
+      "lesson": "w16-l02",
+      "concept": "w16-l02-latency-percentiles",
+      "type": "multiple_choice",
+      "prompt": "Out of 100 agent requests, 94 take 100 ms and 6 take 2,000 ms. Using the nearest-rank method (p95 is the 95th of the 100 sorted values), what are the mean and the p95?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Mean 214 ms, p95 100 ms"
+        },
+        {
+          "id": "b",
+          "text": "Mean 1,050 ms, p95 2,000 ms"
+        },
+        {
+          "id": "c",
+          "text": "Mean 214 ms, p95 2,000 ms"
+        },
+        {
+          "id": "d",
+          "text": "Mean 100 ms, p95 214 ms"
+        }
+      ],
+      "answer": "c",
+      "explanation": "Mean = (94 × 100 + 6 × 2,000) / 100 = (9,400 + 12,000) / 100 = 214 ms, a latency no request actually had. Sorted, values 1–94 are 100 ms and values 95–100 are 2,000 ms, so the 95th value is 2,000 ms. The p95 shows the slow tail the average hides. The 1,050 ms answer averages the two distinct values instead of all 100 requests.",
+      "materials": [
+        "google-sre-book-service-level-objectives"
+      ],
+      "sources": [
+        {
+          "url": "https://sre.google/sre-book/service-level-objectives/",
+          "title": "Chapter 4 - Service Level Objectives",
+          "publisher": "Google",
+          "accessed": "2026-09-26",
+          "claim": "The SRE book says averaging latencies hides a long tail and recommends percentiles; with values 1-94 at 100 ms and 95-100 at 2,000 ms, the mean is 214 ms and the nearest-rank p95 is 2,000 ms."
+        }
+      ]
+    },
+    {
+      "id": "w16-l02-q08",
+      "lesson": "w16-l02",
+      "concept": "w16-l02-latency-percentiles",
+      "type": "written",
+      "prompt": "An interviewer asks: \"Why is p95 more useful than the average?\" Answer for an agent's response latency.",
+      "model_answer": {
+        "summary": "Latency is a distribution with a long tail, and an average hides both the tail and changes in it. A high percentile tells you what the slowest users actually experience.",
+        "key_points": [
+          "Latency is a distribution, not a single number, and a few very slow requests form a long tail",
+          "A simple average can hide tail latency, and changes in it",
+          "p95 = X means 5% of requests are slower than X, so it describes real users' worst experience",
+          "Use p50 for the typical case and p95 or p99 for a plausible worst case, and set targets on them"
+        ]
+      },
+      "explanation": "Google's SRE book gives an example where a typical request takes about 50 ms but 5% of requests are 20 times slower, which the average hides. Agents make the tail worse, because a few runs take many more tool-call steps or produce much longer outputs.",
+      "materials": [
+        "google-sre-book-service-level-objectives"
+      ],
+      "sources": [
+        {
+          "url": "https://sre.google/sre-book/service-level-objectives/",
+          "title": "Chapter 4 - Service Level Objectives",
+          "publisher": "Google",
+          "accessed": "2026-09-26",
+          "claim": "The SRE book says averages hide a long tail, gives an example where a typical request is about 50 ms but 5% are 20 times slower, and recommends percentiles such as the median and 99th percentile."
+        }
+      ]
+    },
+    {
+      "id": "w16-l02-q09",
+      "lesson": "w16-l02",
+      "concept": "w16-l02-excessive-agency",
+      "type": "multiple_choice",
+      "prompt": "An inbox-summary agent uses a mail tool that can read, send and delete, with a full-mailbox OAuth scope. By OWASP LLM06:2025 Excessive Agency, what is the problem, and what is the fix?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Hallucination; lower the temperature so the model doesn't invent actions"
+        },
+        {
+          "id": "b",
+          "text": "Excessive autonomy; add a system-prompt rule never to send or delete mail"
+        },
+        {
+          "id": "c",
+          "text": "Prompt injection; filter emails for phrases like \"ignore previous instructions\""
+        },
+        {
+          "id": "d",
+          "text": "Excessive functionality and permissions; give it a read-only tool with a read-only scope"
+        }
+      ],
+      "answer": "d",
+      "explanation": "OWASP names three root causes: excessive functionality (tools that can do more than the task needs), excessive permissions (more access than needed) and excessive autonomy (high-impact actions without a check). A summariser only needs to read, so remove send and delete and request a read-only scope. A system-prompt rule is not an enforced control, and phrase filtering is easy to get around.",
+      "materials": [
+        "owasp-top-10-for-llm-applications"
+      ],
+      "sources": [
+        {
+          "url": "https://genai.owasp.org/llmrisk/llm062025-excessive-agency/",
+          "title": "LLM06:2025 Excessive Agency - OWASP Gen AI Security Project",
+          "publisher": "OWASP Foundation",
+          "accessed": "2026-09-26",
+          "claim": "OWASP LLM06:2025 names excessive functionality, excessive permissions and excessive autonomy as root causes, and recommends minimal extensions and read-only OAuth scopes for an email-reading assistant."
+        }
+      ]
+    },
+    {
+      "id": "w16-l02-q10",
+      "lesson": "w16-l02",
+      "concept": "w16-l02-excessive-agency",
+      "type": "multiple_choice",
+      "prompt": "A document agent deletes files as soon as the model decides to, without asking the user. Which of OWASP's three root causes of excessive agency is this?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Excessive permissions"
+        },
+        {
+          "id": "b",
+          "text": "Excessive autonomy"
+        },
+        {
+          "id": "c",
+          "text": "Excessive functionality"
+        },
+        {
+          "id": "d",
+          "text": "Improper output handling"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Excessive autonomy means the system takes high-impact actions without independent verification. OWASP's own example is deleting documents without asking the user to confirm. The fix is human approval for high-impact actions. Excessive permissions is about the access level the tool runs with. Improper output handling is a separate OWASP risk (LLM05), about passing model output unchecked to other systems.",
+      "materials": [
+        "owasp-top-10-for-llm-applications"
+      ],
+      "sources": [
+        {
+          "url": "https://genai.owasp.org/llmrisk/llm062025-excessive-agency/",
+          "title": "LLM06:2025 Excessive Agency - OWASP Gen AI Security Project",
+          "publisher": "OWASP Foundation",
+          "accessed": "2026-09-26",
+          "claim": "OWASP defines excessive autonomy as high-impact actions without independent verification, with the example of an extension that deletes a user's documents without confirmation, and recommends human approval."
+        }
+      ]
+    },
+    {
+      "id": "w16-l02-q11",
+      "lesson": "w16-l02",
+      "concept": "w16-l02-indirect-prompt-injection",
+      "type": "multiple_choice",
+      "prompt": "An email agent can read your inbox, reads emails from anyone, and can make outbound HTTP requests. Which single change most reliably stops a hidden instruction in an email from leaking your inbox?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Remove its ability to send data out, such as outbound HTTP or sending mail"
+        },
+        {
+          "id": "b",
+          "text": "Add a guardrail model that its vendor says catches 95% of injection attempts"
+        },
+        {
+          "id": "c",
+          "text": "Tell the model in the system prompt to ignore any instructions found in emails"
+        },
+        {
+          "id": "d",
+          "text": "Fine-tune the model on examples of prompt-injection attacks"
+        }
+      ],
+      "answer": "a",
+      "explanation": "The agent has all three parts of Simon Willison's lethal trifecta: private data, untrusted content and a way to send data out. Removing one part, here the way out, makes this attack impossible no matter what the email says. OWASP says it is unclear whether any fool-proof prevention for prompt injection exists. Detection that stops 95% of attacks still lets 1 in 20 through, and a system-prompt rule is itself just text an attacker can argue with.",
+      "materials": [
+        "simon-willison-the-lethal-trifecta-for",
+        "owasp-top-10-for-llm-applications"
+      ],
+      "sources": [
+        {
+          "url": "https://simonwillison.net/2025/Jun/16/the-lethal-trifecta/",
+          "title": "The lethal trifecta for AI agents: private data, untrusted content, and external communication",
+          "publisher": "Simon Willison",
+          "accessed": "2026-09-26",
+          "claim": "Willison's lethal trifecta is private data, untrusted content and the ability to communicate externally; avoiding the combination is the only way to stay safe, and 95% detection is a failing grade."
+        },
+        {
+          "url": "https://genai.owasp.org/llmrisk/llm01-prompt-injection/",
+          "title": "LLM01:2025 Prompt Injection - OWASP Gen AI Security Project",
+          "publisher": "OWASP Foundation",
+          "accessed": "2026-09-26",
+          "claim": "OWASP LLM01:2025 says it is unclear whether fool-proof prevention for prompt injection exists."
+        }
+      ]
+    },
+    {
+      "id": "w16-l02-q12",
+      "lesson": "w16-l02",
+      "concept": "w16-l02-indirect-prompt-injection",
+      "type": "written",
+      "prompt": "An interviewer asks: \"How would you defend an email-reading agent against indirect prompt injection?\" Give your answer.",
+      "model_answer": {
+        "summary": "Assume some injected instructions will get through, and limit what they can do. Use least-privilege tools, require human approval for risky actions, mark untrusted content clearly, and never combine private data, untrusted input and a way to send data out.",
+        "key_points": [
+          "Indirect injection arrives in external content the agent reads (emails, web pages, files), not from the user",
+          "No fool-proof prevention is known, so design to limit damage rather than rely on detection",
+          "Least privilege: read-only tools and scopes, and no send or forward capability unless the task needs it",
+          "Require human approval for high-risk actions such as sending, forwarding or deleting",
+          "Break the lethal trifecta by removing the way to send data out, and mark untrusted content as data, not instructions"
+        ]
+      },
+      "explanation": "OWASP LLM01:2025 lists constraining model behaviour, least privilege, human approval for high-risk actions, separating and marking external content, and adversarial testing. It also says RAG and fine-tuning don't fully fix prompt injection. A strong answer is about architecture, not a cleverer prompt.",
+      "materials": [
+        "owasp-top-10-for-llm-applications",
+        "simon-willison-the-lethal-trifecta-for",
+        "simon-willison-prompt-injection-series"
+      ],
+      "sources": [
+        {
+          "url": "https://genai.owasp.org/llmrisk/llm01-prompt-injection/",
+          "title": "LLM01:2025 Prompt Injection - OWASP Gen AI Security Project",
+          "publisher": "OWASP Foundation",
+          "accessed": "2026-09-26",
+          "claim": "OWASP LLM01:2025 defines indirect injection as input from external sources, says fool-proof prevention is unclear and RAG or fine-tuning don't fully mitigate it, and lists least privilege, human approval for high-risk actions, segregating external content and adversarial testing."
+        },
+        {
+          "url": "https://simonwillison.net/2025/Jun/16/the-lethal-trifecta/",
+          "title": "The lethal trifecta for AI agents: private data, untrusted content, and external communication",
+          "publisher": "Simon Willison",
+          "accessed": "2026-09-26",
+          "claim": "Willison says breaking the combination of private data, untrusted content and external communication is the way to stay safe."
+        },
+        {
+          "url": "https://simonwillison.net/series/prompt-injection/",
+          "title": "Simon Willison: Prompt injection",
+          "publisher": "Simon Willison",
+          "accessed": "2026-09-26",
+          "claim": "Willison's prompt injection series documents that simple mitigations such as delimiters and AI-based detection fail to reliably stop prompt injection."
+        }
+      ]
+    }
+  ]
+}

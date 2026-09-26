@@ -1,0 +1,433 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "w10-l01-gateway-role",
+      "name": "What a model gateway centralises"
+    },
+    {
+      "id": "w10-l01-retries-then-fallbacks",
+      "name": "Retries, then fallbacks, by error type"
+    },
+    {
+      "id": "w10-l01-deployment-groups-cooldowns",
+      "name": "Deployment groups, load balancing and cooldowns"
+    },
+    {
+      "id": "w10-l01-tenant-budgets-rate-limits",
+      "name": "Per-tenant budgets and rate limits"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w10-l01-q01",
+      "lesson": "w10-l01",
+      "concept": "w10-l01-gateway-role",
+      "type": "multiple_choice",
+      "prompt": "Five teams each call OpenAI and Anthropic directly with their own copies of the company's provider API keys. What is the main thing a model gateway in front of the providers changes?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It improves answer quality, because the gateway combines the answers of several models into one"
+        },
+        {
+          "id": "b",
+          "text": "Teams get gateway keys; provider keys, access rules, spend tracking and fallbacks live in one place"
+        },
+        {
+          "id": "c",
+          "text": "It removes the need for retries, because the gateway caches every response it has ever returned"
+        },
+        {
+          "id": "d",
+          "text": "Providers require a gateway once more than one team shares an organisation account and its API keys"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Chip Huyen describes a model gateway as an intermediate layer that gives an organisation one unified and secure way to reach different models. Instead of handing provider keys to every team, you give each team a gateway key, and the gateway applies access control, cost tracking, fallbacks, load balancing and logging. It does not merge answers from several models, and it doesn't make retries unnecessary.",
+      "materials": [
+        "chip-huyen-building-a-generative-ai",
+        "litellm-llm-gateway-routing-fallbacks"
+      ],
+      "sources": [
+        {
+          "url": "https://huyenchip.com/2024/07/25/genai-platform.html",
+          "title": "Building A Generative AI Platform",
+          "publisher": "Chip Huyen",
+          "accessed": "2026-09-26",
+          "claim": "Huyen defines a model gateway as an intermediate layer giving an organisation a unified and secure interface to different models, handling access control, cost management, fallbacks, load balancing and logging, with users given gateway access instead of org API keys."
+        },
+        {
+          "url": "https://docs.litellm.ai/docs/getting_started",
+          "title": "LiteLLM - Getting Started",
+          "publisher": "LiteLLM (BerriAI)",
+          "accessed": "2026-09-26",
+          "claim": "The LiteLLM proxy (LLM gateway) issues virtual keys and centralises cost tracking, budgets, rate limits and retry/fallback logic across providers."
+        }
+      ]
+    },
+    {
+      "id": "w10-l01-q02",
+      "lesson": "w10-l01",
+      "concept": "w10-l01-gateway-role",
+      "type": "written",
+      "prompt": "Design an LLM gateway for five teams that each have their own monthly budget. Name the parts you would build and what each one is for.",
+      "model_answer": {
+        "summary": "One gateway gives every team a single API. Each team has its own key, and budgets, rate limits, fallbacks and logging are enforced centrally.",
+        "key_points": [
+          "A single interface (for example OpenAI-compatible) in front of every provider and self-hosted model",
+          "Each team gets its own gateway key or team; the real provider keys stay inside the gateway",
+          "Per-team spend tracking with a budget that resets on a schedule, and per-team rate limits (requests or tokens per minute)",
+          "Retries and fallbacks to another model or provider when a call fails or is rate limited",
+          "Logging of every request with team, model, tokens, cost and latency, for dashboards and chargeback"
+        ]
+      },
+      "explanation": "A gateway is the one place every model call passes through, so it is where access control, budgets, reliability and observability belong. In LiteLLM this maps to teams and virtual keys with `max_budget` and `budget_duration`, `tpm_limit`/`rpm_limit`, and `fallbacks` in the config.",
+      "materials": [
+        "chip-huyen-building-a-generative-ai",
+        "litellm-proxy-budgets-rate-limits",
+        "litellm-proxy-reliability-fallbacks"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.litellm.ai/docs/getting_started",
+          "title": "LiteLLM - Getting Started",
+          "publisher": "LiteLLM (BerriAI)",
+          "accessed": "2026-09-26",
+          "claim": "LiteLLM's proxy exposes an OpenAI-compatible interface to 100+ providers with virtual keys, per-project spend tracking, rate limits, budgets and fallbacks."
+        },
+        {
+          "url": "https://docs.litellm.ai/docs/proxy/users",
+          "title": "Budgets, Rate Limits | liteLLM",
+          "publisher": "LiteLLM (BerriAI)",
+          "accessed": "2026-09-26",
+          "claim": "Budgets are set with max_budget and reset after budget_duration, can apply to teams, users, keys and end users, and tpm_limit, rpm_limit and max_parallel_requests limit rate."
+        },
+        {
+          "url": "https://docs.litellm.ai/docs/proxy/reliability",
+          "title": "Fallbacks (Provider Failover) | LiteLLM",
+          "publisher": "LiteLLM (BerriAI)",
+          "accessed": "2026-09-26",
+          "claim": "The proxy config supports fallbacks to other model groups after num_retries, plus context_window_fallbacks and content_policy_fallbacks."
+        }
+      ]
+    },
+    {
+      "id": "w10-l01-q03",
+      "lesson": "w10-l01",
+      "concept": "w10-l01-retries-then-fallbacks",
+      "type": "multiple_choice",
+      "prompt": "A LiteLLM proxy config has `num_retries: 3` and `fallbacks: [{\"zephyr-beta\": [\"gpt-main\"]}]`. The `zephyr-beta` deployment keeps returning HTTP 500. What happens to a request for `zephyr-beta`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It goes straight to `gpt-main` on the first 500, and `num_retries` applies only to the fallback model"
+        },
+        {
+          "id": "b",
+          "text": "It fails with the 500, because `fallbacks` only handles context-window errors"
+        },
+        {
+          "id": "c",
+          "text": "It is retried on `zephyr-beta` up to 3 times, and then sent to `gpt-main`"
+        },
+        {
+          "id": "d",
+          "text": "It is sent to `zephyr-beta` and `gpt-main` at the same time, and the faster answer wins"
+        }
+      ],
+      "answer": "c",
+      "explanation": "LiteLLM retries the primary model `num_retries` times before it tries the fallbacks, so a brief outage is absorbed by retries and a lasting one by the fallback model group. `fallbacks` handles general errors such as 429 and 500; context-window and content-policy errors have their own settings.",
+      "materials": [
+        "litellm-proxy-reliability-fallbacks",
+        "litellm-llm-gateway-routing-fallbacks"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.litellm.ai/docs/proxy/reliability",
+          "title": "Fallbacks (Provider Failover) | LiteLLM",
+          "publisher": "LiteLLM (BerriAI)",
+          "accessed": "2026-09-26",
+          "claim": "LiteLLM retries a model group num_retries times before trying its fallbacks, and the general fallbacks setting covers errors such as 429 and 500, with separate settings for context-window and content-policy errors."
+        }
+      ]
+    },
+    {
+      "id": "w10-l01-q04",
+      "lesson": "w10-l01",
+      "concept": "w10-l01-retries-then-fallbacks",
+      "type": "multiple_choice",
+      "prompt": "A request fails because the prompt is longer than the model's context window. Which LiteLLM setting sends it to a model with a larger context window?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Raising `num_retries`, so the same model is tried again"
+        },
+        {
+          "id": "b",
+          "text": "`content_policy_fallbacks`"
+        },
+        {
+          "id": "c",
+          "text": "A longer `cooldown_time` on the failing deployment"
+        },
+        {
+          "id": "d",
+          "text": "`context_window_fallbacks`"
+        }
+      ],
+      "answer": "d",
+      "explanation": "`context_window_fallbacks` fires on a `ContextWindowExceededError` and routes the request to the model you list, typically one with a larger window. Retrying the same model can't help, because the prompt will be too long every time. `content_policy_fallbacks` is for `ContentPolicyViolationError`, and cooldowns take a failing deployment out of rotation; neither fixes a prompt that is too long.",
+      "materials": [
+        "litellm-proxy-reliability-fallbacks"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.litellm.ai/docs/proxy/reliability",
+          "title": "Fallbacks (Provider Failover) | LiteLLM",
+          "publisher": "LiteLLM (BerriAI)",
+          "accessed": "2026-09-26",
+          "claim": "context_window_fallbacks handles context-window-exceeded errors and content_policy_fallbacks handles content-policy violations, each routing to the listed model."
+        },
+        {
+          "url": "https://docs.litellm.ai/docs/routing",
+          "title": "Router - Load Balancing | LiteLLM",
+          "publisher": "LiteLLM (BerriAI)",
+          "accessed": "2026-09-26",
+          "claim": "Cooldowns (allowed_fails, cooldown_time) remove a failing deployment from rotation for a while rather than changing the request."
+        }
+      ]
+    },
+    {
+      "id": "w10-l01-q05",
+      "lesson": "w10-l01",
+      "concept": "w10-l01-retries-then-fallbacks",
+      "type": "written",
+      "prompt": "Explain the difference between a retry and a fallback in an LLM gateway, and why some errors should skip straight to a fallback.",
+      "model_answer": {
+        "summary": "A retry sends the same request to the same model again; a fallback sends it to a different model. Retry errors that are likely to pass on a second try; fall back when the same model will fail every time.",
+        "key_points": [
+          "A retry repeats the call on the same model or deployment, for transient errors such as timeouts, 429s and 500s",
+          "A fallback sends the request to a different model or provider after the retries run out",
+          "In LiteLLM the primary is retried `num_retries` times before `fallbacks` are tried",
+          "Errors that will repeat on the same model, such as a context-window overflow or a content-policy refusal, need a different model (`context_window_fallbacks`, `content_policy_fallbacks`), not a retry"
+        ]
+      },
+      "explanation": "Retrying a deterministic failure only adds latency and cost. Match the recovery to the error: transient errors get retries with backoff, and errors tied to the model itself get a different model.",
+      "materials": [
+        "litellm-proxy-reliability-fallbacks",
+        "litellm-llm-gateway-routing-fallbacks"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.litellm.ai/docs/proxy/reliability",
+          "title": "Fallbacks (Provider Failover) | LiteLLM",
+          "publisher": "LiteLLM (BerriAI)",
+          "accessed": "2026-09-26",
+          "claim": "The primary model is retried num_retries times before fallbacks are tried, and context-window and content-policy errors have their own dedicated fallback settings."
+        }
+      ]
+    },
+    {
+      "id": "w10-l01-q06",
+      "lesson": "w10-l01",
+      "concept": "w10-l01-deployment-groups-cooldowns",
+      "type": "multiple_choice",
+      "prompt": "In a LiteLLM `model_list`, three entries share `model_name: gpt-main`, each pointing at a different deployment (two Azure regions and OpenAI). What does a request for `gpt-main` do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The router treats the three as one group and picks one deployment per request"
+        },
+        {
+          "id": "b",
+          "text": "Only the first entry is used; the other two are fallbacks in list order"
+        },
+        {
+          "id": "c",
+          "text": "The config is rejected, because each `model_name` must map to exactly one deployment"
+        },
+        {
+          "id": "d",
+          "text": "The request is sent to all three and the first answer is returned"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Entries with the same `model_name` form one deployment group, and the router load-balances across them. The default routing strategy is `simple-shuffle`; others include latency-based, least-busy and cost-based routing. Fallbacks between different model groups are configured separately with `fallbacks`.",
+      "materials": [
+        "litellm-llm-gateway-routing-fallbacks"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.litellm.ai/docs/routing",
+          "title": "Router - Load Balancing | LiteLLM",
+          "publisher": "LiteLLM (BerriAI)",
+          "accessed": "2026-09-26",
+          "claim": "Deployments sharing the same model_name form one logical group that the router load-balances across, with simple-shuffle as the default strategy and latency-based, least-busy, cost-based and usage-based as alternatives."
+        }
+      ]
+    },
+    {
+      "id": "w10-l01-q07",
+      "lesson": "w10-l01",
+      "concept": "w10-l01-deployment-groups-cooldowns",
+      "type": "multiple_choice",
+      "prompt": "What do `allowed_fails` and `cooldown_time` do in the LiteLLM router?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "They cap how many retries a single request may make, and how long each retry waits"
+        },
+        {
+          "id": "b",
+          "text": "A deployment with over `allowed_fails` failures in a minute sits out for `cooldown_time`"
+        },
+        {
+          "id": "c",
+          "text": "They set how many failed requests a key may make before its budget is frozen for the day"
+        },
+        {
+          "id": "d",
+          "text": "They define when a model group is removed from the config permanently"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Cooldowns stop the router from sending traffic to a deployment that is failing right now: after more than `allowed_fails` failures in a minute, that deployment rests for `cooldown_time` while the others in its group take the traffic. Retries per request are `num_retries`, and budgets are a separate feature.",
+      "materials": [
+        "litellm-proxy-reliability-fallbacks",
+        "litellm-llm-gateway-routing-fallbacks"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.litellm.ai/docs/routing",
+          "title": "Router - Load Balancing | LiteLLM",
+          "publisher": "LiteLLM (BerriAI)",
+          "accessed": "2026-09-26",
+          "claim": "allowed_fails is the number of failures per minute a deployment may have before it is put in cooldown, and cooldown_time is how long it stays out of rotation."
+        },
+        {
+          "url": "https://docs.litellm.ai/docs/proxy/reliability",
+          "title": "Fallbacks (Provider Failover) | LiteLLM",
+          "publisher": "LiteLLM (BerriAI)",
+          "accessed": "2026-09-26",
+          "claim": "The reliability config shows allowed_fails and cooldown_time controlling model cooldown, separate from num_retries."
+        }
+      ]
+    },
+    {
+      "id": "w10-l01-q08",
+      "lesson": "w10-l01",
+      "concept": "w10-l01-tenant-budgets-rate-limits",
+      "type": "multiple_choice",
+      "prompt": "A LiteLLM team has `max_budget: 100` and `budget_duration: \"30d\"`. It reaches $100 of spend on day 20. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Nothing until day 30, because spend is only compared with the budget when the period ends"
+        },
+        {
+          "id": "b",
+          "text": "Requests keep working, but the team admin gets an alert email about the overspend"
+        },
+        {
+          "id": "c",
+          "text": "Only requests to the most expensive model are blocked"
+        },
+        {
+          "id": "d",
+          "text": "Its requests are refused with a budget-exceeded error until the 30-day period resets"
+        }
+      ],
+      "answer": "d",
+      "explanation": "LiteLLM tracks spend against `max_budget` and rejects requests once it is exceeded (the error names `ExceededBudget`). `budget_duration` sets when the spend counter resets; without it, the budget never resets. Budgets can be set on the whole proxy, teams, team members, users, keys and end users.",
+      "materials": [
+        "litellm-proxy-budgets-rate-limits"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.litellm.ai/docs/proxy/users",
+          "title": "Budgets, Rate Limits | liteLLM",
+          "publisher": "LiteLLM (BerriAI)",
+          "accessed": "2026-09-26",
+          "claim": "Once spend crosses max_budget requests fail with an ExceededBudget-style error, and the budget resets at the end of budget_duration (for example \"30d\"); without budget_duration it never resets."
+        }
+      ]
+    },
+    {
+      "id": "w10-l01-q09",
+      "lesson": "w10-l01",
+      "concept": "w10-l01-tenant-budgets-rate-limits",
+      "type": "multiple_choice",
+      "prompt": "You run three replicas of your gateway behind a load balancer and set `rpm_limit: 60` for a tenant. Why do the replicas need a shared store such as Redis for the counters?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Each replica counts on its own, so the tenant could get up to 180 requests a minute"
+        },
+        {
+          "id": "b",
+          "text": "Redis is where LiteLLM stores the provider API keys the limits are tied to"
+        },
+        {
+          "id": "c",
+          "text": "Rate limits only apply to streaming requests unless a Redis instance is configured"
+        },
+        {
+          "id": "d",
+          "text": "Without Redis the limit is applied per model group instead of separately per tenant"
+        }
+      ],
+      "answer": "a",
+      "explanation": "A rate limit is only correct if every replica sees the same count. LiteLLM syncs its in-memory counters with Redis across instances. With no shared store, each replica enforces 60 on its own share of the traffic, so the real limit grows with the number of replicas.",
+      "materials": [
+        "litellm-proxy-budgets-rate-limits"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.litellm.ai/docs/proxy/users",
+          "title": "Budgets, Rate Limits | liteLLM",
+          "publisher": "LiteLLM (BerriAI)",
+          "accessed": "2026-09-26",
+          "claim": "LiteLLM syncs its in-memory rate-limit counters with Redis every 0.01 s so limits are enforced consistently across multiple proxy instances."
+        }
+      ]
+    },
+    {
+      "id": "w10-l01-q10",
+      "lesson": "w10-l01",
+      "concept": "w10-l01-tenant-budgets-rate-limits",
+      "type": "written",
+      "prompt": "A tenant's runaway agent loop spent its whole month's LLM budget in an afternoon. What per-tenant limits would you set at the gateway, and what does each one protect against?",
+      "model_answer": {
+        "summary": "Use a spend budget that resets on a schedule to cap cost, and request, token and concurrency limits to cap the rate of spending, all keyed to the tenant.",
+        "key_points": [
+          "A budget per tenant (for example `max_budget` with `budget_duration`) caps total spend in a period",
+          "Requests-per-minute and tokens-per-minute limits cap how fast a tenant can spend, so one loop can't burn the budget in minutes",
+          "A limit on parallel requests stops one tenant from taking all the capacity (noisy neighbour)",
+          "Over-limit requests are refused (for example HTTP 429 for a rate limit) so the agent can back off, and the event is logged or alerted"
+        ]
+      },
+      "explanation": "A budget alone only stops the damage after the money is gone. Rate and concurrency limits slow a runaway loop down, and an alert or soft budget lets someone act first. The agent itself should still have its own step and budget guards.",
+      "materials": [
+        "litellm-proxy-budgets-rate-limits",
+        "chip-huyen-building-a-generative-ai"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.litellm.ai/docs/proxy/users",
+          "title": "Budgets, Rate Limits | liteLLM",
+          "publisher": "LiteLLM (BerriAI)",
+          "accessed": "2026-09-26",
+          "claim": "LiteLLM supports per-entity max_budget with budget_duration, tpm_limit, rpm_limit and max_parallel_requests, and refuses requests once a budget is exceeded."
+        },
+        {
+          "url": "https://huyenchip.com/2024/07/25/genai-platform.html",
+          "title": "Building A Generative AI Platform",
+          "publisher": "Chip Huyen",
+          "accessed": "2026-09-26",
+          "claim": "Huyen lists usage limits and cost management as core responsibilities of the model gateway."
+        }
+      ]
+    }
+  ]
+}

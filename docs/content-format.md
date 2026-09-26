@@ -119,7 +119,7 @@ The database stores the correct answers, but the API never sends them to the bro
 - **A new Question's Sources are from this run**: every `accessed` date is today or yesterday in UTC (by `--today`), so a run that crosses 00:00 UTC still passes. Committed Questions keep their dates.
 - **A new Question on a Concept that committed Questions already test is a warning**, naming one of them. A repeat is allowed; the warning makes it deliberate.
 
-Outside a git repository (a test folder, say) there is no baseline: these rules are skipped, with a warning that says so. A Stack new since the baseline has an empty one, so all its Questions are new. A baseline in the old layout (before #15) is read from its version folders, newest version winning, with each Question tagged to its file's Lesson; those Questions may gain Sources once.
+Outside a git repository (a test folder, say) there is no baseline: these rules are skipped, with a warning that says so. A Stack new since the baseline has an empty one, so all its Questions are new. A baseline in the old layout (before #15) is read from its version folders, newest version winning, with each Question tagged to its file's Lesson; those Questions may gain Sources once, and an edit to one is a warning rather than an error, since nothing had been released before the move.
 
 The importer loads the bank on every import, with each Question's Sources and retirement. It adds new Concepts and Questions, applies retirements and re-tags, and refuses an edited or un-retired Question. It never deletes one, so re-running an import changes nothing.
 
@@ -139,6 +139,8 @@ A one-time rewrite of a Stack from the old layout ([`api/app/content/migrate_ban
 - every version's `questions/` folder is removed.
 
 It prints a report: Questions without Sources, Questions retired, changelog entries dropped. Run the check afterwards: a retirement can leave a Concept or Lesson short, which needs new Questions.
+
+When `agentic-ai-engineer` was migrated, writing its Sources turned up factual slips in five Questions and one Material title. Nothing had been released, so they were fixed in place in the old layout (in `v2026-09-26.1`, IDs kept) just before the rewrite, not retired, and the check against the old-layout baseline reports each as a warning: `w01-l05-q03` (the keyed answer had the error case backwards), `w02-l04-q12` (RFC 9110's wording for 5xx), `w10-l05-q08` (partitioned indices restrict access per organization, not per user), `w12-l03-q05` (regional endpoints cost 10% more than global), `w12-l05-q03` (the Dockerfile reference's signal warning is under ENTRYPOINT) and the Laszlo Bock Material's title. From then on the bank is append-only: a mistake means retiring the Question and adding a new one.
 
 ## Changelog (`changelog.json`)
 

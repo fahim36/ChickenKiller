@@ -421,7 +421,9 @@ def test_the_baseline_can_be_an_earlier_commit(repo: Path) -> None:
 
 def test_a_baseline_in_the_old_layout_lets_questions_gain_sources_once(tmp_path: Path) -> None:
     """The one-time move out of version folders: the committed Questions had no Sources, lived
-    in `<version>/questions/<lesson>.json` and were tagged by that file."""
+    in `<version>/questions/<lesson>.json` and were tagged by that file. Nothing had been
+    released, so a slip that writing the Sources turned up may be fixed on the way, but it is
+    reported."""
     root = tmp_path / "repo"
     root.mkdir()
     git(root, "init", "-q")
@@ -439,10 +441,33 @@ def test_a_baseline_in_the_old_layout_lets_questions_gain_sources_once(tmp_path:
     bank["questions"][1]["prompt"] = "Edited on the way."
     write_bank(root, bank)
 
-    assert errors(check_repo(root, today=date(2026, 9, 26))) == [
-        "w01-l01-q02: changed since HEAD (prompt): a committed Question is never edited; retire "
-        "it (replaced_by a new Question) or change only its Lesson tag"
-    ]
+    problems = check_repo(root, today=date(2026, 9, 26))
+    assert errors(problems) == []
+    assert (
+        "w01-l01-q02: changed since HEAD (prompt), which is allowed only in the one-time move out "
+        "of version folders; from now on a committed Question is never edited"
+    ) in warnings(problems)
+
+
+def test_a_question_deleted_in_the_move_is_still_refused(tmp_path: Path) -> None:
+    root = tmp_path / "repo"
+    root.mkdir()
+    git(root, "init", "-q")
+    version = stack_dir(root) / "v2026-01-01"
+    (version / "questions").mkdir(parents=True)
+    (version / "syllabus.json").write_text(json.dumps(SYLLABUS), encoding="utf-8")
+    legacy = copy.deepcopy(BANK) | {"schema_version": 1, "lesson_id": LESSON}
+    for q in legacy["questions"]:
+        del q["sources"], q["lesson"]
+    (version / "questions" / f"{LESSON}.json").write_text(json.dumps(legacy), encoding="utf-8")
+    commit(root)
+
+    git(root, "rm", "-q", "-r", "content/mini-stack/v2026-01-01/questions")
+    bank = copy.deepcopy(BANK)
+    del bank["questions"][1]
+    write_bank(root, bank)
+
+    assert any("deleted since HEAD" in e for e in errors(check_repo(root, today=TODAY)))
 
 
 def test_cli_takes_the_baseline_and_the_day(repo: Path) -> None:

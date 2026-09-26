@@ -295,9 +295,6 @@ def test_cli_finds_version_folders_under_a_content_root(
     assert check.main([str(tmp_path / "empty")]) == 1
 
 
-@pytest.mark.xfail(
-    reason="content migrates to the Stack-level bank once Sources are written", strict=False
-)
 @pytest.mark.parametrize(
     "stack",
     sorted(p for p in (REPO_ROOT / "content").iterdir() if p.name != "schema"),
