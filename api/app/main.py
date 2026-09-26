@@ -21,7 +21,6 @@ from app import (
 )
 from app.auth import TokenVerifier
 from app.deps import (
-    ActiveStack,
     ActiveStackInPath,
     AdminLearner,
     CurrentLearner,
@@ -42,17 +41,15 @@ router = APIRouter(dependencies=[Depends(get_current_learner), Depends(open_dail
 
 
 def _me(session: SessionDep, learner: Learner, verifier: VerifierDep) -> schemas.MeOut:
-    record = onboarding.active_stack(session, learner)
+    active = onboarding.active_stacks(session, learner)
     return schemas.MeOut(
         email=learner.email,
         is_admin=learners.is_admin(learner, verifier.settings.admin_emails),
-        needs_onboarding=onboarding.needs_onboarding(learner),
-        active_stack=None
-        if record is None
-        else schemas.ActiveStackOut(
-            id=record.stack.id, name=record.stack.name, started_at=record.started_at
-        ),
-        time_zone=learner.time_zone,
+        needs_onboarding=not active,
+        active_stacks=[
+            schemas.ActiveStackOut(id=r.stack.id, name=r.stack.name, started_at=r.started_at)
+            for r in active
+        ],
     )
 
 
@@ -61,13 +58,22 @@ def me(learner: CurrentLearner, session: SessionDep, verifier: VerifierDep) -> s
     return _me(session, learner, verifier)
 
 
-@router.put("/me/settings")
-def save_settings(
-    body: schemas.SettingsIn, learner: CurrentLearner, session: SessionDep, verifier: VerifierDep
+@router.put("/me/active-stacks")
+def save_active_stacks(
+    body: schemas.ActiveStacksIn,
+    learner: CurrentLearner,
+    session: SessionDep,
+    verifier: VerifierDep,
 ) -> schemas.MeOut:
-    """Onboarding, and settings later: set the Active Stack and time zone."""
+    """Onboarding, and settings later: make `stack_ids` the Learner's Active Stacks. A Stack
+    left out is deactivated and keeps its progress; activating it again resumes it.
+
+    422 when no Stack is picked (so the last Active Stack can't be deactivated on its own), or
+    for a Stack that isn't published (unless it is already Active); nothing changes then."""
     try:
-        onboarding.choose(session, learner, body.active_stack_id, body.time_zone)
+        onboarding.set_active_stacks(session, learner, body.stack_ids)
+    except onboarding.NoStack as error:
+        raise HTTPException(422, "Pick at least one Stack.") from error
     except onboarding.NotPublished as error:
         raise HTTPException(422, "Choose one of the published Stacks.") from error
     return _me(session, learner, verifier)
@@ -104,7 +110,7 @@ def list_stacks(session: SessionDep) -> list[schemas.StackSummary]:
 
 @router.get("/stacks/{stack_id}")
 def get_week_map(
-    stack_id: str, session: SessionDep, learner: CurrentLearner, _: ActiveStack, now: Now
+    stack_id: str, session: SessionDep, learner: CurrentLearner, _: ActiveStackInPath, now: Now
 ) -> schemas.SyllabusOut:
     """The Week map: the current Syllabus's Weeks, each with its Lessons (and their states) and
     Milestones (and whether they're ticked), in Syllabus order, for the signed-in Learner.
@@ -116,10 +122,9 @@ def get_week_map(
     syllabus = lessons.current_syllabus(session, stack_id)
     if syllabus is None:
         raise HTTPException(404, "Stack not found")
-    tz = learner.time_zone
-    states = progress.lesson_states(session, learner.id, stack_id, tz, now)
-    waiting = progress.waiting_for_review(session, learner.id, stack_id, tz, now)
-    today = None if tz is None else reviews.daily_review(session, learner.id, stack_id, tz, now)
+    states = progress.lesson_states(session, learner.id, stack_id, now)
+    waiting = progress.waiting_for_review(session, learner.id, stack_id, now)
+    today = reviews.daily_review(session, learner.id, stack_id, now)
     ticked = progress.ticked_milestone_ids(session, learner.id, stack_id)
     stack = syllabus.stack
     return schemas.SyllabusOut(
@@ -157,14 +162,14 @@ def get_week_map(
             )
             for week in syllabus.weeks
         ],
-        daily_review=_daily_review(today) if today is not None and today.rounds else None,
+        daily_review=_daily_review(today) if today.rounds else None,
         removed_lessons=[
             schemas.RemovedLessonOut(
                 id=r.id, title=r.title, completed_at=r.completed_at, version=r.syllabus_version
             )
             for r in updated_lessons.removed_completed_lessons(session, learner.id, stack_id)
         ],
-        streak=0 if tz is None else reviews.streak(session, learner.id, stack_id, tz, now),
+        streak=reviews.streak(session, learner.id, stack_id, now),
     )
 
 
@@ -174,7 +179,7 @@ def get_lesson(
     lesson_id: str,
     session: SessionDep,
     learner: CurrentLearner,
-    _: ActiveStack,
+    _: ActiveStackInPath,
     now: Now,
 ) -> schemas.LessonOut:
     """A Lesson page. Locked Lessons can be read too, so Learners may read ahead: only the
@@ -183,7 +188,6 @@ def get_lesson(
     if lesson is None:
         raise HTTPException(404, "Lesson not found")
     previous_id, next_id = lessons.neighbour_lesson_ids(session, lesson)
-    tz = learner.time_zone
     return schemas.LessonOut(
         id=lesson.id,
         stack_id=stack_id,
@@ -193,8 +197,8 @@ def get_lesson(
         exercise=lesson.exercise,
         minutes=lesson.minutes,
         materials=[schemas.MaterialOut.model_validate(m) for m in lesson.materials],
-        state=progress.lesson_states(session, learner.id, stack_id, tz, now)[lesson.id],
-        waiting_for_review=progress.waiting_for_review(session, learner.id, stack_id, tz, now)
+        state=progress.lesson_states(session, learner.id, stack_id, now)[lesson.id],
+        waiting_for_review=progress.waiting_for_review(session, learner.id, stack_id, now)
         == lesson.id,
         previous_lesson_id=previous_id,
         next_lesson_id=next_id,
@@ -512,7 +516,6 @@ def _round_summary(view: reviews.RoundView) -> schemas.ReviewRoundSummaryOut:
 def _daily_review(today: reviews.DailyReview) -> schemas.DailyReviewOut:
     return schemas.DailyReviewOut(
         day=today.day,
-        time_zone=today.time_zone,
         rounds=[_round_summary(r) for r in today.rounds],
         next_round_at=today.next_round_at,
     )
@@ -532,26 +535,19 @@ def _round(view: reviews.RoundView) -> schemas.ReviewRoundOut:
     )
 
 
-def _time_zone(learner: Learner) -> str:
-    assert learner.time_zone is not None, "ActiveStack means the Learner has onboarded"
-    return learner.time_zone
-
-
 @router.get("/stacks/{stack_id}/review")
 def get_daily_review(
-    active: ActiveStackInPath, learner: CurrentLearner, session: SessionDep, now: Now
+    active: ActiveStackInPath, session: SessionDep, now: Now
 ) -> schemas.DailyReviewDetailOut:
-    """Today's Daily Review on the Active Stack, in the Learner's time zone: its Review Rounds,
+    """Today's Daily Review on this Active Stack, for the current UTC Day: its Review Rounds,
     and the round waiting to be answered (`current`) with its remaining Questions (without their
     answers) and the results so far. No rounds means nothing is owed today: the Learner has no
     Completed Lesson yet, or had none at their first use of the day.
 
-    Round 1 opens on the first request of the Learner's day, and Rounds 2 and 3 on the first
+    Round 1 opens on the first request of the Learner's Day, and Rounds 2 and 3 on the first
     request once due, to any route (`open_daily_review`
     runs before this one). 409 `not_active_stack` for another Stack."""
-    today = reviews.daily_review(
-        session, active.learner_id, active.stack_id, _time_zone(learner), now
-    )
+    today = reviews.daily_review(session, active.learner_id, active.stack_id, now)
     current = today.current
     return schemas.DailyReviewDetailOut(
         **_daily_review(today).model_dump(),
@@ -564,7 +560,6 @@ def answer_review_question(
     round_id: str,
     body: schemas.ReviewAnswerIn,
     active: ActiveStackInPath,
-    learner: CurrentLearner,
     session: SessionDep,
     grader: GraderDep,
     now: Now,
@@ -584,7 +579,6 @@ def answer_review_question(
         result = reviews.answer_question(
             session,
             active,
-            _time_zone(learner),
             uuid.UUID(round_id),
             body.question_id,
             body.answer,
@@ -626,7 +620,7 @@ def tick_milestone(
     session: SessionDep,
     now: Now,
 ) -> schemas.MilestoneTickOut:
-    """Tick or untick a Milestone of the Active Stack. Ticks never change any lock state."""
+    """Tick or untick a Milestone of this Active Stack. Ticks never change any lock state."""
     if lessons.find_current_milestone(session, active.stack_id, milestone_id) is None:
         raise HTTPException(404, "Milestone not found")
     progress.set_milestone_ticked(session, active, milestone_id, body.ticked, now)

@@ -5,7 +5,7 @@ import { formatClock, formatTimeLeft } from "@/lib/format";
 /**
  * Today's Daily Review on the Week map: the latest Review Round, whether it is optional (and
  * for how much longer), pending (it locks the next Lesson until it's finished) or done, and a
- * link to answer it. Once it's done, when the next round opens (in the Learner's time zone),
+ * link to answer it. Once it's done, when the next round opens (in UTC, like every Day),
  * or that the day's Daily Review is done. `now` is when the page was rendered.
  */
 export function DailyReviewBanner({
@@ -61,7 +61,7 @@ export function DailyReviewBanner({
 export function nextRoundText(review: DailyReview, finished: number, now?: Date): string {
   if (!review.next_round_at) return "Your Daily Review is done for today.";
   const opens = new Date(review.next_round_at);
-  const at = formatClock(opens, review.time_zone);
+  const at = formatClock(opens);
   const wait = now ? `, in ${formatTimeLeft(opens, now)}` : "";
   return `Review Round ${finished} is done. Review Round ${finished + 1} opens at ${at}${wait}.`;
 }

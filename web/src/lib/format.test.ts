@@ -45,11 +45,11 @@ describe("formatTimeLeft", () => {
 
 describe("formatClock", () => {
   it.each([
-    ["Asia/Dhaka", "14:00"],
-    ["Etc/GMT+8", "00:00"],
-    ["UTC", "08:00"],
-  ])("in %s -> %s", (timeZone, expected) => {
-    expect(formatClock(new Date("2026-09-26T08:00:00Z"), timeZone)).toBe(expected);
+    ["2026-09-26T08:00:00Z", "08:00 UTC"],
+    ["2026-09-26T08:00:00+06:00", "02:00 UTC"],
+    ["2026-09-26T23:59:00Z", "23:59 UTC"],
+  ])("%s -> %s", (at, expected) => {
+    expect(formatClock(new Date(at))).toBe(expected);
   });
 });
 

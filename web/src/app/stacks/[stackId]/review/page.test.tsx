@@ -44,7 +44,7 @@ async function renderReview(review: DailyReviewDetail) {
   render(await DailyReviewPage({ params } as never));
 }
 
-const today = { day: "2026-09-26", time_zone: "Asia/Dhaka", next_round_at: null };
+const today = { day: "2026-09-26", next_round_at: null };
 const done = { ...round, state: "finished" as const, answered: 1 };
 
 it("shows the round waiting to be answered, and says when it's pending", async () => {
@@ -72,7 +72,7 @@ it("says when the next round opens once the last one is done", async () => {
   });
 
   expect(screen.getByRole("status").textContent).toBe(
-    "Review Round 1 is done. Review Round 2 opens at 14:00.",
+    "Review Round 1 is done. Review Round 2 opens at 08:00 UTC.",
   );
 });
 

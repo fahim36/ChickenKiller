@@ -10,7 +10,7 @@ import { formatMinutes, weekMinutes } from "@/lib/format";
 import { setMilestoneTicked } from "./actions";
 
 /**
- * The Week map: the Active Stack's Weeks in Syllabus order, each with its Lessons (Completed,
+ * The Week map: one Active Stack's Weeks in Syllabus order, each with its Lessons (Completed,
  * Updated, Unlocked or Locked) and its Milestone checklist. Every Lesson links to its page, so a Learner
  * can read ahead; only the quiz is locked, and the API enforces that. The Learner's Streak and
  * today's Daily Review sit on top; while its round is pending, the Lesson it locks says so.
@@ -27,7 +27,7 @@ export default async function WeekMapPage({ params }: PageProps<"/stacks/[stackI
   return (
     <main>
       <p className="crumbs">
-        <Link href="/settings">Switch Stack</Link>
+        <Link href="/">Your Stacks</Link>
       </p>
       <h1>{syllabus.name}</h1>
       <p className="muted">

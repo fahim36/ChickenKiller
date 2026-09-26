@@ -6,7 +6,7 @@ Version 1 is six milestones. Each one ends with something you can show a person 
 |---|---|---|
 | [M0 Scaffold](#m0-scaffold-done) | parts of #1, #2, #12 | The 16-week Syllabus loads from files and shows in the browser |
 | [M1 Live skeleton](#m1-live-skeleton) | #1, #2 | A public URL, and a commit with broken content is refused |
-| [M2 Your own Learner](#m2-your-own-learner) | #3, #4 | An invited Learner signs in and picks an Active Stack |
+| [M2 Your own Learner](#m2-your-own-learner) | #3, #4 | An invited Learner signs in and activates one or more Stacks |
 | [M3 The core loop](#m3-the-core-loop) | #5, #6 | Study a Lesson, pass its quiz, watch the next one unlock |
 | [M4 Learning from mistakes](#m4-learning-from-mistakes) | #8, #7 | A wrong answer is explained; the Retake asks a sibling Question |
 | [M5 Daily Review](#m5-daily-review) | #9, #10, #11 | A missed Review Round blocks the next Lesson until it's done |
@@ -16,7 +16,7 @@ Version 1 is six milestones. Each one ends with something you can show a person 
 
 ## How every milestone is tested
 
-- **Domain rules are plain functions with a fake clock.** Unlocking, Pass Mark, Review Round timing and Streaks take `now` and the Learner's time zone as arguments. Tests can then say "it is 23:59 in Dhaka" without waiting or patching time.
+- **Domain rules are plain functions with a fake clock.** Unlocking, Pass Mark, Review Round timing and Streaks take `now` as an argument, and every Day turns at 00:00 UTC (ADR-0005). Tests can then say "it is 23:59 UTC" without waiting or patching time.
 - **API tests** run FastAPI's test client against a real Postgres (Docker Compose locally, a service container in CI). The database is built from the Alembic migrations and seeded from a small content folder (`api/tests/conftest.py`). Each test's writes are rolled back.
 - **Component tests** use Vitest and Testing Library in `web/`.
 - **The demo script is an end-to-end test.** From M2 on, each milestone's demo is also a Playwright test that clicks through the same steps. If the test passes, the demo will work live.
@@ -80,14 +80,14 @@ There are also 11 Vitest tests for the page helpers, the components and the Less
 **Build:**
 - Clerk sign-in with an allow-list of invites.
 - A Learner record created on first sign-in.
-- Onboarding sets the Active Stack and time zone. Those two decide which Lessons and which day's Review Rounds the Learner sees.
+- Onboarding activates one or more Stacks, each an Active Stack with its own Lessons and progress. Settings activates and deactivates them later; a deactivated Stack keeps its progress. There is no time zone: every Day is a UTC Day (ADR-0005).
 
 **Tests:**
 - The API rejects requests without a valid token, and rejects valid tokens whose email isn't invited.
 - Onboarding is required before any Lesson page.
-- The time zone is stored as an IANA name, and the Learner's "today" is computed from it (fake-clock test across midnight in Asia/Dhaka).
+- Onboarding with several Stacks, and deactivating then reactivating a Stack with its progress intact.
 
-**Demo (Playwright):** invite an email, sign in, pick "Agentic AI Engineer" and Asia/Dhaka, and land on Week 1.
+**Demo (Playwright):** invite an email, sign in, pick "Agentic AI Engineer", land on the home screen, and open its Week map.
 
 **Portfolio note:** authentication handed to a hosted provider (ADR-0002), and why that was the right trade for a one-person project.
 
@@ -166,7 +166,7 @@ There are also 11 Vitest tests for the page helpers, the components and the Less
 3. Round 2 is pending, and the next Lesson shows "Finish your Review Round to unlock".
 4. Finish the round and the Lesson unlocks.
 
-**Portfolio note:** scheduling that has to be correct across time zones. Show the round state machine (not open → open → pending → finished or dropped) and how the fake-clock tests cover every transition.
+**Portfolio note:** scheduling that has to be correct across Day boundaries. Show the round state machine (not open → open → pending → finished or dropped) and how the fake-clock tests cover every transition.
 
 ## M6 A Syllabus that updates itself
 
@@ -206,7 +206,7 @@ Use this once M6 is finished. Each section can reuse the milestone notes above.
 2. **What it does:** a 90-second screen recording of the M3 → M5 demos joined together.
 3. **Architecture:** Next.js → FastAPI → Postgres; Claude Code writes the content repo; the importer reads it. Reuse the diagram in the README.
 4. **Three decisions and their trade-offs:** ADR-0001 (the content pipeline), ADR-0002 (the stack), and completion-based unlocking.
-5. **The hard parts:** Review Round scheduling across time zones, the grader's eval, and importing a new version without losing progress.
+5. **The hard parts:** Review Round scheduling across Day boundaries, the grader's eval, and importing a new version without losing progress.
 6. **Numbers:**
    - test count and CI time;
    - the grader's agreement on the eval set;
