@@ -15,6 +15,7 @@ const TODAY: TodaysChallenge = {
   stack_id: "agentic-ai-engineer",
   stack_name: "Agentic AI Engineer",
   day: "2026-09-27",
+  streak: 0,
   challenge: {
     number: 1,
     day: "2026-09-27",
@@ -22,6 +23,7 @@ const TODAY: TodaysChallenge = {
     status: "not_started",
     score: null,
     out_of: null,
+    result_card: null,
     max_answer_chars: 4000,
     questions: [
       {

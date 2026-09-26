@@ -45,11 +45,13 @@ function today(
   stackId: string,
   stackName: string,
   challenge: Partial<DailyChallenge> | null,
+  streak = 0,
 ): TodaysChallenge {
   return {
     stack_id: stackId,
     stack_name: stackName,
     day: "2026-09-27",
+    streak,
     challenge: challenge && {
       number: 1,
       day: "2026-09-27",
@@ -57,6 +59,7 @@ function today(
       status: "not_started",
       score: null,
       out_of: null,
+      result_card: null,
       max_answer_chars: 4000,
       questions: [],
       ...challenge,
@@ -107,6 +110,27 @@ it.each([
     "/stacks/agentic-ai-engineer/challenge",
   );
   if (played) expect(within(card).getByText(played, { exact: false })).toBeTruthy();
+});
+
+it("shows each Active Stack's own Streak", async () => {
+  stubApi({
+    "/me": ONBOARDED_TWICE,
+    "/stacks/agentic-ai-engineer/challenges/today": today(
+      "agentic-ai-engineer",
+      "Agentic AI Engineer",
+      {},
+      3,
+    ),
+    "/stacks/data-engineer/challenges/today": today("data-engineer", "Data Engineer", null, 0),
+  });
+
+  render(await Home());
+
+  const agentic = screen.getByRole("region", { name: "Agentic AI Engineer" });
+  expect(within(agentic).getByText("🔥 3-Day Streak")).toBeTruthy();
+  const data = screen.getByRole("region", { name: "Data Engineer" });
+  expect(within(data).getByText("No Streak running")).toBeTruthy();
+  expect(within(data).queryByText(/🔥/)).toBeNull();
 });
 
 it("links to Review, one page across every Active Stack", async () => {

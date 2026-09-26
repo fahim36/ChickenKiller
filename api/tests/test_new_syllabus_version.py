@@ -18,8 +18,8 @@ written (the fake grader passes an answer saying "right"). The clock is the test
 
 Streaks and Daily Challenge results must survive an import too. The Learner plays the Stack's
 Daily Challenge #1 in the `learner` fixture, and its plays (#17) are in `PROGRESS_TABLES`, so
-`test_an_import_changes_no_learner_data` covers them. Streaks don't exist yet: #18 adds its
-table there."""
+`test_an_import_changes_no_learner_data` covers them. A Streak (#18) has no table: it is counted
+from those plays, and `test_the_streak_survives_an_import` checks it."""
 
 import copy
 from collections.abc import Iterator
@@ -249,7 +249,8 @@ PROGRESS_TABLES = (
     Answer,
     ChallengePlay,
 )
-"""Every table of Learner data. An import writes none of them: #18 adds its own."""
+"""Every table of Learner data. An import writes none of them. Streaks are counted from the
+Challenge plays, so they have no table of their own."""
 
 
 def learner_data(session: Session) -> dict[str, list[tuple[Any, ...]]]:
@@ -281,6 +282,21 @@ def test_an_import_changes_no_learner_data(
     import_version_2(session, make_content)
 
     assert learner_data(session) == before
+
+
+def test_the_streak_survives_an_import(
+    session: Session, make_content: ContentFactory, learner: TestClient
+) -> None:
+    def streak() -> Any:
+        response = learner.get(f"{STACK}/challenges/today")
+        assert response.status_code == 200, response.text
+        return response.json()["streak"]
+
+    assert streak() == 1
+
+    import_version_2(session, make_content)
+
+    assert streak() == 1
 
 
 def test_the_week_map_before_the_update(learner: TestClient) -> None:

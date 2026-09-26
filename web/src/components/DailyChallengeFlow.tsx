@@ -3,6 +3,7 @@
 import { type FormEvent, useState } from "react";
 import { Inline } from "@/components/Inline";
 import { AnsweredQuestionDetail } from "@/components/MissedQuestions";
+import { ResultCard } from "@/components/ResultCard";
 import { WrittenAnswer } from "@/components/WrittenAnswer";
 import type {
   ChallengeAnswerResult,
@@ -29,8 +30,8 @@ const OUTCOME_LABELS: Record<ChallengeOutcome, string> = {
  * answer to each Question; after each one the Learner sees the result, the Explanation and
  * every Source. A written answer takes a while to grade ("Grading…"). If grading a first answer
  * fails, that Question is ungraded (no point, ever) and the Learner can resubmit it for feedback
- * only. Once finished, the page sums up the score and offers a replay, which is marked the same
- * way but changes nothing. A Retired Question is skipped: it can't be answered.
+ * only. Once finished, the page sums up the score, with the Result Card to copy and share, and
+ * offers a replay, which is marked the same way but changes nothing. A Retired Question is skipped: it can't be answered.
  */
 export function DailyChallengeFlow({
   challenge: initial,
@@ -101,7 +102,7 @@ export function DailyChallengeFlow({
   );
 }
 
-/** A finished Challenge: the score, each Question's first try, and the replay. */
+/** A finished Challenge: the score, its Result Card, each Question's first try, and the replay. */
 function Summary({
   challenge,
   answerAction,
@@ -118,6 +119,7 @@ function Summary({
           Played: {challenge.score}/{challenge.out_of}
         </p>
       )}
+      {challenge.result_card && <ResultCard text={challenge.result_card} />}
       <ol className="challenge-summary">
         {challenge.questions.map((q) => (
           <li key={q.id}>

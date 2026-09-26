@@ -281,16 +281,27 @@ export interface DailyChallenge {
   status: "not_started" | "in_progress" | "finished";
   score: number | null;
   out_of: number | null;
+  /**
+   * Set once finished: the Result Card to share, "Agentic AI Engineer #40 · 26 Sep · 2/3 ✅❌⬜",
+   * a mark per answered Question (✅ correct, ❌ wrong, ⬜ ungraded), never the Questions or
+   * answers.
+   */
+  result_card: string | null;
   /** The longest written answer the API accepts. */
   max_answer_chars: number;
   questions: ChallengeQuestion[];
 }
 
-/** An Active Stack's Daily Challenge for today (UTC), or null when none is written for it. */
+/**
+ * An Active Stack's Daily Challenge for today (UTC), or null when none is written for it, and
+ * the Learner's Streak on the Stack: consecutive Days whose Challenge they finished on its Day.
+ * A Day with no Challenge is skipped; today's, until finished, doesn't break it.
+ */
 export interface TodaysChallenge {
   stack_id: string;
   stack_name: string;
   day: string;
+  streak: number;
   challenge: DailyChallenge | null;
 }
 

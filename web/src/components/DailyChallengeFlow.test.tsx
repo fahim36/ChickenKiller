@@ -46,6 +46,7 @@ const NEW: DailyChallenge = {
   status: "not_started",
   score: null,
   out_of: null,
+  result_card: null,
   max_answer_chars: 4000,
   questions: [Q1, Q2, WRITTEN],
 };
@@ -237,6 +238,22 @@ it("sums up a finished Challenge and replays it for learning only", async () => 
   submit();
   expect(await screen.findByText(/Not quite/)).toBeTruthy();
   expect(screen.getByText(/A replay changes no score, Streak or Missed Question/)).toBeTruthy();
+});
+
+it("offers the Result Card of a finished Challenge, and none before", () => {
+  const card = "Agentic AI Engineer #1 · 27 Sep · 2/3 ✅❌✅";
+  const finished = played(
+    { "c001-q01": "correct", "c001-q02": "wrong", "c001-q03": "correct" },
+    { status: "finished", score: 2, out_of: 3, result_card: card },
+  );
+  renderFlow(vi.fn(), finished);
+
+  expect(screen.getByText(card)).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Copy Result Card" })).toBeTruthy();
+  cleanup();
+
+  renderFlow(vi.fn());
+  expect(screen.queryByRole("button", { name: "Copy Result Card" })).toBeNull();
 });
 
 it("skips a Retired Question, which can't be answered", () => {

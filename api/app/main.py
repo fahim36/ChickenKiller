@@ -528,13 +528,15 @@ def _challenge_out(stack_name: str, state: challenges.ChallengeState) -> schemas
     only once it has a first answer."""
     c, play = state.challenge, state.play
     finished = play is not None and play.finished_at is not None
+    label = challenge_label(stack_name, c.number, c.day)
     return schemas.ChallengeOut(
         number=c.number,
         day=c.day,
-        label=challenge_label(stack_name, c.number, c.day),
+        label=label,
         status=state.status,
         score=play.score if finished and play else None,
         out_of=play.out_of if finished and play else None,
+        result_card=challenges.result_card(label, state),
         max_answer_chars=grading.MAX_ANSWER_CHARS,
         questions=[_challenge_question(q) for q in state.questions],
     )
@@ -564,7 +566,8 @@ def get_todays_challenge(
     00:00 UTC, the same for every Learner. `challenge` is null when none is written for today.
 
     Its Questions come without their answers until the Learner has answered them; each answered
-    one carries its first try's outcome, the correct answer, Explanation and Sources."""
+    one carries its first try's outcome, the correct answer, Explanation and Sources. Once
+    finished it has its Result Card. `streak` is the Learner's Streak on this Stack (#18)."""
     stack = active.stack
     challenge = challenges.todays_challenge(session, stack.id, now)
     state = (
@@ -574,6 +577,7 @@ def get_todays_challenge(
         stack_id=stack.id,
         stack_name=stack.name,
         day=review.utc_day(now),
+        streak=challenges.streak(session, active.learner_id, stack.id, now),
         challenge=None if state is None else _challenge_out(stack.name, state),
     )
 
