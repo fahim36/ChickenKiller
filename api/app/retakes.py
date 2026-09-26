@@ -146,7 +146,9 @@ def open_retakes(
     if pending:
         session.commit()
         return RetakeState(attempt, pending, lesson_completed=False)
-    progress.complete_lesson(session, record, attempt.lesson_id, now)  # commits
+    progress.complete_lesson(
+        session, record, attempt.lesson_id, now, attempt.syllabus_version
+    )  # commits
     return RetakeState(attempt, [], lesson_completed=True)
 
 
@@ -221,7 +223,9 @@ def answer_retake(
     pending = len(_pending(session, attempt))
     completed = pending == 0
     if completed:
-        progress.complete_lesson(session, record, attempt.lesson_id, now)  # commits
+        progress.complete_lesson(
+            session, record, attempt.lesson_id, now, attempt.syllabus_version
+        )  # commits
     else:
         session.commit()
     return RetakeResult(

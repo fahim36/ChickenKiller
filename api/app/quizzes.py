@@ -217,7 +217,9 @@ def submit_lesson_quiz(
     attempt.passed = result.passed
     completed = result.passed and all(correct.values())
     if completed:
-        progress.complete_lesson(session, record, lesson_id, now)  # commits
+        progress.complete_lesson(
+            session, record, lesson_id, now, attempt.syllabus_version
+        )  # commits
     else:
         session.commit()  # a pass with Missed Questions waits for its Retakes
     answered = {q.id: responses.get(q.id) for q in questions}

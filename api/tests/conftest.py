@@ -25,7 +25,7 @@ from app.db import get_session
 from app.deps import get_grader, get_now
 from app.grading import Grade, GradingFailed
 from app.main import create_app
-from app.models import Learner, LearnerStack
+from app.models import Learner, LearnerStack, Stack, Syllabus
 
 API_DIR = Path(__file__).resolve().parents[1]
 # Tests need a real Postgres (ADR-0002): `docker compose up -d db` locally, a service in CI.
@@ -431,9 +431,14 @@ def complete_lessons(
     session: Session, *lesson_ids: str, email: str = LEARNER_EMAIL, stack_id: str = "mini-stack"
 ) -> None:
     """Make these Completed Lessons for an onboarded Learner, the way passing a Lesson Quiz
-    does (`progress.complete_lesson`)."""
+    on the Stack's current Syllabus does (`progress.complete_lesson`)."""
     learner = session.scalars(select(Learner).where(Learner.email == email)).one()
     record = session.get(LearnerStack, (learner.id, stack_id))
     assert record is not None, f"{email} has never studied {stack_id}"
+    version = session.scalars(
+        select(Syllabus.version)
+        .join(Stack, Stack.current_syllabus_pk == Syllabus.pk)
+        .where(Stack.id == stack_id)
+    ).one()
     for lesson_id in lesson_ids:
-        progress.complete_lesson(session, record, lesson_id, datetime.now(UTC))
+        progress.complete_lesson(session, record, lesson_id, datetime.now(UTC), version)

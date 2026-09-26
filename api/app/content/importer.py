@@ -9,8 +9,14 @@ Each Stack version is imported once, as its own set of rows:
   is only safe if a published version never changes underneath it. Publish a new version instead.
 - The newest version of a Stack (see `app.content.versions` for the order) becomes its current
   Syllabus.
+- Each Lesson row stores its fingerprint (`diff.lesson_fingerprints`), so a Learner's Completed
+  Lesson can be compared with the version it was completed in (#13). Re-importing a version
+  imported before fingerprints existed fills them in.
 
-Carrying Learner progress over to a new version is the version-import ticket (#13).
+Learner progress needs no carrying over: it is keyed by permanent IDs, never by a version's rows,
+so a new version leaves Completed Lessons, Missed Questions, Milestone ticks and Review Days as
+they are. What a new version means for each Learner (Updated Lessons, removed Lessons, their
+Unlocked Lesson) is worked out when read, in `app.updated_lessons`.
 """
 
 import argparse
@@ -20,11 +26,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app.content import format as fmt
 from app.content.check import load_checked_folder, version_folders
+from app.content.diff import lesson_fingerprints
 from app.content.loader import ContentError, ContentFolder, Problem
 from app.content.versions import version_key
 from app.models import (
@@ -82,6 +89,7 @@ def import_content(session: Session, content: ContentFolder) -> ImportResult:
                     )
                 ]
             )
+        _fill_in_fingerprints(session, existing.pk, content)
         return ImportResult(
             syllabus.stack.id, syllabus.version, "unchanged", _is_current(session, existing)
         )
@@ -113,6 +121,21 @@ def import_content(session: Session, content: ContentFolder) -> ImportResult:
     return ImportResult(syllabus.stack.id, syllabus.version, "imported", _is_current(session, row))
 
 
+def _fill_in_fingerprints(session: Session, syllabus_pk: int, content: ContentFolder) -> None:
+    """Store the fingerprints of a version's Lessons imported before fingerprints existed."""
+    for lesson_id, fingerprint in lesson_fingerprints(content).items():
+        session.execute(
+            update(Lesson)
+            .where(
+                Lesson.syllabus_pk == syllabus_pk,
+                Lesson.id == lesson_id,
+                Lesson.content_hash.is_(None),
+            )
+            .values(content_hash=fingerprint)
+        )
+    session.flush()
+
+
 def _is_current(session: Session, row: Syllabus) -> bool:
     stack = session.get(Stack, row.stack_id)
     return stack is not None and stack.current_syllabus_pk == row.pk
@@ -142,6 +165,7 @@ def _add_content(session: Session, syllabus_pk: int, content: ContentFolder) -> 
     }
     session.add_all(materials.values())
 
+    fingerprints = lesson_fingerprints(content)
     lessons: dict[str, Lesson] = {}
     for week_position, week in enumerate(syllabus.weeks):
         week_row = Week(
@@ -164,6 +188,7 @@ def _add_content(session: Session, syllabus_pk: int, content: ContentFolder) -> 
                 topics=list(lesson.topics),
                 exercise=lesson.exercise,
                 minutes=lesson.minutes,
+                content_hash=fingerprints[lesson.id],
                 material_links=[
                     LessonMaterial(material=materials[ref], position=i)
                     for i, ref in enumerate(lesson.materials)

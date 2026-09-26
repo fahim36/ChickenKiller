@@ -111,11 +111,22 @@ it("offers the Lesson Quiz on the Unlocked Lesson", async () => {
   ).toBe("/stacks/agentic-ai-engineer/lessons/w01-l01/quiz");
 });
 
-it("offers no quiz on a Locked or Completed Lesson", async () => {
-  for (const state of ["locked", "completed"] as const) {
+it("offers no quiz on a Locked, Completed or Updated Lesson", async () => {
+  for (const state of ["locked", "completed", "updated"] as const) {
     vi.stubGlobal("fetch", vi.fn(async () => Response.json({ ...lesson, state })));
     await renderLessonPage("agentic-ai-engineer", "w01-l01");
     expect(screen.queryByRole("link", { name: "Start the Lesson Quiz" })).toBeNull();
     cleanup();
   }
+});
+
+it("says an Updated Lesson's new Questions come in the Daily Review", async () => {
+  vi.stubGlobal("fetch", vi.fn(async () => Response.json({ ...lesson, state: "updated" })));
+
+  await renderLessonPage("agentic-ai-engineer", "w01-l01");
+
+  expect(screen.getByText("Updated")).toBeTruthy();
+  expect(screen.getByRole("note").textContent).toBe(
+    "A Syllabus Update added or changed this Lesson after you'd passed it. Its new Questions come in your Daily Review.",
+  );
 });

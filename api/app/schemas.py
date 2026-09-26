@@ -72,10 +72,23 @@ class WeekOut(BaseModel):
     milestones: list[MilestoneOut]
 
 
+class RemovedLessonOut(BaseModel):
+    """A Completed Lesson that the current Syllabus no longer has: history only (#13)."""
+
+    id: str
+    title: str
+    """As it was in the version the Learner completed it in."""
+    completed_at: datetime
+    version: str
+    """The version the Learner completed it in."""
+
+
 class SyllabusOut(StackSummary):
     weeks: list[WeekOut]
     daily_review: "DailyReviewOut | None" = None
     """Today's Daily Review; null on a day with nothing owed."""
+    removed_lessons: list[RemovedLessonOut] = []
+    """The Learner's Completed Lessons that a Syllabus Update removed, first completed first."""
     streak: int = 0
     """The consecutive days on which the Learner finished their whole Daily Review (#11)."""
 

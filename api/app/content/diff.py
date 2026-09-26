@@ -13,10 +13,13 @@ a change. So a new version that was copied and left alone has an empty diff.
 - **Concepts** and **Questions** are listed too, so a Lesson's change can be traced to them.
 
 The Syllabus Update writes its changelog from this list, and the content check holds the changelog
-to it (`app.content.check`). Importing a new version without losing progress (#13) uses it too.
+to it (`app.content.check`). The importer stores each Lesson's `lesson_fingerprints`, so the app
+can tell a Learner's Completed Lesson changed since the version they completed it in, by the same
+rule (#13).
 """
 
 import argparse
+import hashlib
 import json
 import sys
 from dataclasses import dataclass
@@ -96,6 +99,17 @@ def content_items(folder: ContentFolder) -> dict[str, Item]:
             fields["lesson"] = bank.lesson_id
             items[question.id] = Item(ItemKind.QUESTION, fields)
     return items
+
+
+def lesson_fingerprints(folder: ContentFolder) -> dict[str, str]:
+    """A hash of each Lesson's content as `diff_contents` compares it, by permanent ID: two
+    versions' fingerprints of a Lesson are equal exactly when the diff wouldn't list it as
+    changed."""
+    return {
+        item_id: hashlib.sha256(json.dumps(item.fields, sort_keys=True).encode()).hexdigest()
+        for item_id, item in content_items(folder).items()
+        if item.kind == ItemKind.LESSON
+    }
 
 
 def diff_contents(old: ContentFolder | None, new: ContentFolder) -> list[Change]:

@@ -29,9 +29,11 @@ export interface Material {
 
 /**
  * A Lesson's state for the signed-in Learner. Only the Unlocked Lesson's quiz can be started;
- * every Lesson can be read.
+ * every Lesson can be read. An Updated Lesson is one a Syllabus Update changed after the
+ * Learner completed it, or added behind them: its new Questions come in the Daily Review, and
+ * it never locks anything.
  */
-export type LessonState = "completed" | "unlocked" | "locked";
+export type LessonState = "completed" | "updated" | "unlocked" | "locked";
 
 export interface LessonSummary {
   id: string;
@@ -70,8 +72,20 @@ export interface Syllabus extends StackSummary {
   weeks: Week[];
   /** Today's Daily Review; null on a day with nothing owed. */
   daily_review: DailyReview | null;
+  /** The Learner's Completed Lessons that a Syllabus Update removed: history only. */
+  removed_lessons: RemovedLesson[];
   /** The consecutive days on which the Learner finished their whole Daily Review. */
   streak: number;
+}
+
+/** A Completed Lesson the current Syllabus no longer has. */
+export interface RemovedLesson {
+  id: string;
+  /** As it was in the version the Learner completed it in. */
+  title: string;
+  completed_at: string;
+  /** The version the Learner completed it in. */
+  version: string;
 }
 
 export interface Lesson {

@@ -10,22 +10,22 @@ Syllabus version's rows, so progress survives a new version (#13).
   the progress rows belong to.
 
 The lock-state rule itself is `unlocking.lesson_states`; `lesson_states` here feeds it the
-Learner's data, including whether a Pending Review Round exists today
-(`pending_review_round`, #9). The Week map, the Lesson page and the Lesson Quiz guard
-(`deps.UnlockedLesson`) all use it, so a new input to the rule is added in one place. Reading
-the rule needs the clock and the Learner's time zone, because a Review Round becomes pending
-two hours after it opens and only the current day's rounds count.
+Learner's data: their standing against the current Syllabus (`updated_lessons`, #13) and
+whether a Pending Review Round exists today (`pending_review_round`, #9). The Week map, the
+Lesson page and the Lesson Quiz guard (`deps.UnlockedLesson`) all use it, so a new input to the
+rule is added in one place. Reading the rule needs the clock and the Learner's time zone,
+because a Review Round becomes pending two hours after it opens and only the current day's
+rounds count.
 """
 
-from collections.abc import Sequence
 from datetime import datetime
 
 from sqlalchemy import delete, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
-from app import review, unlocking
-from app.models import CompletedLesson, LearnerStack, Lesson, MilestoneTick, ReviewRound, Stack
+from app import review, updated_lessons
+from app.models import CompletedLesson, LearnerStack, MilestoneTick, ReviewRound
 from app.unlocking import LessonState
 
 
@@ -41,11 +41,14 @@ def completed_lesson_ids(session: Session, learner_id: int, stack_id: str) -> se
     )
 
 
-def complete_lesson(session: Session, record: LearnerStack, lesson_id: str, now: datetime) -> None:
-    """Make `lesson_id` (a permanent ID) a Completed Lesson for this Learner on this Stack.
+def complete_lesson(
+    session: Session, record: LearnerStack, lesson_id: str, now: datetime, version: str
+) -> None:
+    """Make `lesson_id` (a permanent ID) a Completed Lesson for this Learner on this Stack,
+    completed in Syllabus `version` (the Lesson Quiz attempt's pinned version).
 
     The Lesson Quiz calls this once the Pass Mark is met and every Retake is correct (#6, #8).
-    Completing a Lesson twice keeps the first `completed_at`.
+    Completing a Lesson twice keeps the first `completed_at` and version.
     """
     session.execute(
         insert(CompletedLesson)
@@ -54,6 +57,7 @@ def complete_lesson(session: Session, record: LearnerStack, lesson_id: str, now:
             stack_id=record.stack_id,
             lesson_id=lesson_id,
             completed_at=now,
+            syllabus_version=version,
         )
         .on_conflict_do_nothing()
     )
@@ -65,11 +69,13 @@ def lesson_states(
 ) -> dict[str, LessonState]:
     """Each Lesson of the Stack's current Syllabus with its state for this Learner at `now`, in
     Syllabus order: while a Pending Review Round exists, the Unlocked Lesson is locked too.
-    Empty if the Stack has no current Syllabus. `time_zone` is the Learner's (None before
-    onboarding, when there is no Daily Review)."""
-    return unlocking.lesson_states(
-        _lesson_ids(session, stack_id),
-        completed_lesson_ids(session, learner_id, stack_id),
+    Updated Lessons (#13) come from comparing the current version with the ones the Learner
+    completed Lessons in (`updated_lessons`). Empty if the Stack has no current Syllabus.
+    `time_zone` is the Learner's (None before onboarding, when there is no Daily Review)."""
+    return updated_lessons.lesson_states(
+        session,
+        learner_id,
+        stack_id,
         pending_review_round=pending_review_round(session, learner_id, stack_id, time_zone, now)
         is not None,
     )
@@ -82,9 +88,7 @@ def waiting_for_review(
     Review Round; None when no round is pending."""
     if pending_review_round(session, learner_id, stack_id, time_zone, now) is None:
         return None
-    states = unlocking.lesson_states(
-        _lesson_ids(session, stack_id), completed_lesson_ids(session, learner_id, stack_id)
-    )
+    states = updated_lessons.lesson_states(session, learner_id, stack_id)
     return next((lesson for lesson, state in states.items() if state == "unlocked"), None)
 
 
@@ -109,16 +113,6 @@ def pending_review_round(
     return next(
         (r for r in unfinished if review.round_state(r.opened_at, None, now) == "pending"), None
     )
-
-
-def _lesson_ids(session: Session, stack_id: str) -> Sequence[str]:
-    """The current Syllabus's Lessons (permanent IDs), in order."""
-    return session.scalars(
-        select(Lesson.id)
-        .join(Stack, Stack.current_syllabus_pk == Lesson.syllabus_pk)
-        .where(Stack.id == stack_id)
-        .order_by(Lesson.position)
-    ).all()
 
 
 def ticked_milestone_ids(session: Session, learner_id: int, stack_id: str) -> set[str]:

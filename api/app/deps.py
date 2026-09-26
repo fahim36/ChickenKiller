@@ -163,6 +163,13 @@ LESSON_COMPLETED = {
     "message": "You've already completed this Lesson.",
 }
 
+LESSON_UPDATED = {
+    "code": "lesson_updated",
+    "message": (
+        "This Lesson was added or changed after you'd passed it. "
+        "Its new Questions come in your Daily Review."
+    ),
+}
 
 REVIEW_ROUND_PENDING = {
     "code": "review_round_pending",
@@ -184,6 +191,8 @@ def get_unlocked_lesson(
     state = progress.lesson_states(session, learner_id, stack_id, time_zone, now)[lesson.id]
     if state == "completed":
         raise HTTPException(409, LESSON_COMPLETED)
+    if state == "updated":
+        raise HTTPException(409, LESSON_UPDATED)
     if state == "locked":
         pending = progress.pending_review_round(session, learner_id, stack_id, time_zone, now)
         waiting = progress.waiting_for_review(session, learner_id, stack_id, time_zone, now)
@@ -198,7 +207,8 @@ UnlockedLesson = Annotated[Lesson, Depends(get_unlocked_lesson)]
 Learner's Unlocked Lesson (current Syllabus version, Week and Materials loaded). Anything else is
 refused, whatever the browser shows: 409 `review_round_pending` (with the pending `round_id`)
 for the Unlocked Lesson while a Pending Review Round exists (#9), 409 `lesson_locked` for any
-other Locked Lesson, 409 `lesson_completed` for a Completed Lesson, 409 `not_active_stack`, or
+other Locked Lesson, 409 `lesson_completed` for a Completed Lesson, 409 `lesson_updated` for an
+Updated Lesson (#13: its new Questions come in the Daily Review), 409 `not_active_stack`, or
 404."""
 
 

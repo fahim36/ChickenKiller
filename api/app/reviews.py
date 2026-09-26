@@ -19,7 +19,8 @@ module stores what they decide.
   2. Missed Questions still in the rotation, first missed first (`_missed_in_rotation`): a
      Missed Question leaves it once answered correctly on three different days since it was
      last missed;
-  3. Updated Lessons' new Questions (#13's slot, empty for now);
+  3. the new Questions of the Learner's Updated Lessons they haven't answered yet
+     (`updated_lessons.updated_question_ids`, #13), in Syllabus order;
   4. Questions of Completed Lessons at random.
   Questions already asked that day are left out unless a round would be short (then Completed
   Lessons' Questions repeat). All come from the Stack's current Syllabus version, which the
@@ -36,12 +37,9 @@ module stores what they decide.
   finished, so at most one round is pending. Only rounds of the Learner's current day count:
   an unfinished round from an earlier day is dropped (answering it is refused with
   `RoundDropped`) and blocks nothing.
-
 - **The Streak** (`streak`, #11) is computed from the `ReviewDay`s and their rounds, never
   stored: `review.day_outcome` judges each day the Learner used the app, and `review.streak`
   counts. A day with no `ReviewDay` was a day away, which breaks it.
-
-Not built yet: Updated Lessons' new Questions (#13: fill `updated` in `_round_questions`).
 """
 
 import random
@@ -54,7 +52,7 @@ from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
-from app import progress, quizzes, review
+from app import progress, quizzes, review, updated_lessons
 from app.grading import Grader
 from app.marking import AnswerTooLong, GradingFailed, NotAChoice, mark
 from app.models import (
@@ -361,7 +359,7 @@ def _round_questions(
     sources = review.RoundSources(
         carried_over=current(_carried_over(session, learner_id, stack_id, day)),
         missed=current(_missed_in_rotation(session, learner_id, stack_id, time_zone)),
-        updated=[],  # #13: the new Questions of the Learner's Updated Lessons go here
+        updated=updated_lessons.updated_question_ids(session, learner_id, stack_id),
         completed=[question_id for question_id, lesson_id in bank if lesson_id in completed],
         asked_today={
             q for r in _rounds_of(session, learner_id, stack_id, day) for q in r.question_ids

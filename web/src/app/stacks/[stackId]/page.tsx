@@ -11,9 +11,11 @@ import { setMilestoneTicked } from "./actions";
 
 /**
  * The Week map: the Active Stack's Weeks in Syllabus order, each with its Lessons (Completed,
- * Unlocked or Locked) and its Milestone checklist. Every Lesson links to its page, so a Learner
+ * Updated, Unlocked or Locked) and its Milestone checklist. Every Lesson links to its page, so a Learner
  * can read ahead; only the quiz is locked, and the API enforces that. The Learner's Streak and
  * today's Daily Review sit on top; while its round is pending, the Lesson it locks says so.
+ * Completed Lessons a Syllabus Update removed are listed last, as history: they're no longer on
+ * the path, so no links.
  */
 export default async function WeekMapPage({ params }: PageProps<"/stacks/[stackId]">) {
   await connection();
@@ -66,6 +68,20 @@ export default async function WeekMapPage({ params }: PageProps<"/stacks/[stackI
           </p>
         </section>
       ))}
+
+      {syllabus.removed_lessons.length > 0 && (
+        <section className="week" aria-labelledby="removed-lessons">
+          <h2 id="removed-lessons">Completed, no longer in the Syllabus</h2>
+          <ul className="lessons">
+            {syllabus.removed_lessons.map((lesson) => (
+              <li key={lesson.id}>
+                <Inline text={lesson.title} />
+                <span className="small muted"> · Syllabus {lesson.version}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </main>
   );
 }
