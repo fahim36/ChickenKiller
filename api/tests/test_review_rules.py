@@ -1,20 +1,25 @@
 """The Daily Review rules (#9, #10): which calendar day a Review Round belongs to, when a round
 becomes a Pending Review Round, when Rounds 2 and 3 open, which Questions carry over from a day
 with rounds left unfinished, when a Missed Question leaves the rotation, and which Questions a
-round asks. Plain functions with a fake clock (`now`) and a seeded random source; the API is
-tested in test_daily_review.py."""
+round asks, and the Streak (#11). Plain functions with a fake clock (`now`) and a seeded random
+source; the API is tested in test_daily_review.py and test_streak.py."""
 
 import random
 from datetime import UTC, date, datetime, timedelta
 
+import pytest
+
 from app.review import (
+    DayOutcome,
     RoundSources,
     carried_over,
+    day_outcome,
     in_rotation,
     next_round_opens_at,
     pick_round_questions,
     review_day,
     round_state,
+    streak,
 )
 
 OPENED = datetime(2026, 9, 26, 4, 0, tzinfo=UTC)
@@ -243,3 +248,67 @@ def test_with_too_few_questions_left_the_fill_repeats_some_asked_earlier_today()
 
     assert sorted(picked[:2]) == bank[6:]
     assert sorted(picked) == bank
+
+
+# --- The Streak -------------------------------------------------------------------------------
+
+D1, D2, D3, D4, D5 = (date(2026, 9, d) for d in range(21, 26))
+TODAY = date(2026, 9, 26)
+
+
+def at(day: date, hour: int) -> datetime:
+    """`hour` o'clock on `day`, in UTC (these tests' time zone)."""
+    return datetime(day.year, day.month, day.day, hour, tzinfo=UTC)
+
+
+@pytest.mark.parametrize(
+    ("finished_ats", "day", "outcome"),
+    [
+        # No round opened on a day the Learner used the app: nothing was owed.
+        ([], D1, "nothing_owed"),
+        ([], TODAY, "nothing_owed"),
+        # All three rounds finished.
+        ([at(D1, 1), at(D1, 6), at(D1, 11)], D1, "finished"),
+        # Round 1 finished at 21:00: Round 2 would open after midnight, so the day is done.
+        ([at(D1, 21)], D1, "finished"),
+        ([at(TODAY, 21)], TODAY, "finished"),
+        # A round left unfinished.
+        ([at(D1, 8), None], D1, "unfinished"),
+        # Round 2 came due at 12:00 while the Learner was away, so it was never stored.
+        ([at(D1, 8)], D1, "unfinished"),
+        # Today, still to finish: it isn't over yet.
+        ([None], TODAY, "in_progress"),
+        ([at(TODAY, 8)], TODAY, "in_progress"),
+    ],
+)
+def test_a_day_s_outcome_follows_from_its_rounds(
+    finished_ats: list[datetime | None], day: date, outcome: DayOutcome
+) -> None:
+    assert day_outcome(finished_ats, "UTC", day, TODAY) == outcome
+
+
+@pytest.mark.parametrize(
+    ("days", "expected"),
+    [
+        ({}, 0),
+        ({TODAY: "in_progress"}, 0),
+        ({TODAY: "finished"}, 1),
+        # Each finished day adds one; today, still in progress, doesn't break it yet.
+        ({D3: "finished", D4: "finished", D5: "finished", TODAY: "in_progress"}, 3),
+        ({D4: "finished", D5: "finished", TODAY: "finished"}, 3),
+        # An unfinished day resets it to zero; finished days after it count again.
+        ({D2: "finished", D3: "unfinished", TODAY: "in_progress"}, 0),
+        ({D1: "finished", D2: "unfinished", D3: "finished", D4: "finished", D5: "finished"}, 3),
+        # Nothing owed: neither extends nor breaks it.
+        ({D3: "finished", D4: "nothing_owed", D5: "finished", TODAY: "nothing_owed"}, 2),
+        ({D4: "nothing_owed", D5: "nothing_owed"}, 0),
+        # A past day the Learner never used the app: its Daily Review wasn't finished.
+        ({D1: "finished", D2: "finished", D4: "finished", D5: "finished", TODAY: "finished"}, 3),
+        # Not having used the app yet today breaks nothing.
+        ({D4: "finished", D5: "finished"}, 2),
+    ],
+)
+def test_the_streak_counts_the_finished_days_since_the_last_unfinished_one(
+    days: dict[date, DayOutcome], expected: int
+) -> None:
+    assert streak(days, TODAY) == expected

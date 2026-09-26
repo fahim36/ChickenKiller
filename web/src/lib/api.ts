@@ -70,6 +70,8 @@ export interface Syllabus extends StackSummary {
   weeks: Week[];
   /** Today's Daily Review; null on a day with nothing owed. */
   daily_review: DailyReview | null;
+  /** The consecutive days on which the Learner finished their whole Daily Review. */
+  streak: number;
 }
 
 export interface Lesson {

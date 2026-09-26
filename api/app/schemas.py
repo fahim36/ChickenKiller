@@ -76,6 +76,8 @@ class SyllabusOut(StackSummary):
     weeks: list[WeekOut]
     daily_review: "DailyReviewOut | None" = None
     """Today's Daily Review; null on a day with nothing owed."""
+    streak: int = 0
+    """The consecutive days on which the Learner finished their whole Daily Review (#11)."""
 
 
 class WeekRef(BaseModel):

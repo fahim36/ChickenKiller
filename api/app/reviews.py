@@ -37,9 +37,11 @@ module stores what they decide.
   an unfinished round from an earlier day is dropped (answering it is refused with
   `RoundDropped`) and blocks nothing.
 
-Not built yet: the Streak (#11: read `ReviewDay`s and their rounds in day order; a day's rounds
-were all finished when each is finished and `review.next_round_opens_at` of the day is None),
-and Updated Lessons' new Questions (#13: fill `updated` in `_round_questions`).
+- **The Streak** (`streak`, #11) is computed from the `ReviewDay`s and their rounds, never
+  stored: `review.day_outcome` judges each day the Learner used the app, and `review.streak`
+  counts. A day with no `ReviewDay` was a day away, which breaks it.
+
+Not built yet: Updated Lessons' new Questions (#13: fill `updated` in `_round_questions`).
 """
 
 import random
@@ -235,6 +237,30 @@ def daily_review(
         [_view(session, r, now) for r in rounds],
         # Past its time but not opened: there was nothing to ask, so it never opens.
         opens_at if opens_at is not None and opens_at > now else None,
+    )
+
+
+def streak(session: Session, learner_id: int, stack_id: str, time_zone: str, now: datetime) -> int:
+    """The Learner's Streak on this Stack at `now` (`review.streak`): each day they used the app
+    (a `ReviewDay`) judged by its stored rounds (`review.day_outcome`)."""
+    finished_ats: dict[date, list[datetime | None]] = {
+        day: []
+        for day in session.scalars(
+            select(ReviewDay.day).where(
+                ReviewDay.learner_id == learner_id, ReviewDay.stack_id == stack_id
+            )
+        )
+    }
+    for day, finished_at in session.execute(
+        select(ReviewRound.day, ReviewRound.finished_at)
+        .where(ReviewRound.learner_id == learner_id, ReviewRound.stack_id == stack_id)
+        .order_by(ReviewRound.day, ReviewRound.number)
+    ):
+        finished_ats[day].append(finished_at)
+    today = review.review_day(time_zone, now)
+    return review.streak(
+        {day: review.day_outcome(f, time_zone, day, today) for day, f in finished_ats.items()},
+        today,
     )
 
 

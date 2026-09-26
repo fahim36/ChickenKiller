@@ -46,6 +46,7 @@ const syllabus: Syllabus = {
     },
   ],
   daily_review: null,
+  streak: 0,
 };
 
 afterEach(() => {
@@ -91,6 +92,16 @@ it("shows each Week's Milestones as a checklist with the Learner's ticks", async
       .map((c) => [c.closest("li")?.textContent, (c as HTMLInputElement).checked]);
   expect(checkboxes(1)).toEqual([["Build Build a CLI", true]]);
   expect(checkboxes(2)).toEqual([["Job hunt Apply to one job", false]]);
+});
+
+it.each([
+  [0, "Streak: 0 days"],
+  [1, "Streak: 1 day"],
+  [12, "Streak: 12 days"],
+])("shows the Streak of %i", async (streak, text) => {
+  await renderWeekMap({ ...syllabus, streak });
+
+  expect(screen.getByRole("status", { name: "Streak" }).textContent).toBe(text);
 });
 
 it("shows no Daily Review on a day with nothing owed", async () => {

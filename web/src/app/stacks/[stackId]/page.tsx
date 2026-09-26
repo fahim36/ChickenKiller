@@ -12,8 +12,8 @@ import { setMilestoneTicked } from "./actions";
 /**
  * The Week map: the Active Stack's Weeks in Syllabus order, each with its Lessons (Completed,
  * Unlocked or Locked) and its Milestone checklist. Every Lesson links to its page, so a Learner
- * can read ahead; only the quiz is locked, and the API enforces that. Today's Daily Review sits
- * on top; while its round is pending, the Lesson it locks says so.
+ * can read ahead; only the quiz is locked, and the API enforces that. The Learner's Streak and
+ * today's Daily Review sit on top; while its round is pending, the Lesson it locks says so.
  */
 export default async function WeekMapPage({ params }: PageProps<"/stacks/[stackId]">) {
   await connection();
@@ -30,6 +30,9 @@ export default async function WeekMapPage({ params }: PageProps<"/stacks/[stackI
       <h1>{syllabus.name}</h1>
       <p className="muted">
         {syllabus.summary} · Syllabus {syllabus.version}
+      </p>
+      <p role="status" aria-label="Streak">
+        <strong>Streak:</strong> {syllabus.streak} {syllabus.streak === 1 ? "day" : "days"}
       </p>
       {syllabus.daily_review && (
         <DailyReviewBanner review={syllabus.daily_review} stackId={syllabus.id} now={new Date()} />

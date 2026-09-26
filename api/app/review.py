@@ -29,10 +29,14 @@ at the end of its day if not finished.
   order: carried-over Questions, Missed Questions still in the rotation, Updated Lessons' new
   Questions (#13), then Questions from Completed Lessons at random. A Question already asked
   earlier that day is left out, unless the round would otherwise be short.
+- **The Streak** (`streak`, #11): the consecutive days on which the Learner finished their
+  whole Daily Review (`day_outcome`). A past day with a round left unfinished, or not used at
+  all, resets it to zero; a day with nothing owed, and today while still in progress, neither
+  extend nor break it.
 """
 
 import random
-from collections.abc import Collection, Iterable, Sequence
+from collections.abc import Collection, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import Literal
@@ -160,3 +164,50 @@ def pick_round_questions(
     picked += rng.sample(fresh, min(size - len(picked), len(fresh)))
     repeats = [q for q in completed if q in asked]
     return picked + rng.sample(repeats, min(size - len(picked), len(repeats)))
+
+
+DayOutcome = Literal["finished", "unfinished", "nothing_owed", "in_progress"]
+"""How one day's Daily Review went, for the Streak."""
+
+
+def day_outcome(
+    finished_ats: Sequence[datetime | None], time_zone: str, day: date, today: date
+) -> DayOutcome:
+    """How the Daily Review of `day`, a day the Learner used the app, went by `today`, given the
+    `finished_at` of the day's stored rounds in order.
+
+    - "nothing_owed": no round opened (the Learner had no Completed Lesson at the day's first use).
+    - "finished": every round is finished and no further round opens that day
+      (`next_round_opens_at`). Rows alone aren't enough: a round that came due while the Learner
+      was away is never stored.
+    - "in_progress": today, not finished yet.
+    - "unfinished": a past day, not finished.
+    """
+    if not finished_ats:
+        return "nothing_owed"
+    if all(finished_ats) and next_round_opens_at(finished_ats, time_zone, day) is None:
+        return "finished"
+    return "in_progress" if day == today else "unfinished"
+
+
+def streak(days: Mapping[date, DayOutcome], today: date) -> int:
+    """The Streak on `today`: the finished days since the last unfinished one.
+
+    `days` holds the outcome of each day the Learner used the app (`day_outcome`). A day with
+    nothing owed neither extends nor breaks the Streak, and nor does today while in progress
+    (or not yet used). A past day missing from `days`, on which the Learner never used the app,
+    breaks it: its Round 1 was owed but never opened. Before the Learner's first day with
+    rounds the Streak is zero anyway, so such a day costs nothing there.
+    """
+    count = 0
+    if not days:
+        return count
+    day = min(days)
+    while day <= today:
+        outcome = days.get(day, "in_progress" if day == today else "unfinished")
+        if outcome == "finished":
+            count += 1
+        elif outcome == "unfinished":
+            count = 0
+        day += timedelta(days=1)
+    return count

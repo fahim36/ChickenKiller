@@ -109,7 +109,8 @@ def get_week_map(
     Milestones (and whether they're ticked), in Syllabus order, for the signed-in Learner.
 
     `daily_review` is today's Daily Review (null when nothing is owed today). While a round is
-    pending, the Lesson it locks has `waiting_for_review`, so the page can say why."""
+    pending, the Lesson it locks has `waiting_for_review`, so the page can say why. `streak` is
+    the Learner's Streak (#11)."""
     syllabus = lessons.current_syllabus(session, stack_id)
     if syllabus is None:
         raise HTTPException(404, "Stack not found")
@@ -155,6 +156,7 @@ def get_week_map(
             for week in syllabus.weeks
         ],
         daily_review=_daily_review(today) if today is not None and today.rounds else None,
+        streak=0 if tz is None else reviews.streak(session, learner.id, stack_id, tz, now),
     )
 
 
