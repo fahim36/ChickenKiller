@@ -1,6 +1,6 @@
 """The Lesson Quiz rules as plain functions: scoring against the Pass Mark, drawing Questions
-from a Question Bank (#6), composing a Lesson Quiz of both Question types (#7), and a fresh
-quiz and Retake siblings (#8)."""
+from a Question Bank (#6), skipping the Questions the Learner has seen (#6), composing a Lesson
+Quiz of both Question types (#7), and a fresh quiz and Retake siblings (#8)."""
 
 import random
 from collections import Counter
@@ -100,6 +100,48 @@ def test_the_same_seed_draws_the_same_quiz_and_others_vary() -> None:
 def test_a_bank_with_fewer_than_six_questions_gives_them_all() -> None:
     questions = bank(*"aabbc")
     assert sorted(draw_questions(questions, random.Random(0))) == ["a1", "a2", "b1", "b2", "c1"]
+
+
+# --- Skipping seen Questions (#6) ------------------------------------------------------------
+
+
+def test_a_quiz_skips_the_questions_the_learner_has_seen_when_the_bank_allows() -> None:
+    questions = bank(*"aaabbbccc")
+    for seed in range(30):
+        drawn = draw_questions(questions, random.Random(seed), seen=["a1", "b1", "c1"])
+        assert set(drawn) == {"a2", "a3", "b2", "b3", "c2", "c3"}, drawn
+
+
+def test_an_unseen_question_comes_before_covering_another_concept() -> None:
+    for seed in range(30):
+        drawn = draw_questions(bank(*"aab"), random.Random(seed), size=2, seen=["b1"])
+        assert sorted(drawn) == ["a1", "a2"], drawn
+
+
+def test_a_quiz_draws_seen_questions_only_as_far_as_the_bank_runs_short() -> None:
+    questions = bank(*"aabbcc")
+    for seed in range(30):
+        drawn = set(draw_questions(questions, random.Random(seed), size=4, seen=["a1", "b1", "c1"]))
+        assert {"a2", "b2", "c2"} <= drawn, drawn
+        assert len(drawn) == 4
+
+
+def test_a_lesson_quiz_short_of_unseen_questions_of_a_type_keeps_four_and_two() -> None:
+    seen = ["m1", "m2", "m3", "m4", "w1"]
+    for seed in range(20):
+        drawn = draw_quiz(typed(6, 3), random.Random(seed), seen=seen)
+        assert [q[0] for q in drawn] == list("mmmmww"), drawn
+        assert {"m5", "m6"} <= set(drawn[:4]), drawn
+        assert sorted(drawn[4:]) == ["w2", "w3"], drawn
+
+
+def test_a_fresh_quiz_repeats_other_seen_questions_before_the_previous_attempts() -> None:
+    previous = ["m1", "m2", "m3", "m4", "w1", "w2"]
+    seen = [*previous, "m5", "m6"]  # m5 and m6 were answered somewhere else
+    for seed in range(20):
+        drawn = draw_quiz(typed(8, 2), random.Random(seed), avoid=previous, seen=seen)
+        assert sorted(drawn[:4]) == ["m5", "m6", "m7", "m8"], drawn
+        assert sorted(drawn[4:]) == ["w1", "w2"], drawn
 
 
 # --- A fresh quiz after one below the Pass Mark (#8) -----------------------------------------

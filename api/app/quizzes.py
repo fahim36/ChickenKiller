@@ -6,9 +6,10 @@ stores what they decide.
 - **Starting** draws the Questions tagged to the Lesson in the Stack's Question Bank, never a
   Retired Question, and records the Syllabus version current then, which a pass completes the
   Lesson in (#13). Starting again before submitting resumes the same attempt, so a reload never
-  redraws. After an attempt below the Pass Mark, the fresh one
-  avoids that attempt's Questions as far as the bank allows; after a pass whose Retakes are
-  still pending, starting is refused (`RetakesPending`).
+  redraws. It skips the Questions the Learner has already seen (`seen_question_ids`), falling
+  back to them only where the bank runs short. After an attempt below the Pass Mark, the fresh
+  one avoids that attempt's Questions as far as the bank allows, even before other seen ones;
+  after a pass whose Retakes are still pending, starting is refused (`RetakesPending`).
 - **Submitting** marks the answers against the attempt's own Questions. A Question never
   changes (ADR-0004), so a quiz in progress when a new version is imported, or when one of its
   Questions is retired, finishes on the Questions it drew. Every
@@ -130,6 +131,7 @@ def start_lesson_quiz(
         [quiz.BankQuestion(q.id, q.concept.id, q.type) for q in bank],
         rng,
         avoid=previous.question_ids if previous is not None else (),
+        seen=seen_question_ids(session, record.learner_id, record.stack_id),
     )
     if not drawn:
         raise QuizUnavailable(lesson.id)
@@ -239,6 +241,20 @@ def recorded_answers(session: Session, learner_id: int, stack_id: str) -> list[A
             select(Answer)
             .where(Answer.learner_id == learner_id, Answer.stack_id == stack_id)
             .order_by(Answer.answered_at, Answer.id)
+        )
+    )
+
+
+def seen_question_ids(session: Session, learner_id: int, stack_id: str) -> set[str]:
+    """Permanent IDs of the Questions the Learner has seen on the Stack: every Question they have
+    an `Answer` to, in any context (Lesson Quiz, Retake, Review). A Daily Challenge answer
+    counts too once #17 records it as an `Answer` with its own context. Unanswered Questions of
+    a submitted quiz count: they were shown."""
+    return set(
+        session.scalars(
+            select(Answer.question_id)
+            .where(Answer.learner_id == learner_id, Answer.stack_id == stack_id)
+            .distinct()
         )
     )
 

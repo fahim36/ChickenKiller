@@ -7,8 +7,9 @@ becomes a Completed Lesson only when every Retake is correct.
   and reading the Retakes calls it again, so an interrupted request never strands a Lesson.
 - **Answering** (`answer_retake`) marks the sibling asked with `marking.mark`, the same rules
   as the Lesson Quiz: a written sibling is graded against its Model Answer (#7). Correct: that
-  Retake is done, and the last one done completes the Lesson. Wrong: its Explanation (and the
-  grader's feedback) is shown and another sibling is asked (`quiz.pick_sibling`: unused ones
+  Retake is done, and the last one done completes the Lesson. Wrong: its Explanation, Sources
+  and Materials (and the grader's feedback) are shown and another sibling is asked
+  (`quiz.pick_sibling`: unused ones
   first, then cycling, never the original). If grading fails, nothing is recorded and the
   Learner answers again.
 - Siblings come from the Stack's Question Bank, and are never Retired Questions.

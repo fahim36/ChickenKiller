@@ -109,6 +109,38 @@ it("after a wrong Retake shows its Explanation and offers another sibling", asyn
   expect(screen.queryByRole("status")).toBeNull();
 });
 
+it("after a wrong Retake shows its Sources and Materials", async () => {
+  const explainedResult: RetakeResult = {
+    ...wrong(2, 3),
+    question: {
+      ...answered(2, "b"),
+      sources: [
+        {
+          url: "https://example.com/sibling-2",
+          title: "Sibling 2 source",
+          publisher: "Example",
+          accessed: "2026-09-20",
+          claim: "Sibling 2 relies on this.",
+        },
+      ],
+      materials: [
+        { id: "mat-docs", title: "Some docs", url: "https://example.com/docs", type: "docs" },
+      ],
+    },
+  };
+  renderFlow(vi.fn<Answer>(async () => explainedResult));
+
+  choose("Wrong 2");
+
+  const explained = await screen.findByRole("article", { name: "Sibling 2?" });
+  expect(within(explained).getByRole("list", { name: "Sources" }).textContent).toBe(
+    "Sibling 2 source · Example: Sibling 2 relies on this.",
+  );
+  expect(within(explained).getByRole("link", { name: "Some docs" }).getAttribute("href")).toBe(
+    "https://example.com/docs",
+  );
+});
+
 it("says the Lesson is Completed once every Retake is correct", async () => {
   const answerAction = vi
     .fn<Answer>()
