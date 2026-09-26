@@ -1,10 +1,10 @@
 """The fixed content format, defined once.
 
-A content folder is one version of one Stack's Syllabus:
+A Stack's folder holds its Syllabus versions and its one Question Bank:
 
-    <stack-id>/<version>/syllabus.json
-    <stack-id>/<version>/questions/<lesson-id>.json   (one Question Bank per Lesson)
-    <stack-id>/<version>/changelog.json               (what changed since the previous version)
+    <stack-id>/<version>/syllabus.json        one Syllabus version
+    <stack-id>/<version>/changelog.json       what changed since the previous version
+    <stack-id>/question-bank/<name>.json      the Question Bank, in as many files as is readable
 
 The JSON Schema files in `content/schema/` are generated from these models
 (`uv run content-schema`), so this module is the single source of truth for the format.
@@ -12,6 +12,7 @@ Rules that span several items (unique IDs, references that must resolve, Questio
 live in `app.content.check`.
 """
 
+from datetime import date
 from enum import StrEnum
 from typing import Annotated, Literal
 
@@ -156,6 +157,8 @@ class Syllabus(_Model):
 
 
 class Concept(_Model):
+    """The single idea a Question tests. Concepts belong to the Stack, like the Question Bank."""
+
     id: PermanentId
     name: Text
 
@@ -170,8 +173,55 @@ class ModelAnswer(_Model):
     key_points: Annotated[list[Text], Field(min_length=2)]
 
 
+class Source(_Model):
+    """Where a Question's content came from. A Source is for checking a Question; a Material is
+    for learning."""
+
+    url: HttpsUrl
+    title: Text
+    publisher: Text
+    accessed: Annotated[
+        date,
+        Field(
+            description=(
+                "The UTC date the Source was read, YYYY-MM-DD: in the run that wrote the "
+                "Question (the content check allows today or yesterday for a new Question)."
+            )
+        ),
+    ]
+    claim: Annotated[Text, Field(description="The claim the Question relies on.")]
+
+
+class Retirement(_Model):
+    """Why a Question was taken out of use. It stays in the Question Bank, and is never drawn."""
+
+    reason: Text
+    replaced_by: Annotated[
+        PermanentId | None,
+        Field(description="The Question that replaces it, if any: a Question in the bank."),
+    ] = None
+    on: Annotated[date | None, Field(description="The UTC date it was retired.")] = None
+
+
+LessonTag = Annotated[
+    PermanentId | None,
+    Field(
+        description=(
+            "The Lesson the Question belongs to, in the Stack's newest Syllabus; null for none. "
+            "It is the one field of a committed Question that may change (a re-tag)."
+        )
+    ),
+]
+Sources = Annotated[list[Source], Field(min_length=1)]
+MaybeRetired = Annotated[
+    Retirement | None,
+    Field(description="Set once to retire the Question; a retirement is never undone."),
+]
+
+
 class MultipleChoiceQuestion(_Model):
     id: PermanentId
+    lesson: LessonTag = None
     concept: PermanentId
     type: Literal["multiple_choice"]
     prompt: Text
@@ -179,30 +229,39 @@ class MultipleChoiceQuestion(_Model):
     answer: ChoiceId
     explanation: Text
     materials: MaterialRefs
+    sources: Sources
+    retired: MaybeRetired = None
 
 
 class WrittenQuestion(_Model):
     id: PermanentId
+    lesson: LessonTag = None
     concept: PermanentId
     type: Literal["written"]
     prompt: Text
     model_answer: ModelAnswer
     explanation: Text
     materials: MaterialRefs
+    sources: Sources
+    retired: MaybeRetired = None
 
 
 Question = Annotated[MultipleChoiceQuestion | WrittenQuestion, Field(discriminator="type")]
 
 
 class QuestionBank(_Model):
-    """All pre-written Questions for one Lesson. Questions testing the same Concept are siblings."""
+    """One file of a Stack's Question Bank (`question-bank/<name>.json`). The bank is every file
+    together: files only group Questions for readable diffs, and a Concept declared in one file
+    can be tested in another. Questions testing the same Concept are siblings.
+
+    The bank is append-only (ADR-0004): a committed Question is never edited or deleted, only
+    retired or re-tagged to another Lesson."""
 
     model_config = ConfigDict(title="Question Bank")
 
-    schema_version: Literal[1]
-    lesson_id: PermanentId
-    concepts: Annotated[list[Concept], Field(min_length=1)]
-    questions: Annotated[list[Question], Field(min_length=1)]
+    schema_version: Literal[2]
+    concepts: list[Concept]
+    questions: list[Question]
 
 
 class ChangelogEntry(_Model):

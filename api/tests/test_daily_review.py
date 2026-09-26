@@ -22,6 +22,7 @@ from tests.conftest import (
     FakeGrader,
     complete_lessons,
     make_bank,
+    mc_question,
     onboard,
 )
 from tests.test_lesson_quiz import (
@@ -99,6 +100,24 @@ def finish(client: TestClient, round_: dict[str, Any]) -> dict[str, Any]:
 
 
 # --- Opening Round 1 ---------------------------------------------------------------------------
+
+
+def test_a_retired_question_is_never_asked(
+    session: Session, make_content: ContentFactory, learner: TestClient
+) -> None:
+    """q01 was retired and replaced by q09 before today's first use: Round 1 asks q09, not q01."""
+
+    def retire_q01(syllabus: dict[str, Any], bank: dict[str, Any]) -> None:
+        bank["questions"][0]["retired"] = {"reason": "Wrong.", "replaced_by": "w01-l01-q09"}
+        bank["questions"].append(mc_question("w01-l01-q09", "concept-a"))
+
+    extra = {"w01-l02": make_bank("w01-l02", "second")}
+    import_folder(session, make_content(retire_q01, extra_banks=extra))
+    learner.get("/me")
+
+    asked = {q["id"] for q in current_round(learner)["remaining"]}
+
+    assert asked == FIRST_BANK - {"w01-l01-q01"} | {"w01-l01-q09"}
 
 
 def test_the_first_use_of_the_day_opens_round_1_with_the_completed_lessons_questions(

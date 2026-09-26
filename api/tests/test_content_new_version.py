@@ -25,9 +25,8 @@ def test_copies_the_newest_version_under_todays_version(make_content: ContentFac
     assert (new / "syllabus.json").read_text(encoding="utf-8") == old_text.replace(
         '"version": "v2026-01-01"', '"version": "v2026-03-01"'
     )
-    assert (new / "questions" / "w01-l01.json").read_bytes() == (
-        old / "questions" / "w01-l01.json"
-    ).read_bytes()
+    assert not (new / "question-bank").exists()  # the Question Bank is the Stack's, not copied
+    assert (content / "mini-stack" / "question-bank" / "w01-l01.json").is_file()
     assert json.loads((old / "syllabus.json").read_text(encoding="utf-8"))["version"] == (
         "v2026-01-01"
     )
@@ -62,7 +61,7 @@ def test_a_new_stack_gets_an_empty_first_version(tmp_path: Path) -> None:
     new = new_version(tmp_path, "brand-new-stack", today=TODAY)
 
     assert new == tmp_path / "brand-new-stack" / "v2026-03-01"
-    assert (new / "questions").is_dir()
+    assert (new.parent / "question-bank").is_dir()
     assert not (new / "syllabus.json").exists()
     assert (
         json.loads((new / "changelog.json").read_text(encoding="utf-8"))["previous_version"] is None

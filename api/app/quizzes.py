@@ -3,13 +3,15 @@
 The rules (Pass Mark, scoring, drawing) are the plain functions in `app/quiz.py`; this module
 stores what they decide.
 
-- **Starting** draws the Questions from the Lesson's Question Bank in the Stack's current
-  Syllabus and pins the attempt to that version. Starting again before submitting resumes the
-  same attempt, so a reload never redraws. After an attempt below the Pass Mark, the fresh one
+- **Starting** draws the Questions tagged to the Lesson in the Stack's Question Bank, never a
+  Retired Question, and records the Syllabus version current then, which a pass completes the
+  Lesson in (#13). Starting again before submitting resumes the same attempt, so a reload never
+  redraws. After an attempt below the Pass Mark, the fresh one
   avoids that attempt's Questions as far as the bank allows; after a pass whose Retakes are
   still pending, starting is refused (`RetakesPending`).
-- **Submitting** marks the answers against the attempt's own Questions from its pinned version,
-  so a quiz in progress when a new version is imported finishes on the old one (#13). Every
+- **Submitting** marks the answers against the attempt's own Questions. A Question never
+  changes (ADR-0004), so a quiz in progress when a new version is imported, or when one of its
+  Questions is retired, finishes on the Questions it drew. Every
   Question drawn gets an `Answer` row, unanswered ones included. A pass with no Missed
   Question makes the Lesson a Completed Lesson (`progress.complete_lesson`); a pass with Missed
   Questions leaves it to their Retakes (`app/retakes.py`, which the caller opens next).
@@ -84,7 +86,7 @@ class QuizResult:
     feedback: dict[str, str | None]
     """The grader's line for each graded written answer; None for the others."""
     questions: list[Question]
-    """The attempt's Questions, from its pinned version, in the order they were asked."""
+    """The attempt's Questions, in the order they were asked."""
     responses: dict[str, str | None]
     """The Learner's response to each Question, None for unanswered."""
     lesson_completed: bool
@@ -116,7 +118,11 @@ def start_lesson_quiz(
 
     bank = session.scalars(
         select(Question)
-        .where(Question.lesson_pk == lesson.pk)
+        .where(
+            Question.stack_id == record.stack_id,
+            Question.lesson_id == lesson.id,
+            Question.retired_reason.is_(None),
+        )
         .options(joinedload(Question.concept))
         .order_by(Question.position)
     ).all()
@@ -202,7 +208,6 @@ def submit_lesson_quiz(
                 learner_id=record.learner_id,
                 stack_id=record.stack_id,
                 question_id=question_id,
-                syllabus_version=attempt.syllabus_version,
                 context=LESSON_QUIZ,
                 lesson_quiz_attempt_id=attempt.id,
                 response=responses.get(question_id),
@@ -245,8 +250,6 @@ class MissedQuestion:
 
     question_id: str
     """Permanent ID."""
-    syllabus_version: str
-    """The version it was last missed on."""
     first_missed_at: datetime
     last_missed_at: datetime
 
@@ -257,7 +260,7 @@ def missed_questions(session: Session, learner_id: int, stack_id: str) -> list[M
     decides when a Missed Question leaves the rotation (correct on three different days since
     `last_missed_at`: `review.in_rotation`, read by `reviews._missed_in_rotation`)."""
     rows = session.execute(
-        select(Answer.question_id, Answer.syllabus_version, Answer.answered_at)
+        select(Answer.question_id, Answer.answered_at)
         .where(
             Answer.learner_id == learner_id,
             Answer.stack_id == stack_id,
@@ -266,11 +269,10 @@ def missed_questions(session: Session, learner_id: int, stack_id: str) -> list[M
         .order_by(Answer.answered_at, Answer.id)
     ).all()
     missed: dict[str, MissedQuestion] = {}
-    for question_id, version, answered_at in rows:
+    for question_id, answered_at in rows:
         first = missed.get(question_id)
         missed[question_id] = MissedQuestion(
             question_id,
-            version,
             first.first_missed_at if first else answered_at,
             answered_at,
         )
@@ -312,15 +314,14 @@ def _open_attempt(
 
 
 def _questions(session: Session, attempt: LessonQuizAttempt) -> list[Question]:
-    """The attempt's Questions from its pinned Syllabus version, in the order they are asked."""
+    """The attempt's Questions, in the order they are asked."""
+    return questions_by_id(session, attempt.stack_id, attempt.question_ids)
+
+
+def questions_by_id(session: Session, stack_id: str, question_ids: Sequence[str]) -> list[Question]:
+    """Questions of the Stack's Question Bank, in the order of `question_ids`, retired or not."""
     rows = session.scalars(
-        select(Question)
-        .join(Syllabus, Syllabus.pk == Question.syllabus_pk)
-        .where(
-            Syllabus.stack_id == attempt.stack_id,
-            Syllabus.version == attempt.syllabus_version,
-            Question.id.in_(attempt.question_ids),
-        )
+        select(Question).where(Question.stack_id == stack_id, Question.id.in_(question_ids))
     ).all()
     by_id = {q.id: q for q in rows}
-    return [by_id[qid] for qid in attempt.question_ids]
+    return [by_id[qid] for qid in question_ids]

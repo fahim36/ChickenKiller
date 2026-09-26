@@ -1,0 +1,536 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "w07-l04-embeddings-and-similarity",
+      "name": "Embeddings, cosine similarity and dot product"
+    },
+    {
+      "id": "w07-l04-choosing-a-model-on-mteb",
+      "name": "Choosing an embedding model on MTEB, including for Bangla"
+    },
+    {
+      "id": "w07-l04-hnsw-vs-ivfflat",
+      "name": "Approximate nearest-neighbour indexes: HNSW vs IVFFlat"
+    },
+    {
+      "id": "w07-l04-pgvector-operators-and-limits",
+      "name": "pgvector distance operators, operator classes and dimension limits"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w07-l04-q01",
+      "lesson": "w07-l04",
+      "concept": "w07-l04-embeddings-and-similarity",
+      "type": "multiple_choice",
+      "prompt": "What is a text embedding?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A compressed copy of the text that can be decoded back into the original"
+        },
+        {
+          "id": "b",
+          "text": "A vector of floats where nearby vectors mean the texts are closely related"
+        },
+        {
+          "id": "c",
+          "text": "The list of token IDs the tokenizer produces for the text, in order"
+        },
+        {
+          "id": "d",
+          "text": "A hash that is equal for two texts only when they are exactly identical"
+        }
+      ],
+      "answer": "b",
+      "explanation": "OpenAI's embeddings guide defines an embedding as a vector (list) of floating-point numbers, where the distance between two vectors measures how related the texts are. That is why it finds a paraphrase that shares no words with the query. It isn't reversible like compression, and unlike token IDs or a hash, similar meanings give nearby vectors.",
+      "materials": [
+        "openai-docs-embeddings"
+      ],
+      "sources": [
+        {
+          "url": "https://developers.openai.com/api/docs/guides/embeddings",
+          "title": "Vector embeddings | OpenAI API",
+          "publisher": "OpenAI",
+          "accessed": "2026-09-26",
+          "claim": "An embedding is a vector of floating-point numbers, and the distance between two embeddings measures how related the texts are (small distance, high relatedness)."
+        }
+      ]
+    },
+    {
+      "id": "w07-l04-q02",
+      "lesson": "w07-l04",
+      "concept": "w07-l04-embeddings-and-similarity",
+      "type": "multiple_choice",
+      "prompt": "For `a = [1, 0]` and `b = [3, 4]`, what are the dot product and the cosine similarity?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Dot product 3, cosine similarity 3"
+        },
+        {
+          "id": "b",
+          "text": "Dot product 5, cosine similarity 1"
+        },
+        {
+          "id": "c",
+          "text": "Dot product 0.6, cosine similarity 0.6"
+        },
+        {
+          "id": "d",
+          "text": "Dot product 3, cosine similarity 0.6"
+        }
+      ],
+      "answer": "d",
+      "explanation": "The dot product is 1 × 3 + 0 × 4 = 3. Cosine similarity divides that by both lengths: |a| = 1 and |b| = √(9 + 16) = 5, so 3 / 5 = 0.6. Cosine only measures the angle between the vectors, so it ignores that `b` is five times longer; the dot product doesn't.",
+      "materials": [
+        "openai-docs-embeddings",
+        "pgvector-vector-search-in-postgres"
+      ],
+      "sources": [
+        {
+          "url": "https://developers.openai.com/api/docs/guides/embeddings",
+          "title": "Vector embeddings | OpenAI API",
+          "publisher": "OpenAI",
+          "accessed": "2026-09-26",
+          "claim": "Cosine similarity relates to the dot product and vector lengths; worked by hand: a.b = 1*3 + 0*4 = 3, |a| = 1, |b| = sqrt(9+16) = 5, so cosine = 3/5 = 0.6."
+        },
+        {
+          "url": "https://github.com/pgvector/pgvector",
+          "title": "pgvector: Open-source vector similarity search for Postgres",
+          "publisher": "pgvector project (GitHub)",
+          "accessed": "2026-09-26",
+          "claim": "pgvector's <#> operator returns the negative inner product and <=> returns cosine distance, with cosine similarity computed as 1 minus the <=> result."
+        }
+      ]
+    },
+    {
+      "id": "w07-l04-q03",
+      "lesson": "w07-l04",
+      "concept": "w07-l04-embeddings-and-similarity",
+      "type": "multiple_choice",
+      "prompt": "OpenAI's embeddings are normalised to length 1. What does that mean for choosing between cosine similarity and dot product?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "They give the same value, so the faster dot product (inner product) gives the same ranking"
+        },
+        {
+          "id": "b",
+          "text": "Cosine similarity becomes meaningless, so only Euclidean distance works"
+        },
+        {
+          "id": "c",
+          "text": "The dot product is always 1, so you must use cosine"
+        },
+        {
+          "id": "d",
+          "text": "You must normalise each vector again before every query"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Cosine similarity is the dot product divided by the two lengths; when both lengths are 1 there is nothing to divide by, so the numbers are identical. OpenAI's guide says cosine can then be computed with just a dot product and that cosine and Euclidean distance give the same rankings. pgvector's README says to use inner product for best performance on vectors normalised to length 1.",
+      "materials": [
+        "openai-docs-embeddings",
+        "pgvector-vector-search-in-postgres"
+      ],
+      "sources": [
+        {
+          "url": "https://developers.openai.com/api/docs/guides/embeddings",
+          "title": "Vector embeddings | OpenAI API",
+          "publisher": "OpenAI",
+          "accessed": "2026-09-26",
+          "claim": "OpenAI embeddings are normalised to length 1, so cosine similarity can be computed slightly faster with just a dot product and cosine and Euclidean distance give identical rankings."
+        },
+        {
+          "url": "https://github.com/pgvector/pgvector",
+          "title": "pgvector: Open-source vector similarity search for Postgres",
+          "publisher": "pgvector project (GitHub)",
+          "accessed": "2026-09-26",
+          "claim": "If vectors are normalised to length 1, as OpenAI embeddings are, pgvector recommends using inner product for best performance."
+        }
+      ]
+    },
+    {
+      "id": "w07-l04-q04",
+      "lesson": "w07-l04",
+      "concept": "w07-l04-embeddings-and-similarity",
+      "type": "written",
+      "prompt": "Explain the difference between cosine similarity and dot product, and when the choice between them matters for vector search.",
+      "model_answer": {
+        "summary": "Cosine similarity is the dot product divided by the vectors' lengths, so it compares direction only, while the dot product also grows with length; for vectors normalised to length 1 they are identical, so the choice only matters for unnormalised vectors.",
+        "key_points": [
+          "Dot product: multiply matching entries and sum them; its value grows with the vectors' lengths",
+          "Cosine similarity: the dot product divided by the product of the two lengths, so it depends only on the angle",
+          "When every vector has length 1, cosine similarity equals the dot product, and Euclidean distance gives the same ranking too",
+          "For normalised vectors, prefer the dot product (inner product), which skips the division and is faster; pgvector recommends inner product in that case",
+          "In pgvector, `<#>` returns the negative inner product and `<=>` the cosine distance (1 − cosine similarity)"
+        ]
+      },
+      "explanation": "Most embedding APIs, including OpenAI's, return unit-length vectors, which is why the choice 'typically doesn't matter much' in their guide. With unnormalised vectors the dot product favours longer vectors, which is sometimes wanted and usually not, so check whether your model normalises.",
+      "materials": [
+        "openai-docs-embeddings",
+        "pgvector-vector-search-in-postgres"
+      ],
+      "sources": [
+        {
+          "url": "https://developers.openai.com/api/docs/guides/embeddings",
+          "title": "Vector embeddings | OpenAI API",
+          "publisher": "OpenAI",
+          "accessed": "2026-09-26",
+          "claim": "Because OpenAI embeddings have length 1, cosine similarity reduces to a dot product, cosine and Euclidean give the same rankings, and the choice of distance function typically doesn't matter much."
+        },
+        {
+          "url": "https://github.com/pgvector/pgvector",
+          "title": "pgvector: Open-source vector similarity search for Postgres",
+          "publisher": "pgvector project (GitHub)",
+          "accessed": "2026-09-26",
+          "claim": "pgvector's <#> returns the negative inner product, <=> returns cosine distance (similarity = 1 - distance), and inner product is recommended for normalised vectors."
+        }
+      ]
+    },
+    {
+      "id": "w07-l04-q05",
+      "lesson": "w07-l04",
+      "concept": "w07-l04-choosing-a-model-on-mteb",
+      "type": "multiple_choice",
+      "prompt": "Your RAG app has to retrieve Bangla documents for Bangla questions. How should you use the MTEB leaderboard to shortlist embedding models?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Take the top model on the English benchmark; a good model is good in every language"
+        },
+        {
+          "id": "b",
+          "text": "Take the model with the most embedding dimensions, since more dimensions hold more languages"
+        },
+        {
+          "id": "c",
+          "text": "Select a benchmark that covers Bengali, such as MTEB(Multilingual) or MTEB(Indic), and compare retrieval scores"
+        },
+        {
+          "id": "d",
+          "text": "Skip the leaderboard: any embedding model can handle any language"
+        }
+      ],
+      "answer": "c",
+      "explanation": "The leaderboard has several benchmarks, and an English score says little about Bangla. MTEB(Multilingual) includes Bengali tasks and MTEB(Indic) targets Indic languages, and within them the retrieval task type is the one that matches RAG. Then confirm the shortlist on your own documents. Dimension count is a storage cost, not a language skill.",
+      "materials": [
+        "mteb-embedding-leaderboard",
+        "mteb-available-benchmarks",
+        "mmteb-paper"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.mteb.org/overview/available_benchmarks/",
+          "title": "Available Benchmarks - MTEB",
+          "publisher": "MTEB project (docs.mteb.org)",
+          "accessed": "2026-09-26",
+          "claim": "MTEB(Multilingual, v1) spans 250+ languages including Bengali (ben) tasks, and MTEB(Indic, v1) covers Indic languages including Bengali across task types that include retrieval."
+        },
+        {
+          "url": "https://arxiv.org/abs/2502.13595",
+          "title": "MMTEB: Massive Multilingual Text Embedding Benchmark",
+          "publisher": "arXiv",
+          "accessed": "2026-09-26",
+          "claim": "MMTEB extends MTEB to over 500 evaluation tasks across more than 250 languages."
+        }
+      ]
+    },
+    {
+      "id": "w07-l04-q06",
+      "lesson": "w07-l04",
+      "concept": "w07-l04-choosing-a-model-on-mteb",
+      "type": "multiple_choice",
+      "prompt": "The original MTEB paper benchmarked 33 models across 8 kinds of embedding task. What did it find, and what does that mean for you?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "No method won every task, so compare scores on your task type, such as retrieval"
+        },
+        {
+          "id": "b",
+          "text": "One model was best at every task, so the top overall model is always the right pick"
+        },
+        {
+          "id": "c",
+          "text": "Larger models always won, so pick the model with the most parameters you can run"
+        },
+        {
+          "id": "d",
+          "text": "Every model scored about the same, so just pick the cheapest one to run"
+        }
+      ],
+      "answer": "a",
+      "explanation": "The MTEB paper found that no particular text embedding method dominates across all tasks. A model that tops clustering or classification may not top retrieval, which is the task RAG depends on. The later MMTEB paper also found a 560-million-parameter model beating much larger ones, so size alone doesn't decide it either.",
+      "materials": [
+        "mteb-paper",
+        "mmteb-paper",
+        "mteb-embedding-leaderboard"
+      ],
+      "sources": [
+        {
+          "url": "https://arxiv.org/abs/2210.07316",
+          "title": "MTEB: Massive Text Embedding Benchmark",
+          "publisher": "arXiv",
+          "accessed": "2026-09-26",
+          "claim": "MTEB spans 8 embedding tasks over 58 datasets and 112 languages, benchmarks 33 models, and finds that no single text embedding method dominates across all tasks."
+        },
+        {
+          "url": "https://arxiv.org/abs/2502.13595",
+          "title": "MMTEB: Massive Multilingual Text Embedding Benchmark",
+          "publisher": "arXiv",
+          "accessed": "2026-09-26",
+          "claim": "MMTEB finds the best publicly available model is multilingual-e5-large-instruct with only 560 million parameters, ahead of much larger LLM-based models."
+        }
+      ]
+    },
+    {
+      "id": "w07-l04-q07",
+      "lesson": "w07-l04",
+      "concept": "w07-l04-choosing-a-model-on-mteb",
+      "type": "written",
+      "prompt": "Describe how you would choose an embedding model for RAG over a mix of English and Bangla help-centre pages.",
+      "model_answer": {
+        "summary": "Shortlist on an MTEB benchmark that covers both languages, compare retrieval scores and practical costs, then pick by testing the shortlist on your own questions.",
+        "key_points": [
+          "Use a leaderboard benchmark that includes Bengali, such as MTEB(Multilingual) or MTEB(Indic), not the English-only one",
+          "Compare the retrieval task scores, because retrieval is what RAG needs and no model is best at every task",
+          "Weigh practical limits: model size and memory, embedding dimensions (storage, and index limits such as pgvector's), and max tokens against your chunk size",
+          "Test two or three shortlisted models on your own golden set of questions, measuring something like recall@5"
+        ]
+      },
+      "explanation": "A benchmark narrows the field but can't know your documents, so the final choice comes from measuring on your own data. That same golden set later tells you whether a new model, or a change in chunking, actually helped.",
+      "materials": [
+        "mteb-embedding-leaderboard",
+        "mteb-paper",
+        "mmteb-paper"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.mteb.org/overview/available_benchmarks/",
+          "title": "Available Benchmarks - MTEB",
+          "publisher": "MTEB project (docs.mteb.org)",
+          "accessed": "2026-09-26",
+          "claim": "MTEB(Multilingual, v1) and MTEB(Indic, v1) both include Bengali tasks, and their task types include retrieval."
+        },
+        {
+          "url": "https://arxiv.org/abs/2210.07316",
+          "title": "MTEB: Massive Text Embedding Benchmark",
+          "publisher": "arXiv",
+          "accessed": "2026-09-26",
+          "claim": "MTEB finds no single embedding method dominates across all task types, so a model must be judged on the task type relevant to the use case."
+        },
+        {
+          "url": "https://github.com/pgvector/pgvector",
+          "title": "pgvector: Open-source vector similarity search for Postgres",
+          "publisher": "pgvector project (GitHub)",
+          "accessed": "2026-09-26",
+          "claim": "pgvector HNSW and IVFFlat indexes support vector columns up to 2,000 dimensions (halfvec up to 4,000), a practical limit when picking embedding dimensions."
+        }
+      ]
+    },
+    {
+      "id": "w07-l04-q08",
+      "lesson": "w07-l04",
+      "concept": "w07-l04-hnsw-vs-ivfflat",
+      "type": "multiple_choice",
+      "prompt": "According to the pgvector README, how does an HNSW index compare with an IVFFlat index?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "HNSW builds faster and uses less memory, but has worse recall than IVFFlat"
+        },
+        {
+          "id": "b",
+          "text": "They are the same algorithm and differ only in the name of the index method"
+        },
+        {
+          "id": "c",
+          "text": "HNSW gives exact nearest-neighbour results, while IVFFlat is approximate"
+        },
+        {
+          "id": "d",
+          "text": "HNSW has a better speed-recall trade-off but builds slower and uses more memory"
+        }
+      ],
+      "answer": "d",
+      "explanation": "HNSW builds a multilayer graph and gets better query performance for a given recall, at the cost of slower builds and more memory. IVFFlat divides vectors into lists and searches only the closest few, which builds faster and is smaller but gives up some speed-recall performance. Both are approximate, so both can miss true nearest neighbours.",
+      "materials": [
+        "pgvector-vector-search-in-postgres"
+      ],
+      "sources": [
+        {
+          "url": "https://github.com/pgvector/pgvector",
+          "title": "pgvector: Open-source vector similarity search for Postgres",
+          "publisher": "pgvector project (GitHub)",
+          "accessed": "2026-09-26",
+          "claim": "HNSW builds a multilayer graph with better speed-recall trade-off than IVFFlat but slower builds and more memory; IVFFlat divides vectors into lists and searches the subset closest to the query, building faster with less memory."
+        }
+      ]
+    },
+    {
+      "id": "w07-l04-q09",
+      "lesson": "w07-l04",
+      "concept": "w07-l04-hnsw-vs-ivfflat",
+      "type": "multiple_choice",
+      "prompt": "You create an IVFFlat index with `lists = 1000` on an empty table, then load 1 million rows. Queries now return poor or too few results. Why?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "IVFFlat can't index more than 100,000 rows, so the extra rows are skipped"
+        },
+        {
+          "id": "b",
+          "text": "Its k-means lists were built from an empty table, so they don't fit the data"
+        },
+        {
+          "id": "c",
+          "text": "`lists` must equal the number of rows, so 1,000 lists is far too few for 1M rows"
+        },
+        {
+          "id": "d",
+          "text": "IVFFlat only works with cosine distance, and the query uses a different one"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Building an IVFFlat index runs k-means over the rows already in the table to form the lists. Built on an empty table, those lists can't fit the data loaded later. pgvector's three keys to good recall are: create the index after the table has data, start with `lists = rows / 1000` up to 1M rows, and set `ivfflat.probes` (default 1) to about `sqrt(lists)`. HNSW doesn't have this problem, as it can be built on an empty table.",
+      "materials": [
+        "pgvector-vector-search-in-postgres"
+      ],
+      "sources": [
+        {
+          "url": "https://github.com/pgvector/pgvector",
+          "title": "pgvector: Open-source vector similarity search for Postgres",
+          "publisher": "pgvector project (GitHub)",
+          "accessed": "2026-09-26",
+          "claim": "IVFFlat's keys to good recall are creating the index after the table has data (building runs k-means over the rows to form lists), lists = rows/1000 up to 1M rows, and probes (default 1) starting at sqrt(lists); HNSW can be created on an empty table since it has no training step."
+        }
+      ]
+    },
+    {
+      "id": "w07-l04-q10",
+      "lesson": "w07-l04",
+      "concept": "w07-l04-hnsw-vs-ivfflat",
+      "type": "written",
+      "prompt": "Your chunks table has 200,000 rows and grows every day, and queries often filter by customer. Would you use HNSW or IVFFlat in pgvector? Explain the trade-offs and the settings you'd watch.",
+      "model_answer": {
+        "summary": "HNSW is the usual choice: better speed-recall and it can be built before the data exists, at the cost of slower builds and more memory; watch `hnsw.ef_search`, because filters are applied after the index scan.",
+        "key_points": [
+          "HNSW has the better speed-recall trade-off but builds more slowly and uses more memory than IVFFlat",
+          "HNSW can be created on an empty or growing table; IVFFlat should be built after the data is loaded, because its lists come from the data at build time",
+          "Both are approximate, so results can differ from an exact search; measure recall against an exact search on a sample",
+          "`hnsw.ef_search` (default 40) limits the candidates; `ivfflat.probes` (default 1) sets how many lists are searched, and higher means better recall but slower queries",
+          "Filters are applied after the index is scanned, so a filter matching 10% of rows leaves about 4 results at the default `ef_search`; raise it or use iterative index scans (pgvector 0.8.0+)"
+        ]
+      },
+      "explanation": "The daily growth and the filtering both point to HNSW, but approximate search always needs checking: compare against exact results on a sample before trusting the index. The filtering pitfall is common in multi-tenant RAG and is easy to miss because queries just quietly return fewer rows.",
+      "materials": [
+        "pgvector-vector-search-in-postgres"
+      ],
+      "sources": [
+        {
+          "url": "https://github.com/pgvector/pgvector",
+          "title": "pgvector: Open-source vector similarity search for Postgres",
+          "publisher": "pgvector project (GitHub)",
+          "accessed": "2026-09-26",
+          "claim": "HNSW has a better speed-recall trade-off and can be built without data but builds slower and uses more memory; IVFFlat should be built after data is loaded; hnsw.ef_search defaults to 40 and ivfflat.probes to 1."
+        },
+        {
+          "url": "https://github.com/pgvector/pgvector",
+          "title": "pgvector: Open-source vector similarity search for Postgres",
+          "publisher": "pgvector project (GitHub)",
+          "accessed": "2026-09-26",
+          "claim": "With approximate indexes filtering is applied after the index scan, so a condition matching 10% of rows returns about 4 rows at the default ef_search of 40; iterative index scans were added in pgvector 0.8.0."
+        }
+      ]
+    },
+    {
+      "id": "w07-l04-q11",
+      "lesson": "w07-l04",
+      "concept": "w07-l04-pgvector-operators-and-limits",
+      "type": "multiple_choice",
+      "prompt": "You created `CREATE INDEX ON chunks USING hnsw (embedding vector_cosine_ops)`, but your query is `ORDER BY embedding <-> $1 LIMIT 5`. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The index is used, because every distance function gives the same order"
+        },
+        {
+          "id": "b",
+          "text": "Postgres raises an error saying the operator doesn't match the index"
+        },
+        {
+          "id": "c",
+          "text": "A cosine index can't serve `<->` (L2) ordering, so Postgres scans exactly instead"
+        },
+        {
+          "id": "d",
+          "text": "The query silently returns rows in cosine order instead of the L2 order it asked for"
+        }
+      ],
+      "answer": "c",
+      "explanation": "Each pgvector operator class serves one distance: `vector_cosine_ops` for `<=>`, `vector_l2_ops` for `<->`, `vector_ip_ops` for `<#>`. The README says to add an index for each distance function you want to use, and the `ORDER BY` must be that distance operator, ascending, with a `LIMIT`. Use `<=>` in the query, or build an L2 index. Distances only give the same order when the vectors are normalised, and the planner doesn't assume that.",
+      "materials": [
+        "pgvector-vector-search-in-postgres"
+      ],
+      "sources": [
+        {
+          "url": "https://github.com/pgvector/pgvector",
+          "title": "pgvector: Open-source vector similarity search for Postgres",
+          "publisher": "pgvector project (GitHub)",
+          "accessed": "2026-09-26",
+          "claim": "pgvector says to add an index for each distance function you want to use (vector_l2_ops for <->, vector_ip_ops for <#>, vector_cosine_ops for <=>), and an index is only used when ORDER BY is a distance operator in ascending order with LIMIT; otherwise pgvector performs exact nearest-neighbour search by default."
+        }
+      ]
+    },
+    {
+      "id": "w07-l04-q12",
+      "lesson": "w07-l04",
+      "concept": "w07-l04-pgvector-operators-and-limits",
+      "type": "multiple_choice",
+      "prompt": "`text-embedding-3-large` returns 3,072 dimensions by default. You store them in a pgvector `vector(3072)` column and try to add an HNSW index. What happens, and what can you do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It works; pgvector's HNSW index supports any number of dimensions you store"
+        },
+        {
+          "id": "b",
+          "text": "It works, but only with an IVFFlat index instead of HNSW"
+        },
+        {
+          "id": "c",
+          "text": "You must switch to `text-embedding-3-small`, because 3,072-dimension vectors can't be stored"
+        },
+        {
+          "id": "d",
+          "text": "It fails: `vector` indexes max out at 2,000 dimensions; ask for fewer or use `halfvec`"
+        }
+      ],
+      "answer": "d",
+      "explanation": "pgvector can store the vectors, but its HNSW and IVFFlat indexes support `vector` only up to 2,000 dimensions, and `halfvec` (half precision) up to 4,000. OpenAI's v3 embedding models accept a `dimensions` parameter to return shorter vectors with little loss, which also cuts storage. The same limit applies to IVFFlat.",
+      "materials": [
+        "pgvector-vector-search-in-postgres",
+        "openai-docs-embeddings"
+      ],
+      "sources": [
+        {
+          "url": "https://github.com/pgvector/pgvector",
+          "title": "pgvector: Open-source vector similarity search for Postgres",
+          "publisher": "pgvector project (GitHub)",
+          "accessed": "2026-09-26",
+          "claim": "As of pgvector 0.8.x, the vector type stores up to 16,000 dimensions, but HNSW and IVFFlat indexes support vector only up to 2,000 dimensions and halfvec up to 4,000."
+        },
+        {
+          "url": "https://developers.openai.com/api/docs/guides/embeddings",
+          "title": "Vector embeddings | OpenAI API",
+          "publisher": "OpenAI",
+          "accessed": "2026-09-26",
+          "claim": "text-embedding-3-large returns 3,072 dimensions by default, and the v3 models accept a dimensions parameter to shorten embeddings while keeping their concept-representing properties."
+        }
+      ]
+    }
+  ]
+}

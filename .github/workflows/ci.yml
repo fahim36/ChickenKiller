@@ -43,15 +43,23 @@ jobs:
           uv run content-import ../content
       - run: uv run pytest -q
 
-  # The same command as the pre-commit hook: every committed Stack version, failing on any error.
+  # The same command as the pre-commit hook: every committed Stack, failing on any error.
   # Material links are checked by content-links.yml, so this job never depends on the network.
+  # On a pull request the Question Bank is held to the PR's base (never deleted or edited), and
+  # "this run" for new Questions' Sources is the day of the PR's last commit, in UTC.
   content:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: astral-sh/setup-uv@v6
-      - name: Check every committed Stack version
-        run: uv run --locked --project api content-check content
+      - name: Check every committed Stack
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          today=$(TZ=UTC git log -1 --date=format-local:%Y-%m-%d --format=%cd HEAD)
+          uv run --locked --project api content-check content --baseline "${BASE:-HEAD}" --today "$today"
 
   web:
     runs-on: ubuntu-latest

@@ -1,0 +1,453 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "w03-l02-bucket-sort-top-k",
+      "name": "Bucket sort by frequency (Top K Frequent Elements)"
+    },
+    {
+      "id": "w03-l02-prefix-suffix-products",
+      "name": "Prefix and suffix products (Product of Array Except Self)"
+    },
+    {
+      "id": "w03-l02-longest-consecutive",
+      "name": "Finding run starts with a set (Longest Consecutive Sequence)"
+    },
+    {
+      "id": "w03-l02-two-sum-recall",
+      "name": "Two Sum from memory"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w03-l02-q01",
+      "lesson": "w03-l02",
+      "concept": "w03-l02-bucket-sort-top-k",
+      "type": "multiple_choice",
+      "prompt": "In the bucket-sort solution to Top K Frequent Elements, `buckets[c]` holds the numbers that appear exactly `c` times. Why does `buckets` need `len(nums) + 1` slots?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Because each number needs its own slot, plus one spare"
+        },
+        {
+          "id": "b",
+          "text": "Because a count can be anything from 1 up to `len(nums)`"
+        },
+        {
+          "id": "c",
+          "text": "Because the buckets must be sorted, which needs one extra slot"
+        },
+        {
+          "id": "d",
+          "text": "Because `k` can be larger than the number of distinct values"
+        }
+      ],
+      "answer": "b",
+      "explanation": "The index is a frequency, and no number can appear more than `len(nums)` times, so indices 0 to `len(nums)` cover every possible count (slot 0 stays empty). Walking the buckets from the top down and collecting numbers until you have `k` gives the answer in O(n) time, meeting the problem's demand to beat O(n log n). The problem guarantees `k` is at most the number of distinct values.",
+      "materials": [
+        "neetcode-150-practice-list",
+        "neetcode-roadmap-with-video-solutions"
+      ],
+      "sources": [
+        {
+          "url": "https://leetcode.com/graphql?query=query{question(titleSlug:\"top-k-frequent-elements\"){title content}}",
+          "title": "Top K Frequent Elements",
+          "publisher": "LeetCode",
+          "accessed": "2026-09-26",
+          "claim": "Top K Frequent Elements has 1 <= nums.length <= 10^5, k in [1, number of unique elements], and a follow-up requiring better than O(n log n) time."
+        }
+      ]
+    },
+    {
+      "id": "w03-l02-q02",
+      "lesson": "w03-l02",
+      "concept": "w03-l02-bucket-sort-top-k",
+      "type": "multiple_choice",
+      "prompt": "For `nums = [1, 1, 1, 2, 2, 3]` and `k = 2`, what do the non-empty buckets hold, and what is the answer?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`buckets[1] = [1, 2, 3]`; answer `[1, 2]`"
+        },
+        {
+          "id": "b",
+          "text": "`buckets[3] = [3]`, `buckets[2] = [2]`, `buckets[1] = [1]`; answer `[3, 2]`"
+        },
+        {
+          "id": "c",
+          "text": "`buckets[1] = [1]`, `buckets[2] = [2]`, `buckets[3] = [3]`; answer `[3, 2]`"
+        },
+        {
+          "id": "d",
+          "text": "`buckets[3] = [1]`, `buckets[2] = [2]`, `buckets[1] = [3]`; answer `[1, 2]`"
+        }
+      ],
+      "answer": "d",
+      "explanation": "Counting gives `{1: 3, 2: 2, 3: 1}`. Each number goes into the bucket for its count: 1 into `buckets[3]`, 2 into `buckets[2]`, 3 into `buckets[1]`. Scanning from the highest bucket down collects 1, then 2, and stops at `k = 2`. Choices b and c mix up the roles: the index is the count, and the contents are the numbers.",
+      "materials": [
+        "neetcode-150-practice-list",
+        "neetcode-roadmap-with-video-solutions"
+      ],
+      "sources": [
+        {
+          "url": "https://leetcode.com/graphql?query=query{question(titleSlug:\"top-k-frequent-elements\"){title content}}",
+          "title": "Top K Frequent Elements",
+          "publisher": "LeetCode",
+          "accessed": "2026-09-26",
+          "claim": "For nums = [1,1,1,2,2,3] and k = 2 the expected output is [1,2]."
+        }
+      ]
+    },
+    {
+      "id": "w03-l02-q03",
+      "lesson": "w03-l02",
+      "concept": "w03-l02-bucket-sort-top-k",
+      "type": "written",
+      "prompt": "Explain the bucket-sort idea for Top K Frequent Elements and why it runs in O(n), compared with sorting by frequency.",
+      "model_answer": {
+        "summary": "Count frequencies with a hash map, put each number in a bucket indexed by its count, and read the buckets from the highest count down; every step is linear because counts are bounded by n, while sorting by count costs O(n log n).",
+        "key_points": [
+          "First count each number's frequency with a hash map, in O(n)",
+          "Make `len(nums) + 1` buckets, where bucket `c` holds the numbers that appear `c` times",
+          "Scan the buckets from the highest index down, collecting numbers until there are `k`",
+          "Every step is O(n) because frequencies can't exceed n, whereas sorting the distinct values by count is O(n log n)",
+          "A min-heap of size `k` is another option, at O(n log k)"
+        ]
+      },
+      "explanation": "Bucket sort works here because the sort keys, the counts, are small integers with a known maximum. Using them as array indices replaces comparisons with direct placement, which is how it gets below the O(n log n) of a comparison sort.",
+      "materials": [
+        "neetcode-150-practice-list",
+        "neetcode-roadmap-with-video-solutions"
+      ],
+      "sources": [
+        {
+          "url": "https://leetcode.com/graphql?query=query{question(titleSlug:\"top-k-frequent-elements\"){title content}}",
+          "title": "Top K Frequent Elements",
+          "publisher": "LeetCode",
+          "accessed": "2026-09-26",
+          "claim": "The follow-up requires the algorithm's time complexity to be better than O(n log n), where n is the array's size."
+        },
+        {
+          "url": "https://docs.python.org/3/library/collections.html",
+          "title": "collections — Container datatypes — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "Counter counts hashable objects into a dict of element-to-count, the frequency step of the solution."
+        }
+      ]
+    },
+    {
+      "id": "w03-l02-q04",
+      "lesson": "w03-l02",
+      "concept": "w03-l02-prefix-suffix-products",
+      "type": "multiple_choice",
+      "prompt": "For Product of Array Except Self on `nums = [1, 2, 3, 4]`, `prefix[i]` is the product of everything left of `i`, and `suffix[i]` of everything right of it. What are `prefix` and the answer?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`prefix = [1, 2, 6, 24]`, answer `[24, 12, 8, 6]`"
+        },
+        {
+          "id": "b",
+          "text": "`prefix = [1, 1, 2, 6]`, answer `[24, 24, 12, 4]`"
+        },
+        {
+          "id": "c",
+          "text": "`prefix = [1, 1, 2, 6]`, answer `[24, 12, 8, 6]`"
+        },
+        {
+          "id": "d",
+          "text": "`prefix = [0, 1, 2, 6]`, answer `[0, 12, 8, 6]`"
+        }
+      ],
+      "answer": "c",
+      "explanation": "Nothing is left of index 0, so `prefix[0]` is 1, the empty product; then 1, 1 × 2 = 2, and 1 × 2 × 3 = 6. Likewise `suffix = [24, 12, 4, 1]`. Each answer is `prefix[i] * suffix[i]`: 24, 12, 8, 6. Choice a's prefix is the inclusive running product, which counts `nums[i]` itself.",
+      "materials": [
+        "neetcode-150-practice-list",
+        "tech-interview-handbook-array"
+      ],
+      "sources": [
+        {
+          "url": "https://leetcode.com/graphql?query=query{question(titleSlug:\"product-of-array-except-self\"){title content}}",
+          "title": "Product of Array Except Self",
+          "publisher": "LeetCode",
+          "accessed": "2026-09-26",
+          "claim": "For nums = [1,2,3,4] the expected answer is [24,12,8,6], each entry being the product of all other elements."
+        }
+      ]
+    },
+    {
+      "id": "w03-l02-q05",
+      "lesson": "w03-l02",
+      "concept": "w03-l02-prefix-suffix-products",
+      "type": "multiple_choice",
+      "prompt": "Why not compute the total product once and return `total // nums[i]` for each `i`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The problem forbids division, and it breaks when `nums` contains a zero"
+        },
+        {
+          "id": "b",
+          "text": "Integer division is slow, so the solution would no longer be O(n)"
+        },
+        {
+          "id": "c",
+          "text": "It works for any input; the division is only discouraged for style"
+        },
+        {
+          "id": "d",
+          "text": "It needs O(n²) time, because the total is recomputed for each index"
+        }
+      ],
+      "answer": "a",
+      "explanation": "The problem says to run in O(n) without using division. Division also fails on zeros: for `[2, 0, 3]` the total is 0, so every answer would come out 0 (or divide by zero), but the right answer is `[0, 6, 0]`. Prefix and suffix products handle zeros with no special case.",
+      "materials": [
+        "neetcode-150-practice-list",
+        "tech-interview-handbook-array"
+      ],
+      "sources": [
+        {
+          "url": "https://leetcode.com/graphql?query=query{question(titleSlug:\"product-of-array-except-self\"){title content}}",
+          "title": "Product of Array Except Self",
+          "publisher": "LeetCode",
+          "accessed": "2026-09-26",
+          "claim": "The problem requires an O(n) algorithm without using the division operation; example [-1,1,0,-3,3] gives [0,0,9,0,0], showing zeros in the input."
+        }
+      ]
+    },
+    {
+      "id": "w03-l02-q06",
+      "lesson": "w03-l02",
+      "concept": "w03-l02-prefix-suffix-products",
+      "type": "written",
+      "prompt": "Product of Array Except Self has a follow-up: use O(1) extra space, not counting the output array. How do you do it?",
+      "model_answer": {
+        "summary": "Fill the output array with prefix products in a left-to-right pass, then make a right-to-left pass that multiplies each entry by a running suffix product kept in one variable.",
+        "key_points": [
+          "First pass, left to right: `answer[i]` is the product of all elements before `i`, starting from 1",
+          "Second pass, right to left: keep one variable `suffix`, starting at 1",
+          "At each `i`, multiply `answer[i]` by `suffix`, then multiply `suffix` by `nums[i]`",
+          "Only the output array and one variable are used, so the extra space is O(1), and two passes keep the time O(n)"
+        ]
+      },
+      "explanation": "The output array can hold the prefix products because each one is needed only once, when it is combined with the matching suffix product. Updating the suffix after using it at position `i` keeps `nums[i]` itself out of its own answer.",
+      "materials": [
+        "neetcode-150-practice-list",
+        "tech-interview-handbook-array"
+      ],
+      "sources": [
+        {
+          "url": "https://leetcode.com/graphql?query=query{question(titleSlug:\"product-of-array-except-self\"){title content}}",
+          "title": "Product of Array Except Self",
+          "publisher": "LeetCode",
+          "accessed": "2026-09-26",
+          "claim": "The follow-up asks for O(1) extra space, where the output array does not count as extra space."
+        }
+      ]
+    },
+    {
+      "id": "w03-l02-q07",
+      "lesson": "w03-l02",
+      "concept": "w03-l02-longest-consecutive",
+      "type": "multiple_choice",
+      "prompt": "In Longest Consecutive Sequence, the O(n) solution puts `nums` in a set and, for each `x`, only counts upward when `x - 1` is not in the set. Why that check?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It skips negative numbers, which can't start a sequence"
+        },
+        {
+          "id": "b",
+          "text": "It makes each run be counted once, from its first element"
+        },
+        {
+          "id": "c",
+          "text": "It removes duplicates, which would otherwise be counted twice"
+        },
+        {
+          "id": "d",
+          "text": "It sorts the set, so the counting can move left to right"
+        }
+      ],
+      "answer": "b",
+      "explanation": "If `x - 1` is in the set, `x` sits inside a longer run, and counting from it would repeat work. Only a run's first element starts the inner `while x + 1 in s` loop, so across the whole algorithm the inner loops step over each number at most once, and the total stays O(n) on average despite the nesting. The set itself removes duplicates, not this check.",
+      "materials": [
+        "neetcode-150-practice-list",
+        "neetcode-roadmap-with-video-solutions"
+      ],
+      "sources": [
+        {
+          "url": "https://leetcode.com/graphql?query=query{question(titleSlug:\"longest-consecutive-sequence\"){title content}}",
+          "title": "Longest Consecutive Sequence",
+          "publisher": "LeetCode",
+          "accessed": "2026-09-26",
+          "claim": "Longest Consecutive Sequence asks for the length of the longest run of consecutive values in an unsorted array, in O(n) time."
+        },
+        {
+          "url": "https://docs.python.org/3/tutorial/datastructures.html",
+          "title": "5. Data Structures — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "Sets are unordered collections with no duplicate elements whose basic uses include membership testing."
+        }
+      ]
+    },
+    {
+      "id": "w03-l02-q08",
+      "lesson": "w03-l02",
+      "concept": "w03-l02-longest-consecutive",
+      "type": "multiple_choice",
+      "prompt": "What does Longest Consecutive Sequence return for `nums = [100, 4, 200, 1, 3, 2]`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "1, because no two consecutive values are next to each other"
+        },
+        {
+          "id": "b",
+          "text": "2, the length of the run `[3, 4]`"
+        },
+        {
+          "id": "c",
+          "text": "3, the length of the run `[1, 2, 3]`"
+        },
+        {
+          "id": "d",
+          "text": "4, the length of the run `[1, 2, 3, 4]`"
+        }
+      ],
+      "answer": "d",
+      "explanation": "The values 1, 2, 3 and 4 form a consecutive run wherever they sit in the array; 100 and 200 are runs of length 1. Only 1, 100 and 200 have no predecessor in the set, so only they start a count, giving 4, 1 and 1. Sorting first also finds 4, but costs O(n log n), and the problem requires O(n).",
+      "materials": [
+        "neetcode-150-practice-list",
+        "neetcode-roadmap-with-video-solutions"
+      ],
+      "sources": [
+        {
+          "url": "https://leetcode.com/graphql?query=query{question(titleSlug:\"longest-consecutive-sequence\"){title content}}",
+          "title": "Longest Consecutive Sequence",
+          "publisher": "LeetCode",
+          "accessed": "2026-09-26",
+          "claim": "For nums = [100,4,200,1,3,2] the output is 4, from the sequence [1,2,3,4]."
+        }
+      ]
+    },
+    {
+      "id": "w03-l02-q09",
+      "lesson": "w03-l02",
+      "concept": "w03-l02-longest-consecutive",
+      "type": "written",
+      "prompt": "The O(n) solution to Longest Consecutive Sequence has a `while` loop inside a `for` loop. Explain why it is still O(n) and not O(n²).",
+      "model_answer": {
+        "summary": "The inner loop only runs from the start of each run, so across the whole algorithm it steps over each number at most once; the total work is O(n), plus O(n) to build the set.",
+        "key_points": [
+          "Building the set is O(n), and each membership check is O(1) on average",
+          "The inner loop starts only at an `x` whose `x - 1` is not in the set, the first element of a run",
+          "Runs don't overlap, so all the inner loops together step through each number at most once",
+          "So the outer loop does n checks and the inner loops do at most n steps in total: O(n) overall"
+        ]
+      },
+      "explanation": "Count the total work across the whole run, not the worst case of one loop times the other. The same argument, charging each step to an element that is visited only once, explains sliding windows and monotonic stacks later.",
+      "materials": [
+        "neetcode-150-practice-list",
+        "neetcode-roadmap-with-video-solutions"
+      ],
+      "sources": [
+        {
+          "url": "https://leetcode.com/graphql?query=query{question(titleSlug:\"longest-consecutive-sequence\"){title content}}",
+          "title": "Longest Consecutive Sequence",
+          "publisher": "LeetCode",
+          "accessed": "2026-09-26",
+          "claim": "The problem requires an algorithm that runs in O(n) time."
+        },
+        {
+          "url": "https://wiki.python.org/moin/TimeComplexity",
+          "title": "TimeComplexity - Python Wiki (Time & Space Complexity Reference)",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "Set membership `x in s` is O(1) on average."
+        }
+      ]
+    },
+    {
+      "id": "w03-l02-q10",
+      "lesson": "w03-l02",
+      "concept": "w03-l02-two-sum-recall",
+      "type": "multiple_choice",
+      "prompt": "Two Sum from memory, one-pass hash map, on `nums = [2, 7, 11, 15]`, `target = 9`. What is in `seen` at the moment the answer is found?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`{2: 0}`: only the elements before index 1"
+        },
+        {
+          "id": "b",
+          "text": "`{2: 0, 7: 1}`: every element up to the answer"
+        },
+        {
+          "id": "c",
+          "text": "`{7: 1}`: only the complement's entry"
+        },
+        {
+          "id": "d",
+          "text": "`{2: 0, 7: 1, 11: 2, 15: 3}`: the map is built first"
+        }
+      ],
+      "answer": "a",
+      "explanation": "At `i = 0`, 9 − 2 = 7 isn't in `seen`, so `2 → 0` is stored. At `i = 1`, 9 − 7 = 2 is found before 7 is stored, so the function returns `[0, 1]` with `seen == {2: 0}`. The map is built as you go, which is what makes it one pass.",
+      "materials": [
+        "neetcode-150-practice-list"
+      ],
+      "sources": [
+        {
+          "url": "https://leetcode.com/graphql?query=query{question(titleSlug:\"two-sum\"){title content}}",
+          "title": "Two Sum",
+          "publisher": "LeetCode",
+          "accessed": "2026-09-26",
+          "claim": "For nums = [2,7,11,15] and target = 9 the answer is [0,1] because nums[0] + nums[1] == 9."
+        }
+      ]
+    },
+    {
+      "id": "w03-l02-q11",
+      "lesson": "w03-l02",
+      "concept": "w03-l02-two-sum-recall",
+      "type": "multiple_choice",
+      "prompt": "Your one-pass Two Sum is: for each `i, x`, `if target - x in seen: return [seen[target - x], i]`, then `seen[x] = i`. What does it return for `nums = [3, 3]`, `target = 6`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`[0, 0]`, because 3 is its own complement and is found at once"
+        },
+        {
+          "id": "b",
+          "text": "`[1, 1]`, because the second 3 overwrites the first in `seen`"
+        },
+        {
+          "id": "c",
+          "text": "`[0, 1]`: the first 3 is stored before the second is checked"
+        },
+        {
+          "id": "d",
+          "text": "`None`, because the duplicate value 3 breaks the dict lookup"
+        }
+      ],
+      "answer": "c",
+      "explanation": "At `i = 0`, 3 isn't in the empty map, so `3 → 0` is stored. At `i = 1`, the complement 3 is found with index 0, giving `[0, 1]`. Checking before storing is what stops an element pairing with itself, and duplicates cause no trouble because the earlier index is found before anything is overwritten.",
+      "materials": [
+        "neetcode-150-practice-list"
+      ],
+      "sources": [
+        {
+          "url": "https://leetcode.com/graphql?query=query{question(titleSlug:\"two-sum\"){title content}}",
+          "title": "Two Sum",
+          "publisher": "LeetCode",
+          "accessed": "2026-09-26",
+          "claim": "For nums = [3,3] and target = 6 the expected answer is [0,1]."
+        }
+      ]
+    }
+  ]
+}

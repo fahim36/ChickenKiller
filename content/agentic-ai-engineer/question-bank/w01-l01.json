@@ -1,0 +1,354 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "identity-vs-equality",
+      "name": "Identity (`is`) vs equality (`==`)"
+    },
+    {
+      "id": "mutable-default-argument",
+      "name": "Mutable default arguments"
+    },
+    {
+      "id": "assignment-binds-names",
+      "name": "Assignment binds names to objects"
+    },
+    {
+      "id": "shallow-vs-deep-copy",
+      "name": "Shallow vs deep copy"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w01-l01-q01",
+      "lesson": "w01-l01",
+      "concept": "identity-vs-equality",
+      "type": "multiple_choice",
+      "prompt": "After `a = [1, 2]` and `b = [1, 2]`, what are `a == b` and `a is b`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`True` and `True`"
+        },
+        {
+          "id": "b",
+          "text": "`True` and `False`"
+        },
+        {
+          "id": "c",
+          "text": "`False` and `False`"
+        },
+        {
+          "id": "d",
+          "text": "`False` and `True`"
+        }
+      ],
+      "answer": "b",
+      "explanation": "`==` compares values by calling `__eq__`, and both lists hold the same values. `is` compares identity: each list literal creates a new object, so `a` and `b` are two different objects.",
+      "materials": [
+        "facts-and-myths-about-python-names",
+        "python-docs-the-data-model"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/reference/expressions.html",
+          "title": "6. Expressions — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "`x is y` is true only when x and y are the same object, while `==` compares values and can be customised through `__eq__`."
+        },
+        {
+          "url": "https://docs.python.org/3/reference/datamodel.html",
+          "title": "3. Data model — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "After `c = []; d = []` the two names are guaranteed to refer to two distinct, newly created lists."
+        }
+      ]
+    },
+    {
+      "id": "w01-l01-q02",
+      "lesson": "w01-l01",
+      "concept": "identity-vs-equality",
+      "type": "multiple_choice",
+      "prompt": "When is `is` the right comparison to use?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Comparing two strings"
+        },
+        {
+          "id": "b",
+          "text": "Checking whether a value is `None`"
+        },
+        {
+          "id": "c",
+          "text": "Comparing two small integers"
+        },
+        {
+          "id": "d",
+          "text": "Checking whether two lists have the same items"
+        }
+      ],
+      "answer": "b",
+      "explanation": "`None` is a singleton, so `x is None` is exact and is what PEP 8 recommends. Strings and small integers sometimes share objects because of interning, but that is a CPython detail you must not rely on. Use `==` for value comparisons.",
+      "materials": [
+        "facts-and-myths-about-python-names"
+      ],
+      "sources": [
+        {
+          "url": "https://peps.python.org/pep-0008/",
+          "title": "PEP 8 – Style Guide for Python Code | peps.python.org",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "PEP 8 says comparisons to singletons such as None should always use `is` or `is not`, never the equality operators."
+        },
+        {
+          "url": "https://docs.python.org/3/reference/datamodel.html",
+          "title": "3. Data model — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "For immutable types an operation may return a reference to an existing object with the same value, so whether `a = 1; b = 1` share one object depends on the implementation."
+        }
+      ]
+    },
+    {
+      "id": "w01-l01-q03",
+      "lesson": "w01-l01",
+      "concept": "mutable-default-argument",
+      "type": "multiple_choice",
+      "prompt": "Given `def add(item, bucket=[]): bucket.append(item); return bucket`, what does `add(1); print(add(2))` print?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`[2]`"
+        },
+        {
+          "id": "b",
+          "text": "`[1, 2]`"
+        },
+        {
+          "id": "c",
+          "text": "`[[1], [2]]`"
+        },
+        {
+          "id": "d",
+          "text": "It raises `TypeError`"
+        }
+      ],
+      "answer": "b",
+      "explanation": "The default list is created once, when the `def` statement runs, and every call that omits `bucket` gets that same list. The first call appends 1 and the second appends 2 to the same object.",
+      "materials": [
+        "fluent-python-2nd-ed",
+        "facts-and-myths-about-python-names"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/reference/compound_stmts.html",
+          "title": "8. Compound statements — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "Default parameter values are evaluated once, when the `def` statement is executed, and the same object is used on every call, so mutating a default list persists between calls."
+        }
+      ]
+    },
+    {
+      "id": "w01-l01-q04",
+      "lesson": "w01-l01",
+      "concept": "mutable-default-argument",
+      "type": "written",
+      "prompt": "Explain why `def f(x=[])` is a bug and show how to fix it.",
+      "model_answer": {
+        "summary": "Default values are evaluated once, so a mutable default is shared by every call. Use `None` as the default and create a fresh list inside the function.",
+        "key_points": [
+          "Default values are evaluated once, when the `def` statement runs, not on each call",
+          "Every call that omits the argument receives the same list object",
+          "Changes made to that list in one call persist into later calls",
+          "The fix: default to `None` and create a new list inside the function when the argument is `None`"
+        ]
+      },
+      "explanation": "Python stores default values on the function object itself (in `__defaults__`). A mutable default therefore behaves like hidden global state. The `None`-sentinel pattern creates a new object on each call.",
+      "materials": [
+        "fluent-python-2nd-ed",
+        "facts-and-myths-about-python-names"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/reference/compound_stmts.html",
+          "title": "8. Compound statements — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "Defaults are evaluated once when the function definition runs; a mutated mutable default stays modified, and the documented fix is a `None` default with a new list created in the body."
+        },
+        {
+          "url": "https://docs.python.org/3/faq/programming.html",
+          "title": "Programming FAQ — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "The FAQ explains that default values are created exactly once and recommends using `None` as the default and creating a fresh object inside the function."
+        },
+        {
+          "url": "https://docs.python.org/3/reference/datamodel.html",
+          "title": "3. Data model — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "A function's `__defaults__` attribute is a tuple holding the default parameter values."
+        }
+      ]
+    },
+    {
+      "id": "w01-l01-q05",
+      "lesson": "w01-l01",
+      "concept": "assignment-binds-names",
+      "type": "multiple_choice",
+      "prompt": "What does `a = [1, 2, 3]; b = a; b.append(4); print(a)` print?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`[1, 2, 3]`"
+        },
+        {
+          "id": "b",
+          "text": "`[1, 2, 3, 4]`"
+        },
+        {
+          "id": "c",
+          "text": "`[4]`"
+        },
+        {
+          "id": "d",
+          "text": "It raises `NameError`"
+        }
+      ],
+      "answer": "b",
+      "explanation": "`b = a` does not copy anything. It binds the name `b` to the same list object that `a` refers to, so a change made through either name is visible through both.",
+      "materials": [
+        "facts-and-myths-about-python-names"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/faq/programming.html",
+          "title": "Programming FAQ — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "`y = x` does not copy a list; it makes a new name referring to the same object, so appending through `y` is visible through `x`."
+        }
+      ]
+    },
+    {
+      "id": "w01-l01-q06",
+      "lesson": "w01-l01",
+      "concept": "assignment-binds-names",
+      "type": "written",
+      "prompt": "What happens when you write `b = a` where `a` is a list? Why can this surprise you when you pass a list into a function?",
+      "model_answer": {
+        "summary": "Assignment binds a second name to the same object. Functions receive that same object, so mutating it inside the function changes the caller's list, while rebinding the parameter does not.",
+        "key_points": [
+          "Assignment binds the name `b` to the existing object; no copy is made",
+          "Both names refer to one object, so a mutation through either name is visible through both",
+          "A function parameter is bound to the caller's object in the same way (sometimes called call by sharing)",
+          "Mutating the parameter changes the caller's list, but assigning a new object to the parameter does not affect the caller"
+        ]
+      },
+      "explanation": "Python names are labels on objects, not boxes that hold values. Knowing when you mutate the shared object and when you rebind the name explains most aliasing bugs.",
+      "materials": [
+        "facts-and-myths-about-python-names",
+        "fluent-python-2nd-ed"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/faq/programming.html",
+          "title": "Programming FAQ — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "Assignment makes a second name refer to the same object, and arguments are passed by assignment, so rebinding a parameter inside a function does not change the caller's name (there is no call-by-reference)."
+        }
+      ]
+    },
+    {
+      "id": "w01-l01-q07",
+      "lesson": "w01-l01",
+      "concept": "shallow-vs-deep-copy",
+      "type": "multiple_choice",
+      "prompt": "After `import copy; a = [[1, 2], [3]]; b = copy.copy(a); b[0].append(9)`, what is `a`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`[[1, 2], [3]]`"
+        },
+        {
+          "id": "b",
+          "text": "`[[1, 2, 9], [3]]`"
+        },
+        {
+          "id": "c",
+          "text": "`[[1, 2], [3], [9]]`"
+        },
+        {
+          "id": "d",
+          "text": "`[[9], [3]]`"
+        }
+      ],
+      "answer": "b",
+      "explanation": "A shallow copy makes a new outer list whose items are the same inner objects. `b[0]` is the same inner list as `a[0]`, so appending to it shows up in `a` too.",
+      "materials": [
+        "fluent-python-2nd-ed"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/library/copy.html",
+          "title": "copy — Shallow and deep copy operations — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "A shallow copy builds a new compound object and inserts references to the same objects found in the original, whereas a deep copy recursively inserts copies."
+        }
+      ]
+    },
+    {
+      "id": "w01-l01-q08",
+      "lesson": "w01-l01",
+      "concept": "shallow-vs-deep-copy",
+      "type": "multiple_choice",
+      "prompt": "You have a dict whose values are lists. Which expression gives a fully independent copy?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`dict(d)`"
+        },
+        {
+          "id": "b",
+          "text": "`d.copy()`"
+        },
+        {
+          "id": "c",
+          "text": "`{**d}`"
+        },
+        {
+          "id": "d",
+          "text": "`copy.deepcopy(d)`"
+        }
+      ],
+      "answer": "d",
+      "explanation": "`dict(d)`, `d.copy()` and `{**d}` are all shallow copies: the new dict still points at the same lists. `copy.deepcopy` copies the nested objects too.",
+      "materials": [
+        "fluent-python-2nd-ed"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/library/copy.html",
+          "title": "copy — Shallow and deep copy operations — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "`dict.copy()` makes a shallow copy, while `copy.deepcopy` recursively copies the nested objects found in the original."
+        },
+        {
+          "url": "https://docs.python.org/3/builtins/stdtypes.html",
+          "title": "Built-in Types — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "`dict.copy()` returns a shallow copy of the dictionary, and `dict(mapping)` returns a new dictionary initialised from the given mapping's items."
+        }
+      ]
+    }
+  ]
+}

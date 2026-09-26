@@ -1,0 +1,515 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "w11-l02-async-await",
+      "name": "`async` functions and `await`"
+    },
+    {
+      "id": "w11-l02-promise-all",
+      "name": "`Promise.all` and `Promise.allSettled`"
+    },
+    {
+      "id": "w11-l02-async-error-handling",
+      "name": "Error handling with `async`/`await`"
+    },
+    {
+      "id": "w11-l02-zod-validate-llm-output",
+      "name": "Validating LLM output with Zod"
+    },
+    {
+      "id": "w11-l02-zod-inferred-types",
+      "name": "Types inferred from Zod schemas"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w11-l02-q01",
+      "lesson": "w11-l02",
+      "concept": "w11-l02-async-await",
+      "type": "multiple_choice",
+      "prompt": "`async function count() { return 1; }` What is `const x = count();`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The number `1`"
+        },
+        {
+          "id": "b",
+          "text": "`undefined`, because the function hasn't finished"
+        },
+        {
+          "id": "c",
+          "text": "A `Promise<number>` that resolves to `1`"
+        },
+        {
+          "id": "d",
+          "text": "A compile error, because `count` has no `await`"
+        }
+      ],
+      "answer": "c",
+      "explanation": "An `async` function always returns a promise. A returned value that isn't a promise is wrapped, as if by `Promise.resolve(1)`. To get the number, `await count()` or use `.then`. `async` functions don't need to contain `await`.",
+      "materials": [
+        "mdn-async-function"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/async_function",
+          "title": "async function - JavaScript | MDN",
+          "publisher": "Mozilla (MDN Web Docs)",
+          "accessed": "2026-09-26",
+          "claim": "An async function always returns a promise, a non-promise return value is wrapped as if by Promise.resolve, and it may contain zero await expressions."
+        }
+      ]
+    },
+    {
+      "id": "w11-l02-q02",
+      "lesson": "w11-l02",
+      "concept": "w11-l02-async-await",
+      "type": "multiple_choice",
+      "prompt": "`slow()` resolves after 2 s and `fast()` after 1 s; they don't depend on each other. How long does `const a = await slow(); const b = await fast();` take, and how do you make it about 2 s?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "About 2 s already, because both run in the background"
+        },
+        {
+          "id": "b",
+          "text": "About 3 s; start both, then `await Promise.all([slow(), fast()])`"
+        },
+        {
+          "id": "c",
+          "text": "About 3 s; add `async` to the caller to run them together"
+        },
+        {
+          "id": "d",
+          "text": "About 1 s, because `fast` finishes first"
+        }
+      ],
+      "answer": "b",
+      "explanation": "`await` pauses until the promise settles, so `fast()` doesn't start until `slow()` has finished: 2 + 1 = 3 s. Calling both before awaiting runs them at the same time. `Promise.all` is the safe way to await both, because it also handles the case where one rejects early.",
+      "materials": [
+        "mdn-async-function",
+        "mdn-promise-all"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/async_function",
+          "title": "async function - JavaScript | MDN",
+          "publisher": "Mozilla (MDN Web Docs)",
+          "accessed": "2026-09-26",
+          "claim": "Awaiting a 2 s and a 1 s promise one after the other takes about 3 s, while starting both and awaiting Promise.all takes about 2 s and handles rejections safely."
+        },
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/all",
+          "title": "Promise.all() - JavaScript | MDN",
+          "publisher": "Mozilla (MDN Web Docs)",
+          "accessed": "2026-09-26",
+          "claim": "Promise.all rejects as soon as any input rejects, with that first reason."
+        }
+      ]
+    },
+    {
+      "id": "w11-l02-q03",
+      "lesson": "w11-l02",
+      "concept": "w11-l02-promise-all",
+      "type": "multiple_choice",
+      "prompt": "`await Promise.all([search(), fetchDocs(), lookupUser()])`: `fetchDocs()` rejects after 100 ms, and the other two succeed later. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`Promise.all` waits for all three and then rejects with an array of the errors"
+        },
+        {
+          "id": "b",
+          "text": "It resolves once all settle, with `undefined` in `fetchDocs`'s position"
+        },
+        {
+          "id": "c",
+          "text": "It rejects about 100 ms in and cancels `search()` and `lookupUser()`"
+        },
+        {
+          "id": "d",
+          "text": "It rejects about 100 ms in with `fetchDocs`'s error; the others keep running"
+        }
+      ],
+      "answer": "d",
+      "explanation": "`Promise.all` fails fast: it rejects as soon as any input rejects, with that first reason. It can't cancel the other operations; they run to completion and their results are ignored. To cancel them you need something like an `AbortController`; to get every outcome, use `Promise.allSettled`.",
+      "materials": [
+        "mdn-promise-all"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/all",
+          "title": "Promise.all() - JavaScript | MDN",
+          "publisher": "Mozilla (MDN Web Docs)",
+          "accessed": "2026-09-26",
+          "claim": "Promise.all rejects immediately when any input rejects, with the first rejection reason, and rejecting does not cancel the remaining operations."
+        }
+      ]
+    },
+    {
+      "id": "w11-l02-q04",
+      "lesson": "w11-l02",
+      "concept": "w11-l02-promise-all",
+      "type": "multiple_choice",
+      "prompt": "`Promise.all([a(), b(), c()])` where `c()` finishes first and `a()` last. In what order are the results?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`[a, b, c]`: input order, whatever order they finished in"
+        },
+        {
+          "id": "b",
+          "text": "`[c, b, a]`: the order they finished in, fastest first"
+        },
+        {
+          "id": "c",
+          "text": "An order that varies from run to run, depending on timing"
+        },
+        {
+          "id": "d",
+          "text": "Sorted by how long each took, shortest first"
+        }
+      ],
+      "answer": "a",
+      "explanation": "MDN: the fulfilled value is an array in the order of the promises passed, regardless of completion order. So you can destructure the results, `const [x, y, z] = await Promise.all(...)`, safely.",
+      "materials": [
+        "mdn-promise-all"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/all",
+          "title": "Promise.all() - JavaScript | MDN",
+          "publisher": "Mozilla (MDN Web Docs)",
+          "accessed": "2026-09-26",
+          "claim": "The fulfilment value is an array in the order of the promises passed, regardless of completion order."
+        }
+      ]
+    },
+    {
+      "id": "w11-l02-q05",
+      "lesson": "w11-l02",
+      "concept": "w11-l02-promise-all",
+      "type": "written",
+      "prompt": "Your agent runs three independent tool calls at the same time. Would you use `Promise.all` or `Promise.allSettled`? Explain the trade-off.",
+      "model_answer": {
+        "summary": "`Promise.all` is right when one failure makes the whole step useless; `Promise.allSettled` is right when partial results are still worth returning to the model, which is common for independent tools.",
+        "key_points": [
+          "Both run the calls concurrently and keep results in input order",
+          "`Promise.all` rejects at the first rejection, so you lose the other results",
+          "`Promise.allSettled` waits for all of them and gives `{ status, value }` or `{ status, reason }` for each, so the model can get the successes and the errors",
+          "Neither cancels calls that are still running; use an `AbortController` (and timeouts) for that"
+        ]
+      },
+      "explanation": "For an agent, a failed tool is usually information for the model (\"search failed, try again\") rather than a reason to abort the whole step, which makes `allSettled` the common choice.",
+      "materials": [
+        "mdn-promise-all"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/all",
+          "title": "Promise.all() - JavaScript | MDN",
+          "publisher": "Mozilla (MDN Web Docs)",
+          "accessed": "2026-09-26",
+          "claim": "Promise.all fails fast on the first rejection without cancelling other operations, whereas allSettled waits for every input."
+        },
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/allSettled",
+          "title": "Promise.allSettled() - JavaScript | MDN",
+          "publisher": "Mozilla (MDN Web Docs)",
+          "accessed": "2026-09-26",
+          "claim": "allSettled fulfils with one {status, value} or {status, reason} object per input, in input order."
+        }
+      ]
+    },
+    {
+      "id": "w11-l02-q06",
+      "lesson": "w11-l02",
+      "concept": "w11-l02-async-error-handling",
+      "type": "multiple_choice",
+      "prompt": "Under `\"strict\": true` (TypeScript 4.4+), what does the compiler say about `try { await callModel(); } catch (err) { console.log(err.message); }`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Nothing: `err` is typed `Error`, so `.message` is safe"
+        },
+        {
+          "id": "b",
+          "text": "Nothing: `catch` variables are `any`, even under `strict`"
+        },
+        {
+          "id": "c",
+          "text": "An error: `await` isn't allowed inside a `try` block that has a `catch` clause"
+        },
+        {
+          "id": "d",
+          "text": "An error: `err` is `unknown`; narrow it, for example with `instanceof Error`"
+        }
+      ],
+      "answer": "d",
+      "explanation": "`strict` turns on `useUnknownInCatchVariables`, so `catch` variables are `unknown` instead of `any`. JavaScript can throw any value, not only `Error` objects, so you narrow with `instanceof Error` before reading `.message`.",
+      "materials": [
+        "typescript-tsconfig-reference",
+        "typescript-3-0-release-notes"
+      ],
+      "sources": [
+        {
+          "url": "https://www.typescriptlang.org/tsconfig/",
+          "title": "TypeScript: TSConfig Reference",
+          "publisher": "Microsoft (TypeScript team)",
+          "accessed": "2026-09-26",
+          "claim": "strict enables useUnknownInCatchVariables (added in TypeScript 4.4), which types catch variables as unknown instead of any so you must check it is an Error before using it."
+        }
+      ]
+    },
+    {
+      "id": "w11-l02-q07",
+      "lesson": "w11-l02",
+      "concept": "w11-l02-async-error-handling",
+      "type": "multiple_choice",
+      "prompt": "`async function load() { try { return fetchJson(url); } catch { return null; } }` `fetchJson` returns a promise that rejects. What does `await load()` do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It returns `null`, because the `catch` handles the returned promise's later rejection"
+        },
+        {
+          "id": "b",
+          "text": "It rejects: the promise isn't awaited, so it rejects after the `try` has finished"
+        },
+        {
+          "id": "c",
+          "text": "It returns `undefined`, because `try` swallows the returned promise"
+        },
+        {
+          "id": "d",
+          "text": "It fails to compile: `return` of a promise isn't allowed inside `try`"
+        }
+      ],
+      "answer": "b",
+      "explanation": "`try`/`catch` only catches what goes wrong while the `try` block runs. `return fetchJson(url)` hands the pending promise back immediately, so the `try` block completes, and the promise rejects later. Write `return await fetchJson(url)` so the rejection is thrown inside the `try` and caught.",
+      "materials": [
+        "mdn-await",
+        "mdn-async-function"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/await",
+          "title": "await - JavaScript | MDN",
+          "publisher": "Mozilla (MDN Web Docs)",
+          "accessed": "2026-09-26",
+          "claim": "return await unwraps the promise so its rejection is thrown inside the current function, unlike returning the promise directly, and return await is almost always preferable."
+        },
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/async_function",
+          "title": "async function - JavaScript | MDN",
+          "publisher": "Mozilla (MDN Web Docs)",
+          "accessed": "2026-09-26",
+          "claim": "A returned promise becomes the async function's result and is not awaited, so the try/catch only covers errors raised at await points inside the try block."
+        }
+      ]
+    },
+    {
+      "id": "w11-l02-q08",
+      "lesson": "w11-l02",
+      "concept": "w11-l02-zod-validate-llm-output",
+      "type": "multiple_choice",
+      "prompt": "You validate a model's reply with `const r = Answer.safeParse(data)`. The data doesn't match the schema. What do you get?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It throws a `ZodError` whose `issues` list each problem"
+        },
+        {
+          "id": "b",
+          "text": "`{ success: false, error }`; `error.issues` lists each problem with its path"
+        },
+        {
+          "id": "c",
+          "text": "`{ success: true, data }`, with the invalid fields silently stripped from `data`"
+        },
+        {
+          "id": "d",
+          "text": "`r` is `undefined`, and you call `Answer.parse` to see why"
+        }
+      ],
+      "answer": "b",
+      "explanation": "`safeParse` never throws for invalid data: it returns a discriminated union, `{ success: true, data }` or `{ success: false, error }`. `.parse` returns the validated data or throws a `ZodError`. In an agent loop `safeParse` fits better, because a bad reply is expected and you want to act on the issues.",
+      "materials": [
+        "zod-basic-usage"
+      ],
+      "sources": [
+        {
+          "url": "https://zod.dev/basics",
+          "title": "Basic usage | Zod",
+          "publisher": "Zod",
+          "accessed": "2026-09-26",
+          "claim": "safeParse returns a discriminated union result object with success and either data or a ZodError whose issues list each problem with its path."
+        }
+      ]
+    },
+    {
+      "id": "w11-l02-q09",
+      "lesson": "w11-l02",
+      "concept": "w11-l02-zod-validate-llm-output",
+      "type": "written",
+      "prompt": "Walk through how you validate an LLM's JSON output with Zod in TypeScript, from the raw text to a typed value, including what you do when validation fails.",
+      "model_answer": {
+        "summary": "Parse the text with `JSON.parse` inside a `try`, check the result with the schema's `safeParse`, and use the typed `data` on success. On failure, send the issues back to the model for a bounded retry, or fail clearly.",
+        "key_points": [
+          "`JSON.parse` the text inside `try`/`catch`, because invalid JSON throws",
+          "Treat the parsed value as `unknown` and run `Schema.safeParse(value)`",
+          "On success, use `result.data`, whose type comes from `z.infer<typeof Schema>`",
+          "On failure, send `result.error.issues` back to the model and retry a limited number of times, or return an error",
+          "Run-time validation is needed because TypeScript types are erased and can't check data at run time"
+        ]
+      },
+      "explanation": "A TypeScript type only describes what you hope arrives. The Zod schema is what checks it, and `z.infer` keeps the type and the check from drifting apart.",
+      "materials": [
+        "zod-basic-usage",
+        "zod-defining-schemas",
+        "typescript-handbook"
+      ],
+      "sources": [
+        {
+          "url": "https://zod.dev/basics",
+          "title": "Basic usage | Zod",
+          "publisher": "Zod",
+          "accessed": "2026-09-26",
+          "claim": "safeParse returns success/data or error with issues, and z.infer extracts the static type from a schema."
+        },
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/parse",
+          "title": "JSON.parse() - JavaScript | MDN",
+          "publisher": "Mozilla (MDN Web Docs)",
+          "accessed": "2026-09-26",
+          "claim": "JSON.parse throws a SyntaxError if the string is not valid JSON."
+        },
+        {
+          "url": "https://www.typescriptlang.org/docs/handbook/2/basic-types.html",
+          "title": "TypeScript: Documentation - The Basics",
+          "publisher": "Microsoft (TypeScript team)",
+          "accessed": "2026-09-26",
+          "claim": "TypeScript type annotations are erased and never change runtime behaviour."
+        }
+      ]
+    },
+    {
+      "id": "w11-l02-q10",
+      "lesson": "w11-l02",
+      "concept": "w11-l02-zod-validate-llm-output",
+      "type": "written",
+      "prompt": "Compare Zod's `.parse` and `.safeParse`. Which would you use to validate model output inside an agent loop, and which for your app's own config file?",
+      "model_answer": {
+        "summary": "`.parse` throws on invalid data, which suits data that should never be wrong. `.safeParse` returns a result object, which suits data that is often wrong, such as model output.",
+        "key_points": [
+          "`.parse` returns a validated, typed deep clone of the input, or throws a `ZodError`",
+          "`.safeParse` doesn't throw on invalid data: it returns `{ success: true, data }` or `{ success: false, error }`",
+          "Model output is often invalid, so `.safeParse` makes failure an ordinary branch where you can retry with the issues",
+          "A bad config file is a bug to stop on at startup, so `.parse` and its exception fit",
+          "Schemas with async refinements or transforms need `parseAsync` or `safeParseAsync`"
+        ]
+      },
+      "explanation": "Choose based on whether invalid data is expected. Exceptions are for surprises; model output failing validation is not a surprise.",
+      "materials": [
+        "zod-basic-usage"
+      ],
+      "sources": [
+        {
+          "url": "https://zod.dev/basics",
+          "title": "Basic usage | Zod",
+          "publisher": "Zod",
+          "accessed": "2026-09-26",
+          "claim": ".parse returns a strongly typed deep clone or throws a ZodError, .safeParse returns a result object instead of throwing, and async refinements or transforms need parseAsync or safeParseAsync."
+        }
+      ]
+    },
+    {
+      "id": "w11-l02-q11",
+      "lesson": "w11-l02",
+      "concept": "w11-l02-zod-inferred-types",
+      "type": "multiple_choice",
+      "prompt": "`const Answer = z.object({ answer: z.string(), confidence: z.number().optional() }); type Answer = z.infer<typeof Answer>;` What is `Answer`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`{ answer: string; confidence: number }`"
+        },
+        {
+          "id": "b",
+          "text": "`{ answer: string; confidence: number | null }`"
+        },
+        {
+          "id": "c",
+          "text": "`{ answer: string; confidence?: number | undefined }`"
+        },
+        {
+          "id": "d",
+          "text": "`{ answer: unknown; confidence: unknown }`"
+        }
+      ],
+      "answer": "c",
+      "explanation": "`.optional()` allows `undefined`, and `z.infer` turns it into an optional property. You write the shape once, as a schema, and get both the run-time check and the static type from it. Allowing `null` would need `.nullable()`.",
+      "materials": [
+        "zod-basic-usage",
+        "zod-defining-schemas"
+      ],
+      "sources": [
+        {
+          "url": "https://zod.dev/api",
+          "title": "Defining schemas | Zod",
+          "publisher": "Zod",
+          "accessed": "2026-09-26",
+          "claim": "An .optional() object field infers as an optional property typed value | undefined, and .nullable() is what allows null."
+        },
+        {
+          "url": "https://zod.dev/basics",
+          "title": "Basic usage | Zod",
+          "publisher": "Zod",
+          "accessed": "2026-09-26",
+          "claim": "z.infer extracts the static TypeScript type from a schema."
+        }
+      ]
+    },
+    {
+      "id": "w11-l02-q12",
+      "lesson": "w11-l02",
+      "concept": "w11-l02-zod-inferred-types",
+      "type": "multiple_choice",
+      "prompt": "`z.object({ answer: z.string() }).parse({ answer: \"42\", note: \"extra\" })` returns what?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`{ answer: \"42\" }`, because unknown keys are stripped by default"
+        },
+        {
+          "id": "b",
+          "text": "`{ answer: \"42\", note: \"extra\" }`, because unknown keys pass through"
+        },
+        {
+          "id": "c",
+          "text": "It throws, because `note` isn't in the schema"
+        },
+        {
+          "id": "d",
+          "text": "It throws, because `\"42\"` isn't a number"
+        }
+      ],
+      "answer": "a",
+      "explanation": "By default `z.object` strips unrecognised keys from the result. `z.strictObject` throws on unknown keys, and `z.looseObject` lets them through. For model output, stripping keeps extra fields the model invented out of your code; use `strictObject` when an extra key should count as a failure.",
+      "materials": [
+        "zod-defining-schemas"
+      ],
+      "sources": [
+        {
+          "url": "https://zod.dev/api",
+          "title": "Defining schemas | Zod",
+          "publisher": "Zod",
+          "accessed": "2026-09-26",
+          "claim": "z.object strips unrecognised keys by default; z.strictObject throws on unknown keys and z.looseObject passes them through."
+        }
+      ]
+    }
+  ]
+}

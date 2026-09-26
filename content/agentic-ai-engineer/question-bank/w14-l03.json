@@ -1,0 +1,527 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "w14-l03-pydantic-ai-typed-output",
+      "name": "Pydantic AI: typed output and generic agents"
+    },
+    {
+      "id": "w14-l03-pydantic-ai-deps-and-tools",
+      "name": "Pydantic AI: dependencies, `RunContext` and tool schemas"
+    },
+    {
+      "id": "w14-l03-pydantic-ai-retries",
+      "name": "Pydantic AI: validation retries and `ModelRetry`"
+    },
+    {
+      "id": "w14-l03-crewai-agents-and-tasks",
+      "name": "CrewAI: role-based agents and tasks"
+    },
+    {
+      "id": "w14-l03-crewai-processes-and-flows",
+      "name": "CrewAI: processes and Flows"
+    },
+    {
+      "id": "w14-l03-framework-comparison",
+      "name": "When you would pick each framework"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w14-l03-q01",
+      "lesson": "w14-l03",
+      "concept": "w14-l03-pydantic-ai-typed-output",
+      "type": "multiple_choice",
+      "prompt": "`agent = Agent(\"openai:gpt-5.2\", output_type=CityInfo)`, then `result = agent.run_sync(\"Tell me about Paris\")`. How do you get the validated `CityInfo`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`CityInfo.model_validate_json(result.text)`"
+        },
+        {
+          "id": "b",
+          "text": "`result.messages[-1]`"
+        },
+        {
+          "id": "c",
+          "text": "`result.output`"
+        },
+        {
+          "id": "d",
+          "text": "`CityInfo(**result)`"
+        }
+      ],
+      "answer": "c",
+      "explanation": "`output_type` is the structured type the model must return at the end of a run, and Pydantic AI validates it for you. The validated object is on `result.output`. Parsing text yourself would throw away the validation and retry behaviour the framework gives you.",
+      "materials": [
+        "pydantic-ai-agents"
+      ],
+      "sources": [
+        {
+          "url": "https://pydantic.dev/docs/ai/core-concepts/agent/",
+          "title": "Agents",
+          "publisher": "Pydantic",
+          "accessed": "2026-09-26",
+          "claim": "output_type is the structured type the model must return at the end of a run; Pydantic validates it and the validated value is exposed as result.output."
+        }
+      ]
+    },
+    {
+      "id": "w14-l03-q02",
+      "lesson": "w14-l03",
+      "concept": "w14-l03-pydantic-ai-typed-output",
+      "type": "multiple_choice",
+      "prompt": "An agent needs dependencies of type `Foobar` and produces `list[str]`. What is its type, as a type checker sees it?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`Agent[Foobar, list[str]]`"
+        },
+        {
+          "id": "b",
+          "text": "`Agent[list[str], Foobar]`"
+        },
+        {
+          "id": "c",
+          "text": "`Agent[RunContext[Foobar], list[str]]`"
+        },
+        {
+          "id": "d",
+          "text": "`Agent[Foobar]`, since output types aren't tracked"
+        }
+      ],
+      "answer": "a",
+      "explanation": "The docs say agents are generic in their dependency and output types, in that order, and give this exact example: `Agent[Foobar, list[str]]`. That is what lets a type checker catch a tool that expects the wrong deps or code that misuses the output.",
+      "materials": [
+        "pydantic-ai-agents"
+      ],
+      "sources": [
+        {
+          "url": "https://pydantic.dev/docs/ai/core-concepts/agent/",
+          "title": "Agents",
+          "publisher": "Pydantic",
+          "accessed": "2026-09-26",
+          "claim": "Agents are generic in their dependency and output types, so an agent with deps of type Foobar and output list[str] has type Agent[Foobar, list[str]]."
+        }
+      ]
+    },
+    {
+      "id": "w14-l03-q03",
+      "lesson": "w14-l03",
+      "concept": "w14-l03-pydantic-ai-deps-and-tools",
+      "type": "multiple_choice",
+      "prompt": "What is the difference between `@agent.tool` and `@agent.tool_plain`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`@agent.tool_plain` tools are hidden from the model and only callable from your own code"
+        },
+        {
+          "id": "b",
+          "text": "`@agent.tool` functions must be async, while `@agent.tool_plain` functions must be sync"
+        },
+        {
+          "id": "c",
+          "text": "`@agent.tool_plain` skips Pydantic argument validation, so its tools run with lower per-call overhead"
+        },
+        {
+          "id": "d",
+          "text": "`@agent.tool` functions take `RunContext` first, for deps; `@agent.tool_plain` functions don't"
+        }
+      ],
+      "answer": "d",
+      "explanation": "Both register tools the model can call, with validated arguments. `@agent.tool` is the default because most tools need the agent context: they receive `RunContext`, and `ctx.deps` carries your dependencies. `@agent.tool_plain` is for tools that need no context.",
+      "materials": [
+        "pydantic-ai-tools"
+      ],
+      "sources": [
+        {
+          "url": "https://pydantic.dev/docs/ai/tools-toolsets/tools/",
+          "title": "Function Tools",
+          "publisher": "Pydantic",
+          "accessed": "2026-09-26",
+          "claim": "@agent.tool is the default decorator and gives the tool access to RunContext (for deps), while @agent.tool_plain is for tools that do not need the agent context."
+        }
+      ]
+    },
+    {
+      "id": "w14-l03-q04",
+      "lesson": "w14-l03",
+      "concept": "w14-l03-pydantic-ai-deps-and-tools",
+      "type": "multiple_choice",
+      "prompt": "Given `@agent.tool async def get_balance(ctx: RunContext[Deps], account_id: int) -> float` with a Google-style docstring describing `account_id`, what goes into the tool schema the model sees?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Both `ctx` and `account_id`, since every function parameter becomes a field"
+        },
+        {
+          "id": "b",
+          "text": "`account_id` as an integer, described from the docstring; `ctx` is left out"
+        },
+        {
+          "id": "c",
+          "text": "Only the function name and docstring; the model infers the parameters"
+        },
+        {
+          "id": "d",
+          "text": "`account_id` as a string, since JSON Schema has no integer type"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Pydantic AI builds the schema from the function signature using every parameter except `RunContext`, and uses griffe to pull parameter descriptions from the docstring (Google, NumPy or Sphinx style). JSON Schema has an `integer` type, so the annotation `int` is kept.",
+      "materials": [
+        "pydantic-ai-tools"
+      ],
+      "sources": [
+        {
+          "url": "https://pydantic.dev/docs/ai/tools-toolsets/tools/",
+          "title": "Function Tools",
+          "publisher": "Pydantic",
+          "accessed": "2026-09-26",
+          "claim": "All parameters except RunContext build the tool schema, and griffe extracts parameter descriptions from google, numpy or sphinx style docstrings."
+        }
+      ]
+    },
+    {
+      "id": "w14-l03-q05",
+      "lesson": "w14-l03",
+      "concept": "w14-l03-pydantic-ai-retries",
+      "type": "multiple_choice",
+      "prompt": "Inside a tool, you `raise ModelRetry(\"Unknown account id; call list_accounts first\")`. What does Pydantic AI do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It returns the message to the model to retry; past the limit it raises `UnexpectedModelBehavior`"
+        },
+        {
+          "id": "b",
+          "text": "It ends the run immediately and re-raises `ModelRetry` to your code for you to handle"
+        },
+        {
+          "id": "c",
+          "text": "It retries the same tool call with the same arguments until it succeeds or times out"
+        },
+        {
+          "id": "d",
+          "text": "It logs the message as a warning and returns `None` to the model as the tool's result"
+        }
+      ],
+      "answer": "a",
+      "explanation": "A tool retry is a message to the model saying the call didn't work and why, so it can correct itself. `ModelRetry`, invalid tool arguments, a tool timeout and calling a tool that doesn't exist all trigger one. The default budget is 1 retry; when it is used up the run raises `UnexpectedModelBehavior`.",
+      "materials": [
+        "pydantic-ai-retries"
+      ],
+      "sources": [
+        {
+          "url": "https://pydantic.dev/docs/ai/core-concepts/retries/",
+          "title": "Retries",
+          "publisher": "Pydantic",
+          "accessed": "2026-09-26",
+          "claim": "Tool retries are triggered by argument ValidationError, a tool raising ModelRetry, a tool timeout, or calling a nonexistent tool; the default budget is 1 and exhausting it raises UnexpectedModelBehavior."
+        }
+      ]
+    },
+    {
+      "id": "w14-l03-q06",
+      "lesson": "w14-l03",
+      "concept": "w14-l03-pydantic-ai-retries",
+      "type": "written",
+      "prompt": "The model's final answer fails validation against your `output_type`. Explain what Pydantic AI does, how you control it, and how you would add a check that the schema alone can't express.",
+      "model_answer": {
+        "summary": "A validation failure triggers an output retry: the error goes back to the model so it can fix its answer. The retry budget defaults to 1 and is configurable; when it runs out the run raises `UnexpectedModelBehavior`. For custom checks, an output validator can raise `ModelRetry`.",
+        "key_points": [
+          "A failed validation of the output triggers an output retry, sending the error back to the model",
+          "The default retry budget is 1; the agent's `retries` setting changes it (a plain int sets both tool and output budgets)",
+          "When the budget is exhausted the run raises `UnexpectedModelBehavior`",
+          "An output validator (or output function) can raise `ModelRetry` to ask for a corrected answer on business rules"
+        ]
+      },
+      "explanation": "The retries page lists what triggers each kind of retry and says a bare int sets both budgets. Retries cost extra model calls, so a higher budget trades cost for reliability. Handle `UnexpectedModelBehavior` in your code so a stubborn failure doesn't crash the request.",
+      "materials": [
+        "pydantic-ai-retries",
+        "pydantic-ai-agents"
+      ],
+      "sources": [
+        {
+          "url": "https://pydantic.dev/docs/ai/core-concepts/retries/",
+          "title": "Retries",
+          "publisher": "Pydantic",
+          "accessed": "2026-09-26",
+          "claim": "Output retries are triggered by validation failures or an output function/validator raising ModelRetry; the default budget is 1, a bare int for retries sets both tool and output budgets, and exhaustion raises UnexpectedModelBehavior."
+        },
+        {
+          "url": "https://pydantic.dev/docs/ai/core-concepts/agent/",
+          "title": "Agents",
+          "publisher": "Pydantic",
+          "accessed": "2026-09-26",
+          "claim": "output_type is the structured datatype the model must return at the end of a run, and Pydantic performs the output validation."
+        }
+      ]
+    },
+    {
+      "id": "w14-l03-q07",
+      "lesson": "w14-l03",
+      "concept": "w14-l03-crewai-agents-and-tasks",
+      "type": "multiple_choice",
+      "prompt": "Which three attributes must every CrewAI agent have?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`name`, `instructions` and `tools`"
+        },
+        {
+          "id": "b",
+          "text": "`role`, `task` and `model`"
+        },
+        {
+          "id": "c",
+          "text": "`role`, `goal` and `backstory`"
+        },
+        {
+          "id": "d",
+          "text": "`goal`, `expected_output` and `agent`"
+        }
+      ],
+      "answer": "c",
+      "explanation": "CrewAI agents are role-based: `role` defines the agent's function, `goal` its objective, and `backstory` gives context and personality. `description` and `expected_output` belong to tasks, not agents. `allow_delegation` is optional and defaults to `False`.",
+      "materials": [
+        "crewai-agents"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.crewai.com/en/concepts/agents",
+          "title": "Agents",
+          "publisher": "CrewAI",
+          "accessed": "2026-09-26",
+          "claim": "CrewAI says role, goal and backstory are required agent attributes that shape the agent's behaviour. allow_delegation defaults to False."
+        }
+      ]
+    },
+    {
+      "id": "w14-l03-q08",
+      "lesson": "w14-l03",
+      "concept": "w14-l03-crewai-agents-and-tasks",
+      "type": "multiple_choice",
+      "prompt": "In a sequential crew, a `research` task runs before a `write` task. How does the writer get the research?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "You pass it yourself: read the research output and feed it into the `inputs` dict of `kickoff()`"
+        },
+        {
+          "id": "b",
+          "text": "Each task's output becomes context for the next; a task's `context` list picks specific tasks"
+        },
+        {
+          "id": "c",
+          "text": "Only if every agent sets `allow_delegation=True`, so the writer can ask the researcher"
+        },
+        {
+          "id": "d",
+          "text": "It can't: tasks in a crew are independent, so the writer must redo the research"
+        }
+      ],
+      "answer": "b",
+      "explanation": "In the sequential process the output of one task serves as context for the next. A task's `context=[...]` attribute names which earlier task outputs it should receive, which also allows non-adjacent dependencies. Each task needs a `description` and an `expected_output`.",
+      "materials": [
+        "crewai-processes",
+        "crewai-tasks"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.crewai.com/en/concepts/processes",
+          "title": "Processes",
+          "publisher": "CrewAI",
+          "accessed": "2026-09-26",
+          "claim": "In the sequential process tasks run in list order and the output of one task serves as context for the next."
+        },
+        {
+          "url": "https://docs.crewai.com/en/concepts/tasks",
+          "title": "Tasks",
+          "publisher": "CrewAI",
+          "accessed": "2026-09-26",
+          "claim": "Tasks require description and expected_output, and the context attribute names which other tasks' outputs are used as context, including non-consecutive ones."
+        }
+      ]
+    },
+    {
+      "id": "w14-l03-q09",
+      "lesson": "w14-l03",
+      "concept": "w14-l03-crewai-processes-and-flows",
+      "type": "multiple_choice",
+      "prompt": "What does a crew with `process=Process.hierarchical` require?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A `manager_llm` or `manager_agent` that assigns tasks and reviews outputs"
+        },
+        {
+          "id": "b",
+          "text": "An agent assigned to every task in advance, as in the sequential process"
+        },
+        {
+          "id": "c",
+          "text": "A Flow with a `@router()` method that picks which agent runs next"
+        },
+        {
+          "id": "d",
+          "text": "`allow_delegation=True` on every agent so they can hand work to each other"
+        }
+      ],
+      "answer": "a",
+      "explanation": "The hierarchical process needs a manager, given as `manager_llm` or `manager_agent`. The manager allocates tasks to agents based on their capabilities, reviews outputs and judges completion, so tasks don't need an agent assigned up front. That is the main difference from the sequential process.",
+      "materials": [
+        "crewai-processes"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.crewai.com/en/concepts/processes",
+          "title": "Processes",
+          "publisher": "CrewAI",
+          "accessed": "2026-09-26",
+          "claim": "The hierarchical process requires manager_llm or manager_agent on the crew; the manager allocates tasks based on agents' capabilities, reviews outputs and assesses completion, without tasks pre-assigned."
+        }
+      ]
+    },
+    {
+      "id": "w14-l03-q10",
+      "lesson": "w14-l03",
+      "concept": "w14-l03-crewai-processes-and-flows",
+      "type": "written",
+      "prompt": "Compare CrewAI Crews and Flows. When would you wrap a crew inside a Flow?",
+      "model_answer": {
+        "summary": "A Crew is a team of role-based agents working through tasks under a process. A Flow is event-driven orchestration, with `@start`, `@listen` and `@router` methods and managed state, that can call crews and plain code. Use a Flow when you need explicit branching, state across steps, or several crews in one pipeline.",
+        "key_points": [
+          "A Crew groups agents and tasks and runs them with a sequential or hierarchical process",
+          "A Flow wires methods together with `@start()` entry points and `@listen()` methods that run when another method finishes",
+          "`@router()` gives conditional branching based on a method's output",
+          "Flow state can be structured (a Pydantic model) or unstructured",
+          "Wrap crews in a Flow when control flow and state must be explicit rather than left to the agents"
+        ]
+      },
+      "explanation": "The Flows docs present crews as focused units of work and Flows as the layer that connects tasks, manages state and controls execution. This split is useful in a comparison table: CrewAI alone covers both agent-led teamwork and code-led orchestration.",
+      "materials": [
+        "crewai-flows",
+        "crewai-processes"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.crewai.com/en/concepts/flows",
+          "title": "Flows",
+          "publisher": "CrewAI",
+          "accessed": "2026-09-26",
+          "claim": "Flows are event-driven workflows using @start entry points, @listen methods that fire when another method finishes, @router for conditional branching, structured (Pydantic) or unstructured state, and can run crews inside methods."
+        },
+        {
+          "url": "https://docs.crewai.com/en/concepts/processes",
+          "title": "Processes",
+          "publisher": "CrewAI",
+          "accessed": "2026-09-26",
+          "claim": "Crews run their tasks under a sequential or a hierarchical process."
+        }
+      ]
+    },
+    {
+      "id": "w14-l03-q11",
+      "lesson": "w14-l03",
+      "concept": "w14-l03-framework-comparison",
+      "type": "written",
+      "prompt": "Fill in one row of your comparison table for each framework: Pydantic AI, CrewAI and LangGraph. For each, say what it is best at and one situation where you would pick it.",
+      "model_answer": {
+        "summary": "Pydantic AI suits type-safe agents with validated, structured output in ordinary Python. CrewAI suits role-based teams of agents working through tasks. LangGraph suits explicit, stateful graphs that must persist and resume.",
+        "key_points": [
+          "Pydantic AI: agents are generic in deps and output type, and output is validated with retries",
+          "Pick Pydantic AI for a single agent or service whose structured result code depends on",
+          "CrewAI: agents defined by role, goal and backstory, running tasks in a sequential or hierarchical process (Flows for explicit control)",
+          "LangGraph: a low-level `StateGraph` of nodes and edges, with persistence for long-running, resumable, human-in-the-loop work",
+          "The choice follows the requirement: typed output, role-based collaboration, or explicit durable control flow"
+        ]
+      },
+      "explanation": "Each framework's docs lead with a different core idea: typing for Pydantic AI, roles for CrewAI, graphs and persistence for LangGraph. A strong row names the feature and a concrete case. Answers that only say one is \"simpler\" or \"more powerful\" can't be checked.",
+      "materials": [
+        "pydantic-ai-agents",
+        "crewai-agents",
+        "langgraph-documentation"
+      ],
+      "sources": [
+        {
+          "url": "https://pydantic.dev/docs/ai/core-concepts/agent/",
+          "title": "Agents",
+          "publisher": "Pydantic",
+          "accessed": "2026-09-26",
+          "claim": "Agents are generic in their dependency and output types, so an agent with deps of type Foobar and output list[str] has type Agent[Foobar, list[str]]."
+        },
+        {
+          "url": "https://docs.crewai.com/en/concepts/agents",
+          "title": "Agents",
+          "publisher": "CrewAI",
+          "accessed": "2026-09-26",
+          "claim": "CrewAI says role, goal and backstory are required agent attributes that shape the agent's behaviour."
+        },
+        {
+          "url": "https://docs.langchain.com/oss/python/langgraph/overview",
+          "title": "LangGraph overview",
+          "publisher": "LangChain",
+          "accessed": "2026-09-26",
+          "claim": "LangGraph is a low-level orchestration framework and runtime for long-running, stateful agents with durable execution, persistence and human-in-the-loop, built with StateGraph nodes and edges."
+        }
+      ]
+    },
+    {
+      "id": "w14-l03-q12",
+      "lesson": "w14-l03",
+      "concept": "w14-l03-framework-comparison",
+      "type": "multiple_choice",
+      "prompt": "Which pairing of framework and feature matches that framework's own docs?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Pydantic AI: a hierarchical process with a manager agent"
+        },
+        {
+          "id": "b",
+          "text": "LangGraph: agents generic in their dependency and output types"
+        },
+        {
+          "id": "c",
+          "text": "CrewAI: a `StateGraph` of nodes and edges compiled before running"
+        },
+        {
+          "id": "d",
+          "text": "CrewAI: agents defined by `role`, `goal` and `backstory`"
+        }
+      ],
+      "answer": "d",
+      "explanation": "Role, goal and backstory are CrewAI's required agent attributes. The hierarchical process with a manager is also CrewAI. Generic `Agent[Deps, Output]` typing is Pydantic AI. `StateGraph` with nodes and edges is LangGraph. Mixing these up is easy after reading three sets of docs, which is why the comparison table helps.",
+      "materials": [
+        "crewai-agents",
+        "pydantic-ai-agents",
+        "langgraph-documentation"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.crewai.com/en/concepts/agents",
+          "title": "Agents",
+          "publisher": "CrewAI",
+          "accessed": "2026-09-26",
+          "claim": "CrewAI says role, goal and backstory are required agent attributes that shape the agent's behaviour."
+        },
+        {
+          "url": "https://pydantic.dev/docs/ai/core-concepts/agent/",
+          "title": "Agents",
+          "publisher": "Pydantic",
+          "accessed": "2026-09-26",
+          "claim": "Agents are generic in their dependency and output types, so an agent with deps of type Foobar and output list[str] has type Agent[Foobar, list[str]]."
+        },
+        {
+          "url": "https://docs.langchain.com/oss/python/langgraph/overview",
+          "title": "LangGraph overview",
+          "publisher": "LangChain",
+          "accessed": "2026-09-26",
+          "claim": "LangGraph builds a StateGraph of nodes and edges that is compiled and then invoked."
+        }
+      ]
+    }
+  ]
+}

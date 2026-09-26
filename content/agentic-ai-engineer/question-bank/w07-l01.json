@@ -1,0 +1,496 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "w07-l01-images-vs-containers",
+      "name": "Images vs containers"
+    },
+    {
+      "id": "w07-l01-layers-and-build-cache",
+      "name": "Layers and the build cache"
+    },
+    {
+      "id": "w07-l01-dockerfile-hygiene",
+      "name": "Pinned base images and a non-root user"
+    },
+    {
+      "id": "w07-l01-multi-stage-and-dockerignore",
+      "name": "Multi-stage builds and `.dockerignore`"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w07-l01-q01",
+      "lesson": "w07-l01",
+      "concept": "w07-l01-images-vs-containers",
+      "type": "multiple_choice",
+      "prompt": "A container started from your `agent-api` image writes `/app/cache.json`. You remove the container and start a new one from the same image. Is the file there?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Yes: the container's writes are saved back into the image"
+        },
+        {
+          "id": "b",
+          "text": "Yes, if the new container reuses the old container's name"
+        },
+        {
+          "id": "c",
+          "text": "Only if you had used `docker stop` on the old container instead of `docker rm`"
+        },
+        {
+          "id": "d",
+          "text": "No: it was in the old container's writable layer, removed with it"
+        }
+      ],
+      "answer": "d",
+      "explanation": "Images are immutable. Each container gets its own writable layer on top of the image's read-only layers, and that layer is destroyed when the container is removed. Stopping without removing keeps the layer, but a new container never sees it. Data that must outlive a container belongs in a volume.",
+      "materials": [
+        "docker-docs-image-layers",
+        "docker-get-started",
+        "docker-docs-volumes"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.docker.com/engine/storage/drivers/",
+          "title": "Storage drivers",
+          "publisher": "Docker Inc.",
+          "accessed": "2026-09-26",
+          "claim": "Each container has its own writable layer holding its changes, and that layer is deleted when the container is deleted while the image stays unchanged."
+        },
+        {
+          "url": "https://docs.docker.com/engine/storage/",
+          "title": "Storage",
+          "publisher": "Docker Inc.",
+          "accessed": "2026-09-26",
+          "claim": "Data written to the container layer does not persist once the container is destroyed; volumes keep data after containers are removed."
+        }
+      ]
+    },
+    {
+      "id": "w07-l01-q02",
+      "lesson": "w07-l01",
+      "concept": "w07-l01-images-vs-containers",
+      "type": "written",
+      "prompt": "Explain the difference between a Docker image and a container, and what happens to files a running container creates.",
+      "model_answer": {
+        "summary": "An image is an immutable, layered package of files and configuration; a container is an isolated process running from an image, with its own writable layer that disappears when the container is removed.",
+        "key_points": [
+          "An image holds the files, libraries and configuration needed to run the app, and it can't be changed once built",
+          "An image is made of layers, each a set of filesystem changes, and images can share layers",
+          "A container is an isolated process started from an image; many containers can run from one image",
+          "Each container adds a writable layer on top, and files it creates live there, not in the image",
+          "Removing the container deletes that writable layer, so persistent data goes in a volume"
+        ]
+      },
+      "explanation": "The image is like a class and the container like an instance: you build the image once and run it many times, and changes made while running stay with that one running copy. To change the image itself you edit the Dockerfile and build a new one.",
+      "materials": [
+        "docker-get-started",
+        "docker-docs-image-layers"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.docker.com/get-started/docker-concepts/the-basics/what-is-an-image/",
+          "title": "What is an image?",
+          "publisher": "Docker Inc.",
+          "accessed": "2026-09-26",
+          "claim": "An image is an immutable package of the files, binaries, libraries and configuration needed to run a container, built from layers of filesystem changes."
+        },
+        {
+          "url": "https://docs.docker.com/get-started/docker-concepts/the-basics/what-is-a-container/",
+          "title": "What is a container?",
+          "publisher": "Docker Inc.",
+          "accessed": "2026-09-26",
+          "claim": "A container is an isolated process with all the files it needs to run."
+        },
+        {
+          "url": "https://docs.docker.com/engine/storage/drivers/",
+          "title": "Storage drivers",
+          "publisher": "Docker Inc.",
+          "accessed": "2026-09-26",
+          "claim": "Multiple containers can share one image because each has its own writable layer, which is deleted along with the container."
+        }
+      ]
+    },
+    {
+      "id": "w07-l01-q03",
+      "lesson": "w07-l01",
+      "concept": "w07-l01-layers-and-build-cache",
+      "type": "multiple_choice",
+      "prompt": "Your Dockerfile is:\n\n```dockerfile\nFROM python:3.12-slim\nWORKDIR /app\nCOPY . .\nRUN pip install -r requirements.txt\n```\n\nYou change one line in `main.py` and rebuild. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`COPY . .` changes, so its layer and the `pip install` after it are rebuilt"
+        },
+        {
+          "id": "b",
+          "text": "Only `COPY . .` reruns; `pip install` comes from the cache because `requirements.txt` didn't change"
+        },
+        {
+          "id": "c",
+          "text": "Every step reruns, including pulling the base image"
+        },
+        {
+          "id": "d",
+          "text": "Nothing reruns, because the Dockerfile itself didn't change"
+        }
+      ],
+      "answer": "a",
+      "explanation": "The copied files are part of the `COPY` step's cache key, so editing `main.py` invalidates that layer. Once a layer changes, every layer after it must be rebuilt as well, so `pip install` reruns even though the requirements are the same. The `FROM` and `WORKDIR` layers before it stay cached.",
+      "materials": [
+        "docker-docs-optimize-build-cache",
+        "docker-docs-image-layers"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.docker.com/build/cache/",
+          "title": "Docker build cache",
+          "publisher": "Docker Inc.",
+          "accessed": "2026-09-26",
+          "claim": "When the layer for a COPY instruction is invalidated, every layer that follows it must run again, even if it would build the same result."
+        },
+        {
+          "url": "https://docs.docker.com/build/building/best-practices/",
+          "title": "Building best practices",
+          "publisher": "Docker Inc.",
+          "accessed": "2026-09-26",
+          "claim": "Changes to copied files invalidate the COPY instruction's cache, and later layers are rebuilt as a result."
+        }
+      ]
+    },
+    {
+      "id": "w07-l01-q04",
+      "lesson": "w07-l01",
+      "concept": "w07-l01-layers-and-build-cache",
+      "type": "multiple_choice",
+      "prompt": "Which order keeps the dependency install cached when you only edit your source code?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`COPY . .`, then `COPY requirements.txt .`, then `RUN pip install -r requirements.txt`"
+        },
+        {
+          "id": "b",
+          "text": "`RUN pip install -r requirements.txt`, then `COPY . .`"
+        },
+        {
+          "id": "c",
+          "text": "`COPY requirements.txt .`, then `RUN pip install -r requirements.txt`, then `COPY . .`"
+        },
+        {
+          "id": "d",
+          "text": "`COPY . .` with `RUN pip install` in a separate stage"
+        }
+      ],
+      "answer": "c",
+      "explanation": "Docker's advice is to copy the package manifest first, install dependencies, and copy the source code last, because it changes most often. A source edit then only invalidates the final `COPY`. Installing before copying `requirements.txt` fails because the file isn't in the image yet, and copying everything first ties the install to every edit.",
+      "materials": [
+        "docker-docs-optimize-build-cache"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.docker.com/build/cache/optimize/",
+          "title": "Optimize cache usage in builds",
+          "publisher": "Docker Inc.",
+          "accessed": "2026-09-26",
+          "claim": "Docker recommends copying the package manifest, installing dependencies, and only then copying the source code so source edits don't trigger a dependency reinstall."
+        }
+      ]
+    },
+    {
+      "id": "w07-l01-q05",
+      "lesson": "w07-l01",
+      "concept": "w07-l01-layers-and-build-cache",
+      "type": "multiple_choice",
+      "prompt": "A Dockerfile has `RUN apt-get update` on one line and `RUN apt-get install -y curl` on the next. Later you change the second line to install `curl git`. What is the problem?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Docker refuses to build two consecutive `apt-get` steps and stops with an error"
+        },
+        {
+          "id": "b",
+          "text": "The `apt-get update` layer comes from cache, so install uses stale package lists"
+        },
+        {
+          "id": "c",
+          "text": "Both lines now rerun on every build, because `apt-get` layers are never cached"
+        },
+        {
+          "id": "d",
+          "text": "`git` is installed, but the earlier `curl` package is removed from the image"
+        }
+      ],
+      "answer": "b",
+      "explanation": "The `apt-get update` line didn't change, so Docker reuses its cached layer, possibly weeks old, and only reruns the install. Docker's best practices say to always combine `apt-get update` with `apt-get install` in the same `RUN` so a change to the package list also refreshes the index. That trick is called cache busting.",
+      "materials": [
+        "docker-docs-building-best-practices"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.docker.com/build/building/best-practices/",
+          "title": "Building best practices",
+          "publisher": "Docker Inc.",
+          "accessed": "2026-09-26",
+          "claim": "Running apt-get update in its own RUN lets its cached layer be reused, so a later changed apt-get install can use stale package lists; combining them in one RUN is the cache-busting fix."
+        }
+      ]
+    },
+    {
+      "id": "w07-l01-q06",
+      "lesson": "w07-l01",
+      "concept": "w07-l01-layers-and-build-cache",
+      "type": "multiple_choice",
+      "prompt": "One `RUN` step downloads 300 MB of build files into `/tmp/build`, and the next `RUN` step deletes `/tmp/build`. How much does the deletion shrink the image?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "By the full 300 MB, because the deleted files are dropped from the image"
+        },
+        {
+          "id": "b",
+          "text": "By about half, because Docker compresses the deleted files in the layer"
+        },
+        {
+          "id": "c",
+          "text": "By 300 MB, but only once you run `docker image prune` afterwards"
+        },
+        {
+          "id": "d",
+          "text": "Not at all: the files stay in the earlier layer and are only hidden"
+        }
+      ],
+      "answer": "d",
+      "explanation": "Each layer is an immutable set of filesystem changes. The download layer keeps its 300 MB, and the next layer only adds a note that the files are deleted, so they are hidden but still shipped. Download, use and delete in the same `RUN` (as Docker does for `/var/lib/apt/lists`), or build in an earlier stage of a multi-stage build and copy out only the result.",
+      "materials": [
+        "docker-docs-image-layers",
+        "docker-docs-building-best-practices"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.docker.com/engine/storage/drivers/",
+          "title": "Storage drivers",
+          "publisher": "Docker Inc.",
+          "accessed": "2026-09-26",
+          "claim": "Removing files creates a new layer, but the removed files are still present in the earlier layer and still count toward the image's total size."
+        },
+        {
+          "url": "https://docs.docker.com/build/building/best-practices/",
+          "title": "Building best practices",
+          "publisher": "Docker Inc.",
+          "accessed": "2026-09-26",
+          "claim": "Docker removes /var/lib/apt/lists in the same RUN statement that creates it so the cache is not stored in a layer."
+        }
+      ]
+    },
+    {
+      "id": "w07-l01-q07",
+      "lesson": "w07-l01",
+      "concept": "w07-l01-dockerfile-hygiene",
+      "type": "multiple_choice",
+      "prompt": "What do you gain, and give up, by writing `FROM python:3.12-slim@sha256:<digest>` instead of `FROM python:3.12-slim`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The exact same image on every build, but no automatic security fixes"
+        },
+        {
+          "id": "b",
+          "text": "Faster builds, since the image is always cached locally, and nothing is lost"
+        },
+        {
+          "id": "c",
+          "text": "The image is smaller, but it can only run on one CPU architecture"
+        },
+        {
+          "id": "d",
+          "text": "Docker scans the pinned image for vulnerabilities, but each pull takes longer"
+        }
+      ],
+      "answer": "a",
+      "explanation": "A tag such as `3.12-slim` is a pointer the publisher can move to a newer image. A digest names one exact image, so every build uses the same bytes. Docker's best practices note the trade-off: pinning to a digest opts you out of automated security fixes, so pair it with a tool such as Dependabot that proposes digest updates.",
+      "materials": [
+        "docker-docs-building-best-practices"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.docker.com/build/building/best-practices/",
+          "title": "Building best practices",
+          "publisher": "Docker Inc.",
+          "accessed": "2026-09-26",
+          "claim": "Image tags are mutable, pinning to a digest guarantees the same image even if the tag is moved, but it opts you out of automated security fixes; tools like Dependabot can propose digest updates."
+        }
+      ]
+    },
+    {
+      "id": "w07-l01-q08",
+      "lesson": "w07-l01",
+      "concept": "w07-l01-dockerfile-hygiene",
+      "type": "written",
+      "prompt": "A reviewer asks you to 'pin versions and stop running as root' in your `agent-api` Dockerfile. Explain what each change means and why it matters.",
+      "model_answer": {
+        "summary": "Pinning makes builds reproducible by fixing the base image and dependency versions; a non-root `USER` limits what a compromised process can do inside the container.",
+        "key_points": [
+          "Pin the base image to a specific version tag, or to a digest for exactly the same image every time",
+          "A digest doesn't move when the publisher updates the tag, so you must update it yourself (for example with Dependabot) to get security fixes",
+          "Pin dependency versions (a lock file or exact versions in requirements) so a rebuild installs the same packages",
+          "Create a user and switch to it with `USER`, since the service doesn't need root privileges",
+          "Avoid `sudo` in the image; Docker's docs warn it has unpredictable TTY and signal-forwarding behaviour"
+        ]
+      },
+      "explanation": "Both changes remove surprises. Unpinned versions mean two builds of the same commit can differ, and a process running as root means any bug that lets an attacker run code gives them root inside the container. Docker's best practices recommend `USER` whenever a service can run without privileges.",
+      "materials": [
+        "docker-docs-building-best-practices"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.docker.com/build/building/best-practices/",
+          "title": "Building best practices",
+          "publisher": "Docker Inc.",
+          "accessed": "2026-09-26",
+          "claim": "Docker recommends pinning base images (to a digest for exact reproducibility, updated with tools like Dependabot), using USER to run services without root, and avoiding sudo because of unpredictable TTY and signal-forwarding behaviour."
+        },
+        {
+          "url": "https://pip.pypa.io/en/stable/topics/repeatable-installs/",
+          "title": "Repeatable Installs",
+          "publisher": "Python Packaging Authority",
+          "accessed": "2026-09-26",
+          "claim": "Pinning exact dependency versions with == in a requirements file (for example from pip freeze) makes installs repeatable."
+        }
+      ]
+    },
+    {
+      "id": "w07-l01-q09",
+      "lesson": "w07-l01",
+      "concept": "w07-l01-multi-stage-and-dockerignore",
+      "type": "multiple_choice",
+      "prompt": "In a multi-stage build, a `builder` stage installs compilers and builds wheels, and the final stage starts `FROM python:3.12-slim` and runs `COPY --from=builder /wheels /wheels`. What is in the final image?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Everything from both stages, merged into a single set of layers"
+        },
+        {
+          "id": "b",
+          "text": "Everything from the builder stage, since `COPY --from` brings the whole stage"
+        },
+        {
+          "id": "c",
+          "text": "The final stage's layers plus the copied `/wheels`, without the compilers"
+        },
+        {
+          "id": "d",
+          "text": "Only the copied `/wheels`, with no base image underneath"
+        }
+      ],
+      "answer": "c",
+      "explanation": "Only the last stage becomes the image. `COPY --from` picks specific files out of an earlier stage, and everything else in that stage, such as compilers and build caches, is left behind. That is how multi-stage builds cut image size while keeping the Dockerfile readable. The final stage still has its own base image.",
+      "materials": [
+        "docker-docs-multi-stage-builds"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.docker.com/build/building/multi-stage/",
+          "title": "Multi-stage builds",
+          "publisher": "Docker Inc.",
+          "accessed": "2026-09-26",
+          "claim": "Multi-stage builds let you copy selected artifacts from one stage into another with COPY --from, leaving everything else out of the final image."
+        }
+      ]
+    },
+    {
+      "id": "w07-l01-q10",
+      "lesson": "w07-l01",
+      "concept": "w07-l01-multi-stage-and-dockerignore",
+      "type": "multiple_choice",
+      "prompt": "What does a `.dockerignore` file listing `.git`, `.venv` and `.env` do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It deletes those files from the image after the build finishes"
+        },
+        {
+          "id": "b",
+          "text": "It leaves them out of the build context, so `COPY . .` can't pick them up and less is sent to the builder"
+        },
+        {
+          "id": "c",
+          "text": "It stops those files from being pushed to a registry"
+        },
+        {
+          "id": "d",
+          "text": "It makes Docker ignore changes to them when checking the cache, but still copies them"
+        }
+      ],
+      "answer": "b",
+      "explanation": "`.dockerignore`, in the root of the build context, excludes matching files from the context the builder receives. Excluded files can't be copied into any layer, so a local virtualenv, git history or a `.env` with secrets stays out of the image, and the smaller context makes builds faster. It acts before the build, not after it.",
+      "materials": [
+        "docker-docs-optimize-build-cache",
+        "docker-docs-multi-stage-builds"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.docker.com/build/concepts/context/",
+          "title": "Build context",
+          "publisher": "Docker Inc.",
+          "accessed": "2026-09-26",
+          "claim": "A .dockerignore file in the root of the build context excludes matching files from the context sent to the builder, speeding builds and keeping sensitive or unneeded files out of images."
+        },
+        {
+          "url": "https://docs.docker.com/build/cache/optimize/",
+          "title": "Optimize cache usage in builds",
+          "publisher": "Docker Inc.",
+          "accessed": "2026-09-26",
+          "claim": "Ignore rules in .dockerignore apply to the whole build context, including subdirectories."
+        }
+      ]
+    },
+    {
+      "id": "w07-l01-q11",
+      "lesson": "w07-l01",
+      "concept": "w07-l01-multi-stage-and-dockerignore",
+      "type": "written",
+      "prompt": "Your task is to cut the `agent-api` image size in half. List the changes you would try, say why each one makes the image smaller, and say how you would prove the result.",
+      "model_answer": {
+        "summary": "Use a slim base image, move build tools into a builder stage and copy only the results, keep junk out of the context with `.dockerignore`, and clean up in the same `RUN` that makes the mess; compare `docker image ls` sizes before and after.",
+        "key_points": [
+          "Switch to a smaller base image such as `python:3.12-slim`, which has fewer packages and fewer vulnerabilities",
+          "Use a multi-stage build: compile or install in a builder stage and `COPY --from` only the installed packages or wheels into the final stage",
+          "Add a `.dockerignore` so `.git`, `.venv`, tests data and `.env` never reach the build context or the image",
+          "Delete temporary files in the same `RUN` that creates them, because a later layer can't shrink an earlier one",
+          "Record the image size before and after (`docker image ls`) to show the change"
+        ]
+      },
+      "explanation": "Image size is the sum of every layer, so the biggest wins come from never adding bytes in the first place: a smaller base, no build tools in the final stage, no stray files in the context. Cleaning up in a later step doesn't help, because the earlier layer keeps what it added.",
+      "materials": [
+        "docker-docs-multi-stage-builds",
+        "docker-docs-building-best-practices",
+        "docker-docs-optimize-build-cache"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.docker.com/build/building/best-practices/",
+          "title": "Building best practices",
+          "publisher": "Docker Inc.",
+          "accessed": "2026-09-26",
+          "claim": "A smaller base image shrinks the image and reduces vulnerabilities, and cleanup such as removing apt lists should happen in the same RUN that creates the files."
+        },
+        {
+          "url": "https://docs.docker.com/build/building/multi-stage/",
+          "title": "Multi-stage builds",
+          "publisher": "Docker Inc.",
+          "accessed": "2026-09-26",
+          "claim": "Multi-stage builds copy only the needed artifacts into the final stage, leaving build tools behind."
+        },
+        {
+          "url": "https://docs.docker.com/reference/cli/docker/image/ls/",
+          "title": "docker image ls",
+          "publisher": "Docker Inc.",
+          "accessed": "2026-09-26",
+          "claim": "docker image ls shows each image's size, the cumulative space of the image and its parent layers."
+        }
+      ]
+    }
+  ]
+}

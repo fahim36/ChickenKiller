@@ -21,9 +21,10 @@ graph LR
 | Path | What's there |
 |---|---|
 | `content/schema/` | JSON Schema for `syllabus.json`, Question Bank files and `changelog.json`, generated from `api/app/content/format.py` ([format notes](docs/content-format.md)) |
-| `content/<stack>/<version>/` | One Syllabus version: `syllabus.json`, `questions/<lesson-id>.json` and `changelog.json` |
+| `content/<stack>/<version>/` | One Syllabus version: `syllabus.json` and `changelog.json` |
+| `content/<stack>/question-bank/` | The Stack's one Question Bank, append-only, with each Question's Sources ([ADR-0004](docs/adr/0004-append-only-question-bank-with-sources.md)) |
 | `.claude/skills/update-syllabus/` | The `/update-syllabus` command that writes a new Syllabus version ([below](#update-a-syllabus)) |
-| `api/` | FastAPI app, SQLAlchemy models, Alembic migrations, and the `content-check`, `content-diff`, `content-import`, `content-new-version` and `content-schema` commands |
+| `api/` | FastAPI app, SQLAlchemy models, Alembic migrations, and the `content-check`, `content-diff`, `content-import`, `content-migrate-bank`, `content-new-version` and `content-schema` commands |
 | `web/` | Next.js 16 front end (App Router, server components) |
 | `render.yaml`, `api/Dockerfile` | Deployment ([docs/deploy.md](docs/deploy.md)) |
 

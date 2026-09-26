@@ -1,0 +1,491 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "w11-l01-type-vs-interface",
+      "name": "Type aliases vs interfaces"
+    },
+    {
+      "id": "w11-l01-union-narrowing",
+      "name": "Unions and narrowing"
+    },
+    {
+      "id": "w11-l01-discriminated-unions",
+      "name": "Discriminated unions and exhaustiveness"
+    },
+    {
+      "id": "w11-l01-generics",
+      "name": "Generic functions and constraints"
+    },
+    {
+      "id": "w11-l01-unknown-vs-any",
+      "name": "`unknown` vs `any`"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w11-l01-q01",
+      "lesson": "w11-l01",
+      "concept": "w11-l01-type-vs-interface",
+      "type": "multiple_choice",
+      "prompt": "A file declares `interface Config { model: string }` and later `interface Config { maxSteps: number }`. What does TypeScript do, and what if both were `type Config = {...}` instead?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Interfaces: a `Duplicate identifier` error. Types: they merge into one shape"
+        },
+        {
+          "id": "b",
+          "text": "Both merge into one shape with `model` and `maxSteps`"
+        },
+        {
+          "id": "c",
+          "text": "Both give a `Duplicate identifier 'Config'` error"
+        },
+        {
+          "id": "d",
+          "text": "Interfaces: they merge into one shape. Types: a `Duplicate identifier` error"
+        }
+      ],
+      "answer": "d",
+      "explanation": "An interface can always be reopened to add properties (declaration merging). A type alias can't be changed after it's created, so a second `type Config` is a duplicate identifier. This is the main difference the Handbook names between the two.",
+      "materials": [
+        "typescript-handbook"
+      ],
+      "sources": [
+        {
+          "url": "https://www.typescriptlang.org/docs/handbook/2/everyday-types.html",
+          "title": "TypeScript: Documentation - Everyday Types",
+          "publisher": "Microsoft (TypeScript team)",
+          "accessed": "2026-09-26",
+          "claim": "An interface can be reopened to add new properties, while redeclaring a type alias gives a 'Duplicate identifier' error."
+        }
+      ]
+    },
+    {
+      "id": "w11-l01-q02",
+      "lesson": "w11-l01",
+      "concept": "w11-l01-type-vs-interface",
+      "type": "written",
+      "prompt": "Compare type aliases and interfaces in TypeScript. When would you use each?",
+      "model_answer": {
+        "summary": "They are nearly interchangeable for object shapes. Interfaces can be reopened and extended with `extends`; type aliases can name any type, including unions. The Handbook's rule of thumb is to use `interface` until you need a feature of `type`.",
+        "key_points": [
+          "Almost every feature of an interface is also available with a type alias",
+          "An interface can be reopened to add new properties (declaration merging); a type alias can't be changed after it's created",
+          "Interfaces extend with `extends`; type aliases combine with intersections (`&`)",
+          "A type alias can name any type, such as a union like `\"user\" | \"assistant\"`, which an interface can't",
+          "Heuristic: use `interface` until you need a feature of `type`"
+        ]
+      },
+      "explanation": "In practice the choice rarely matters for plain object shapes. You need `type` for unions and other non-object types, and `interface` when a declaration must be extendable, for example to augment a library's types.",
+      "materials": [
+        "typescript-handbook"
+      ],
+      "sources": [
+        {
+          "url": "https://www.typescriptlang.org/docs/handbook/2/everyday-types.html",
+          "title": "TypeScript: Documentation - Everyday Types",
+          "publisher": "Microsoft (TypeScript team)",
+          "accessed": "2026-09-26",
+          "claim": "Almost all interface features are available in type; interfaces extend with extends, types with intersections; a type can't be reopened; heuristic is to use interface until you need type features."
+        }
+      ]
+    },
+    {
+      "id": "w11-l01-q03",
+      "lesson": "w11-l01",
+      "concept": "w11-l01-union-narrowing",
+      "type": "multiple_choice",
+      "prompt": "`function printAll(strs: string | string[] | null) { if (typeof strs === \"object\") { for (const s of strs) console.log(s); } }` What does TypeScript report?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Nothing: inside the `if`, the `typeof` check narrows `strs` to `string[]`"
+        },
+        {
+          "id": "b",
+          "text": "An error: `strs` is possibly `null`, since `typeof null` is `\"object\"`"
+        },
+        {
+          "id": "c",
+          "text": "An error: `typeof` checks can't narrow a union that includes arrays"
+        },
+        {
+          "id": "d",
+          "text": "An error: `for...of` can't iterate `string`, which is still in the union"
+        }
+      ],
+      "answer": "b",
+      "explanation": "In JavaScript `typeof null === \"object\"`, so the check narrows `strs` to `string[] | null`, not `string[]`. Add an explicit `strs !== null` check, or test with `Array.isArray(strs)`.",
+      "materials": [
+        "typescript-handbook-narrowing"
+      ],
+      "sources": [
+        {
+          "url": "https://www.typescriptlang.org/docs/handbook/2/narrowing.html",
+          "title": "TypeScript: Documentation - Narrowing",
+          "publisher": "Microsoft (TypeScript team)",
+          "accessed": "2026-09-26",
+          "claim": "In the printAll example, typeof strs === \"object\" leaves null in the type because typeof null is \"object\", so TypeScript reports 'strs' is possibly 'null'."
+        }
+      ]
+    },
+    {
+      "id": "w11-l01-q04",
+      "lesson": "w11-l01",
+      "concept": "w11-l01-union-narrowing",
+      "type": "multiple_choice",
+      "prompt": "`function greet(name: string | undefined) { if (name) { return `Hi ${name}`; } return \"Hi stranger\"; }` Which input unexpectedly returns \"Hi stranger\"?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`\"0\"`"
+        },
+        {
+          "id": "b",
+          "text": "`\" \"` (a single space)"
+        },
+        {
+          "id": "c",
+          "text": "`\"false\"`"
+        },
+        {
+          "id": "d",
+          "text": "`\"\"` (an empty string)"
+        }
+      ],
+      "answer": "d",
+      "explanation": "Truthiness narrowing treats `\"\"`, `0`, `NaN`, `0n`, `null` and `undefined` as false. So `if (name)` removes `undefined` but also skips the empty string. Non-empty strings such as `\"0\"`, `\" \"` and `\"false\"` are all truthy. When the empty string is a valid value, check `name !== undefined` instead.",
+      "materials": [
+        "typescript-handbook-narrowing"
+      ],
+      "sources": [
+        {
+          "url": "https://www.typescriptlang.org/docs/handbook/2/narrowing.html",
+          "title": "TypeScript: Documentation - Narrowing",
+          "publisher": "Microsoft (TypeScript team)",
+          "accessed": "2026-09-26",
+          "claim": "Truthiness narrowing treats 0, NaN, the empty string, 0n, null and undefined as false, so a truthy check can mishandle the empty string."
+        }
+      ]
+    },
+    {
+      "id": "w11-l01-q05",
+      "lesson": "w11-l01",
+      "concept": "w11-l01-discriminated-unions",
+      "type": "multiple_choice",
+      "prompt": "`type Shape = Circle | Square`, each with a `kind` literal. `getArea` switches on `shape.kind` and its `default` branch has `const _exhaustiveCheck: never = shape;`. You add `Triangle` to `Shape` but don't add a case. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A compile error in `getArea`: `Type 'Triangle' is not assignable to type 'never'`"
+        },
+        {
+          "id": "b",
+          "text": "Nothing until run time, when `getArea` returns `undefined` for triangles"
+        },
+        {
+          "id": "c",
+          "text": "A compile error in the file that declares `Triangle`"
+        },
+        {
+          "id": "d",
+          "text": "TypeScript adds a `triangle` case automatically"
+        }
+      ],
+      "answer": "a",
+      "explanation": "After every handled case, the only type left in `default` is the unhandled `Triangle`, and nothing is assignable to `never`. So the compiler points at the switch you forgot to update. This exhaustiveness check turns a forgotten case into a build error.",
+      "materials": [
+        "typescript-handbook-narrowing"
+      ],
+      "sources": [
+        {
+          "url": "https://www.typescriptlang.org/docs/handbook/2/narrowing.html",
+          "title": "TypeScript: Documentation - Narrowing",
+          "publisher": "Microsoft (TypeScript team)",
+          "accessed": "2026-09-26",
+          "claim": "Adding Triangle to Shape without a case makes the default branch's never assignment fail with \"Type 'Triangle' is not assignable to type 'never'\"."
+        }
+      ]
+    },
+    {
+      "id": "w11-l01-q06",
+      "lesson": "w11-l01",
+      "concept": "w11-l01-discriminated-unions",
+      "type": "written",
+      "prompt": "Your agent's model call can return either text or a tool call. Model this as a discriminated union in TypeScript and explain why it's better than one object with optional fields.",
+      "model_answer": {
+        "summary": "Give each variant a literal `kind`, so a `switch` on `kind` narrows to the right variant and a `never` check catches any variant you forgot to handle.",
+        "key_points": [
+          "Each member shares a discriminant property with a literal type, for example `{ kind: \"text\"; text: string } | { kind: \"tool_call\"; name: string; input: unknown }`",
+          "Checking `kind` (with `switch` or `if`) narrows to that member, so its fields can be used without extra checks",
+          "One object with optional fields allows impossible combinations (both `text` and `name`, or neither) and forces a check on every field",
+          "A `default` branch that assigns the value to `never` makes the compiler flag any variant added later but not handled"
+        ]
+      },
+      "explanation": "Discriminated unions make illegal states unrepresentable, which matters for model output that can take several shapes. The compiler, not a runtime crash, tells you about a case you forgot.",
+      "materials": [
+        "typescript-handbook-narrowing"
+      ],
+      "sources": [
+        {
+          "url": "https://www.typescriptlang.org/docs/handbook/2/narrowing.html",
+          "title": "TypeScript: Documentation - Narrowing",
+          "publisher": "Microsoft (TypeScript team)",
+          "accessed": "2026-09-26",
+          "claim": "A union whose members share a property with literal types is a discriminated union that TypeScript narrows on, and a never assignment in default gives exhaustiveness checking; optional fields left TypeScript unable to tell which shape it had."
+        }
+      ]
+    },
+    {
+      "id": "w11-l01-q07",
+      "lesson": "w11-l01",
+      "concept": "w11-l01-generics",
+      "type": "multiple_choice",
+      "prompt": "Given `function getProperty<T, K extends keyof T>(obj: T, key: K) { return obj[key]; }`, what happens with `getProperty({ a: 1, b: 2 }, \"c\")`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It compiles and returns `undefined`"
+        },
+        {
+          "id": "b",
+          "text": "It compiles, because `K` is inferred as `string`"
+        },
+        {
+          "id": "c",
+          "text": "A compile error: `\"c\"` is not assignable to `\"a\" | \"b\"`"
+        },
+        {
+          "id": "d",
+          "text": "A run-time `TypeError`"
+        }
+      ],
+      "answer": "c",
+      "explanation": "`K extends keyof T` constrains the key to the object's own keys, here `\"a\" | \"b\"`. The constraint makes a misspelt key a compile error instead of a silent `undefined` at run time.",
+      "materials": [
+        "typescript-handbook"
+      ],
+      "sources": [
+        {
+          "url": "https://www.typescriptlang.org/docs/handbook/2/generics.html",
+          "title": "TypeScript: Documentation - Generics",
+          "publisher": "Microsoft (TypeScript team)",
+          "accessed": "2026-09-26",
+          "claim": "With Key extends keyof Type, passing a key that isn't one of the object's keys is a compile error that the argument is not assignable to the union of its keys."
+        }
+      ]
+    },
+    {
+      "id": "w11-l01-q08",
+      "lesson": "w11-l01",
+      "concept": "w11-l01-generics",
+      "type": "multiple_choice",
+      "prompt": "Compare `function idAny(arg: any): any` with `function id<T>(arg: T): T`. What type does `let n = id(42)` get, and what does `idAny(42)` return?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`id(42)` is `number`; `idAny(42)` is `any`, losing the argument's type"
+        },
+        {
+          "id": "b",
+          "text": "Both are `number`, since TypeScript infers the return from the argument"
+        },
+        {
+          "id": "c",
+          "text": "Both are `any`, because generic parameters default to `any`"
+        },
+        {
+          "id": "d",
+          "text": "`id(42)` is `unknown` until narrowed; `idAny(42)` is `number`"
+        }
+      ],
+      "answer": "a",
+      "explanation": "A type parameter captures the argument's type and reuses it for the return type, so the caller keeps `number`. With `any` the return type is `any`, which turns off checking for everything that uses it. That's the Handbook's case for generics.",
+      "materials": [
+        "typescript-handbook"
+      ],
+      "sources": [
+        {
+          "url": "https://www.typescriptlang.org/docs/handbook/2/generics.html",
+          "title": "TypeScript: Documentation - Generics",
+          "publisher": "Microsoft (TypeScript team)",
+          "accessed": "2026-09-26",
+          "claim": "An identity function typed with any loses the argument's type on return, while a type parameter captures it so the return type matches the argument."
+        }
+      ]
+    },
+    {
+      "id": "w11-l01-q09",
+      "lesson": "w11-l01",
+      "concept": "w11-l01-unknown-vs-any",
+      "type": "multiple_choice",
+      "prompt": "Which of these compiles?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`function f(x: unknown) { const s = x.toUpperCase(); return s; }`"
+        },
+        {
+          "id": "b",
+          "text": "`function f(x: unknown) { const s: string = x; return s.toUpperCase().trim(); }`"
+        },
+        {
+          "id": "c",
+          "text": "`function f(x: unknown) { const n: number = x + 1; return n; }`"
+        },
+        {
+          "id": "d",
+          "text": "`function f(x: unknown) { if (typeof x === \"string\") return x.toUpperCase(); }`"
+        }
+      ],
+      "answer": "d",
+      "explanation": "Anything can be assigned to `unknown`, but you can't access properties on it, call it, do arithmetic with it, or assign it to a narrower type until you narrow it with `typeof`, `instanceof` or a type predicate. Only option d narrows first. With `any`, all four would compile, and the bad ones would fail at run time.",
+      "materials": [
+        "typescript-3-0-release-notes",
+        "typescript-handbook-narrowing"
+      ],
+      "sources": [
+        {
+          "url": "https://www.typescriptlang.org/docs/handbook/release-notes/typescript-3-0.html",
+          "title": "TypeScript: Documentation - TypeScript 3.0",
+          "publisher": "Microsoft (TypeScript team)",
+          "accessed": "2026-09-26",
+          "claim": "unknown is only assignable to itself and any, and property access, calls and arithmetic on it are errors until it is narrowed."
+        },
+        {
+          "url": "https://www.typescriptlang.org/docs/handbook/2/narrowing.html",
+          "title": "TypeScript: Documentation - Narrowing",
+          "publisher": "Microsoft (TypeScript team)",
+          "accessed": "2026-09-26",
+          "claim": "A typeof check narrows a value to the tested type inside the branch."
+        }
+      ]
+    },
+    {
+      "id": "w11-l01-q10",
+      "lesson": "w11-l01",
+      "concept": "w11-l01-unknown-vs-any",
+      "type": "multiple_choice",
+      "prompt": "`JSON.parse` returns `any`. Why annotate an LLM's parsed output as `const data: unknown = JSON.parse(text)`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`unknown` makes `JSON.parse` check the value against the declared type at run time"
+        },
+        {
+          "id": "b",
+          "text": "`unknown` makes the compiler refuse to use `data` until you narrow or validate it"
+        },
+        {
+          "id": "c",
+          "text": "`unknown` is erased more cheaply than `any`, so the code runs faster"
+        },
+        {
+          "id": "d",
+          "text": "`unknown` makes `JSON.parse` return `undefined` instead of throwing on invalid JSON"
+        }
+      ],
+      "answer": "b",
+      "explanation": "`any` switches off type checking, so `data.answer.trim()` compiles even if the model sent something else, and crashes at run time. `unknown` forces a check first. It adds no run-time behaviour: type annotations are erased when compiled, so you still need a run-time validator such as Zod, and `JSON.parse` still throws on invalid JSON.",
+      "materials": [
+        "typescript-3-0-release-notes",
+        "typescript-handbook"
+      ],
+      "sources": [
+        {
+          "url": "https://www.typescriptlang.org/docs/handbook/release-notes/typescript-3-0.html",
+          "title": "TypeScript: Documentation - TypeScript 3.0",
+          "publisher": "Microsoft (TypeScript team)",
+          "accessed": "2026-09-26",
+          "claim": "unknown is the type-safe counterpart of any: no operations are allowed on it until it is narrowed or asserted."
+        },
+        {
+          "url": "https://www.typescriptlang.org/docs/handbook/2/basic-types.html",
+          "title": "TypeScript: Documentation - The Basics",
+          "publisher": "Microsoft (TypeScript team)",
+          "accessed": "2026-09-26",
+          "claim": "Type annotations are erased when compiled and never change the program's runtime behaviour."
+        }
+      ]
+    },
+    {
+      "id": "w11-l01-q11",
+      "lesson": "w11-l01",
+      "concept": "w11-l01-unknown-vs-any",
+      "type": "multiple_choice",
+      "prompt": "With `\"strict\": true`, what does TypeScript say about `function add(a, b) { return a + b; }`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "An error: `Parameter 'a' implicitly has an 'any' type` (and the same for `b`)"
+        },
+        {
+          "id": "b",
+          "text": "Nothing: it infers `number` from the `+`"
+        },
+        {
+          "id": "c",
+          "text": "Nothing: it infers `string | number`"
+        },
+        {
+          "id": "d",
+          "text": "A warning only, because implicit `any` is allowed under `strict`"
+        }
+      ],
+      "answer": "a",
+      "explanation": "When TypeScript can't infer a type it falls back to `any`. `noImplicitAny`, part of `strict`, makes that fallback an error, so you can't lose type checking by accident. Annotate the parameters, for example `(a: number, b: number)`.",
+      "materials": [
+        "typescript-handbook",
+        "total-typescript-beginners-tutorial"
+      ],
+      "sources": [
+        {
+          "url": "https://www.typescriptlang.org/tsconfig/",
+          "title": "TypeScript: TSConfig Reference",
+          "publisher": "Microsoft (TypeScript team)",
+          "accessed": "2026-09-26",
+          "claim": "strict enables noImplicitAny, which errors with \"Parameter 's' implicitly has an 'any' type\" when a parameter's type would fall back to any."
+        }
+      ]
+    },
+    {
+      "id": "w11-l01-q12",
+      "lesson": "w11-l01",
+      "concept": "w11-l01-unknown-vs-any",
+      "type": "written",
+      "prompt": "Explain the difference between `unknown` and `any`, and say which you would use for data that comes back from an LLM.",
+      "model_answer": {
+        "summary": "Both accept any value, but `any` switches off type checking while `unknown` makes you narrow or validate before use. Use `unknown` for model output, then validate it at run time.",
+        "key_points": [
+          "`any` switches off checking: you can access properties, call it and assign it anywhere, and the `any` spreads to what you derive from it",
+          "Anything can be assigned to `unknown`, but `unknown` can only be assigned to `unknown` or `any` without narrowing",
+          "You can't access properties of, call, or do arithmetic with `unknown` until you narrow it with `typeof`, `instanceof` or a type predicate",
+          "Types are erased at run time, so model output also needs run-time validation (for example Zod) before it's trusted"
+        ]
+      },
+      "explanation": "`unknown` is the type-safe counterpart of `any`: it puts the check where the untrusted data enters your program, instead of letting a wrong assumption travel until it crashes.",
+      "materials": [
+        "typescript-3-0-release-notes",
+        "typescript-handbook"
+      ],
+      "sources": [
+        {
+          "url": "https://www.typescriptlang.org/docs/handbook/release-notes/typescript-3-0.html",
+          "title": "TypeScript: Documentation - TypeScript 3.0",
+          "publisher": "Microsoft (TypeScript team)",
+          "accessed": "2026-09-26",
+          "claim": "Anything is assignable to unknown, unknown is assignable only to itself and any, and operations on it need narrowing, unlike any."
+        },
+        {
+          "url": "https://www.typescriptlang.org/docs/handbook/2/basic-types.html",
+          "title": "TypeScript: Documentation - The Basics",
+          "publisher": "Microsoft (TypeScript team)",
+          "accessed": "2026-09-26",
+          "claim": "Types are erased at compile time and do not affect runtime behaviour, so runtime data isn't checked by them."
+        }
+      ]
+    }
+  ]
+}

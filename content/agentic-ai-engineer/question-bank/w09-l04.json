@@ -1,0 +1,508 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "w09-l04-rate-limiter-algorithms",
+      "name": "Token-bucket and sliding-window limiters"
+    },
+    {
+      "id": "w09-l04-backoff-with-jitter",
+      "name": "Exponential backoff with jitter"
+    },
+    {
+      "id": "w09-l04-what-to-retry",
+      "name": "What to retry: 429, 5xx and `Retry-After`"
+    },
+    {
+      "id": "w09-l04-tenacity-retries",
+      "name": "Retrying LLM calls with Tenacity"
+    },
+    {
+      "id": "w09-l04-idempotency-keys",
+      "name": "Idempotency keys for safe retries"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w09-l04-q01",
+      "lesson": "w09-l04",
+      "concept": "w09-l04-rate-limiter-algorithms",
+      "type": "multiple_choice",
+      "prompt": "A token-bucket limiter holds at most 10 tokens and refills 1 token per second. A client that has been idle for a minute sends 15 requests at once, each costing one token. How many are allowed straight away?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "1, because the refill rate limits it to one request per second"
+        },
+        {
+          "id": "b",
+          "text": "10: the bucket caps at 10 tokens, so 10 pass and 5 are rejected"
+        },
+        {
+          "id": "c",
+          "text": "15, because a minute of idle refill earned 60 tokens, which covers them all"
+        },
+        {
+          "id": "d",
+          "text": "0, because a token bucket rejects any burst above the refill rate"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Tokens refill continuously but the bucket never holds more than its capacity, so after the idle minute it has 10, not 60. A token bucket therefore allows bursts up to its capacity and then limits clients to the refill rate. Anthropic's API uses this algorithm: capacity replenishes continuously up to the limit rather than resetting at fixed intervals.",
+      "materials": [
+        "anthropic-docs-rate-limits",
+        "stripe-scaling-your-api-with-rate-limiters"
+      ],
+      "sources": [
+        {
+          "url": "https://platform.claude.com/docs/en/api/rate-limits",
+          "title": "Rate limits",
+          "publisher": "Anthropic",
+          "accessed": "2026-09-26",
+          "claim": "The Claude API rate-limits with the token bucket algorithm, so capacity is continuously replenished up to the maximum rather than reset at fixed intervals; a bucket capped at 10 therefore admits at most 10 of a 15-request burst."
+        }
+      ]
+    },
+    {
+      "id": "w09-l04-q02",
+      "lesson": "w09-l04",
+      "concept": "w09-l04-rate-limiter-algorithms",
+      "type": "multiple_choice",
+      "prompt": "A sliding-window limiter allows 50 requests per minute and estimates the rate as `previous_count x (60 - elapsed) / 60 + current_count`. The previous minute had 42 requests; 15 seconds into this minute there have been 18. What is the estimate, and is the next request allowed?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "60; blocked"
+        },
+        {
+          "id": "b",
+          "text": "18; allowed, because only the current minute counts"
+        },
+        {
+          "id": "c",
+          "text": "28.5; allowed"
+        },
+        {
+          "id": "d",
+          "text": "49.5; allowed, just under the limit"
+        }
+      ],
+      "answer": "d",
+      "explanation": "45 of the last 60 seconds fall in the previous minute, so it counts 42 x 45/60 = 31.5, plus 18 now gives 49.5, under 50. This is Cloudflare's worked example. A fixed window would count only the 18, which lets a client send almost double the limit around a window boundary; 28.5 weights the wrong part of the previous window.",
+      "materials": [
+        "cloudflare-sliding-window-rate-limiting"
+      ],
+      "sources": [
+        {
+          "url": "https://blog.cloudflare.com/counting-things-a-lot-of-different-things/",
+          "title": "How we built rate limiting capable of scaling to millions of domains",
+          "publisher": "Cloudflare",
+          "accessed": "2026-09-26",
+          "claim": "Cloudflare estimates rate = previous_counter x ((period - elapsed) / period) + current_counter, and its worked example of 42 previous, 18 current, 15 s elapsed and a 50/min limit gives 42 x 0.75 + 18 = 49.5."
+        }
+      ]
+    },
+    {
+      "id": "w09-l04-q03",
+      "lesson": "w09-l04",
+      "concept": "w09-l04-rate-limiter-algorithms",
+      "type": "written",
+      "prompt": "Compare a fixed-window counter, a sliding-window limiter and a token bucket. What problem does each of the last two fix, and how does each treat bursts?",
+      "model_answer": {
+        "summary": "A fixed window resets at boundaries and allows bursts across them; a sliding window smooths that by weighting the previous window; a token bucket allows controlled bursts up to its capacity.",
+        "key_points": [
+          "A fixed-window counter resets at each boundary, so a client can send a full limit just before and just after it, nearly twice the limit in a short time",
+          "A sliding window estimates the rate over the last full window by weighting the previous window's count by how much of it still overlaps",
+          "Cloudflare's sliding-window approximation stores just two counters per client and was very accurate in practice",
+          "A token bucket refills at a steady rate up to a capacity, so it allows bursts up to the capacity and then enforces the refill rate",
+          "Anthropic's API uses a token bucket, so short bursts can still hit limits even when the per-minute average is fine"
+        ]
+      },
+      "explanation": "Interviewers want the burst behaviour, since that's what differs. Knowing your provider uses a token bucket explains why a client under its per-minute limit can still get a 429 from a sudden burst.",
+      "materials": [
+        "cloudflare-sliding-window-rate-limiting",
+        "anthropic-docs-rate-limits"
+      ],
+      "sources": [
+        {
+          "url": "https://blog.cloudflare.com/counting-things-a-lot-of-different-things/",
+          "title": "How we built rate limiting capable of scaling to millions of domains",
+          "publisher": "Cloudflare",
+          "accessed": "2026-09-26",
+          "claim": "Cloudflare's sliding-window approximation weights the previous window's count by its remaining overlap, stores two numbers per counter, and was wrong on only 0.003% of 400 million requests."
+        },
+        {
+          "url": "https://platform.claude.com/docs/en/api/rate-limits",
+          "title": "Rate limits",
+          "publisher": "Anthropic",
+          "accessed": "2026-09-26",
+          "claim": "The Claude API uses a token bucket that replenishes continuously up to the limit, and short bursts can exceed the limit and trigger rate limit errors."
+        }
+      ]
+    },
+    {
+      "id": "w09-l04-q04",
+      "lesson": "w09-l04",
+      "concept": "w09-l04-backoff-with-jitter",
+      "type": "multiple_choice",
+      "prompt": "You use \"full jitter\" backoff, `sleep = random(0, min(cap, base * 2 ** attempt))`, with `base = 1` second and `cap = 20` seconds. How long can the sleep be when `attempt = 3`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Any time between 0 and 8 seconds"
+        },
+        {
+          "id": "b",
+          "text": "Exactly 8 seconds"
+        },
+        {
+          "id": "c",
+          "text": "Between 4 and 8 seconds"
+        },
+        {
+          "id": "d",
+          "text": "Any time between 0 and 20 seconds"
+        }
+      ],
+      "answer": "a",
+      "explanation": "`base * 2 ** 3` is 8, under the cap of 20, and full jitter picks uniformly between 0 and that ceiling. Exactly 8 is plain exponential backoff; 4 to 8 is \"equal jitter\". The cap only matters from `attempt = 5`, where `2 ** 5 = 32` is capped to 20.",
+      "materials": [
+        "aws-exponential-backoff-and-jitter"
+      ],
+      "sources": [
+        {
+          "url": "https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/",
+          "title": "Exponential Backoff And Jitter | AWS Architecture Blog",
+          "publisher": "AWS",
+          "accessed": "2026-09-26",
+          "claim": "Full Jitter is sleep = random(0, min(cap, base * 2^attempt)), plain exponential backoff is min(cap, base * 2^attempt), and Equal Jitter adds a random half to half of that ceiling; with base 1, cap 20 and attempt 3 the ceiling is 8."
+        }
+      ]
+    },
+    {
+      "id": "w09-l04-q05",
+      "lesson": "w09-l04",
+      "concept": "w09-l04-backoff-with-jitter",
+      "type": "multiple_choice",
+      "prompt": "Why add jitter to exponential backoff instead of having every client wait exactly 1, 2, 4, 8 seconds?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Jitter makes each individual retry succeed sooner"
+        },
+        {
+          "id": "b",
+          "text": "Servers and proxies reject retries that arrive at exact powers-of-two intervals"
+        },
+        {
+          "id": "c",
+          "text": "Clients that failed together retry in sync; randomness spreads them out"
+        },
+        {
+          "id": "d",
+          "text": "It removes the need for a cap on the maximum wait between retries"
+        }
+      ],
+      "answer": "c",
+      "explanation": "When many clients fail at the same moment, plain exponential backoff keeps them in step, so their retries arrive in clusters that overload the server again, with idle gaps between. The AWS analysis shows randomizing the wait spreads calls to a roughly constant rate and cuts total work; it recommends full jitter.",
+      "materials": [
+        "aws-exponential-backoff-and-jitter"
+      ],
+      "sources": [
+        {
+          "url": "https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/",
+          "title": "Exponential Backoff And Jitter | AWS Architecture Blog",
+          "publisher": "AWS",
+          "accessed": "2026-09-26",
+          "claim": "Without jitter, exponential backoff leaves retries clustered in spikes; jittered backoff spreads them out and substantially reduces client work and server load, with Full Jitter using the least work."
+        }
+      ]
+    },
+    {
+      "id": "w09-l04-q06",
+      "lesson": "w09-l04",
+      "concept": "w09-l04-what-to-retry",
+      "type": "multiple_choice",
+      "prompt": "Your wrapper around the Claude API retries failed calls. Which responses should it retry?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Every error, since any failure might be temporary"
+        },
+        {
+          "id": "b",
+          "text": "429 `rate_limit_error`, 500 `api_error`, 529 `overloaded_error` and connection errors, but not 400, 401 or 403"
+        },
+        {
+          "id": "c",
+          "text": "Only 400 `invalid_request_error`, after fixing the request automatically"
+        },
+        {
+          "id": "d",
+          "text": "Only connection errors; HTTP errors mean the request reached the server, so retrying is useless"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Retry what is transient: rate limits, server errors, overload and dropped connections. A 400, 401 or 403 fails the same way every time, because the request, key or permissions are wrong, so a retry only wastes time. The official SDKs themselves retry connection errors, 429s and 5xx errors twice by default.",
+      "materials": [
+        "anthropic-docs-api-errors"
+      ],
+      "sources": [
+        {
+          "url": "https://platform.claude.com/docs/en/api/errors",
+          "title": "Claude API errors",
+          "publisher": "Anthropic",
+          "accessed": "2026-09-26",
+          "claim": "The API's errors are 400 invalid_request_error, 401 authentication_error, 403 permission_error, 429 rate_limit_error, 500 api_error and 529 overloaded_error, and the official SDKs automatically retry connection errors, rate limits and 5xx errors twice by default."
+        }
+      ]
+    },
+    {
+      "id": "w09-l04-q07",
+      "lesson": "w09-l04",
+      "concept": "w09-l04-what-to-retry",
+      "type": "multiple_choice",
+      "prompt": "The API returns `429` with the header `Retry-After: 30`. Your backoff would next wait 2 seconds. What should the client do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Retry after 2 seconds, since backoff already handles 429"
+        },
+        {
+          "id": "b",
+          "text": "Retry at once, since `Retry-After` is only advice for browsers"
+        },
+        {
+          "id": "c",
+          "text": "Give up: a 429 means the request can never succeed"
+        },
+        {
+          "id": "d",
+          "text": "Wait at least 30 seconds before retrying, because retrying earlier will fail"
+        }
+      ],
+      "answer": "d",
+      "explanation": "`Retry-After` tells the client how long to wait, either as a number of seconds or an HTTP date. Anthropic's docs say earlier retries will fail, so honour it over your own shorter backoff. One exception: a 429 for reaching the monthly spend cap has no `retry-after` header and keeps failing until access resumes, so don't retry it at all.",
+      "materials": [
+        "mdn-retry-after-header",
+        "anthropic-docs-rate-limits"
+      ],
+      "sources": [
+        {
+          "url": "https://platform.claude.com/docs/en/api/rate-limits",
+          "title": "Rate limits",
+          "publisher": "Anthropic",
+          "accessed": "2026-09-26",
+          "claim": "The retry-after header gives the number of seconds to wait and earlier retries will fail; the monthly spend-cap 429 carries no retry-after header and keeps failing until access resumes."
+        },
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Retry-After",
+          "title": "Retry-After header - HTTP | MDN",
+          "publisher": "Mozilla (MDN Web Docs)",
+          "accessed": "2026-09-26",
+          "claim": "Retry-After takes either an HTTP date or a number of delay seconds, and in a 429 response indicates how long to wait before a new request."
+        }
+      ]
+    },
+    {
+      "id": "w09-l04-q08",
+      "lesson": "w09-l04",
+      "concept": "w09-l04-tenacity-retries",
+      "type": "multiple_choice",
+      "prompt": "What does a function decorated with a bare `@retry` from Tenacity (no arguments) do when it raises?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Retries forever on any exception, with no wait between attempts"
+        },
+        {
+          "id": "b",
+          "text": "Retries 3 times with exponential backoff, then re-raises"
+        },
+        {
+          "id": "c",
+          "text": "Retries only on network errors"
+        },
+        {
+          "id": "d",
+          "text": "Retries once after 1 second"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Tenacity's default is to retry forever, on any exception, without waiting. In production always add a `stop` (such as `stop_after_attempt`), a `wait` strategy and a `retry` condition; otherwise a permanent error, like a bad API key, becomes an endless tight loop.",
+      "materials": [
+        "tenacity-retries-in-python"
+      ],
+      "sources": [
+        {
+          "url": "https://tenacity.readthedocs.io/en/latest/",
+          "title": "Tenacity",
+          "publisher": "Tenacity project (Julien Danjou)",
+          "accessed": "2026-09-26",
+          "claim": "Tenacity's basic @retry with no arguments retries forever without waiting whenever an exception is raised."
+        }
+      ]
+    },
+    {
+      "id": "w09-l04-q09",
+      "lesson": "w09-l04",
+      "concept": "w09-l04-tenacity-retries",
+      "type": "multiple_choice",
+      "prompt": "`is_retryable(e)` returns `True` for 429 and 5xx errors. Which decorator retries only those, with jittered exponential backoff, gives up after 5 attempts and re-raises the original exception?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`@retry(retry=retry_if_exception_type(Exception), wait=wait_random_exponential(max=60), stop=stop_after_attempt(5))`"
+        },
+        {
+          "id": "b",
+          "text": "`@retry(retry=retry_if_exception(is_retryable), wait=wait_fixed(2), reraise=True)`"
+        },
+        {
+          "id": "c",
+          "text": "`@retry(retry=retry_if_exception(is_retryable), wait=wait_random_exponential(multiplier=1, max=60), stop=stop_after_attempt(5), reraise=True)`"
+        },
+        {
+          "id": "d",
+          "text": "`@retry(wait=wait_random_exponential(multiplier=1, max=60), stop=stop_after_attempt(5), reraise=True)`"
+        }
+      ],
+      "answer": "c",
+      "explanation": "`retry_if_exception` takes a predicate, so only errors `is_retryable` accepts are retried. `wait_random_exponential` is Tenacity's full-jitter backoff, `stop_after_attempt(5)` ends it, and `reraise=True` raises the original exception instead of `RetryError`. (a) and (d) retry every exception, including 400s, and (b) has no stop, so it retries forever at a fixed interval.",
+      "materials": [
+        "tenacity-retries-in-python"
+      ],
+      "sources": [
+        {
+          "url": "https://tenacity.readthedocs.io/en/latest/api.html",
+          "title": "API Reference — Tenacity documentation",
+          "publisher": "Tenacity project (Julien Danjou)",
+          "accessed": "2026-09-26",
+          "claim": "retry_if_exception retries when an exception satisfies a predicate, wait_random_exponential implements Full Jitter with multiplier and max, stop_after_attempt stops after the given number of attempts, and reraise controls whether the original exception is raised instead of RetryError."
+        }
+      ]
+    },
+    {
+      "id": "w09-l04-q10",
+      "lesson": "w09-l04",
+      "concept": "w09-l04-tenacity-retries",
+      "type": "written",
+      "prompt": "Explain how you would wrap `agent-api`'s LLM calls with Tenacity so they retry only on 429 and 5xx, respect `Retry-After`, and don't retry forever. Mention one interaction with the provider's SDK to watch for.",
+      "model_answer": {
+        "summary": "Use a predicate for 429 and 5xx, a jittered exponential wait that defers to `Retry-After`, a stop condition and `reraise=True`, and turn off or account for the SDK's own retries.",
+        "key_points": [
+          "`retry=retry_if_exception(pred)`, where `pred` accepts only 429, 5xx (including 529) and connection errors",
+          "`wait=wait_random_exponential(...)` for full-jitter backoff with a maximum",
+          "A custom wait function receives `retry_state`, can read the `Retry-After` header from `retry_state.outcome.exception()`, and waits at least that long",
+          "`stop=stop_after_attempt(n)` or `stop_after_delay(s)` so it gives up, with `reraise=True` to surface the original error",
+          "The Anthropic SDK already retries twice by default, so set its `max_retries=0` or the retries multiply"
+        ]
+      },
+      "explanation": "This is the lesson's exercise. The main risks are retrying errors that will never succeed and stacking retry layers: Tenacity's 5 attempts on top of the SDK's 3 tries per call is 15 requests for one failure.",
+      "materials": [
+        "tenacity-retries-in-python",
+        "anthropic-docs-api-errors"
+      ],
+      "sources": [
+        {
+          "url": "https://tenacity.readthedocs.io/en/latest/api.html",
+          "title": "API Reference — Tenacity documentation",
+          "publisher": "Tenacity project (Julien Danjou)",
+          "accessed": "2026-09-26",
+          "claim": "Tenacity provides retry_if_exception(predicate), wait_random_exponential (full jitter), stop_after_attempt, and a reraise option that surfaces the original exception instead of RetryError."
+        },
+        {
+          "url": "https://tenacity.readthedocs.io/en/latest/",
+          "title": "Tenacity",
+          "publisher": "Tenacity project (Julien Danjou)",
+          "accessed": "2026-09-26",
+          "claim": "Custom wait callables receive a retry_state object whose outcome gives access to the last attempt's result or exception."
+        },
+        {
+          "url": "https://platform.claude.com/docs/en/api/errors",
+          "title": "Claude API errors",
+          "publisher": "Anthropic",
+          "accessed": "2026-09-26",
+          "claim": "The official Anthropic SDKs retry transient failures twice by default, honouring retry-after, and max_retries configures or disables this."
+        }
+      ]
+    },
+    {
+      "id": "w09-l04-q11",
+      "lesson": "w09-l04",
+      "concept": "w09-l04-idempotency-keys",
+      "type": "multiple_choice",
+      "prompt": "You `POST` a payment to Stripe with `Idempotency-Key: 7f3c...`, the connection times out, and you retry with the same key and the same parameters. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A second payment is made, because the first request timed out and is treated as failed"
+        },
+        {
+          "id": "b",
+          "text": "Stripe replays the saved result of the first request, so it charges at most once"
+        },
+        {
+          "id": "c",
+          "text": "Stripe rejects the retry because the key was already used"
+        },
+        {
+          "id": "d",
+          "text": "Stripe runs the request again and returns only the newer result"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Stripe saves the status code and body of the first request made with a key, whether it succeeded or failed, and returns that same result for later requests with the key, even a `500`. Reusing a key with different parameters is an error. That is what makes a timed-out `POST` safe to retry.",
+      "materials": [
+        "stripe-docs-idempotent-requests"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.stripe.com/api/idempotent_requests",
+          "title": "Idempotent requests",
+          "publisher": "Stripe",
+          "accessed": "2026-09-26",
+          "claim": "Stripe saves the status code and body of the first request for an idempotency key, success or failure, and returns the same result (even a 500) for later requests with that key, erroring if the parameters differ."
+        }
+      ]
+    },
+    {
+      "id": "w09-l04-q12",
+      "lesson": "w09-l04",
+      "concept": "w09-l04-idempotency-keys",
+      "type": "written",
+      "prompt": "Why do retries of `POST` requests need idempotency keys while `GET` and `DELETE` don't? Explain how a client should generate and reuse a key, and what the server does with it.",
+      "model_answer": {
+        "summary": "A retried `POST` can perform the action twice, so the client sends one unique key per logical operation and the server stores and replays the first result for that key.",
+        "key_points": [
+          "A `POST` that timed out may already have succeeded, so retrying it can create a duplicate",
+          "`GET` and `DELETE` are idempotent by definition: repeating them has the same effect as doing them once",
+          "The client generates one random key per logical operation, such as a V4 UUID, and sends the same key on every retry of it",
+          "The server saves the result of the first request for each key and returns it for repeats, rejecting reuse with different parameters",
+          "Keys are kept for a limited time (Stripe prunes them after at least 24 hours), after which a reused key starts a new request"
+        ]
+      },
+      "explanation": "Retries and idempotency go together: backoff decides when to retry, and the idempotency key makes the retry harmless. The key must identify the operation, not the attempt, which is why a new key per retry would defeat it.",
+      "materials": [
+        "stripe-docs-idempotent-requests",
+        "rfc-9110-http-semantics"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.stripe.com/api/idempotent_requests",
+          "title": "Idempotent requests",
+          "publisher": "Stripe",
+          "accessed": "2026-09-26",
+          "claim": "Clients should generate idempotency keys as V4 UUIDs or similar random strings, keys can be pruned once at least 24 hours old, and GET and DELETE are idempotent by definition so keys have no effect on them."
+        },
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc9110.html",
+          "title": "RFC 9110: HTTP Semantics",
+          "publisher": "IETF (RFC Editor)",
+          "accessed": "2026-09-26",
+          "claim": "RFC 9110 defines PUT, DELETE and the safe methods as idempotent, while POST is not."
+        }
+      ]
+    }
+  ]
+}

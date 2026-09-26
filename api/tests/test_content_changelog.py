@@ -148,13 +148,10 @@ def test_a_removed_id_never_comes_back_as_another_kind(make_content: ContentFact
         as_version(V2, remove_second_lesson),
         changelog=make_changelog(V2, V1, changelog_entry("lesson", "w01-l02", "removed")),
     )
-    new = make_content(
-        as_version(V3, reuse_it_as_a_concept),
-        changelog=make_changelog(V3, V2, changelog_entry("lesson", "w01-l01", "changed")),
-    )
+    new = make_content(as_version(V3, reuse_it_as_a_concept), changelog=make_changelog(V3, V2))
 
     [problem] = error_problems(new)
-    assert Path(problem.file) == new / "questions" / "w01-l01.json"
+    assert Path(problem.file) == new.parent / "question-bank" / "w01-l01.json"
     assert (problem.item, problem.message) == (
         "w01-l02",
         f"permanent id reused: it was a Lesson in {V1}, and a permanent id never names a "
@@ -162,12 +159,23 @@ def test_a_removed_id_never_comes_back_as_another_kind(make_content: ContentFact
     )
 
 
-def test_a_version_folder_can_hold_banks_added_later(make_content: ContentFactory) -> None:
-    """The same rules hold as an update adds Question Banks to its new version, one by one."""
+def test_the_changelog_covers_the_syllabus_only(make_content: ContentFactory) -> None:
+    """New Questions change no Lesson in the diff, and a Question entry is refused: the Question
+    Bank is the Stack's, and each Question carries its own Sources."""
     make_content()
-    log = make_changelog(V2, V1, changelog_entry("lesson", "w01-l02", "changed"))
+    log = make_changelog(
+        V2,
+        V1,
+        changelog_entry("lesson", "w01-l02", "changed"),
+        changelog_entry("question", "w01-l02-q01", "added"),
+    )
     new = make_content(
         as_version(V2), extra_banks={"w01-l02": make_bank("w01-l02", "second")}, changelog=log
     )
 
-    assert errors(new) == []
+    assert errors(new) == [
+        f"w01-l02: the changelog says the Lesson was changed, but it didn't change since {V1}",
+        "w01-l02-q01: the changelog says the Question was added, but the changelog covers the "
+        "Syllabus only: the Question Bank is the Stack's, and each Question carries its own "
+        "Sources and retirement reason",
+    ]

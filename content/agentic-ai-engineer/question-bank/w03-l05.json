@@ -1,0 +1,450 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "w03-l05-valid-parentheses",
+      "name": "Matching brackets with a stack (Valid Parentheses)"
+    },
+    {
+      "id": "w03-l05-min-stack",
+      "name": "An O(1) minimum with Min Stack"
+    },
+    {
+      "id": "w03-l05-reverse-polish-notation",
+      "name": "Evaluating Reverse Polish Notation"
+    },
+    {
+      "id": "w03-l05-monotonic-stack",
+      "name": "The monotonic-stack pattern (Daily Temperatures)"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w03-l05-q01",
+      "lesson": "w03-l05",
+      "concept": "w03-l05-valid-parentheses",
+      "type": "multiple_choice",
+      "prompt": "Valid Parentheses with a stack: push each opening bracket; on a closing bracket, pop and check that it matches. What is the result for `\"([)]\"`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`true`: each bracket type is opened and closed once"
+        },
+        {
+          "id": "b",
+          "text": "`true`: the counts of `(` and `)` and of `[` and `]` match"
+        },
+        {
+          "id": "c",
+          "text": "`false`: `)` arrives while `[` is on top of the stack"
+        },
+        {
+          "id": "d",
+          "text": "`false`: brackets of different types can't be nested"
+        }
+      ],
+      "answer": "c",
+      "explanation": "After `(` and `[`, the top of the stack is `[`, so the `)` doesn't match and the string is invalid: brackets must close in the reverse order they were opened. That last-in, first-out order is exactly what a stack gives, and why counting brackets isn't enough. Different types can nest: `\"{[]}\"` is valid.",
+      "materials": [
+        "neetcode-150-practice-list",
+        "tech-interview-handbook-stack"
+      ],
+      "sources": [
+        {
+          "url": "https://leetcode.com/graphql?query=query{question(titleSlug:\"valid-parentheses\"){title content}}",
+          "title": "Valid Parentheses",
+          "publisher": "LeetCode",
+          "accessed": "2026-09-26",
+          "claim": "Brackets must be closed by the same type and in the correct order; \"([)]\" is listed as false and \"([])\" as true."
+        },
+        {
+          "url": "https://docs.python.org/3/tutorial/datastructures.html",
+          "title": "5. Data Structures — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "A list can be used as a stack (last-in, first-out) by adding with append() and removing from the top with pop()."
+        }
+      ]
+    },
+    {
+      "id": "w03-l05-q02",
+      "lesson": "w03-l05",
+      "concept": "w03-l05-valid-parentheses",
+      "type": "multiple_choice",
+      "prompt": "A Valid Parentheses solution handles every closing bracket correctly but ends with `return True`. Which input does it get wrong?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`\"((\"`: the unclosed openers mean it should be `false`"
+        },
+        {
+          "id": "b",
+          "text": "`\"]\"`: the stack is already empty when the `]` arrives"
+        },
+        {
+          "id": "c",
+          "text": "`\"()[]{}\"`: the stack empties part of the way through"
+        },
+        {
+          "id": "d",
+          "text": "`\"{[]}\"`: the stack holds two brackets at the same time"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Unclosed openers stay on the stack, and the only way to catch them is to check that the stack is empty at the end: `return not stack`. A closing bracket on an empty stack, as in `\"]\"`, is already caught inside the loop. The solution is O(n) time and O(n) space.",
+      "materials": [
+        "neetcode-150-practice-list",
+        "tech-interview-handbook-stack"
+      ],
+      "sources": [
+        {
+          "url": "https://leetcode.com/graphql?query=query{question(titleSlug:\"valid-parentheses\"){title content}}",
+          "title": "Valid Parentheses",
+          "publisher": "LeetCode",
+          "accessed": "2026-09-26",
+          "claim": "A string is valid only if every open bracket is closed by the same type in the correct order and every close bracket has a matching opener."
+        },
+        {
+          "url": "https://docs.python.org/3/tutorial/datastructures.html",
+          "title": "5. Data Structures — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "A list can be used as a stack (last-in, first-out) by adding with append() and removing from the top with pop()."
+        }
+      ]
+    },
+    {
+      "id": "w03-l05-q03",
+      "lesson": "w03-l05",
+      "concept": "w03-l05-min-stack",
+      "type": "multiple_choice",
+      "prompt": "A Min Stack stores `(value, min_so_far)` pairs. After `push(-2)`, `push(0)`, `push(-3)` and `pop()`, what do `top()` and `getMin()` return?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`top()` is 0 and `getMin()` is -3"
+        },
+        {
+          "id": "b",
+          "text": "`top()` is -3 and `getMin()` is -3"
+        },
+        {
+          "id": "c",
+          "text": "`top()` is -2 and `getMin()` is -2"
+        },
+        {
+          "id": "d",
+          "text": "`top()` is 0 and `getMin()` is -2"
+        }
+      ],
+      "answer": "d",
+      "explanation": "The pairs are `(-2, -2)`, `(0, -2)` and `(-3, -3)`. Popping removes `(-3, -3)`, and the new top pair `(0, -2)` holds both answers: `top()` is 0 and `getMin()` is -2. Each pair remembers the minimum at the time it was pushed, so every operation is O(1). Choice a is what a single `min` variable gives, because nothing restores it on `pop`.",
+      "materials": [
+        "neetcode-150-practice-list",
+        "tech-interview-handbook-stack"
+      ],
+      "sources": [
+        {
+          "url": "https://leetcode.com/graphql?query=query{question(titleSlug:\"min-stack\"){title content}}",
+          "title": "Min Stack",
+          "publisher": "LeetCode",
+          "accessed": "2026-09-26",
+          "claim": "After push(-2), push(0), push(-3), getMin() is -3; after pop(), top() is 0 and getMin() is -2."
+        }
+      ]
+    },
+    {
+      "id": "w03-l05-q04",
+      "lesson": "w03-l05",
+      "concept": "w03-l05-min-stack",
+      "type": "written",
+      "prompt": "Why can't Min Stack keep a single `self.min` variable, and how does storing a minimum with each entry fix it?",
+      "model_answer": {
+        "summary": "A single variable can't be restored when the minimum is popped without scanning the stack, which is O(n); storing the minimum-so-far with each entry (or on a second stack) keeps the previous minimum available in O(1).",
+        "key_points": [
+          "When the current minimum is popped, a single variable doesn't know what the previous minimum was",
+          "Recomputing it means scanning the stack, O(n), but the problem requires O(1) for every operation",
+          "Store with each pushed value the minimum of the stack at that point, `min(value, previous min)`, or keep a parallel stack of minimums",
+          "Then `getMin()` reads the top entry's minimum, and `pop()` restores the previous minimum automatically",
+          "The cost is O(n) extra space for the stored minimums"
+        ]
+      },
+      "explanation": "The minimum of a stack only changes at the top, so it can be recorded alongside each entry, like a stack of snapshots. Trading O(n) space for O(1) time is the same deal as in the hash-map problems.",
+      "materials": [
+        "neetcode-150-practice-list",
+        "tech-interview-handbook-stack"
+      ],
+      "sources": [
+        {
+          "url": "https://leetcode.com/graphql?query=query{question(titleSlug:\"min-stack\"){title content}}",
+          "title": "Min Stack",
+          "publisher": "LeetCode",
+          "accessed": "2026-09-26",
+          "claim": "MinStack must support push, pop, top and getMin, each in O(1) time."
+        }
+      ]
+    },
+    {
+      "id": "w03-l05-q05",
+      "lesson": "w03-l05",
+      "concept": "w03-l05-reverse-polish-notation",
+      "type": "multiple_choice",
+      "prompt": "What does `[\"2\", \"1\", \"+\", \"3\", \"*\"]` evaluate to in Reverse Polish Notation?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "5, as `2 + (1 * 3)`"
+        },
+        {
+          "id": "b",
+          "text": "9, as `(2 + 1) * 3`"
+        },
+        {
+          "id": "c",
+          "text": "7, as `2 * 3 + 1`"
+        },
+        {
+          "id": "d",
+          "text": "6, as `2 * 1 * 3`"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Push numbers; on an operator, pop two operands, apply it and push the result. 2 and 1 are pushed, `+` gives 3, 3 is pushed, and `*` gives 9. RPN needs no parentheses because the order of the tokens fixes the order of operations.",
+      "materials": [
+        "neetcode-150-practice-list"
+      ],
+      "sources": [
+        {
+          "url": "https://leetcode.com/graphql?query=query{question(titleSlug:\"evaluate-reverse-polish-notation\"){title content}}",
+          "title": "Evaluate Reverse Polish Notation",
+          "publisher": "LeetCode",
+          "accessed": "2026-09-26",
+          "claim": "[\"2\",\"1\",\"+\",\"3\",\"*\"] evaluates to 9, i.e. ((2 + 1) * 3)."
+        }
+      ]
+    },
+    {
+      "id": "w03-l05-q06",
+      "lesson": "w03-l05",
+      "concept": "w03-l05-reverse-polish-notation",
+      "type": "multiple_choice",
+      "prompt": "Your Python RPN solution computes division as `a // b`. What does it give for `[\"-7\", \"2\", \"/\"]`, where the problem says division truncates toward zero?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "-3, which is correct: `//` truncates toward zero"
+        },
+        {
+          "id": "b",
+          "text": "-3.5, because `//` returns a float for negative inputs"
+        },
+        {
+          "id": "c",
+          "text": "-4, which is wrong: `//` rounds toward minus infinity"
+        },
+        {
+          "id": "d",
+          "text": "3, because the operands are popped in reverse order"
+        }
+      ],
+      "answer": "c",
+      "explanation": "Python's `//` is floored division: the result is rounded toward minus infinity, so `-7 // 2` is -4. The problem wants truncation toward zero, -3, so use `int(a / b)`, since converting a float to `int` truncates. Mind the operand order too: the first value popped is the right operand `b`, the second is `a`.",
+      "materials": [
+        "neetcode-150-practice-list",
+        "python-docs-built-in-types"
+      ],
+      "sources": [
+        {
+          "url": "https://leetcode.com/graphql?query=query{question(titleSlug:\"evaluate-reverse-polish-notation\"){title content}}",
+          "title": "Evaluate Reverse Polish Notation",
+          "publisher": "LeetCode",
+          "accessed": "2026-09-26",
+          "claim": "Division between two integers in this problem always truncates toward zero."
+        },
+        {
+          "url": "https://docs.python.org/3/library/stdtypes.html",
+          "title": "Built-in Types — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "x // y is the floored quotient, always rounded toward minus infinity (e.g. (-1)//2 is -1), and converting a float to int truncates."
+        },
+        {
+          "url": "https://docs.python.org/3/library/functions.html",
+          "title": "Built-in Functions — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "int() of a floating-point number truncates towards zero."
+        }
+      ]
+    },
+    {
+      "id": "w03-l05-q07",
+      "lesson": "w03-l05",
+      "concept": "w03-l05-reverse-polish-notation",
+      "type": "written",
+      "prompt": "Explain how a stack evaluates Reverse Polish Notation, including the two details that most often cause wrong answers in Python.",
+      "model_answer": {
+        "summary": "Push each number; for an operator, pop the right operand and then the left, apply the operator and push the result; the one value left is the answer. Watch the operand order, and use truncating division.",
+        "key_points": [
+          "Numbers are pushed onto the stack",
+          "For an operator, pop twice: the first pop is the right operand, the second the left; apply the operator and push the result",
+          "At the end the stack holds exactly one value, the answer",
+          "Order matters for `-` and `/`: `[\"4\", \"2\", \"-\"]` is 4 − 2 = 2, not -2",
+          "Division must truncate toward zero, so use `int(a / b)`, not Python's floored `//`"
+        ]
+      },
+      "explanation": "The stack holds the values of the subexpressions finished so far, and each operator combines the two most recent ones. Every token is pushed or popped a constant number of times, so evaluation is O(n).",
+      "materials": [
+        "neetcode-150-practice-list",
+        "python-docs-built-in-types"
+      ],
+      "sources": [
+        {
+          "url": "https://leetcode.com/graphql?query=query{question(titleSlug:\"evaluate-reverse-polish-notation\"){title content}}",
+          "title": "Evaluate Reverse Polish Notation",
+          "publisher": "LeetCode",
+          "accessed": "2026-09-26",
+          "claim": "Operators are +, -, *, /, division truncates toward zero, and the input is always a valid RPN expression."
+        },
+        {
+          "url": "https://docs.python.org/3/library/stdtypes.html",
+          "title": "Built-in Types — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "// is floored division rounding toward minus infinity, unlike truncation toward zero."
+        },
+        {
+          "url": "https://docs.python.org/3/tutorial/datastructures.html",
+          "title": "5. Data Structures — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "A list can be used as a stack (last-in, first-out) by adding with append() and removing from the top with pop()."
+        }
+      ]
+    },
+    {
+      "id": "w03-l05-q08",
+      "lesson": "w03-l05",
+      "concept": "w03-l05-monotonic-stack",
+      "type": "multiple_choice",
+      "prompt": "Daily Temperatures for `[73, 74, 75, 71, 69, 72, 76, 73]`: `answer[i]` is how many days until a warmer day, or 0 if there is none. What is the answer?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`[1, 1, 4, 2, 1, 1, 0, 0]`"
+        },
+        {
+          "id": "b",
+          "text": "`[1, 1, 1, 2, 1, 1, 0, 0]`"
+        },
+        {
+          "id": "c",
+          "text": "`[1, 1, 4, 1, 1, 1, 0, 0]`"
+        },
+        {
+          "id": "d",
+          "text": "`[1, 1, 4, 2, 1, 1, 0, 1]`"
+        }
+      ],
+      "answer": "a",
+      "explanation": "75 at index 2 waits for 76 at index 6: 4 days. 71 at index 3 waits for 72 at index 5: 2 days. 76 and the final 73 never see a warmer day, so they stay 0. In the stack solution, 75, 71 and 69 sit on the stack in decreasing order until a warmer day pops them and records `i - j`.",
+      "materials": [
+        "neetcode-150-practice-list",
+        "tech-interview-handbook-array"
+      ],
+      "sources": [
+        {
+          "url": "https://leetcode.com/graphql?query=query{question(titleSlug:\"daily-temperatures\"){title content}}",
+          "title": "Daily Temperatures",
+          "publisher": "LeetCode",
+          "accessed": "2026-09-26",
+          "claim": "For temperatures = [73,74,75,71,69,72,76,73] the answer is [1,1,4,2,1,1,0,0]."
+        }
+      ]
+    },
+    {
+      "id": "w03-l05-q09",
+      "lesson": "w03-l05",
+      "concept": "w03-l05-monotonic-stack",
+      "type": "multiple_choice",
+      "prompt": "Why is the monotonic-stack solution to Daily Temperatures O(n), even though a `while` loop pops inside the `for` loop?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Because the stack never holds more than 2 indices"
+        },
+        {
+          "id": "b",
+          "text": "Because each index is pushed once and popped at most once"
+        },
+        {
+          "id": "c",
+          "text": "Because temperatures lie between 30 and 100, a constant range"
+        },
+        {
+          "id": "d",
+          "text": "Because the `while` loop stops after its first pop"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Every index is pushed exactly once and popped at most once, so all the pops in all the `while` loops add up to at most n. With n pushes, that's O(n) time; the stack can hold up to n indices, so O(n) space. The temperature range bounds the values, not the number of steps.",
+      "materials": [
+        "neetcode-150-practice-list"
+      ],
+      "sources": [
+        {
+          "url": "https://leetcode.com/graphql?query=query{question(titleSlug:\"daily-temperatures\"){title content}}",
+          "title": "Daily Temperatures",
+          "publisher": "LeetCode",
+          "accessed": "2026-09-26",
+          "claim": "answer[i] is the number of days to wait after day i for a warmer temperature (0 if none), with temperatures between 30 and 100 and up to 10^5 days."
+        },
+        {
+          "url": "https://docs.python.org/3/tutorial/datastructures.html",
+          "title": "5. Data Structures — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "A list can be used as a stack (last-in, first-out) by adding with append() and removing from the top with pop()."
+        }
+      ]
+    },
+    {
+      "id": "w03-l05-q10",
+      "lesson": "w03-l05",
+      "concept": "w03-l05-monotonic-stack",
+      "type": "written",
+      "prompt": "Explain the monotonic-stack pattern using Daily Temperatures: what the stack holds, what invariant it keeps, and when an answer is recorded.",
+      "model_answer": {
+        "summary": "The stack holds the indices of days still waiting for a warmer day, with temperatures non-increasing from bottom to top; each new day pops every colder day off the top, recording its wait, and is then pushed.",
+        "key_points": [
+          "The stack holds indices, not temperatures, so the number of days can be computed",
+          "Invariant: the temperatures of the stacked indices are non-increasing from bottom to top",
+          "For each day `i`, while the top index `j` is colder than day `i`, pop it and set `answer[j] = i - j`",
+          "Then push `i`; any days still on the stack at the end have no warmer day and keep 0",
+          "Each index is pushed and popped at most once, so it's O(n) time and O(n) space"
+        ]
+      },
+      "explanation": "A monotonic stack answers \"what is the next greater (or smaller) element?\" for every position in one pass. The invariant holds because anything colder than the new day is popped before it is pushed.",
+      "materials": [
+        "neetcode-150-practice-list",
+        "tech-interview-handbook-stack"
+      ],
+      "sources": [
+        {
+          "url": "https://leetcode.com/graphql?query=query{question(titleSlug:\"daily-temperatures\"){title content}}",
+          "title": "Daily Temperatures",
+          "publisher": "LeetCode",
+          "accessed": "2026-09-26",
+          "claim": "answer[i] is the number of days after day i until a warmer temperature, or 0 if no future day is warmer."
+        },
+        {
+          "url": "https://docs.python.org/3/tutorial/datastructures.html",
+          "title": "5. Data Structures — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "A list can be used as a stack (last-in, first-out) by adding with append() and removing from the top with pop()."
+        }
+      ]
+    }
+  ]
+}

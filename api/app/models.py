@@ -5,11 +5,12 @@ Two kinds of identifier, kept apart on purpose:
 - `id` (text) is always the **permanent ID** from the content files. It never changes across
   Syllabus versions, so anything about a Learner (progress, answers, Milestone ticks) stores
   permanent IDs such as `lesson_id` / `question_id`, never a `pk`.
-- `pk` (integer) is a surrogate key for one row of one Syllabus version. Every imported version
-  gets its own rows, so the same permanent ID appears once per version. `pk`s are internal and
-  are never sent to the browser.
+- `pk` (integer) is a surrogate key for one row. Every imported Syllabus version gets its own
+  rows of Weeks, Lessons, Milestones and Materials, so the same permanent ID appears once per
+  version. `pk`s are internal and are never sent to the browser.
 
-A Stack has many Syllabus versions and points at its current one.
+A Stack has many Syllabus versions and points at its current one. Its Question Bank (Concepts,
+Questions and their Sources) is not versioned: one row per permanent ID, for good (ADR-0004).
 
 People (`Learner`, `Invitation`) are not content: they have a plain integer `id`, which is also
 internal and never sent to the browser. A Lesson Quiz attempt is named by the browser when it
@@ -156,9 +157,14 @@ class Lesson(Base):
     content_hash: Mapped[str | None] = mapped_column(
         String(64),
         comment=(
-            "The Lesson's content as content-diff compares it (fields, Week, Question Bank). "
+            "The Lesson's content as content-diff compares it (fields, Week), plus question_ids. "
             "Equal across versions means unchanged."
         ),
+    )
+    question_ids: Mapped[list[str]] = mapped_column(
+        JSONB,
+        server_default=text("'[]'::jsonb"),
+        comment="The Questions tagged to it, not retired, when this version was imported.",
     )
 
     week: Mapped[Week] = relationship(back_populates="lessons")
@@ -204,20 +210,26 @@ class Milestone(Base):
     )
 
 
+# --- The Question Bank -----------------------------------------------------------------------
+# One per Stack, never versioned (ADR-0004): its rows are keyed by (stack id, permanent id) and
+# only ever added to. An import may retire a Question or re-tag it to another Lesson; nothing
+# else about a Question changes once imported (app/content/importer.py).
+
+
 class Concept(Base):
     __tablename__ = "concepts"
-    __table_args__ = (UniqueConstraint("syllabus_pk", "id"),)
+    __table_args__ = (UniqueConstraint("stack_id", "id"),)
 
     pk: Mapped[int] = mapped_column(Integer, primary_key=True)
-    syllabus_pk: Mapped[int] = _syllabus_pk()
-    lesson_pk: Mapped[int] = mapped_column(ForeignKey("lessons.pk", ondelete="CASCADE"))
+    stack_id: Mapped[str] = mapped_column(ForeignKey("stacks.id", ondelete="CASCADE"))
     id: Mapped[str] = mapped_column(ID)
     name: Mapped[str] = mapped_column(Text)
 
-    lesson: Mapped[Lesson] = relationship()
-
 
 class QuestionMaterial(Base):
+    """A Question's Material, linked to that Material's row in the Stack's current Syllabus: a
+    Question's Materials resolve against the newest version, so each import links them again."""
+
     __tablename__ = "question_materials"
 
     question_pk: Mapped[int] = mapped_column(
@@ -231,33 +243,67 @@ class QuestionMaterial(Base):
     material: Mapped[Material] = relationship(lazy="joined")
 
 
+class QuestionSource(Base):
+    """Where a Question's content came from. Every Question has at least one."""
+
+    __tablename__ = "question_sources"
+
+    question_pk: Mapped[int] = mapped_column(
+        ForeignKey("questions.pk", ondelete="CASCADE"), primary_key=True
+    )
+    position: Mapped[int] = mapped_column(Integer, primary_key=True)
+    url: Mapped[str] = mapped_column(Text)
+    title: Mapped[str] = mapped_column(Text)
+    publisher: Mapped[str] = mapped_column(Text)
+    accessed: Mapped[date] = mapped_column(Date, comment="UTC.")
+    claim: Mapped[str] = mapped_column(Text, comment="The claim the Question relies on.")
+
+
 class Question(Base):
-    """A Question of a Lesson's Question Bank, including its correct answer.
+    """A Question of a Stack's Question Bank, including its correct answer.
 
     `answer` / `model_answer` must never be sent to the browser before the Learner answers.
+    A Retired Question (`retired_reason` set) stays, but is never drawn for anything new.
     """
 
     __tablename__ = "questions"
-    __table_args__ = (UniqueConstraint("syllabus_pk", "id"),)
+    __table_args__ = (UniqueConstraint("stack_id", "id"),)
 
     pk: Mapped[int] = mapped_column(Integer, primary_key=True)
-    syllabus_pk: Mapped[int] = _syllabus_pk()
-    lesson_pk: Mapped[int] = mapped_column(ForeignKey("lessons.pk", ondelete="CASCADE"))
-    concept_pk: Mapped[int] = mapped_column(ForeignKey("concepts.pk", ondelete="CASCADE"))
+    stack_id: Mapped[str] = mapped_column(ForeignKey("stacks.id", ondelete="CASCADE"))
     id: Mapped[str] = mapped_column(ID)
-    position: Mapped[int] = mapped_column(Integer, comment="Order within its Question Bank.")
+    lesson_id: Mapped[str | None] = mapped_column(
+        ID, comment="Permanent ID of the Lesson it is tagged to, if any. May change (re-tag)."
+    )
+    concept_pk: Mapped[int] = mapped_column(ForeignKey("concepts.pk", ondelete="CASCADE"))
+    position: Mapped[int] = mapped_column(Integer, comment="Order within the Question Bank.")
     type: Mapped[str] = mapped_column(String(20), comment="multiple_choice or written")
     prompt: Mapped[str] = mapped_column(Text)
     choices: Mapped[list[dict[str, Any]] | None] = mapped_column(JSONB)
     answer: Mapped[str | None] = mapped_column(String(1))
     model_answer: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     explanation: Mapped[str] = mapped_column(Text)
+    material_ids: Mapped[list[str]] = mapped_column(
+        JSONB, comment="Permanent IDs of its Materials, in order."
+    )
+    content_hash: Mapped[str] = mapped_column(
+        String(64), comment="Everything that never changes: the import refuses an edit."
+    )
+    retired_reason: Mapped[str | None] = mapped_column(Text, comment="Set once it is retired.")
+    replaced_by: Mapped[str | None] = mapped_column(ID, comment="Permanent ID of its replacement.")
+    retired_on: Mapped[date | None] = mapped_column(Date)
 
-    lesson: Mapped[Lesson] = relationship()
     concept: Mapped[Concept] = relationship()
     material_links: Mapped[list[QuestionMaterial]] = relationship(
         order_by=QuestionMaterial.position, cascade="all, delete-orphan"
     )
+    sources: Mapped[list[QuestionSource]] = relationship(
+        order_by=QuestionSource.position, cascade="all, delete-orphan"
+    )
+
+    @property
+    def retired(self) -> bool:
+        return self.retired_reason is not None
 
     @property
     def materials(self) -> list[Material]:
@@ -335,9 +381,9 @@ def _of_learner_stack() -> ForeignKeyConstraint:
 class CompletedLesson(Base):
     """A Completed Lesson: its Lesson Quiz met the Pass Mark and every Retake was correct.
 
-    `syllabus_version` is the version the Learner was quizzed on (the attempt's pinned one). A
-    later version that changed the Lesson makes it an Updated Lesson, whose new Questions are
-    the ones that version's Question Bank didn't have (app/updated_lessons.py, #13).
+    `syllabus_version` is the version the Learner's Lesson Quiz started in. A later version
+    that changed the Lesson makes it an Updated Lesson, whose new Questions are the ones tagged
+    to it that the version it was completed in didn't list (app/updated_lessons.py, #13).
     """
 
     __tablename__ = "completed_lessons"
@@ -366,12 +412,12 @@ class MilestoneTick(Base):
 
 
 class LessonQuizAttempt(Base):
-    """One Lesson Quiz a Learner started: the Questions drawn for it, from the Syllabus version
-    that was current when it started. Read and written through app/quizzes.py.
+    """One Lesson Quiz a Learner started: the Questions drawn for it from the Question Bank.
+    Read and written through app/quizzes.py.
 
     - `id` is random, because the browser names the attempt when it submits.
-    - The attempt is pinned to `syllabus_version`: its Questions are read and marked from that
-      version even after a newer one is imported (#13).
+    - `syllabus_version` is the Syllabus version current when it started, which a pass completes
+      the Lesson in (#13). Its Questions need no pinning: a Question never changes.
     - A Learner has at most one unsubmitted attempt per Lesson, so starting again resumes it.
     """
 
@@ -393,7 +439,7 @@ class LessonQuizAttempt(Base):
     stack_id: Mapped[str] = mapped_column(ID)
     lesson_id: Mapped[str] = mapped_column(ID, comment="Permanent ID.")
     syllabus_version: Mapped[str] = mapped_column(
-        String(20), comment="The version the Questions come from, pinned at start."
+        String(20), comment="The Syllabus version current at start; a pass completes it there."
     )
     question_ids: Mapped[list[str]] = mapped_column(
         JSONB, comment="Permanent IDs of the Questions drawn, in the order they are asked."
@@ -408,8 +454,8 @@ class Retake(Base):
     """The Retakes of one Missed Question of a passed Lesson Quiz attempt (#8). Read and written
     through app/retakes.py.
 
-    Each Retake asks a sibling Question (same Concept, never the missed one) from the attempt's
-    pinned Syllabus version. `asked_question_ids` lists the siblings asked so far, in order; the
+    Each Retake asks a sibling Question (same Concept, never the missed one, never a Retired
+    Question). `asked_question_ids` lists the siblings asked so far, in order; the
     last is the one waiting for an answer. Each answer is an `Answer` with `context='retake'`.
     `done_at` is set by the first correct one; once every Retake of the attempt is done the
     Lesson is a Completed Lesson.
@@ -462,8 +508,6 @@ class ReviewRound(Base):
     - `number` is 1 to 3 within its day. Round 1 opens on the day's first use; Rounds 2 and 3
       four hours after the previous one is finished, with `opened_at` that time even when the
       row is written later (on the next request).
-    - The round is pinned to `syllabus_version`, the version current when it opened: its
-      Questions are read and marked from that version, like a Lesson Quiz attempt (#13).
     - Each Question is answered once, one at a time, as an `Answer` with
       `context='review_round'`. `finished_at` is set when the last one is answered.
     - Whether it is optional or pending follows from `opened_at` and the clock
@@ -486,9 +530,6 @@ class ReviewRound(Base):
     stack_id: Mapped[str] = mapped_column(ID)
     day: Mapped[date] = mapped_column(Date, comment="The review Day, in UTC.")
     number: Mapped[int] = mapped_column(Integer, comment="1 to 3 within the day.")
-    syllabus_version: Mapped[str] = mapped_column(
-        String(20), comment="The version the Questions come from, pinned at opening."
-    )
     question_ids: Mapped[list[str]] = mapped_column(
         JSONB, comment="Permanent IDs of the Questions, in the order they are asked."
     )
@@ -501,8 +542,8 @@ class ReviewRound(Base):
 class Answer(Base):
     """One answer a Learner gave to one Question, wherever it was asked.
 
-    Missed Questions (`correct` is false) and the Daily Review are read from here (#8, #9), so a
-    Question is named by permanent ID plus the Syllabus version it was asked from.
+    Missed Questions (`correct` is false) and the Daily Review are read from here (#8, #9). A
+    Question is named by its permanent ID alone: it never changes.
     `quizzes.missed_questions` is the reading of it the Daily Review uses.
 
     - `context` says where it was asked. Each context has its own nullable link column and a
@@ -535,7 +576,6 @@ class Answer(Base):
     learner_id: Mapped[int] = mapped_column(Integer)
     stack_id: Mapped[str] = mapped_column(ID)
     question_id: Mapped[str] = mapped_column(ID, comment="Permanent ID.")
-    syllabus_version: Mapped[str] = mapped_column(String(20))
     context: Mapped[str] = mapped_column(String(20), comment="lesson_quiz, retake or review_round")
     lesson_quiz_attempt_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("lesson_quiz_attempts.id", ondelete="CASCADE")

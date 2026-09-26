@@ -6,9 +6,11 @@ differ by one added, one changed and one removed Lesson:
     v1  w01: w01-l01, w01-l02, w01-l03    w02: w02-l01
     v2  w01: w01-l01*, w01-new, w01-l03   w02: w02-l01
 
-- `w01-l01` is changed: its Question Bank gains `w01-l01-q09`.
-- `w01-l02` is removed; `w01-new` is added in its place, which is behind a Learner who had
-  completed `w01-l02`.
+- `w01-l01` is changed: the Question Bank gains `w01-l01-q09`, tagged to it. Its Syllabus
+  fields don't change, so the changelog doesn't list it (the changelog covers the Syllabus
+  only), but its fingerprint does (#15).
+- `w01-l02` is removed, and its Questions retired; `w01-new` is added in its place, which is
+  behind a Learner who had completed `w01-l02`.
 
 Every Lesson has a bank of eight Questions: six multiple choice (choice "a" is right) and two
 written (the fake grader passes an answer saying "right"). The clock is the test's."""
@@ -19,7 +21,7 @@ from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import select, update
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app import updated_lessons
@@ -34,6 +36,7 @@ from tests.conftest import (
     make_bank,
     make_changelog,
     onboard,
+    source,
 )
 from tests.test_daily_review import answer, current_round, daily_review, finish, right_answer
 from tests.test_lesson_quiz import answer_all, code, learner_id, lesson_states, start, submit
@@ -102,6 +105,8 @@ def version_2(syllabus: dict[str, Any], bank: dict[str, Any]) -> None:
             "answer": "a",
             "explanation": "Because.",
             "materials": [],
+            "lesson": "w01-l01",
+            "sources": [source()],
         }
     )
 
@@ -111,7 +116,16 @@ V1_BANKS = {
     "w01-l03": make_bank("w01-l03", "third"),
     "w02-l01": make_bank("w02-l01", "fourth"),
 }
+
+
+def retired(bank: dict[str, Any]) -> dict[str, Any]:
+    for question in bank["questions"]:
+        question["retired"] = {"reason": "Its Lesson was removed."}
+    return bank
+
+
 V2_BANKS = {
+    "w01-l02": retired(make_bank("w01-l02", "second")),
     "w01-new": make_bank("w01-new", "new"),
     "w01-l03": make_bank("w01-l03", "third"),
     "w02-l01": make_bank("w02-l01", "fourth"),
@@ -120,7 +134,6 @@ V2_CHANGELOG = make_changelog(
     V2,
     V1,
     changelog_entry("lesson", "w01-new", "added"),
-    changelog_entry("lesson", "w01-l01", "changed"),
     changelog_entry("lesson", "w01-l02", "removed"),
 )
 
@@ -283,10 +296,6 @@ def test_a_quiz_in_progress_finishes_on_the_old_version_and_the_next_attempt_use
     result = submit(learner, resumed, answer_all(resumed, wrong=2), quiz_url("w01-l03"))
     assert result.status_code == 200, result.text
     assert result.json()["next_step"] == "fresh_quiz"
-    recorded = session.scalars(
-        select(Answer.syllabus_version).where(Answer.question_id.startswith("w01-l03"))
-    ).all()
-    assert set(recorded) == {V1}
 
     fresh = start(learner, quiz_url("w01-l03"))
     assert fresh["attempt_id"] != resumed["attempt_id"]
@@ -325,8 +334,8 @@ def next_day(client: TestClient, clock: FakeClock) -> None:
 def test_the_updated_lessons_new_questions_come_after_the_missed_questions_next_day(
     session: Session, make_content: ContentFactory, learner: TestClient, clock: FakeClock
 ) -> None:
-    """Round 1 the next day: the Missed Questions still in the Syllabus first (the one missed
-    in the removed w01-l02 has left the rotation), then the Updated Lessons' new Questions in
+    """Round 1 the next day: the Missed Questions still in use first (the one missed in the
+    removed w01-l02 was retired with it), then the Updated Lessons' new Questions in
     Syllabus order: w01-l01's q09, then the added Lesson's bank, up to ten."""
     import_version_2(session, make_content)
     resumed = start(learner, quiz_url("w01-l03"))
@@ -390,19 +399,22 @@ def test_nothing_is_owed_before_a_new_version(learner: TestClient, session: Sess
 # --- The importer ------------------------------------------------------------------------------
 
 
-def test_reimporting_a_version_fills_in_lesson_fingerprints_it_was_imported_without(
+def test_each_version_lists_the_questions_tagged_to_its_lessons(
     session: Session, make_content: ContentFactory
 ) -> None:
-    folder = make_content(as_version(V1, version_1), extra_banks=V1_BANKS)
-    import_folder(session, folder)
-    stored = dict(session.execute(select(Lesson.id, Lesson.content_hash)).all())
-    session.execute(update(Lesson).values(content_hash=None))
+    import_folder(session, make_content(as_version(V1, version_1), extra_banks=V1_BANKS))
+    import_version_2(session, make_content)
 
-    assert import_folder(session, folder).status == "unchanged"
-
-    session.expire_all()
-    assert dict(session.execute(select(Lesson.id, Lesson.content_hash)).all()) == stored
-    assert all(stored.values())
+    rows = session.execute(
+        select(Lesson.id, Syllabus.version, Lesson.question_ids).join(
+            Syllabus, Syllabus.pk == Lesson.syllabus_pk
+        )
+    ).all()
+    tagged = {(lesson, version): ids for lesson, version, ids in rows}
+    first_eight = [f"w01-l01-q{n:02}" for n in range(1, 9)]
+    assert tagged[("w01-l01", V1)] == first_eight
+    assert tagged[("w01-l01", V2)] == [*first_eight, "w01-l01-q09"]
+    assert tagged[("w01-l02", V1)] == [f"w01-l02-q{n:02}" for n in range(1, 9)]
 
 
 def test_an_unchanged_lesson_keeps_its_fingerprint_across_versions(

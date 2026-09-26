@@ -1,0 +1,345 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "legb-scope",
+      "name": "The LEGB scope rule"
+    },
+    {
+      "id": "closures-and-nonlocal",
+      "name": "Closures and `nonlocal`"
+    },
+    {
+      "id": "late-binding-closures",
+      "name": "Late binding in closures"
+    },
+    {
+      "id": "parameter-kinds",
+      "name": "`*args`, `**kwargs`, keyword-only and positional-only parameters"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w01-l02-q01",
+      "lesson": "w01-l02",
+      "concept": "legb-scope",
+      "type": "multiple_choice",
+      "prompt": "In what order does Python look up a name inside a nested function?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Global, Local, Built-in, Enclosing"
+        },
+        {
+          "id": "b",
+          "text": "Local, Enclosing, Global, Built-in"
+        },
+        {
+          "id": "c",
+          "text": "Built-in, Global, Enclosing, Local"
+        },
+        {
+          "id": "d",
+          "text": "Local, Global, Enclosing, Built-in"
+        }
+      ],
+      "answer": "b",
+      "explanation": "The LEGB rule: the function's own local scope, then any enclosing function scopes, then the module's global scope, then built-ins.",
+      "materials": [
+        "fluent-python-2nd-ed",
+        "python-docs-the-data-model"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/reference/executionmodel.html",
+          "title": "4. Execution model — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "A name is resolved in the nearest enclosing scope: the local block, then enclosing function scopes, then the module's global namespace, and finally the builtins namespace."
+        }
+      ]
+    },
+    {
+      "id": "w01-l02-q02",
+      "lesson": "w01-l02",
+      "concept": "legb-scope",
+      "type": "multiple_choice",
+      "prompt": "Given `x = 10` and `def f(): print(x); x = 5`, what happens when you call `f()`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It prints `10`"
+        },
+        {
+          "id": "b",
+          "text": "It prints `5`"
+        },
+        {
+          "id": "c",
+          "text": "It raises `UnboundLocalError`"
+        },
+        {
+          "id": "d",
+          "text": "It raises `NameError`"
+        }
+      ],
+      "answer": "c",
+      "explanation": "Assigning to `x` anywhere in the function makes `x` local for the whole function body, which Python decides at compile time. The `print` reads the local `x` before it has been assigned.",
+      "materials": [
+        "fluent-python-2nd-ed"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/reference/executionmodel.html",
+          "title": "4. Execution model — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "If a name is bound anywhere in a block, every use of it in that block refers to the local binding, and using it before it is bound in a function raises UnboundLocalError."
+        },
+        {
+          "url": "https://docs.python.org/3/faq/programming.html",
+          "title": "Programming FAQ — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "The FAQ shows that assigning to `x` later in a function makes the compiler treat `x` as local, so an earlier `print(x)` raises UnboundLocalError."
+        }
+      ]
+    },
+    {
+      "id": "w01-l02-q03",
+      "lesson": "w01-l02",
+      "concept": "closures-and-nonlocal",
+      "type": "multiple_choice",
+      "prompt": "`def make_counter(): count = 0; def inc(): count += 1; return count; return inc`. What happens when you call `make_counter()()`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It returns `1`"
+        },
+        {
+          "id": "b",
+          "text": "It returns `0`"
+        },
+        {
+          "id": "c",
+          "text": "It raises `UnboundLocalError`"
+        },
+        {
+          "id": "d",
+          "text": "It raises `NameError`"
+        }
+      ],
+      "answer": "c",
+      "explanation": "`count += 1` assigns to `count`, which makes it local to `inc`, and the local is read before it exists. Declaring `nonlocal count` inside `inc` makes the assignment rebind the enclosing variable instead.",
+      "materials": [
+        "fluent-python-2nd-ed"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/faq/programming.html",
+          "title": "Programming FAQ — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "The FAQ's example shows `x += 1` inside a function makes `x` local, so reading it first raises UnboundLocalError even when an outer `x` exists."
+        },
+        {
+          "url": "https://docs.python.org/3/reference/simple_stmts.html",
+          "title": "7. Simple statements — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "`nonlocal` makes the listed names refer to bindings in the nearest enclosing function scope, allowing nested code to rebind them."
+        }
+      ]
+    },
+    {
+      "id": "w01-l02-q04",
+      "lesson": "w01-l02",
+      "concept": "closures-and-nonlocal",
+      "type": "written",
+      "prompt": "What is a closure in Python, and what does `nonlocal` do?",
+      "model_answer": {
+        "summary": "A closure is an inner function that keeps access to variables from its enclosing function after that function has returned. `nonlocal` lets the inner function assign to those variables.",
+        "key_points": [
+          "A closure is an inner function that refers to variables from an enclosing function's scope",
+          "Those captured variables stay alive after the outer function returns (they are stored in cells, visible through `__closure__`)",
+          "Without `nonlocal`, assigning to the name inside the inner function creates a new local variable",
+          "`nonlocal` makes the assignment rebind the variable in the enclosing scope"
+        ]
+      },
+      "explanation": "Closures are how decorators, factories and callbacks carry state without a class. `nonlocal` is only needed when you rebind the variable. Mutating a captured list or dict works without it.",
+      "materials": [
+        "fluent-python-2nd-ed"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/reference/datamodel.html",
+          "title": "3. Data model — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "A function's `__closure__` is None or a tuple of cells holding the bindings of the function's free variables."
+        },
+        {
+          "url": "https://docs.python.org/3/reference/simple_stmts.html",
+          "title": "7. Simple statements — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "The `nonlocal` statement lets nested code rebind names bound in an enclosing function's scope."
+        },
+        {
+          "url": "https://docs.python.org/3/reference/executionmodel.html",
+          "title": "4. Execution model — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "A name bound in a block is local to that block unless declared nonlocal or global, and a name used but not defined in a block is a free variable."
+        }
+      ]
+    },
+    {
+      "id": "w01-l02-q05",
+      "lesson": "w01-l02",
+      "concept": "late-binding-closures",
+      "type": "multiple_choice",
+      "prompt": "What does `fs = [lambda: i for i in range(3)]; print([f() for f in fs])` print?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`[0, 1, 2]`"
+        },
+        {
+          "id": "b",
+          "text": "`[2, 2, 2]`"
+        },
+        {
+          "id": "c",
+          "text": "`[0, 0, 0]`"
+        },
+        {
+          "id": "d",
+          "text": "`[3, 3, 3]`"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Closures look up `i` when they are called, not when they are created. By the time any lambda runs, the loop has finished and `i` is 2.",
+      "materials": [
+        "fluent-python-2nd-ed"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/faq/programming.html",
+          "title": "Programming FAQ — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "Lambdas created in a loop look up the loop variable when called, not when defined, so after the loop they all see its final value."
+        }
+      ]
+    },
+    {
+      "id": "w01-l02-q06",
+      "lesson": "w01-l02",
+      "concept": "late-binding-closures",
+      "type": "multiple_choice",
+      "prompt": "Which version produces `[0, 1, 2]` when each function is called?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`[lambda: i for i in range(3)]`"
+        },
+        {
+          "id": "b",
+          "text": "`[lambda i=i: i for i in range(3)]`"
+        },
+        {
+          "id": "c",
+          "text": "`[(lambda: i) for i in range(3)]`"
+        },
+        {
+          "id": "d",
+          "text": "`[lambda: (i) for i in range(3)]`"
+        }
+      ],
+      "answer": "b",
+      "explanation": "A default argument is evaluated when the lambda is created, so `i=i` captures the current value on each loop iteration. `functools.partial` is another fix.",
+      "materials": [
+        "fluent-python-2nd-ed"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/faq/programming.html",
+          "title": "Programming FAQ — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "Writing the lambda as `lambda n=x: ...` captures the loop value, because a default is computed when the lambda is defined."
+        }
+      ]
+    },
+    {
+      "id": "w01-l02-q07",
+      "lesson": "w01-l02",
+      "concept": "parameter-kinds",
+      "type": "multiple_choice",
+      "prompt": "For `def f(a, /, b, *, c): ...`, which call is valid?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`f(1, 2, c=3)`"
+        },
+        {
+          "id": "b",
+          "text": "`f(a=1, b=2, c=3)`"
+        },
+        {
+          "id": "c",
+          "text": "`f(1, 2, 3)`"
+        },
+        {
+          "id": "d",
+          "text": "`f(1, b=2)`"
+        }
+      ],
+      "answer": "a",
+      "explanation": "`a` comes before `/`, so it is positional-only and can't be passed by name. `c` comes after `*`, so it is keyword-only and must be passed by name. `b` can be passed either way. `f(1, b=2)` fails because `c` is required.",
+      "materials": [
+        "fluent-python-2nd-ed"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/reference/compound_stmts.html",
+          "title": "8. Compound statements — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "Parameters before `/` may only be passed positionally and parameters after `*` may only be passed by keyword."
+        }
+      ]
+    },
+    {
+      "id": "w01-l02-q08",
+      "lesson": "w01-l02",
+      "concept": "parameter-kinds",
+      "type": "written",
+      "prompt": "Explain what `*args` and `**kwargs` collect, and when you would use keyword-only parameters.",
+      "model_answer": {
+        "summary": "`*args` gathers extra positional arguments into a tuple and `**kwargs` gathers extra keyword arguments into a dict. Keyword-only parameters force callers to name options, which prevents mistakes caused by argument order.",
+        "key_points": [
+          "`*args` collects extra positional arguments into a tuple",
+          "`**kwargs` collects extra keyword arguments into a dict",
+          "Parameters after a bare `*` or after `*args` are keyword-only and must be passed by name",
+          "Keyword-only parameters make call sites readable and stop callers passing flags or options in the wrong order"
+        ]
+      },
+      "explanation": "`*args` and `**kwargs` are essential for decorators, which must forward whatever arguments they receive. Keyword-only parameters are good API design for boolean flags and optional settings.",
+      "materials": [
+        "fluent-python-2nd-ed",
+        "python-docs-the-data-model"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/reference/compound_stmts.html",
+          "title": "8. Compound statements — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "`*identifier` receives a tuple of excess positional arguments, `**identifier` receives a new mapping of excess keyword arguments, and parameters after `*` or `*identifier` are keyword-only."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,402 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "w09-l05-stateless-horizontal-scaling",
+      "name": "Stateless services and horizontal scaling"
+    },
+    {
+      "id": "w09-l05-load-balancers",
+      "name": "Load balancers"
+    },
+    {
+      "id": "w09-l05-read-replicas",
+      "name": "Read replicas and replication lag"
+    },
+    {
+      "id": "w09-l05-connection-pooling",
+      "name": "Connection pooling"
+    },
+    {
+      "id": "w09-l05-sql-vs-nosql",
+      "name": "SQL vs NoSQL"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w09-l05-q01",
+      "lesson": "w09-l05",
+      "concept": "w09-l05-stateless-horizontal-scaling",
+      "type": "multiple_choice",
+      "prompt": "`agent-api` keeps each conversation's history in a Python dict in process memory. After you run 3 instances behind a load balancer, users say the agent randomly forgets earlier messages. What is the fix?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Give each instance more memory, so the dict stops losing old entries"
+        },
+        {
+          "id": "b",
+          "text": "Run a single, larger instance instead of three smaller ones"
+        },
+        {
+          "id": "c",
+          "text": "Keep conversation state in a shared store such as Postgres or Redis"
+        },
+        {
+          "id": "d",
+          "text": "Cache the dict in each user's browser cookie"
+        }
+      ],
+      "answer": "c",
+      "explanation": "Each request can land on a different instance, and only one of them holds that conversation's dict. The Primer's rule for horizontal scaling is that servers should be stateless, with sessions in a centralized store such as a database or Redis. A single bigger instance \"works\" but gives up horizontal scaling and has a ceiling.",
+      "materials": [
+        "system-design-primer"
+      ],
+      "sources": [
+        {
+          "url": "https://github.com/donnemartin/system-design-primer",
+          "title": "GitHub - donnemartin/system-design-primer: Learn how to design large-scale systems. Prep for the system design interview.",
+          "publisher": "Donne Martin (GitHub)",
+          "accessed": "2026-09-26",
+          "claim": "For horizontal scaling servers should be stateless, with user data such as sessions kept in a centralized store like a database or a persistent cache such as Redis."
+        }
+      ]
+    },
+    {
+      "id": "w09-l05-q02",
+      "lesson": "w09-l05",
+      "concept": "w09-l05-stateless-horizontal-scaling",
+      "type": "written",
+      "prompt": "What makes a service stateless, and why does that matter for scaling horizontally rather than vertically? Include one cost of horizontal scaling.",
+      "model_answer": {
+        "summary": "A stateless service keeps no user data between requests, so identical copies can be added behind a load balancer; vertical scaling just buys a bigger machine.",
+        "key_points": [
+          "A stateless server holds no user data, such as sessions or conversation history, between requests",
+          "That state lives in a shared store, such as a database or Redis, that every instance uses",
+          "Then any instance can handle any request, so you scale by adding instances behind a load balancer",
+          "Vertical scaling means a bigger machine, which has an upper limit",
+          "Cost: more instances mean more simultaneous connections to downstream caches and databases, and more complexity"
+        ]
+      },
+      "explanation": "Statelessness is what makes instances interchangeable, which is the whole basis of horizontal scaling. The Primer also warns that scaling out moves the pressure downstream: the database now sees connections from every instance.",
+      "materials": [
+        "system-design-primer"
+      ],
+      "sources": [
+        {
+          "url": "https://github.com/donnemartin/system-design-primer",
+          "title": "GitHub - donnemartin/system-design-primer: Learn how to design large-scale systems. Prep for the system design interview.",
+          "publisher": "Donne Martin (GitHub)",
+          "accessed": "2026-09-26",
+          "claim": "Scaling horizontally requires stateless servers with sessions in a centralized data store, and a cost is that downstream caches and databases must handle more simultaneous connections."
+        }
+      ]
+    },
+    {
+      "id": "w09-l05-q03",
+      "lesson": "w09-l05",
+      "concept": "w09-l05-load-balancers",
+      "type": "multiple_choice",
+      "prompt": "You want requests to `/v1/chat` to go to the agent servers and `/v1/admin` to go to a separate admin service. What kind of load balancing do you need?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Layer 7, which can read the URL path and headers"
+        },
+        {
+          "id": "b",
+          "text": "Layer 4, which routes on the URL path in each TCP packet"
+        },
+        {
+          "id": "c",
+          "text": "DNS round robin, which sends each path to a different IP"
+        },
+        {
+          "id": "d",
+          "text": "Any load balancer, since they all can route by URL path"
+        }
+      ],
+      "answer": "a",
+      "explanation": "A layer 4 load balancer sees only transport-level information such as IP addresses and ports, which makes it fast but unable to read the URL. A layer 7 load balancer looks at the request itself (path, headers, cookies), so it can route by path, at some extra processing cost.",
+      "materials": [
+        "system-design-primer"
+      ],
+      "sources": [
+        {
+          "url": "https://github.com/donnemartin/system-design-primer",
+          "title": "GitHub - donnemartin/system-design-primer: Learn how to design large-scale systems. Prep for the system design interview.",
+          "publisher": "Donne Martin (GitHub)",
+          "accessed": "2026-09-26",
+          "claim": "Layer 4 load balancers route on transport-layer data such as source and destination IPs and ports, while layer 7 load balancers can use the header, message and cookies."
+        }
+      ]
+    },
+    {
+      "id": "w09-l05-q04",
+      "lesson": "w09-l05",
+      "concept": "w09-l05-load-balancers",
+      "type": "multiple_choice",
+      "prompt": "Which of these is a real risk of putting one load balancer in front of your instances?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It forces the servers behind it to keep session state locally"
+        },
+        {
+          "id": "b",
+          "text": "It sends traffic to servers even after they fail health checks"
+        },
+        {
+          "id": "c",
+          "text": "It prevents you from adding more servers later without downtime for users"
+        },
+        {
+          "id": "d",
+          "text": "It is a single point of failure, and a bottleneck if under-resourced"
+        }
+      ],
+      "answer": "d",
+      "explanation": "A load balancer removes the single point of failure among your servers and stops sending requests to unhealthy ones, but a single load balancer is itself a single point of failure. Running more than one fixes that at the cost of more complexity. It also works best with stateless servers, not the opposite.",
+      "materials": [
+        "system-design-primer"
+      ],
+      "sources": [
+        {
+          "url": "https://github.com/donnemartin/system-design-primer",
+          "title": "GitHub - donnemartin/system-design-primer: Learn how to design large-scale systems. Prep for the system design interview.",
+          "publisher": "Donne Martin (GitHub)",
+          "accessed": "2026-09-26",
+          "claim": "Load balancers stop requests going to unhealthy servers, but can become a bottleneck if under-resourced, and a single load balancer is a single point of failure."
+        }
+      ]
+    },
+    {
+      "id": "w09-l05-q05",
+      "lesson": "w09-l05",
+      "concept": "w09-l05-read-replicas",
+      "type": "multiple_choice",
+      "prompt": "Writes go to the Postgres primary and reads go to a streaming replica. A user saves their settings, reloads at once, and sees the old values. Why, and what's a fix?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The write failed silently; retry it with exponential backoff until it succeeds"
+        },
+        {
+          "id": "b",
+          "text": "The replica lags a moment; read the user's own recent writes from the primary"
+        },
+        {
+          "id": "c",
+          "text": "Replicas only sync on a fixed one-minute interval; lower it in `postgresql.conf`"
+        },
+        {
+          "id": "d",
+          "text": "The browser cached the old page; add cache-busting headers to the response"
+        }
+      ],
+      "answer": "b",
+      "explanation": "PostgreSQL streaming replication is asynchronous by default, so there is a small delay, typically under a second, between a commit on the primary and the change appearing on the standby. Reads that must see the user's own write should go to the primary, at least for a short time after the write.",
+      "materials": [
+        "postgresql-log-shipping-standby-servers",
+        "system-design-primer"
+      ],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/warm-standby.html",
+          "title": "PostgreSQL 18: 26.2. Log-Shipping Standby Servers",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-09-26",
+          "claim": "Streaming replication is asynchronous by default, so there is a small delay, typically under one second, between committing on the primary and the change becoming visible on the standby."
+        }
+      ]
+    },
+    {
+      "id": "w09-l05-q06",
+      "lesson": "w09-l05",
+      "concept": "w09-l05-read-replicas",
+      "type": "multiple_choice",
+      "prompt": "With default (asynchronous) streaming replication, the primary crashes and you promote the replica. What can go wrong?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Nothing: the primary only commits once the replica has the change"
+        },
+        {
+          "id": "b",
+          "text": "The replica refuses promotion until the old primary comes back online"
+        },
+        {
+          "id": "c",
+          "text": "The last commits before the crash may be lost, up to the replication lag"
+        },
+        {
+          "id": "d",
+          "text": "The replica discards every change it received since its last base backup"
+        }
+      ],
+      "answer": "c",
+      "explanation": "The PostgreSQL docs say that with asynchronous replication some committed transactions may not have reached the standby when the primary crashes, and the loss is proportional to the replication delay at failover. Synchronous replication (`synchronous_standby_names`) confirms that changes reached a standby, at the cost of slower commits.",
+      "materials": [
+        "postgresql-log-shipping-standby-servers"
+      ],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/warm-standby.html",
+          "title": "PostgreSQL 18: 26.2. Log-Shipping Standby Servers",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-09-26",
+          "claim": "With the default asynchronous replication, committed transactions may be lost if the primary crashes, in proportion to the replication delay at failover; synchronous replication via synchronous_standby_names confirms changes reached standbys."
+        }
+      ]
+    },
+    {
+      "id": "w09-l05-q07",
+      "lesson": "w09-l05",
+      "concept": "w09-l05-connection-pooling",
+      "type": "multiple_choice",
+      "prompt": "You run 10 instances of `agent-api`, each with 4 worker processes, and each process uses SQLAlchemy's default pool (`pool_size=5`, `max_overflow=10`). Postgres is set to `max_connections = 100`. What is the problem?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Up to 600 connections can be opened, far more than the 100 the database allows"
+        },
+        {
+          "id": "b",
+          "text": "There's no problem: the pool is shared by all instances, so at most 15 connections open"
+        },
+        {
+          "id": "c",
+          "text": "Up to 200 connections, because overflow connections don't count"
+        },
+        {
+          "id": "d",
+          "text": "Only 50 connections can be opened, so requests will queue"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Each process has its own pool of up to 5 + 10 = 15 connections, and there are 10 x 4 = 40 processes, so 40 x 15 = 600. Under load, connections beyond 100 are refused. Scaling out multiplies connections to the database, so size pools from the database's limit down, or put a shared pooler in front of it.",
+      "materials": [
+        "sqlalchemy-connection-pooling",
+        "system-design-primer"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.sqlalchemy.org/en/20/core/pooling.html",
+          "title": "Connection Pooling — SQLAlchemy 2.0 Documentation",
+          "publisher": "SQLAlchemy",
+          "accessed": "2026-09-26",
+          "claim": "create_engine() uses a QueuePool with default pool_size=5 and max_overflow=10 (up to 15 connections), and pooled connections are not shared with forked processes, so 40 processes can open up to 600."
+        }
+      ]
+    },
+    {
+      "id": "w09-l05-q08",
+      "lesson": "w09-l05",
+      "concept": "w09-l05-connection-pooling",
+      "type": "written",
+      "prompt": "Why use a database connection pool, and how do you size pools when you scale `agent-api` out to more instances?",
+      "model_answer": {
+        "summary": "A pool reuses open connections instead of opening one per request; since every process has its own pool, the total across all processes must stay under the database's connection limit.",
+        "key_points": [
+          "Opening a database connection per request is slow, so a pool keeps connections open and reuses them",
+          "Each process has its own pool, so the maximum total is instances x processes x (`pool_size` + `max_overflow`)",
+          "That total must stay below the database's `max_connections`, leaving room for admin and other clients",
+          "When you add instances, shrink each pool or put a shared connection pooler in front of the database",
+          "`pool_pre_ping` checks a connection before use, so connections the database dropped are replaced"
+        ]
+      },
+      "explanation": "Connection pools look free at one instance and become the bottleneck at twenty. The arithmetic of processes times pool size is a quick check interviewers like, and it ties back to the Primer's warning that scaling out loads the database with more connections.",
+      "materials": [
+        "sqlalchemy-connection-pooling",
+        "system-design-primer"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.sqlalchemy.org/en/20/core/pooling.html",
+          "title": "Connection Pooling — SQLAlchemy 2.0 Documentation",
+          "publisher": "SQLAlchemy",
+          "accessed": "2026-09-26",
+          "claim": "SQLAlchemy's engine keeps a QueuePool (default pool_size 5, max_overflow 10) per process, and pool_pre_ping tests a connection on checkout and replaces ones the database dropped."
+        },
+        {
+          "url": "https://github.com/donnemartin/system-design-primer",
+          "title": "GitHub - donnemartin/system-design-primer: Learn how to design large-scale systems. Prep for the system design interview.",
+          "publisher": "Donne Martin (GitHub)",
+          "accessed": "2026-09-26",
+          "claim": "When scaling out, downstream caches and databases must handle more simultaneous connections."
+        }
+      ]
+    },
+    {
+      "id": "w09-l05-q09",
+      "lesson": "w09-l05",
+      "concept": "w09-l05-sql-vs-nosql",
+      "type": "multiple_choice",
+      "prompt": "`agent-api` stores users, their conversations, the messages in each and billing records, with queries that join them and credit updates that must be atomic. Which kind of database fits best?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A key-value store, because lookups by key are faster than joins"
+        },
+        {
+          "id": "b",
+          "text": "A document store, because messages are unstructured text of any length"
+        },
+        {
+          "id": "c",
+          "text": "A wide-column store, because conversations can grow very long"
+        },
+        {
+          "id": "d",
+          "text": "A relational (SQL) database, since it needs joins and transactions"
+        }
+      ],
+      "answer": "d",
+      "explanation": "The Primer's reasons for SQL are structured data, a strict schema, relational data, complex joins and transactions, which is exactly this. NoSQL fits semi-structured data, flexible schemas, very high throughput and very large datasets. Speed alone doesn't decide it, and a relational database handles text fine.",
+      "materials": [
+        "system-design-primer",
+        "designing-data-intensive-applications"
+      ],
+      "sources": [
+        {
+          "url": "https://github.com/donnemartin/system-design-primer",
+          "title": "GitHub - donnemartin/system-design-primer: Learn how to design large-scale systems. Prep for the system design interview.",
+          "publisher": "Donne Martin (GitHub)",
+          "accessed": "2026-09-26",
+          "claim": "The Primer's reasons for SQL are structured data, strict schema, relational data, complex joins and transactions."
+        }
+      ]
+    },
+    {
+      "id": "w09-l05-q10",
+      "lesson": "w09-l05",
+      "concept": "w09-l05-sql-vs-nosql",
+      "type": "written",
+      "prompt": "When would you choose a NoSQL store for part of `agent-api`, while keeping Postgres for the rest? Give an example and justify it.",
+      "model_answer": {
+        "summary": "Use NoSQL for data that is semi-structured, huge or very high-throughput and doesn't need joins or transactions, such as raw traces or a cache, and keep relational data in Postgres.",
+        "key_points": [
+          "NoSQL suits semi-structured data with a flexible schema, very high write throughput, or very large datasets",
+          "Example: raw agent traces or event logs, written constantly and read by run ID, not joined",
+          "Example: a key-value store such as Redis for caches and rate-limit counters",
+          "Keep users, conversations and billing in Postgres, because they need joins, constraints and transactions",
+          "Each extra database adds operational cost, so add one only when a specific need justifies it"
+        ]
+      },
+      "explanation": "Interviewers look for a reasoned split rather than \"NoSQL scales better\". Tie each store to its access pattern: relational data with transactions in SQL, simple high-volume lookups or append-only logs in a store built for them.",
+      "materials": [
+        "system-design-primer",
+        "designing-data-intensive-applications"
+      ],
+      "sources": [
+        {
+          "url": "https://github.com/donnemartin/system-design-primer",
+          "title": "GitHub - donnemartin/system-design-primer: Learn how to design large-scale systems. Prep for the system design interview.",
+          "publisher": "Donne Martin (GitHub)",
+          "accessed": "2026-09-26",
+          "claim": "The Primer's reasons for NoSQL are semi-structured data, dynamic or flexible schema, non-relational data, no need for complex joins, and very high throughput or very large data volumes."
+        }
+      ]
+    }
+  ]
+}
