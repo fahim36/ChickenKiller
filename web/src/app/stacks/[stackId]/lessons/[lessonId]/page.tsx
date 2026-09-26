@@ -29,6 +29,18 @@ export default async function LessonPage({
       <p className="muted">
         <LessonStateBadge state={lesson.state} /> {formatMinutes(lesson.minutes)}
       </p>
+      {lesson.state === "unlocked" && (
+        <p>
+          <Link
+            className="button"
+            href={`/stacks/${lesson.stack_id}/lessons/${lesson.id}/quiz`}
+            prefetch={false}
+          >
+            Start the Lesson Quiz
+          </Link>{" "}
+          <span className="small muted">Take it now, or after studying the Materials.</span>
+        </p>
+      )}
       {lesson.state === "locked" && (
         <p role="note" className="small">
           You can read ahead. The Lesson Quiz opens once you&apos;ve completed the Lessons before

@@ -13,8 +13,11 @@
   refused with 409 `not_active_stack` unless the path names the Active Stack.
 - `UnlockedLesson`: the guard on starting a Lesson Quiz. Only the Learner's Unlocked Lesson
   gets through, whatever the browser shows.
+- `QuizRandom`: the random source that draws a quiz's Questions. Tests override `get_quiz_rng`
+  with a seeded one.
 """
 
+import random
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Request
@@ -144,3 +147,10 @@ Learner's Unlocked Lesson (current Syllabus version, Week and Materials loaded).
 refused, whatever the browser shows: 409 `lesson_locked` for a Locked Lesson (including the
 Unlocked Lesson while a Pending Review Round exists, #9), 409 `lesson_completed` for a Completed
 Lesson, 409 `not_active_stack`, or 404."""
+
+
+def get_quiz_rng() -> random.Random:
+    return random.Random()
+
+
+QuizRandom = Annotated[random.Random, Depends(get_quiz_rng)]
