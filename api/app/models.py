@@ -17,12 +17,13 @@ submits, so its `id` is a random UUID instead.
 """
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
+    Date,
     DateTime,
     ForeignKey,
     ForeignKeyConstraint,
@@ -422,6 +423,65 @@ class Retake(Base):
     )
 
 
+class ReviewDay(Base):
+    """One calendar day, in the Learner's time zone, on which the Learner used the app while
+    studying this Stack. Written by the first request of that day (app/reviews.py), which is
+    also when Round 1 of the day's Daily Review opens, if one is owed.
+
+    A day with no Review Round owed nothing (the Learner had no Completed Lesson yet), so it
+    neither extends nor breaks the Streak (#11).
+    """
+
+    __tablename__ = "review_days"
+    __table_args__ = (_of_learner_stack(),)
+
+    learner_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    stack_id: Mapped[str] = mapped_column(ID, primary_key=True)
+    day: Mapped[date] = mapped_column(Date, primary_key=True, comment="In the Learner's zone.")
+    first_used_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class ReviewRound(Base):
+    """One Review Round of a Learner's Daily Review on a Stack. Read and written through
+    app/reviews.py; the timing and picking rules are app/review.py.
+
+    - `number` is 1 to 3 within its day (#9 opens Round 1; #10 opens Rounds 2 and 3).
+    - The round is pinned to `syllabus_version`, the version current when it opened: its
+      Questions are read and marked from that version, like a Lesson Quiz attempt (#13).
+    - Each Question is answered once, one at a time, as an `Answer` with
+      `context='review_round'`. `finished_at` is set when the last one is answered.
+    - Whether it is optional or pending follows from `opened_at` and the clock
+      (`review.round_state`); it is never stored.
+    """
+
+    __tablename__ = "review_rounds"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["learner_id", "stack_id", "day"],
+            ["review_days.learner_id", "review_days.stack_id", "review_days.day"],
+            ondelete="CASCADE",
+        ),
+        UniqueConstraint("learner_id", "stack_id", "day", "number"),
+        CheckConstraint("number BETWEEN 1 AND 3", name="number_in_day"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    learner_id: Mapped[int] = mapped_column(Integer)
+    stack_id: Mapped[str] = mapped_column(ID)
+    day: Mapped[date] = mapped_column(Date, comment="The review day, in the Learner's zone.")
+    number: Mapped[int] = mapped_column(Integer, comment="1 to 3 within the day.")
+    syllabus_version: Mapped[str] = mapped_column(
+        String(20), comment="The version the Questions come from, pinned at opening."
+    )
+    question_ids: Mapped[list[str]] = mapped_column(
+        JSONB, comment="Permanent IDs of the Questions, in the order they are asked."
+    )
+    opened_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    finished_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), comment="When the last Question was answered."
+    )
+
+
 class Answer(Base):
     """One answer a Learner gave to one Question, wherever it was asked.
 
@@ -431,7 +491,8 @@ class Answer(Base):
 
     - `context` says where it was asked. Each context has its own nullable link column and a
       check constraint requires the matching one: `lesson_quiz` uses `lesson_quiz_attempt_id`,
-      `retake` uses `retake_id`. Review Rounds add theirs (#9).
+      `retake` uses `retake_id`, `review_round` uses `review_round_id` (one answer per Question
+      per round).
     - `response` is the choice ID or the written answer; null means left unanswered.
     - `correct` is null while a written answer waits for grading. (#7 grades before recording,
       and records nothing if grading fails, so a Lesson Quiz answer always has it.)
@@ -447,6 +508,10 @@ class Answer(Base):
             name="context_link",
         ),
         CheckConstraint("context <> 'retake' OR retake_id IS NOT NULL", name="retake_link"),
+        CheckConstraint(
+            "context <> 'review_round' OR review_round_id IS NOT NULL", name="review_round_link"
+        ),
+        UniqueConstraint("review_round_id", "question_id"),
         Index("ix_answers_learner_question", "learner_id", "stack_id", "question_id"),
     )
 
@@ -455,12 +520,15 @@ class Answer(Base):
     stack_id: Mapped[str] = mapped_column(ID)
     question_id: Mapped[str] = mapped_column(ID, comment="Permanent ID.")
     syllabus_version: Mapped[str] = mapped_column(String(20))
-    context: Mapped[str] = mapped_column(String(20), comment="lesson_quiz, for now")
+    context: Mapped[str] = mapped_column(String(20), comment="lesson_quiz, retake or review_round")
     lesson_quiz_attempt_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("lesson_quiz_attempts.id", ondelete="CASCADE")
     )
     retake_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("retakes.id", ondelete="CASCADE"), index=True
+    )
+    review_round_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("review_rounds.id", ondelete="CASCADE")
     )
     response: Mapped[str | None] = mapped_column(Text)
     correct: Mapped[bool | None] = mapped_column(Boolean)

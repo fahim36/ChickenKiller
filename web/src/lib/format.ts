@@ -22,6 +22,11 @@ export function formatMinutes(minutes: number): string {
   return m === 0 ? `${h} h` : `${h} h ${m} min`;
 }
 
+/** Time left until `until`, in whole minutes rounded up ("1 h 5 min"); "0 min" once past. */
+export function formatTimeLeft(until: Date, now: Date): string {
+  return formatMinutes(Math.max(0, Math.ceil((until.getTime() - now.getTime()) / 60_000)));
+}
+
 /** Planned time for a Week: its Lessons plus its Milestones. */
 export function weekMinutes(week: Pick<Week, "lessons" | "milestones">): number {
   return [...week.lessons, ...week.milestones].reduce((sum, x) => sum + x.minutes, 0);

@@ -41,7 +41,13 @@ export default async function LessonPage({
           <span className="small muted">Take it now, or after studying the Materials.</span>
         </p>
       )}
-      {lesson.state === "locked" && (
+      {lesson.waiting_for_review && (
+        <p role="note" className="small">
+          Finish your <Link href={`/stacks/${lesson.stack_id}/review`}>Review Round</Link> to
+          unlock this Lesson&apos;s quiz.
+        </p>
+      )}
+      {lesson.state === "locked" && !lesson.waiting_for_review && (
         <p role="note" className="small">
           You can read ahead. The Lesson Quiz opens once you&apos;ve completed the Lessons before
           this one.

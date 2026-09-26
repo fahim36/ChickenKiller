@@ -22,6 +22,7 @@ const lesson: Lesson = {
     { id: "py-docs", title: "Data model", url: "https://example.com/dm", type: "docs" },
   ],
   state: "locked",
+  waiting_for_review: false,
   previous_lesson_id: null,
   next_lesson_id: "w01-l02",
 };
@@ -66,6 +67,20 @@ it("lets a Learner read a Locked Lesson and says its quiz waits", async () => {
   expect(screen.getByText("Locked")).toBeTruthy();
   expect(screen.getByRole("note").textContent).toBe(
     "You can read ahead. The Lesson Quiz opens once you've completed the Lessons before this one.",
+  );
+});
+
+it("says the quiz waits for the Review Round while a round is pending", async () => {
+  const waiting = { ...lesson, state: "locked", waiting_for_review: true };
+  vi.stubGlobal("fetch", vi.fn(async () => Response.json(waiting)));
+
+  await renderLessonPage("agentic-ai-engineer", "w01-l01");
+
+  expect(screen.getByRole("note").textContent).toBe(
+    "Finish your Review Round to unlock this Lesson's quiz.",
+  );
+  expect(screen.getByRole("link", { name: "Review Round" }).getAttribute("href")).toBe(
+    "/stacks/agentic-ai-engineer/review",
   );
 });
 

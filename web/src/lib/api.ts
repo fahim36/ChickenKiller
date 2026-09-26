@@ -38,6 +38,8 @@ export interface LessonSummary {
   title: string;
   minutes: number;
   state: LessonState;
+  /** It would be the Unlocked Lesson, but a Pending Review Round locks it. */
+  waiting_for_review: boolean;
 }
 
 export interface Milestone {
@@ -66,6 +68,8 @@ export interface Week {
 
 export interface Syllabus extends StackSummary {
   weeks: Week[];
+  /** Today's Daily Review; null on a day with nothing owed. */
+  daily_review: DailyReview | null;
 }
 
 export interface Lesson {
@@ -78,6 +82,8 @@ export interface Lesson {
   minutes: number;
   materials: Material[];
   state: LessonState;
+  /** Its Lesson Quiz would be open, but a Pending Review Round locks it. */
+  waiting_for_review: boolean;
   previous_lesson_id: string | null;
   next_lesson_id: string | null;
 }
@@ -197,6 +203,56 @@ export interface RetakeResult {
   lesson_completed: boolean;
 }
 
+/**
+ * A Review Round's state: "optional" for two hours after it opens, then "pending" (a Pending
+ * Review Round: the Unlocked Lesson is locked until it's finished), and "finished" once every
+ * Question is answered.
+ */
+export type ReviewRoundState = "optional" | "pending" | "finished";
+
+/** A Review Round of today's Daily Review. */
+export interface ReviewRoundSummary {
+  id: string;
+  /** 1 to 3 within the day. */
+  number: number;
+  state: ReviewRoundState;
+  opened_at: string;
+  /** When it becomes pending, unless finished first. */
+  pending_at: string;
+  finished_at: string | null;
+  answered: number;
+  total: number;
+}
+
+/** A Review Round to answer, one Question at a time. */
+export interface ReviewRound extends ReviewRoundSummary {
+  /** The longest written answer the API accepts. */
+  max_answer_chars: number;
+  /** The Questions still to answer, in order, without their answers. */
+  remaining: QuizQuestion[];
+  /** The Questions answered so far, in the order asked. */
+  results: { correct: boolean; question: AnsweredQuestion }[];
+}
+
+/** Today's Daily Review, in the Learner's time zone. No rounds means nothing is owed today. */
+export interface DailyReview {
+  /** The calendar day, as YYYY-MM-DD. */
+  day: string;
+  rounds: ReviewRoundSummary[];
+}
+
+/** Today's Daily Review with the round waiting to be answered, if any. */
+export interface DailyReviewDetail extends DailyReview {
+  current: ReviewRound | null;
+}
+
+/** An answered Review Round Question: its answer, feedback (written) and Explanation. */
+export interface ReviewAnswerResult {
+  correct: boolean;
+  question: AnsweredQuestion;
+  round: ReviewRoundSummary;
+}
+
 export interface ActiveStack {
   id: string;
   name: string;
@@ -284,6 +340,31 @@ export async function apiPost<T>(path: string, body: unknown): Promise<T> {
   const res = await request("POST", path, body);
   if (res.status === 404) throw new ApiError(404, "Not found", `POST ${path}`);
   return res.json() as Promise<T>;
+}
+
+/**
+ * POST answers that may need grading, resolving to the `grading_failed` detail instead of
+ * throwing when written answers couldn't be graded (a thrown error loses its detail on the way
+ * to the browser), so the page can offer to submit again. Any other refusal throws.
+ */
+export async function apiPostGraded<T>(path: string, body: unknown): Promise<T | GradingFailed> {
+  try {
+    return await apiPost<T>(path, body);
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 503 && isGradingFailed(error.detail)) {
+      return { code: "grading_failed", message: error.detail.message };
+    }
+    throw error;
+  }
+}
+
+function isGradingFailed(detail: unknown): detail is GradingFailed {
+  return (
+    typeof detail === "object" &&
+    detail !== null &&
+    (detail as { code?: unknown }).code === "grading_failed" &&
+    typeof (detail as { message?: unknown }).message === "string"
+  );
 }
 
 /** PUT JSON to the API. Throws ApiError on any error status, including 404. */

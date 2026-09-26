@@ -12,27 +12,46 @@
 - `ActiveStackInPath`: the same, for a route under `/stacks/{stack_id}` that changes progress;
   refused with 409 `not_active_stack` unless the path names the Active Stack.
 - `UnlockedLesson`: the guard on starting a Lesson Quiz. Only the Learner's Unlocked Lesson
-  gets through, whatever the browser shows.
-- `QuizRandom`: the random source that draws a quiz's Questions. Tests override `get_quiz_rng`
-  with a seeded one.
+  gets through, whatever the browser shows, and not while a Pending Review Round exists.
+- `Now`: the current time (timezone-aware UTC). Every route reads the clock through it, never
+  `datetime.now`, so tests override `get_now` with a clock they control.
+- `open_daily_review`: the Daily Review's "first use of the day" hook. The main router runs it
+  on every request, after signing in and before the route; see `reviews.start_day`.
+- `QuizRandom`: the random source that draws a quiz's, a Retake's and a Review Round's
+  Questions. Tests override `get_quiz_rng` with a seeded one.
 - `GraderDep`: the `Grader` that grades written answers (app/grading.py), set on the app by
   `create_app`. Pass it to `marking.mark` / `mark_all`. Tests override `get_grader` with a fake.
 """
 
 import random
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
-from app import learners, lessons, onboarding, progress
+from app import learners, lessons, onboarding, progress, reviews
 from app.auth import Identity, InvalidToken, KeysUnavailable, TokenVerifier
 from app.db import get_session
 from app.grading import Grader
 from app.models import Learner, LearnerStack, Lesson
 
 SessionDep = Annotated[Session, Depends(get_session)]
+
+
+def get_now() -> datetime:
+    return datetime.now(UTC)
+
+
+Now = Annotated[datetime, Depends(get_now)]
+
+
+def get_quiz_rng() -> random.Random:
+    return random.Random()
+
+
+QuizRandom = Annotated[random.Random, Depends(get_quiz_rng)]
 
 NOT_INVITED = {
     "code": "not_invited",
@@ -96,6 +115,19 @@ def get_admin(learner: CurrentLearner, verifier: VerifierDep) -> Learner:
 AdminLearner = Annotated[Learner, Depends(get_admin)]
 
 
+def open_daily_review(
+    learner: CurrentLearner, session: SessionDep, now: Now, rng: QuizRandom
+) -> None:
+    """ "Using the app", for the Daily Review: any signed-in request by an onboarded Learner.
+    The first one of the Learner's day opens Round 1 on their Active Stack, if one is owed
+    (`reviews.start_day`). The main router runs this on every route, before the route, so the
+    route already sees the round."""
+    record = onboarding.active_stack(session, learner)
+    if record is None or learner.time_zone is None:
+        return
+    reviews.start_day(session, record, learner.time_zone, now, rng)
+
+
 def get_active_stack(learner: CurrentLearner, session: SessionDep) -> LearnerStack:
     record = onboarding.active_stack(session, learner)
     if record is None or onboarding.needs_onboarding(learner):
@@ -132,14 +164,31 @@ LESSON_COMPLETED = {
 }
 
 
-def get_unlocked_lesson(lesson_id: str, active: ActiveStackInPath, session: SessionDep) -> Lesson:
+REVIEW_ROUND_PENDING = {
+    "code": "review_round_pending",
+    "message": "Finish your Review Round to unlock this Lesson.",
+}
+
+
+def get_unlocked_lesson(
+    lesson_id: str,
+    active: ActiveStackInPath,
+    learner: CurrentLearner,
+    session: SessionDep,
+    now: Now,
+) -> Lesson:
     lesson = lessons.find_current_lesson(session, active.stack_id, lesson_id)
     if lesson is None:
         raise HTTPException(404, "Lesson not found")
-    state = progress.lesson_states(session, active.learner_id, active.stack_id)[lesson.id]
+    learner_id, stack_id, time_zone = active.learner_id, active.stack_id, learner.time_zone
+    state = progress.lesson_states(session, learner_id, stack_id, time_zone, now)[lesson.id]
     if state == "completed":
         raise HTTPException(409, LESSON_COMPLETED)
     if state == "locked":
+        pending = progress.pending_review_round(session, learner_id, stack_id, time_zone, now)
+        waiting = progress.waiting_for_review(session, learner_id, stack_id, time_zone, now)
+        if pending is not None and waiting == lesson.id:
+            raise HTTPException(409, {**REVIEW_ROUND_PENDING, "round_id": str(pending.id)})
         raise HTTPException(409, LESSON_LOCKED)
     return lesson
 
@@ -147,16 +196,10 @@ def get_unlocked_lesson(lesson_id: str, active: ActiveStackInPath, session: Sess
 UnlockedLesson = Annotated[Lesson, Depends(get_unlocked_lesson)]
 """For a route under `/stacks/{stack_id}/lessons/{lesson_id}` that starts a Lesson Quiz: the
 Learner's Unlocked Lesson (current Syllabus version, Week and Materials loaded). Anything else is
-refused, whatever the browser shows: 409 `lesson_locked` for a Locked Lesson (including the
-Unlocked Lesson while a Pending Review Round exists, #9), 409 `lesson_completed` for a Completed
-Lesson, 409 `not_active_stack`, or 404."""
-
-
-def get_quiz_rng() -> random.Random:
-    return random.Random()
-
-
-QuizRandom = Annotated[random.Random, Depends(get_quiz_rng)]
+refused, whatever the browser shows: 409 `review_round_pending` (with the pending `round_id`)
+for the Unlocked Lesson while a Pending Review Round exists (#9), 409 `lesson_locked` for any
+other Locked Lesson, 409 `lesson_completed` for a Completed Lesson, 409 `not_active_stack`, or
+404."""
 
 
 def get_grader(request: Request) -> Grader:

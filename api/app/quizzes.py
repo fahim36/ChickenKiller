@@ -239,8 +239,7 @@ def recorded_answers(session: Session, learner_id: int, stack_id: str) -> list[A
 @dataclass(frozen=True)
 class MissedQuestion:
     """A Question the Learner has answered wrongly or left unanswered at least once, anywhere:
-    a Lesson Quiz, a Retake (a wrong sibling is a Missed Question too) or, later, a Review
-    Round."""
+    a Lesson Quiz, a Retake (a wrong sibling is a Missed Question too) or a Review Round."""
 
     question_id: str
     """Permanent ID."""

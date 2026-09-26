@@ -1,6 +1,5 @@
 import logging
 import uuid
-from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException
 
@@ -15,6 +14,8 @@ from app import (
     quiz,
     quizzes,
     retakes,
+    review,
+    reviews,
     schemas,
 )
 from app.auth import TokenVerifier
@@ -24,16 +25,19 @@ from app.deps import (
     AdminLearner,
     CurrentLearner,
     GraderDep,
+    Now,
     QuizRandom,
     SessionDep,
     UnlockedLesson,
     VerifierDep,
     get_current_learner,
+    open_daily_review,
 )
 from app.models import Learner, Question
 
-# Everything except the health check: only a signed-in, invited Learner gets in (app/deps.py).
-router = APIRouter(dependencies=[Depends(get_current_learner)])
+# Everything except the health check: only a signed-in, invited Learner gets in (app/deps.py),
+# and each request counts as using the app for the Daily Review (`open_daily_review`).
+router = APIRouter(dependencies=[Depends(get_current_learner), Depends(open_daily_review)])
 
 
 def _me(session: SessionDep, learner: Learner, verifier: VerifierDep) -> schemas.MeOut:
@@ -99,14 +103,20 @@ def list_stacks(session: SessionDep) -> list[schemas.StackSummary]:
 
 @router.get("/stacks/{stack_id}")
 def get_week_map(
-    stack_id: str, session: SessionDep, learner: CurrentLearner, _: ActiveStack
+    stack_id: str, session: SessionDep, learner: CurrentLearner, _: ActiveStack, now: Now
 ) -> schemas.SyllabusOut:
     """The Week map: the current Syllabus's Weeks, each with its Lessons (and their states) and
-    Milestones (and whether they're ticked), in Syllabus order, for the signed-in Learner."""
+    Milestones (and whether they're ticked), in Syllabus order, for the signed-in Learner.
+
+    `daily_review` is today's Daily Review (null when nothing is owed today). While a round is
+    pending, the Lesson it locks has `waiting_for_review`, so the page can say why."""
     syllabus = lessons.current_syllabus(session, stack_id)
     if syllabus is None:
         raise HTTPException(404, "Stack not found")
-    states = progress.lesson_states(session, learner.id, stack_id)
+    tz = learner.time_zone
+    states = progress.lesson_states(session, learner.id, stack_id, tz, now)
+    waiting = progress.waiting_for_review(session, learner.id, stack_id, tz, now)
+    today = None if tz is None else reviews.daily_review(session, learner.id, stack_id, tz, now)
     ticked = progress.ticked_milestone_ids(session, learner.id, stack_id)
     stack = syllabus.stack
     return schemas.SyllabusOut(
@@ -127,6 +137,7 @@ def get_week_map(
                         title=lesson.title,
                         minutes=lesson.minutes,
                         state=states[lesson.id],
+                        waiting_for_review=lesson.id == waiting,
                     )
                     for lesson in week.lessons
                 ],
@@ -143,12 +154,18 @@ def get_week_map(
             )
             for week in syllabus.weeks
         ],
+        daily_review=_daily_review(today) if today is not None and today.rounds else None,
     )
 
 
 @router.get("/stacks/{stack_id}/lessons/{lesson_id}")
 def get_lesson(
-    stack_id: str, lesson_id: str, session: SessionDep, learner: CurrentLearner, _: ActiveStack
+    stack_id: str,
+    lesson_id: str,
+    session: SessionDep,
+    learner: CurrentLearner,
+    _: ActiveStack,
+    now: Now,
 ) -> schemas.LessonOut:
     """A Lesson page. Locked Lessons can be read too, so Learners may read ahead: only the
     Lesson Quiz is gated (`UnlockedLesson`)."""
@@ -156,6 +173,7 @@ def get_lesson(
     if lesson is None:
         raise HTTPException(404, "Lesson not found")
     previous_id, next_id = lessons.neighbour_lesson_ids(session, lesson)
+    tz = learner.time_zone
     return schemas.LessonOut(
         id=lesson.id,
         stack_id=stack_id,
@@ -165,7 +183,9 @@ def get_lesson(
         exercise=lesson.exercise,
         minutes=lesson.minutes,
         materials=[schemas.MaterialOut.model_validate(m) for m in lesson.materials],
-        state=progress.lesson_states(session, learner.id, stack_id)[lesson.id],
+        state=progress.lesson_states(session, learner.id, stack_id, tz, now)[lesson.id],
+        waiting_for_review=progress.waiting_for_review(session, learner.id, stack_id, tz, now)
+        == lesson.id,
         previous_lesson_id=previous_id,
         next_lesson_id=next_id,
     )
@@ -255,7 +275,11 @@ def _not_a_choice(error: marking.NotAChoice) -> HTTPException:
 
 @router.post("/stacks/{stack_id}/lessons/{lesson_id}/quiz")
 def start_lesson_quiz(
-    lesson: UnlockedLesson, active: ActiveStackInPath, session: SessionDep, rng: QuizRandom
+    lesson: UnlockedLesson,
+    active: ActiveStackInPath,
+    session: SessionDep,
+    rng: QuizRandom,
+    now: Now,
 ) -> schemas.LessonQuizOut:
     """Start a Lesson Quiz on the Learner's Unlocked Lesson, or resume the one they started and
     haven't submitted. The Questions come without their answers.
@@ -267,7 +291,7 @@ def start_lesson_quiz(
     the new quiz avoids that attempt's Questions as far as the bank allows.
     """
     try:
-        started = quizzes.start_lesson_quiz(session, active, lesson, rng, datetime.now(UTC))
+        started = quizzes.start_lesson_quiz(session, active, lesson, rng, now)
     except quizzes.QuizUnavailable as error:
         raise HTTPException(409, QUIZ_UNAVAILABLE) from error
     except quizzes.RetakesPending as error:
@@ -296,6 +320,7 @@ def submit_lesson_quiz(
     session: SessionDep,
     grader: GraderDep,
     rng: QuizRandom,
+    now: Now,
 ) -> schemas.LessonQuizResultOut:
     """Submit a Lesson Quiz's answers and get its score, each Missed Question's answer,
     Explanation and Materials, and what comes next (`next_step`). Scoring is the server's:
@@ -315,7 +340,7 @@ def submit_lesson_quiz(
     try:
         attempt_uuid = uuid.UUID(attempt_id)
         result = quizzes.submit_lesson_quiz(
-            session, active, lesson_id, attempt_uuid, body.answers, datetime.now(UTC), grader
+            session, active, lesson_id, attempt_uuid, body.answers, now, grader
         )
     except (ValueError, quizzes.AttemptNotFound) as error:
         raise HTTPException(404, "Lesson Quiz not found") from error
@@ -335,9 +360,7 @@ def submit_lesson_quiz(
         raise HTTPException(503, GRADING_FAILED) from error
     completed, pending = result.lesson_completed, []
     if result.score.passed and not completed:
-        state = retakes.open_retakes(
-            session, active, lesson_id, attempt_uuid, rng, datetime.now(UTC)
-        )
+        state = retakes.open_retakes(session, active, lesson_id, attempt_uuid, rng, now)
         completed, pending = state.lesson_completed, state.pending
     next_step: schemas.NextStep = (
         "fresh_quiz" if not result.score.passed else "completed" if completed else "retakes"
@@ -371,6 +394,7 @@ def get_retakes(
     active: ActiveStackInPath,
     session: SessionDep,
     rng: QuizRandom,
+    now: Now,
 ) -> schemas.RetakesOut:
     """A submitted attempt's pending Retakes, each with the sibling Question to answer (without
     its answer). Where `retakes_pending` points. Empty for an attempt below the Pass Mark, or
@@ -380,9 +404,7 @@ def get_retakes(
     Learner's or isn't submitted.
     """
     try:
-        state = retakes.open_retakes(
-            session, active, lesson_id, uuid.UUID(attempt_id), rng, datetime.now(UTC)
-        )
+        state = retakes.open_retakes(session, active, lesson_id, uuid.UUID(attempt_id), rng, now)
     except (ValueError, retakes.RetakeNotFound) as error:
         raise HTTPException(404, "Lesson Quiz not found") from error
     return schemas.RetakesOut(
@@ -403,6 +425,7 @@ def answer_retake(
     session: SessionDep,
     grader: GraderDep,
     rng: QuizRandom,
+    now: Now,
 ) -> schemas.RetakeResultOut:
     """Answer a Retake's sibling Question: a choice ID, a written answer, or null. Wrong: its
     Explanation (and the grader's feedback, for a written one), and another sibling to try.
@@ -422,7 +445,7 @@ def answer_retake(
             body.answer,
             grader,
             rng,
-            datetime.now(UTC),
+            now,
         )
     except (ValueError, retakes.RetakeNotFound) as error:
         raise HTTPException(404, "Retake not found") from error
@@ -446,17 +469,151 @@ def answer_retake(
     )
 
 
+# --- Daily Review ----------------------------------------------------------------------------
+
+REVIEW_ROUND_FINISHED = {
+    "code": "review_round_finished",
+    "message": "You've already answered every Question of this Review Round.",
+}
+REVIEW_ROUND_DROPPED = {
+    "code": "review_round_dropped",
+    "message": "This Review Round was from an earlier day and has been dropped.",
+}
+QUESTION_ANSWERED = {
+    "code": "question_answered",
+    "message": "You've already answered this Question in this Review Round.",
+}
+
+
+def _round_summary(view: reviews.RoundView) -> schemas.ReviewRoundSummaryOut:
+    r = view.round
+    return schemas.ReviewRoundSummaryOut(
+        id=r.id,
+        number=r.number,
+        state=view.state,
+        opened_at=r.opened_at,
+        pending_at=review.pending_at(r.opened_at),
+        finished_at=r.finished_at,
+        answered=len(view.answers),
+        total=len(view.questions),
+    )
+
+
+def _daily_review(today: reviews.DailyReview) -> schemas.DailyReviewOut:
+    return schemas.DailyReviewOut(day=today.day, rounds=[_round_summary(r) for r in today.rounds])
+
+
+def _round(view: reviews.RoundView) -> schemas.ReviewRoundOut:
+    return schemas.ReviewRoundOut(
+        **_round_summary(view).model_dump(),
+        max_answer_chars=grading.MAX_ANSWER_CHARS,
+        remaining=[_quiz_question(q) for q in view.remaining],
+        results=[
+            schemas.ReviewResultOut(
+                correct=bool(a.correct), question=_answered_question(q, a.response, a.feedback)
+            )
+            for q, a in view.answered
+        ],
+    )
+
+
+def _time_zone(learner: Learner) -> str:
+    assert learner.time_zone is not None, "ActiveStack means the Learner has onboarded"
+    return learner.time_zone
+
+
+@router.get("/stacks/{stack_id}/review")
+def get_daily_review(
+    active: ActiveStackInPath, learner: CurrentLearner, session: SessionDep, now: Now
+) -> schemas.DailyReviewDetailOut:
+    """Today's Daily Review on the Active Stack, in the Learner's time zone: its Review Rounds,
+    and the round waiting to be answered (`current`) with its remaining Questions (without their
+    answers) and the results so far. No rounds means nothing is owed today: the Learner has no
+    Completed Lesson yet, or had none at their first use of the day.
+
+    Round 1 opens on the first request of the Learner's day, to any route (`open_daily_review`
+    runs before this one). 409 `not_active_stack` for another Stack."""
+    today = reviews.daily_review(
+        session, active.learner_id, active.stack_id, _time_zone(learner), now
+    )
+    current = today.current
+    return schemas.DailyReviewDetailOut(
+        **_daily_review(today).model_dump(),
+        current=None if current is None else _round(current),
+    )
+
+
+@router.post("/stacks/{stack_id}/review/rounds/{round_id}/answers")
+def answer_review_question(
+    round_id: str,
+    body: schemas.ReviewAnswerIn,
+    active: ActiveStackInPath,
+    learner: CurrentLearner,
+    session: SessionDep,
+    grader: GraderDep,
+    now: Now,
+) -> schemas.ReviewAnswerOut:
+    """Answer one Question of a Review Round of today: a choice ID, a written answer, or null.
+    The result carries the Question's correct answer or Model Answer, the grader's feedback
+    (written) and its Explanation, for the page to show after a miss. The last answer finishes
+    the round, and a finished Pending Review Round unlocks the Unlocked Lesson again.
+
+    404 for a round that isn't the Learner's; 409 `review_round_finished`,
+    `review_round_dropped` (a round of an earlier day) or `question_answered` (each Question is
+    answered once); 422 `question_not_in_round`, `not_a_choice` or `answer_too_long`; 503
+    `grading_failed` when a written answer can't be graded. In each of those nothing is
+    recorded.
+    """
+    try:
+        result = reviews.answer_question(
+            session,
+            active,
+            _time_zone(learner),
+            uuid.UUID(round_id),
+            body.question_id,
+            body.answer,
+            grader,
+            now,
+        )
+    except (ValueError, reviews.RoundNotFound) as error:
+        raise HTTPException(404, "Review Round not found") from error
+    except reviews.RoundFinished as error:
+        raise HTTPException(409, REVIEW_ROUND_FINISHED) from error
+    except reviews.RoundDropped as error:
+        raise HTTPException(409, REVIEW_ROUND_DROPPED) from error
+    except reviews.QuestionAnswered as error:
+        raise HTTPException(409, QUESTION_ANSWERED) from error
+    except reviews.QuestionNotInRound as error:
+        detail = {
+            "code": "question_not_in_round",
+            "message": f"Not a Question of this Review Round: {error.question_id}",
+        }
+        raise HTTPException(422, detail) from error
+    except marking.NotAChoice as error:
+        raise _not_a_choice(error) from error
+    except marking.AnswerTooLong as error:
+        raise _answer_too_long(error) from error
+    except grading.GradingFailed as error:
+        raise HTTPException(503, GRADING_FAILED) from error
+    return schemas.ReviewAnswerOut(
+        correct=result.correct,
+        question=_answered_question(result.question, result.response, result.feedback),
+        round=_round_summary(result.round),
+    )
+
+
 @router.put("/stacks/{stack_id}/milestones/{milestone_id}")
 def tick_milestone(
     milestone_id: str,
     body: schemas.MilestoneTickIn,
     active: ActiveStackInPath,
     session: SessionDep,
+    now: Now,
 ) -> schemas.MilestoneTickOut:
     """Tick or untick a Milestone of the Active Stack. Ticks never change any lock state."""
     if lessons.find_current_milestone(session, active.stack_id, milestone_id) is None:
         raise HTTPException(404, "Milestone not found")
-    progress.set_milestone_ticked(session, active, milestone_id, body.ticked, datetime.now(UTC))
+    progress.set_milestone_ticked(session, active, milestone_id, body.ticked, now)
     return schemas.MilestoneTickOut(id=milestone_id, ticked=body.ticked)
 
 

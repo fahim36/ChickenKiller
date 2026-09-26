@@ -10,6 +10,9 @@ vi.mock("@clerk/nextjs/server", () => ({
   auth: async () => ({ getToken: async () => "session-token" }),
 }));
 
+/** A Lesson no Pending Review Round is holding back. */
+const noReview = { waiting_for_review: false };
+
 const syllabus: Syllabus = {
   id: "agentic-ai-engineer",
   name: "Agentic AI Engineer",
@@ -23,8 +26,8 @@ const syllabus: Syllabus = {
       goal: "Know Python.",
       deliverable: "A CLI.",
       lessons: [
-        { id: "w01-l01", title: "Names and objects", minutes: 60, state: "completed" },
-        { id: "w01-l02", title: "Iterators", minutes: 60, state: "unlocked" },
+        { ...noReview, id: "w01-l01", title: "Names and objects", minutes: 60, state: "completed" },
+        { ...noReview, id: "w01-l02", title: "Iterators", minutes: 60, state: "unlocked" },
       ],
       milestones: [
         { id: "w01-m01", title: "Build a CLI", kind: "build", minutes: 120, ticked: true },
@@ -36,12 +39,13 @@ const syllabus: Syllabus = {
       title: "LLM APIs",
       goal: "Call models.",
       deliverable: "A chat bot.",
-      lessons: [{ id: "w02-l01", title: "Messages API", minutes: 45, state: "locked" }],
+      lessons: [{ ...noReview, id: "w02-l01", title: "Messages API", minutes: 45, state: "locked" }],
       milestones: [
         { id: "w02-m01", title: "Apply to one job", kind: "job-hunt", minutes: 30, ticked: false },
       ],
     },
   ],
+  daily_review: null,
 };
 
 afterEach(() => {
@@ -49,8 +53,8 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-async function renderWeekMap() {
-  stubApi({ "/stacks/agentic-ai-engineer": syllabus });
+async function renderWeekMap(body: Syllabus = syllabus) {
+  stubApi({ "/stacks/agentic-ai-engineer": body });
   render(
     await WeekMapPage({ params: Promise.resolve({ stackId: "agentic-ai-engineer" }) } as never),
   );
@@ -87,4 +91,45 @@ it("shows each Week's Milestones as a checklist with the Learner's ticks", async
       .map((c) => [c.closest("li")?.textContent, (c as HTMLInputElement).checked]);
   expect(checkboxes(1)).toEqual([["Build Build a CLI", true]]);
   expect(checkboxes(2)).toEqual([["Job hunt Apply to one job", false]]);
+});
+
+it("shows no Daily Review on a day with nothing owed", async () => {
+  await renderWeekMap();
+
+  expect(screen.queryByRole("region", { name: "Daily Review" })).toBeNull();
+});
+
+it("shows today's pending Review Round and says which Lesson waits for it", async () => {
+  const [first, second] = syllabus.weeks[0].lessons;
+  await renderWeekMap({
+    ...syllabus,
+    weeks: [
+      {
+        ...syllabus.weeks[0],
+        lessons: [first, { ...second, state: "locked", waiting_for_review: true }],
+      },
+      syllabus.weeks[1],
+    ],
+    daily_review: {
+      day: "2026-09-26",
+      rounds: [
+        {
+          id: "round-1",
+          number: 1,
+          state: "pending",
+          opened_at: "2026-09-26T04:00:00Z",
+          pending_at: "2026-09-26T06:00:00Z",
+          finished_at: null,
+          answered: 0,
+          total: 10,
+        },
+      ],
+    },
+  });
+
+  expect(screen.getByRole("region", { name: "Daily Review" }).textContent).toContain(
+    "Review Round 1 is pending: finish it to unlock your next Lesson.",
+  );
+  const iterators = screen.getByRole("link", { name: "Iterators" }).closest("li");
+  expect(iterators?.textContent).toBe("Locked Iterators · Finish your Review Round to unlock");
 });

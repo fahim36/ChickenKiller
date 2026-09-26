@@ -3,7 +3,7 @@ import json
 import os
 import time
 from collections.abc import Callable, Iterator
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -22,7 +22,7 @@ from app import progress
 from app.auth import AuthSettings, TokenVerifier
 from app.config import normalize_database_url
 from app.db import get_session
-from app.deps import get_grader
+from app.deps import get_grader, get_now
 from app.grading import Grade, GradingFailed
 from app.main import create_app
 from app.models import Learner, LearnerStack
@@ -352,12 +352,40 @@ def grader() -> FakeGrader:
     return FakeGrader()
 
 
+# --- The clock ---------------------------------------------------------------------------------
+# The API reads the time from `deps.get_now`; tests replace it with this clock, so a test can
+# say "it is 23:59 in Dhaka" and move time on without waiting.
+
+
+class FakeClock:
+    """A clock that stands still until a test moves it. Starts at the real time."""
+
+    def __init__(self, now: datetime | None = None) -> None:
+        self.now = now or datetime.now(UTC)
+
+    def set(self, now: datetime) -> None:
+        assert now.tzinfo is not None, "use a timezone-aware time"
+        self.now = now
+
+    def advance(self, **delta: float) -> None:
+        self.now += timedelta(**delta)
+
+
 @pytest.fixture
-def app(session: Session, signing_key: rsa.RSAPrivateKey, grader: FakeGrader) -> FastAPI:
-    """The HTTP API, reading and writing through the test session and grading with `grader`."""
+def clock() -> FakeClock:
+    return FakeClock()
+
+
+@pytest.fixture
+def app(
+    session: Session, signing_key: rsa.RSAPrivateKey, grader: FakeGrader, clock: FakeClock
+) -> FastAPI:
+    """The HTTP API, reading and writing through the test session, grading with `grader` and
+    telling the time by `clock`."""
     app = create_app(verifier=TokenVerifier(AUTH_SETTINGS, LocalKeys(signing_key)))
     app.dependency_overrides[get_session] = lambda: session
     app.dependency_overrides[get_grader] = lambda: grader
+    app.dependency_overrides[get_now] = lambda: clock.now
     return app
 
 
