@@ -20,6 +20,12 @@ request's base), read by `app.content.baseline`:
   yesterday in UTC, by the `today` passed in, so a run that crosses 00:00 UTC still passes;
 - a new Question whose Concept already has committed Questions is a warning naming one of them.
 
+**The Daily Challenges** (`<stack>/challenges/`, #16) are numbered and dated from the Stack's
+launch Day, and each is three Questions of the bank. Against the baseline, a Challenge whose Day
+has passed (by `today`) is released and frozen: never changed or deleted, and a Day that has
+passed gets no new one. Each Stack's line says how far ahead Challenges are written ("Challenges
+written through 2026-10-03 (7 Days left)"), with a warning below three Days.
+
 With no git baseline (content outside a git repository) those rules are skipped, with a warning
 that says so.
 """
@@ -34,19 +40,40 @@ from pathlib import Path
 
 import httpx
 
-from app.content.baseline import BadBaseline, BaselineUnavailable, question_fields, read_baseline
+from app.content.baseline import (
+    BadBaseline,
+    Baseline,
+    BaselineUnavailable,
+    normalise_newlines,
+    question_fields,
+    read_baseline,
+)
+from app.content.challenges import (
+    MIN_DAYS_AHEAD,
+    ChallengesAhead,
+    challenge_day,
+    is_frozen,
+)
+from app.content.challenges import (
+    challenges_ahead as days_ahead,
+)
 from app.content.diff import diff_contents
 from app.content.format import ItemKind, Lesson, Material, Milestone, MultipleChoiceQuestion
 from app.content.loader import (
+    CHALLENGES_DIR,
     CHANGELOG_FILE,
+    LAUNCH_FILE,
     LEGACY_QUESTIONS_DIR,
     QUESTION_BANK_DIR,
     SYLLABUS_FILE,
     Bank,
+    Challenges,
     ContentError,
     ContentFolder,
     Problem,
+    challenge_file_name,
     read_bank,
+    read_challenges,
     read_folder,
 )
 from app.content.versions import (
@@ -59,6 +86,7 @@ from app.content.versions import (
 
 __all__ = [
     "Problem",
+    "challenges_ahead",
     "check_folder",
     "check_stack",
     "load_checked_folder",
@@ -73,6 +101,8 @@ __all__ = [
 LESSON_MIN = 8
 QUIZ_MULTIPLE_CHOICE, QUIZ_WRITTEN = 4, 2
 MIN_QUESTIONS_PER_CONCEPT = 2
+CHALLENGE_MIX = (2, 1)
+"""A Daily Challenge's multiple-choice and written Questions."""
 
 
 def _duplicates(ids: Iterable[str]) -> list[str]:
@@ -91,13 +121,14 @@ def check_folder(
     today: date | None = None,
 ) -> list[Problem]:
     """Check one version folder, and its Stack's Question Bank (against the Stack's newest
-    version). `baseline` is the git ref the bank is held to; None skips those rules. `today`
-    (UTC) is the clock for new Questions' Sources."""
+    version) and Daily Challenges. `baseline` is the git ref the bank and the Challenges are held
+    to; None skips those rules. `today` (UTC) is the clock for new Questions' Sources and for
+    which Challenges are released."""
     bank, bank_problems = read_bank(path.parent)
     return (
         _check_version(path, bank, links)
         + bank_problems
-        + _check_bank(path.parent, bank, baseline, today or utc_today())
+        + _check_shared(path.parent, bank, baseline, today or utc_today())
     )
 
 
@@ -108,24 +139,38 @@ def check_stack(
     baseline: str | None = "HEAD",
     today: date | None = None,
 ) -> list[Problem]:
-    """Check a whole Stack: every version folder, then its Question Bank."""
+    """Check a whole Stack: every version folder, then its Question Bank and Daily Challenges."""
     bank, bank_problems = read_bank(stack_dir)
     problems: list[Problem] = []
     for folder in _version_dirs(stack_dir):
         problems += _check_version(folder, bank, links)
-    return problems + bank_problems + _check_bank(stack_dir, bank, baseline, today or utc_today())
+    return problems + bank_problems + _check_shared(stack_dir, bank, baseline, today or utc_today())
 
 
-def load_checked_folder(path: Path) -> ContentFolder:
-    """The version folder with its Stack's Question Bank, if they pass the check (links aside,
-    and with no git baseline: the importer loads what was checked at commit). Raises
-    `ContentError` otherwise."""
+def challenges_ahead(stack_dir: Path, today: date) -> ChallengesAhead | None:
+    """How far ahead the Stack's Daily Challenges are written; None for a Stack with no
+    `challenges/` folder (no Daily Challenges yet)."""
+    challenges, _ = read_challenges(stack_dir)
+    if challenges is None:
+        return None
+    return ahead_of(challenges, today)
+
+
+def load_checked_folder(path: Path, today: date | None = None) -> ContentFolder:
+    """The version folder with its Stack's Question Bank and Daily Challenges, if they pass the
+    check (links aside, and with no git baseline: the importer loads what was checked at
+    commit). `today` (UTC) decides which Challenges are released. Raises `ContentError`
+    otherwise."""
+    today = today or utc_today()
     bank, problems = read_bank(path.parent)
     folder, folder_problems = read_folder(path, (bank, []))
-    problems += folder_problems
+    challenges, challenge_problems = read_challenges(path.parent)
+    problems += folder_problems + challenge_problems
     if folder is not None:
+        folder.challenges = challenges
         problems += _check_legacy_folder(path) + _check_parsed(folder, links=False)
-        problems += _check_bank(path.parent, bank, None, utc_today())
+        problems += _check_bank(path.parent, bank, None, today)
+        problems += _check_challenges(challenges, bank, today)
     errors = [p for p in problems if p.level == "error"]
     if errors or folder is None:
         raise ContentError(errors)
@@ -253,9 +298,48 @@ def _check_syllabus(folder: ContentFolder, file: str) -> list[Problem]:
     return problems
 
 
-def _check_bank(stack_dir: Path, bank: Bank, baseline: str | None, today: date) -> list[Problem]:
+def _check_shared(stack_dir: Path, bank: Bank, baseline: str | None, today: date) -> list[Problem]:
+    """What every version of the Stack shares, its Question Bank and Daily Challenges, with the
+    git `baseline` read once for both."""
+    challenges, problems = read_challenges(stack_dir)
+    committed: Baseline | None = None
+    has_bank = bool(bank.files) or bank.path.is_dir()
+    if baseline is not None and (has_bank or challenges is not None):
+        committed, baseline_problems = _read_committed(stack_dir, bank, baseline)
+        problems += baseline_problems
+    return (
+        _check_bank(stack_dir, bank, committed, today)
+        + problems
+        + _check_challenges(challenges, bank, today)
+        + (_check_frozen_challenges(stack_dir, challenges, committed, today) if committed else [])
+    )
+
+
+def _read_committed(
+    stack_dir: Path, bank: Bank, baseline: str
+) -> tuple[Baseline | None, list[Problem]]:
+    try:
+        return read_baseline(stack_dir, baseline), []
+    except BaselineUnavailable as e:
+        return None, [
+            Problem(
+                "warning",
+                str(bank.path),
+                "(baseline)",
+                f"no git baseline ({e}): skipped the rules against committed Questions "
+                "(never deleted or edited; new Questions' Sources accessed in this run) and "
+                "released Daily Challenges (frozen)",
+            )
+        ]
+    except BadBaseline as e:
+        return None, [Problem("error", str(bank.path), "(baseline)", str(e))]
+
+
+def _check_bank(
+    stack_dir: Path, bank: Bank, committed: Baseline | None, today: date
+) -> list[Problem]:
     """The Question Bank's own rules, against the Stack's newest Syllabus version, then the rules
-    against the git `baseline`."""
+    against what is `committed` (none: skipped)."""
     versions = [f for f in (read_folder(p, (bank, []))[0] for p in stack_versions(stack_dir)) if f]
     if not bank.files and not bank.path.is_dir():
         return []  # a Stack with no Question Bank yet: each Lesson's warning says so below
@@ -263,7 +347,7 @@ def _check_bank(stack_dir: Path, bank: Bank, baseline: str | None, today: date) 
     return (
         _check_bank_ids(stack_dir, bank, versions)
         + _check_bank_items(bank, newest)
-        + _check_against_baseline(stack_dir, bank, baseline, today)
+        + (_check_against_baseline(stack_dir, bank, committed, today) if committed else [])
     )
 
 
@@ -423,26 +507,9 @@ def _check_bank_items(bank: Bank, newest: ContentFolder | None) -> list[Problem]
 
 
 def _check_against_baseline(
-    stack_dir: Path, bank: Bank, baseline: str | None, today: date
+    stack_dir: Path, bank: Bank, committed: Baseline, today: date
 ) -> list[Problem]:
-    """The append-only rules (ADR-0004), against the bank as committed at `baseline`."""
-    if baseline is None:
-        return []
-    try:
-        committed = read_baseline(stack_dir, baseline)
-    except BaselineUnavailable as e:
-        return [
-            Problem(
-                "warning",
-                str(bank.path),
-                "(baseline)",
-                f"no git baseline ({e}): skipped the rules against committed Questions "
-                "(never deleted or edited; new Questions' Sources accessed in this run)",
-            )
-        ]
-    except BadBaseline as e:
-        return [Problem("error", str(bank.path), "(baseline)", str(e))]
-
+    """The append-only rules (ADR-0004), against the bank as `committed`."""
     ref = committed.ref
     problems: list[Problem] = []
     current = {q.id for _, q in bank.questions()}
@@ -527,6 +594,150 @@ def _check_against_baseline(
                     q.id,
                     f"its retirement changed since {ref}: a retirement is final, and never "
                     "edited or undone",
+                )
+            )
+    return problems
+
+
+def ahead_of(challenges: Challenges, today: date) -> ChallengesAhead:
+    return days_ahead((c.date for c in challenges.challenges()), today)
+
+
+def _check_challenges(challenges: Challenges | None, bank: Bank, today: date) -> list[Problem]:
+    """Each Daily Challenge: named by its number, dated from the Stack's launch, and three
+    Questions of the bank (two multiple choice, one written), none of them retired while it is
+    upcoming. Then how far ahead Challenges are written, a warning below MIN_DAYS_AHEAD Days."""
+    if challenges is None:
+        return []
+    problems: list[Problem] = []
+    launch_file = challenges.path / LAUNCH_FILE
+    if not launch_file.exists():
+        problems.append(
+            Problem(
+                "error",
+                str(launch_file),
+                "(file)",
+                "missing: the Stack's launch Day, which numbers its Daily Challenges",
+            )
+        )
+    launch = challenges.launch.launch if challenges.launch is not None else None
+    questions = {q.id: q for _, q in bank.questions()}
+    numbers = Counter(c.number for c in challenges.challenges())
+    for path, c in challenges.files.items():
+        file, item = str(path), f"#{c.number}"
+        if path.name != challenge_file_name(c.number):
+            problems.append(
+                Problem(
+                    "error",
+                    file,
+                    item,
+                    f"the file for Challenge #{c.number} is named {challenge_file_name(c.number)}",
+                )
+            )
+        if numbers[c.number] > 1:
+            problems.append(Problem("error", file, item, "more than one file is this Challenge"))
+        expected = challenge_day(launch, c.number) if launch is not None else c.date
+        if c.date != expected:
+            problems.append(
+                Problem(
+                    "error",
+                    file,
+                    item,
+                    f"dated {c.date}, but #{c.number} of a Stack launched on {launch} is "
+                    f"{expected}: Challenge n is on the launch Day plus n - 1 Days",
+                )
+            )
+        found = []
+        for qid in c.questions:
+            q = questions.get(qid)
+            if q is None:
+                problems.append(
+                    Problem(
+                        "error",
+                        file,
+                        item,
+                        f"'{qid}' is not a Question in the Stack's Question Bank",
+                    )
+                )
+            else:
+                found.append(q)
+        types = Counter(q.type for q in found)
+        mc, written = types["multiple_choice"], types["written"]
+        if len(found) == len(c.questions) and (mc, written) != CHALLENGE_MIX:
+            problems.append(
+                Problem(
+                    "error",
+                    file,
+                    item,
+                    f"a Daily Challenge is {CHALLENGE_MIX[0]} multiple-choice Questions and "
+                    f"{CHALLENGE_MIX[1]} written; this one has {mc} and {written}",
+                )
+            )
+        if not is_frozen(c.date, today):
+            problems += [
+                Problem(
+                    "error",
+                    file,
+                    item,
+                    f"{q.id} is a Retired Question, which can't be answered; an Upcoming "
+                    "Challenge uses Questions that aren't retired",
+                )
+                for q in found
+                if q.retired is not None
+            ]
+
+    ahead = ahead_of(challenges, today)
+    if ahead.warning:
+        problems.append(
+            Problem(
+                "warning",
+                str(challenges.path),
+                "(challenges)",
+                f"{ahead}: write more with /write-challenges; fewer than {MIN_DAYS_AHEAD} Days "
+                "are left",
+            )
+        )
+    return problems
+
+
+def _check_frozen_challenges(
+    stack_dir: Path, challenges: Challenges | None, committed: Baseline, today: date
+) -> list[Problem]:
+    """Against what is `committed`: a Challenge whose Day has passed is released, and never
+    changes (byte for byte, line endings aside) or goes; and a Day that has passed never gets a
+    Challenge it didn't have."""
+    folder = stack_dir / CHALLENGES_DIR
+    ref = committed.ref
+    problems: list[Problem] = []
+    for name, old in sorted(committed.challenges.items()):
+        if old.date is None or not is_frozen(old.date, today):
+            continue
+        path = folder / name
+        item = f"#{old.number}"
+        if not path.exists():
+            change = "deleted"
+        elif normalise_newlines(path.read_bytes()) != old.content:
+            change = "changed"
+        else:
+            continue
+        problems.append(
+            Problem(
+                "error",
+                str(path),
+                item,
+                f"{change} since {ref}, but its Day ({old.date}) has passed: a released Daily "
+                "Challenge is frozen",
+            )
+        )
+    for path, c in challenges.files.items() if challenges is not None else []:
+        if path.name not in committed.challenges and is_frozen(c.date, today):
+            problems.append(
+                Problem(
+                    "error",
+                    str(path),
+                    f"#{c.number}",
+                    f"written for {c.date}, a Day that has passed: a Day with no Challenge "
+                    "written has no Challenge",
                 )
             )
     return problems
@@ -770,6 +981,9 @@ def main(argv: list[str] | None = None) -> int:
             print(p)
         n = sum(p.level == "error" for p in problems)
         errors += n
+        ahead = challenges_ahead(stack, args.today or utc_today())
+        if ahead is not None:
+            print(f"{stack}: {ahead}")
         print(f"{stack}: {'OK' if n == 0 else f'{n} error(s)'}")
     return 1 if errors else 0
 

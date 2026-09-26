@@ -4,7 +4,7 @@ import os
 import shutil
 import time
 from collections.abc import Callable, Iterator
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -180,6 +180,45 @@ def make_bank(lesson: str = LESSON, concept_prefix: str = "concept") -> dict[str
 
 
 BANK = make_bank()
+
+
+# --- Daily Challenges (#16) ----------------------------------------------------------------------
+
+LAUNCH = "2026-01-01"
+"""The test Stack's launch Day, when its Challenges have one."""
+
+CHALLENGE_MIX = ["w01-l01-q01", "w01-l01-q03", "w01-l01-q07"]
+"""Two multiple-choice Questions and one written, from the test bank."""
+
+
+def challenge(
+    number: int, day: str | None = None, questions: list[str] | None = None
+) -> dict[str, Any]:
+    """Daily Challenge #number, on its Day from LAUNCH unless `day` says otherwise."""
+    launch = date.fromisoformat(LAUNCH)
+    return {
+        "schema_version": 1,
+        "number": number,
+        "date": day or (launch + timedelta(days=number - 1)).isoformat(),
+        "questions": list(questions or CHALLENGE_MIX),
+    }
+
+
+def write_json(path: Path, doc: dict[str, Any]) -> None:
+    path.write_text(json.dumps(doc, indent=2) + "\n", encoding="utf-8", newline="\n")
+
+
+def write_challenges(stack: Path, *challenges: dict[str, Any], launch: str | None = LAUNCH) -> Path:
+    """Replace the Stack's `challenges/` folder: its launch file (unless `launch` is None) and
+    one file per Challenge, named by its number. Returns the folder."""
+    folder = stack / "challenges"
+    shutil.rmtree(folder, ignore_errors=True)
+    folder.mkdir()
+    if launch is not None:
+        write_json(folder / "launch.json", {"schema_version": 1, "launch": launch})
+    for c in challenges:
+        write_json(folder / f"{c['number']:03}.json", c)
+    return folder
 
 
 def changelog_entry(kind: str, item_id: str, change: str) -> dict[str, Any]:

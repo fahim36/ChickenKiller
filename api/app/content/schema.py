@@ -15,13 +15,15 @@ from typing import Any
 from pydantic import BaseModel
 
 from app.config import CONTENT_SCHEMA_DIR
-from app.content.format import Changelog, QuestionBank, Syllabus
+from app.content.format import ChallengeLaunch, Changelog, DailyChallenge, QuestionBank, Syllabus
 
 _DIALECT = "https://json-schema.org/draft/2020-12/schema"
 _MODELS: dict[str, type[BaseModel]] = {
     "syllabus.schema.json": Syllabus,
     "question-bank.schema.json": QuestionBank,
     "changelog.schema.json": Changelog,
+    "challenge.schema.json": DailyChallenge,
+    "challenge-launch.schema.json": ChallengeLaunch,
 }
 
 

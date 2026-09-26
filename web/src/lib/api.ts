@@ -303,6 +303,19 @@ export interface Invitation {
   invited_at: string;
 }
 
+/**
+ * How far ahead a Stack's Daily Challenges are written (Admin only): through `written_through`
+ * (a UTC date, null when none are), with `days_left` counted from today to it. `warning` below
+ * three Days.
+ */
+export interface ChallengesAhead {
+  stack_id: string;
+  stack_name: string;
+  written_through: string | null;
+  days_left: number;
+  warning: boolean;
+}
+
 const API_URL = process.env.API_URL ?? "http://localhost:8000";
 
 /** A non-2xx answer from the API. `detail` is FastAPI's error detail. */

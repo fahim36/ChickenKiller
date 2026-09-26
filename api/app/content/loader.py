@@ -1,5 +1,6 @@
 """Read a Stack's content: one version folder (`syllabus.json`, and `changelog.json` if there
-is one) and the Stack's Question Bank (`<stack>/question-bank/*.json`, beside the versions).
+is one), the Stack's Question Bank (`<stack>/question-bank/*.json`, beside the versions) and its
+Daily Challenges (`<stack>/challenges/`).
 
 Each file is parsed into the format models (`app.content.format`). Anything that breaks the
 format becomes a `Problem` naming the file and the item; rules that span several items are
@@ -13,7 +14,16 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ValidationError
 
-from app.content.format import Changelog, Concept, Lesson, Question, QuestionBank, Syllabus
+from app.content.format import (
+    ChallengeLaunch,
+    Changelog,
+    Concept,
+    DailyChallenge,
+    Lesson,
+    Question,
+    QuestionBank,
+    Syllabus,
+)
 
 SYLLABUS_FILE = "syllabus.json"
 CHANGELOG_FILE = "changelog.json"
@@ -22,6 +32,14 @@ QUESTION_BANK_DIR = "question-bank"
 Syllabus versions."""
 LEGACY_QUESTIONS_DIR = "questions"
 """Where each version kept its own Question Banks before the bank became the Stack's (#15)."""
+CHALLENGES_DIR = "challenges"
+"""The Stack's Daily Challenges, `content/<stack-id>/challenges/`: unversioned, like the bank."""
+LAUNCH_FILE = "launch.json"
+"""In `challenges/`: the Day of Challenge #1. Every other file there is one Daily Challenge."""
+
+
+def challenge_file_name(number: int) -> str:
+    return f"{number:03}.json"
 
 
 @dataclass(frozen=True)
@@ -63,6 +81,19 @@ class Bank:
 
 
 @dataclass
+class Challenges:
+    """A Stack's Daily Challenges: its launch Day (None when `launch.json` is missing or doesn't
+    parse) and every Challenge file that parses, in file-name order."""
+
+    path: Path
+    launch: ChallengeLaunch | None = None
+    files: dict[Path, DailyChallenge] = field(default_factory=dict)
+
+    def challenges(self) -> list[DailyChallenge]:
+        return list(self.files.values())
+
+
+@dataclass
 class ContentFolder:
     path: Path
     syllabus: Syllabus
@@ -70,6 +101,9 @@ class ContentFolder:
     """The Stack's Question Bank, which sits beside the version folders."""
     changelog: Changelog | None = None  # None when there is no changelog.json, or it's unreadable
     has_changelog_file: bool = False
+    challenges: Challenges | None = None
+    """The Stack's Daily Challenges, beside the version folders; None when it has none. Read
+    only for an import (`check.load_checked_folder`)."""
 
     def lessons(self) -> list[Lesson]:
         return [lesson for week in self.syllabus.weeks for lesson in week.lessons]
@@ -90,6 +124,25 @@ def read_bank(stack_dir: Path) -> tuple[Bank, list[Problem]]:
             if parsed is not None:
                 bank.files[file] = parsed
     return bank, problems
+
+
+def read_challenges(stack_dir: Path) -> tuple[Challenges | None, list[Problem]]:
+    """Parse the Stack's `challenges/` folder, or None if it has none. A file that breaks the
+    format is left out and reported."""
+    folder = stack_dir / CHALLENGES_DIR
+    if not folder.is_dir():
+        return None, []
+    problems: list[Problem] = []
+    challenges = Challenges(path=folder)
+    launch = folder / LAUNCH_FILE
+    if launch.exists():
+        challenges.launch = _read(launch, ChallengeLaunch, problems)
+    for file in sorted(folder.glob("*.json")):
+        if file.name != LAUNCH_FILE:
+            parsed = _read(file, DailyChallenge, problems)
+            if parsed is not None:
+                challenges.files[file] = parsed
+    return challenges, problems
 
 
 def read_folder(
