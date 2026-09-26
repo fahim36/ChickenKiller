@@ -1,25 +1,39 @@
-"""The Daily Review rules: which day a Review Round belongs to, when it becomes a Pending Review
-Round, and which Questions it asks.
+"""The Daily Review rules: which day a Review Round belongs to, when it opens and when it
+becomes a Pending Review Round, what carries over from a day with rounds left unfinished, when
+a Missed Question leaves the rotation, and which Questions a round asks.
 
 Plain functions with no database or HTTP, tested directly (tests/test_review_rules.py). The
-clock (`now`, timezone-aware) and the random source (`rng`) are passed in, so a test can say
-"it is 23:59 in Dhaka" without waiting. `app/reviews.py` stores what these decide.
+clock (`now`, timezone-aware), the Learner's time zone and the random source (`rng`) are passed
+in, so a test can say "it is 23:59 in Dhaka" without waiting. `app/reviews.py` stores what
+these decide.
+
+The round state machine: not open -> open ("optional") -> "pending" -> "finished", or dropped
+at the end of its day if not finished.
 
 - A **Daily Review** belongs to one calendar day in the Learner's own time zone
   (`review_day`). Round 1 opens the first time the Learner uses the app that day.
+- **Rounds 2 and 3** each open `REOPEN_AFTER` (four hours) after the previous round is
+  finished (`next_round_opens_at`), never more than `ROUNDS_PER_DAY` in a day, and only while
+  the opening time is still on that day. A round opens at that time whether or not the Learner
+  is using the app then: `app/reviews.py` stores it lazily on the next request, with the true
+  opening time, so it is pending two hours after that.
 - A **Review Round** is optional for `OPTIONAL_PERIOD` (two hours) after it opens, then it is a
-  **Pending Review Round** until it's finished (`round_state`). Only rounds of the Learner's
-  current day count: #10 drops unfinished rounds at the end of their day.
-- A round asks up to `ROUND_SIZE` Questions (`pick_round_questions`): Missed Questions first,
-  then Questions from Completed Lessons at random.
-
-Kept ready for #10: `ROUNDS_PER_DAY` bounds a round's `number`; Rounds 2 and 3 open four hours
-after the previous one is finished and use the same `round_state`; carried-over Questions go at
-the front of `missed_ids`.
+  **Pending Review Round** until it's finished (`round_state`). A round only opens once the one
+  before it is finished, so there is never more than one Pending Review Round.
+- **Dropped rounds**: rounds not finished by the end of their day are dropped. Their unanswered
+  Questions (`carried_over`) come first in the Learner's next day with rounds.
+- **The rotation** (`in_rotation`): a Missed Question stays in the rotation until it has been
+  answered correctly on `ROTATION_DAYS` (three) different days, in the Learner's time zone,
+  since it was last missed.
+- A round asks up to `ROUND_SIZE` Questions (`pick_round_questions`) from its `RoundSources`, in
+  order: carried-over Questions, Missed Questions still in the rotation, Updated Lessons' new
+  Questions (#13), then Questions from Completed Lessons at random. A Question already asked
+  earlier that day is left out, unless the round would otherwise be short.
 """
 
 import random
-from collections.abc import Sequence
+from collections.abc import Collection, Iterable, Sequence
+from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import Literal
 
@@ -31,8 +45,15 @@ ROUND_SIZE = 10
 OPTIONAL_PERIOD = timedelta(hours=2)
 """How long a Review Round stays optional after it opens."""
 
+REOPEN_AFTER = timedelta(hours=4)
+"""How long after a round is finished the next round of the day opens."""
+
 ROUNDS_PER_DAY = 3
-"""The most Review Rounds in one Daily Review (#10 opens Rounds 2 and 3)."""
+"""The most Review Rounds in one Daily Review."""
+
+ROTATION_DAYS = 3
+"""On how many different days a Missed Question must be answered correctly to leave the
+rotation."""
 
 RoundState = Literal["optional", "pending", "finished"]
 
@@ -55,22 +76,87 @@ def round_state(opened_at: datetime, finished_at: datetime | None, now: datetime
     return "pending" if now >= pending_at(opened_at) else "optional"
 
 
+def next_round_opens_at(
+    finished_ats: Sequence[datetime | None], time_zone: str, day: date
+) -> datetime | None:
+    """When the next Review Round of `day` opens, given the `finished_at` of the day's rounds so
+    far, in order: four hours after the last one is finished.
+
+    None when no further round opens that day: no round yet (Round 1 opens on the day's first
+    use instead), the last one isn't finished, the day already has three rounds, or the opening
+    time falls after the day's end (in `time_zone`).
+
+    #11: a day's rounds were all finished when every round is finished and this is None, since
+    a round that opened with nobody using the app is only stored on the next request.
+    """
+    if not finished_ats or len(finished_ats) >= ROUNDS_PER_DAY:
+        return None
+    last = finished_ats[-1]
+    if last is None:
+        return None
+    opens_at = last + REOPEN_AFTER
+    return opens_at if review_day(time_zone, opens_at) == day else None
+
+
+def carried_over(unfinished: Iterable[tuple[Sequence[str], Collection[str]]]) -> list[str]:
+    """The Questions a day's unfinished (dropped) rounds carry over: each round's Questions (in
+    the order asked) minus those it answered, given as `(question_ids, answered_ids)` in round
+    order. Each Question once."""
+    carried = (
+        q for question_ids, answered in unfinished for q in question_ids if q not in answered
+    )
+    return list(dict.fromkeys(carried))
+
+
+def in_rotation(last_missed_at: datetime, correct_at: Iterable[datetime], time_zone: str) -> bool:
+    """Whether a Missed Question is still in the rotation: it hasn't been answered correctly on
+    three different days (in `time_zone`) since it was last missed (`last_missed_at`). Correct
+    answers anywhere count (Lesson Quiz, Retake, Review Round); several on one day count once,
+    and the day of the miss counts for a correct answer given after it. A later miss starts the
+    count again."""
+    days = {review_day(time_zone, at) for at in correct_at if at > last_missed_at}
+    return len(days) < ROTATION_DAYS
+
+
+@dataclass(frozen=True)
+class RoundSources:
+    """Where a Review Round's Questions (permanent IDs) come from, in the order they are used."""
+
+    carried_over: Sequence[str] = ()
+    """Unanswered Questions of the rounds dropped on the Learner's previous day with rounds."""
+    missed: Sequence[str] = ()
+    """Missed Questions still in the rotation, first missed first."""
+    updated: Sequence[str] = ()
+    """New Questions of Updated Lessons (#13)."""
+    completed: Sequence[str] = ()
+    """Questions of Completed Lessons: the random fill."""
+    asked_today: Collection[str] = frozenset()
+    """Questions already asked in the day's earlier rounds."""
+
+
 def pick_round_questions(
-    missed_ids: Sequence[str],
-    completed_lesson_question_ids: Sequence[str],
-    rng: random.Random,
-    size: int = ROUND_SIZE,
+    sources: RoundSources, rng: random.Random, size: int = ROUND_SIZE
 ) -> list[str]:
     """A Review Round's Questions (permanent IDs), in the order they are asked.
 
-    - `missed_ids` (the Learner's Missed Questions, first missed first) come first, in that
-      order, up to `size`.
-    - The rest is filled at random from `completed_lesson_question_ids`, the Questions of the
-      Learner's Completed Lessons.
+    - `carried_over`, then `missed`, then `updated` come first, each in its own order, up to
+      `size`.
+    - The rest is filled at random from `completed`.
+    - Questions in `asked_today` are left out. If that leaves the round short, it is topped up
+      at random with Questions of `completed` that were asked earlier today.
     - No Question is asked twice. With fewer Questions than `size`, the round asks them all;
       with none, it's empty.
     """
-    picked = list(dict.fromkeys(missed_ids))[:size]
+    asked = set(sources.asked_today)
+    ordered = [
+        q
+        for q in dict.fromkeys([*sources.carried_over, *sources.missed, *sources.updated])
+        if q not in asked
+    ]
+    picked = ordered[:size]
     taken = set(picked)
-    rest = [q for q in dict.fromkeys(completed_lesson_question_ids) if q not in taken]
-    return picked + rng.sample(rest, min(size - len(picked), len(rest)))
+    completed = [q for q in dict.fromkeys(sources.completed) if q not in taken]
+    fresh = [q for q in completed if q not in asked]
+    picked += rng.sample(fresh, min(size - len(picked), len(fresh)))
+    repeats = [q for q in completed if q in asked]
+    return picked + rng.sample(repeats, min(size - len(picked), len(repeats)))

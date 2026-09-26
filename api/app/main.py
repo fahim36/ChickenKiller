@@ -500,7 +500,12 @@ def _round_summary(view: reviews.RoundView) -> schemas.ReviewRoundSummaryOut:
 
 
 def _daily_review(today: reviews.DailyReview) -> schemas.DailyReviewOut:
-    return schemas.DailyReviewOut(day=today.day, rounds=[_round_summary(r) for r in today.rounds])
+    return schemas.DailyReviewOut(
+        day=today.day,
+        time_zone=today.time_zone,
+        rounds=[_round_summary(r) for r in today.rounds],
+        next_round_at=today.next_round_at,
+    )
 
 
 def _round(view: reviews.RoundView) -> schemas.ReviewRoundOut:
@@ -531,7 +536,8 @@ def get_daily_review(
     answers) and the results so far. No rounds means nothing is owed today: the Learner has no
     Completed Lesson yet, or had none at their first use of the day.
 
-    Round 1 opens on the first request of the Learner's day, to any route (`open_daily_review`
+    Round 1 opens on the first request of the Learner's day, and Rounds 2 and 3 on the first
+    request once due, to any route (`open_daily_review`
     runs before this one). 409 `not_active_stack` for another Stack."""
     today = reviews.daily_review(
         session, active.learner_id, active.stack_id, _time_zone(learner), now

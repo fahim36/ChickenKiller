@@ -27,6 +27,16 @@ export function formatTimeLeft(until: Date, now: Date): string {
   return formatMinutes(Math.max(0, Math.ceil((until.getTime() - now.getTime()) / 60_000)));
 }
 
+/** The time of day of `at` in the IANA `timeZone`, on a 24-hour clock ("14:05"). */
+export function formatClock(at: Date, timeZone: string): string {
+  return new Intl.DateTimeFormat("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+    timeZone,
+  }).format(at);
+}
+
 /** Planned time for a Week: its Lessons plus its Milestones. */
 export function weekMinutes(week: Pick<Week, "lessons" | "milestones">): number {
   return [...week.lessons, ...week.milestones].reduce((sum, x) => sum + x.minutes, 0);

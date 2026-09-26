@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatMinutes, formatTimeLeft, materialLabel, weekMinutes } from "./format";
+import { formatClock, formatMinutes, formatTimeLeft, materialLabel, weekMinutes } from "./format";
 
 describe("formatMinutes", () => {
   it.each([
@@ -40,6 +40,16 @@ describe("formatTimeLeft", () => {
     ["2026-09-26T03:00:00Z", "0 min"],
   ])("until %s -> %s", (until, expected) => {
     expect(formatTimeLeft(new Date(until), now)).toBe(expected);
+  });
+});
+
+describe("formatClock", () => {
+  it.each([
+    ["Asia/Dhaka", "14:00"],
+    ["Etc/GMT+8", "00:00"],
+    ["UTC", "08:00"],
+  ])("in %s -> %s", (timeZone, expected) => {
+    expect(formatClock(new Date("2026-09-26T08:00:00Z"), timeZone)).toBe(expected);
   });
 });
 

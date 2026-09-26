@@ -343,10 +343,17 @@ class ReviewRoundOut(ReviewRoundSummaryOut):
 
 
 class DailyReviewOut(BaseModel):
-    """Today's Daily Review, in the Learner's time zone: its Review Rounds so far, in order."""
+    """Today's Daily Review, in the Learner's time zone: its Review Rounds so far, in order.
+
+    Rounds 2 and 3 each open four hours after the previous round is finished, never past the
+    day's end: `next_round_at` is when the next one opens, or null when none is to open today
+    (the last round isn't finished yet, the day has had its three rounds, or it's too late)."""
 
     day: date
+    time_zone: str
+    """The Learner's IANA time zone, which `day` is in."""
     rounds: list[ReviewRoundSummaryOut]
+    next_round_at: datetime | None
 
 
 class DailyReviewDetailOut(DailyReviewOut):
