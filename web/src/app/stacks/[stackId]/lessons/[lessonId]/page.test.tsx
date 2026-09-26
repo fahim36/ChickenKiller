@@ -21,6 +21,7 @@ const lesson: Lesson = {
     { id: "fluent-python", title: "Fluent Python", url: "https://example.com/fp", type: "book" },
     { id: "py-docs", title: "Data model", url: "https://example.com/dm", type: "docs" },
   ],
+  state: "locked",
   previous_lesson_id: null,
   next_lesson_id: "w01-l02",
 };
@@ -55,6 +56,26 @@ it("shows the Lesson's topics and its Materials with type labels", async () => {
   expect(screen.getByRole("link", { name: "Next Lesson →" }).getAttribute("href")).toBe(
     "/stacks/agentic-ai-engineer/lessons/w01-l02",
   );
+});
+
+it("lets a Learner read a Locked Lesson and says its quiz waits", async () => {
+  vi.stubGlobal("fetch", vi.fn(async () => Response.json({ ...lesson, state: "locked" })));
+
+  await renderLessonPage("agentic-ai-engineer", "w01-l01");
+
+  expect(screen.getByText("Locked")).toBeTruthy();
+  expect(screen.getByRole("note").textContent).toBe(
+    "You can read ahead. The Lesson Quiz opens once you've completed the Lessons before this one.",
+  );
+});
+
+it("says nothing about waiting on the Unlocked Lesson", async () => {
+  vi.stubGlobal("fetch", vi.fn(async () => Response.json({ ...lesson, state: "unlocked" })));
+
+  await renderLessonPage("agentic-ai-engineer", "w01-l01");
+
+  expect(screen.getByText("Unlocked")).toBeTruthy();
+  expect(screen.queryByRole("note")).toBeNull();
 });
 
 it("is not found when the API has no such Lesson", async () => {

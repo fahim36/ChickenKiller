@@ -27,10 +27,17 @@ export interface Material {
   type: MaterialType;
 }
 
+/**
+ * A Lesson's state for the signed-in Learner. Only the Unlocked Lesson's quiz can be started;
+ * every Lesson can be read.
+ */
+export type LessonState = "completed" | "unlocked" | "locked";
+
 export interface LessonSummary {
   id: string;
   title: string;
   minutes: number;
+  state: LessonState;
 }
 
 export interface Milestone {
@@ -38,6 +45,13 @@ export interface Milestone {
   title: string;
   kind: "build" | "job-hunt";
   minutes: number;
+  /** Whether the signed-in Learner has ticked it off. Never affects unlocking. */
+  ticked: boolean;
+}
+
+export interface MilestoneTick {
+  id: string;
+  ticked: boolean;
 }
 
 export interface Week {
@@ -63,6 +77,7 @@ export interface Lesson {
   exercise: string | null;
   minutes: number;
   materials: Material[];
+  state: LessonState;
   previous_lesson_id: string | null;
   next_lesson_id: string | null;
 }

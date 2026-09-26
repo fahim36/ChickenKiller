@@ -14,8 +14,10 @@ describe("formatMinutes", () => {
 describe("weekMinutes", () => {
   it("adds Lessons and Milestones", () => {
     const week = {
-      lessons: [{ id: "w01-l01", title: "a", minutes: 60 }],
-      milestones: [{ id: "w01-m01", title: "b", kind: "build" as const, minutes: 90 }],
+      lessons: [{ id: "w01-l01", title: "a", minutes: 60, state: "unlocked" as const }],
+      milestones: [
+        { id: "w01-m01", title: "b", kind: "build" as const, minutes: 90, ticked: false },
+      ],
     };
     expect(weekMinutes(week)).toBe(150);
   });

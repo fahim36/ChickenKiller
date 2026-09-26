@@ -9,6 +9,10 @@
   `stack` loaded). Refused with 409 `onboarding_needed` until the Learner has onboarded, so any
   route about studying declares `active: ActiveStack` and gets `active.learner_id` /
   `active.stack_id` for the progress it reads or writes.
+- `ActiveStackInPath`: the same, for a route under `/stacks/{stack_id}` that changes progress;
+  refused with 409 `not_active_stack` unless the path names the Active Stack.
+- `UnlockedLesson`: the guard on starting a Lesson Quiz. Only the Learner's Unlocked Lesson
+  gets through, whatever the browser shows.
 """
 
 from typing import Annotated
@@ -17,10 +21,10 @@ from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
-from app import learners, onboarding
+from app import learners, lessons, onboarding, progress
 from app.auth import Identity, InvalidToken, KeysUnavailable, TokenVerifier
 from app.db import get_session
-from app.models import Learner, LearnerStack
+from app.models import Learner, LearnerStack, Lesson
 
 SessionDep = Annotated[Session, Depends(get_session)]
 
@@ -94,3 +98,49 @@ def get_active_stack(learner: CurrentLearner, session: SessionDep) -> LearnerSta
 
 
 ActiveStack = Annotated[LearnerStack, Depends(get_active_stack)]
+
+NOT_ACTIVE_STACK = {
+    "code": "not_active_stack",
+    "message": "This isn't your Active Stack. Switch to it in Settings first.",
+}
+
+
+def get_active_stack_in_path(stack_id: str, active: ActiveStack) -> LearnerStack:
+    if stack_id != active.stack_id:
+        raise HTTPException(409, NOT_ACTIVE_STACK)
+    return active
+
+
+ActiveStackInPath = Annotated[LearnerStack, Depends(get_active_stack_in_path)]
+"""For a route under `/stacks/{stack_id}` that changes progress: the Learner's record on their
+Active Stack, refused with 409 `not_active_stack` unless `stack_id` is that Stack."""
+
+LESSON_LOCKED = {
+    "code": "lesson_locked",
+    "message": "This Lesson is locked. Complete the Lessons before it first.",
+}
+
+LESSON_COMPLETED = {
+    "code": "lesson_completed",
+    "message": "You've already completed this Lesson.",
+}
+
+
+def get_unlocked_lesson(lesson_id: str, active: ActiveStackInPath, session: SessionDep) -> Lesson:
+    lesson = lessons.find_current_lesson(session, active.stack_id, lesson_id)
+    if lesson is None:
+        raise HTTPException(404, "Lesson not found")
+    state = progress.lesson_states(session, active.learner_id, active.stack_id)[lesson.id]
+    if state == "completed":
+        raise HTTPException(409, LESSON_COMPLETED)
+    if state == "locked":
+        raise HTTPException(409, LESSON_LOCKED)
+    return lesson
+
+
+UnlockedLesson = Annotated[Lesson, Depends(get_unlocked_lesson)]
+"""For a route under `/stacks/{stack_id}/lessons/{lesson_id}` that starts a Lesson Quiz: the
+Learner's Unlocked Lesson (current Syllabus version, Week and Materials loaded). Anything else is
+refused, whatever the browser shows: 409 `lesson_locked` for a Locked Lesson (including the
+Unlocked Lesson while a Pending Review Round exists, #9), 409 `lesson_completed` for a Completed
+Lesson, 409 `not_active_stack`, or 404."""
