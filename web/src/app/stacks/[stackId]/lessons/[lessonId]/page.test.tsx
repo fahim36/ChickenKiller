@@ -85,3 +85,22 @@ it("is not found when the API has no such Lesson", async () => {
     expect.objectContaining({ digest: "NEXT_HTTP_ERROR_FALLBACK;404" }),
   );
 });
+
+it("offers the Lesson Quiz on the Unlocked Lesson", async () => {
+  vi.stubGlobal("fetch", vi.fn(async () => Response.json({ ...lesson, state: "unlocked" })));
+
+  await renderLessonPage("agentic-ai-engineer", "w01-l01");
+
+  expect(
+    screen.getByRole("link", { name: "Start the Lesson Quiz" }).getAttribute("href"),
+  ).toBe("/stacks/agentic-ai-engineer/lessons/w01-l01/quiz");
+});
+
+it("offers no quiz on a Locked or Completed Lesson", async () => {
+  for (const state of ["locked", "completed"] as const) {
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ ...lesson, state })));
+    await renderLessonPage("agentic-ai-engineer", "w01-l01");
+    expect(screen.queryByRole("link", { name: "Start the Lesson Quiz" })).toBeNull();
+    cleanup();
+  }
+});

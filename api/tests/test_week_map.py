@@ -14,6 +14,7 @@ from tests.conftest import (
     ClientFactory,
     ContentFactory,
     complete_lessons,
+    make_bank,
     onboard,
 )
 
@@ -69,8 +70,10 @@ def other_stack(syllabus: dict[str, Any], bank: dict[str, Any]) -> None:
 def learner(
     session: Session, api: TestClient, make_content: ContentFactory
 ) -> Iterator[TestClient]:
-    """A new Learner onboarded onto a two-Week mini Stack."""
-    import_folder(session, make_content(two_weeks))
+    """A new Learner onboarded onto a two-Week mini Stack, where every Lesson has a Question
+    Bank."""
+    banks = {"w01-l02": make_bank("w01-l02", "second"), "w02-l01": make_bank("w02-l01", "third")}
+    import_folder(session, make_content(two_weeks, extra_banks=banks))
     onboard(api)
     yield api
 
@@ -226,8 +229,7 @@ def test_only_the_active_stacks_milestones_can_be_ticked(
 
 
 # --- The Lesson Quiz guard -------------------------------------------------------------------
-# The quiz itself is #6. Until then the route answers 501 `quiz_not_built` once the guard lets
-# the Learner through, so these tests only tell "refused" from "let through".
+# These only tell "refused" from "let through"; the quiz itself is tested in test_lesson_quiz.py.
 
 
 def start_quiz(client: TestClient, lesson_id: str, stack_id: str = "mini-stack") -> Response:
@@ -235,10 +237,12 @@ def start_quiz(client: TestClient, lesson_id: str, stack_id: str = "mini-stack")
 
 
 def refusal(response: Response) -> tuple[int, str]:
+    if response.status_code == 200:
+        return LET_THROUGH
     return response.status_code, response.json()["detail"]["code"]
 
 
-LET_THROUGH = (501, "quiz_not_built")
+LET_THROUGH = (200, "started")
 
 
 def test_the_unlocked_lessons_quiz_can_be_started(learner: TestClient) -> None:

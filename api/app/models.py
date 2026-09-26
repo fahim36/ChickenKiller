@@ -12,22 +12,28 @@ Two kinds of identifier, kept apart on purpose:
 A Stack has many Syllabus versions and points at its current one.
 
 People (`Learner`, `Invitation`) are not content: they have a plain integer `id`, which is also
-internal and never sent to the browser.
+internal and never sent to the browser. A Lesson Quiz attempt is named by the browser when it
+submits, so its `id` is a random UUID instead.
 """
 
+import uuid
 from datetime import datetime
 from typing import Any
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     DateTime,
     ForeignKey,
     ForeignKeyConstraint,
+    Index,
     Integer,
     String,
     Text,
     UniqueConstraint,
+    Uuid,
     func,
+    text,
     true,
 )
 from sqlalchemy.dialects.postgresql import JSONB
@@ -338,3 +344,80 @@ class MilestoneTick(Base):
     stack_id: Mapped[str] = mapped_column(ID, primary_key=True)
     milestone_id: Mapped[str] = mapped_column(ID, primary_key=True, comment="Permanent ID.")
     ticked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class LessonQuizAttempt(Base):
+    """One Lesson Quiz a Learner started: the Questions drawn for it, from the Syllabus version
+    that was current when it started. Read and written through app/quizzes.py.
+
+    - `id` is random, because the browser names the attempt when it submits.
+    - The attempt is pinned to `syllabus_version`: its Questions are read and marked from that
+      version even after a newer one is imported (#13).
+    - A Learner has at most one unsubmitted attempt per Lesson, so starting again resumes it.
+    """
+
+    __tablename__ = "lesson_quiz_attempts"
+    __table_args__ = (
+        _of_learner_stack(),
+        Index(
+            "uq_lesson_quiz_attempts_one_open",
+            "learner_id",
+            "stack_id",
+            "lesson_id",
+            unique=True,
+            postgresql_where=text("submitted_at IS NULL"),
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    learner_id: Mapped[int] = mapped_column(Integer)
+    stack_id: Mapped[str] = mapped_column(ID)
+    lesson_id: Mapped[str] = mapped_column(ID, comment="Permanent ID.")
+    syllabus_version: Mapped[str] = mapped_column(
+        String(20), comment="The version the Questions come from, pinned at start."
+    )
+    question_ids: Mapped[list[str]] = mapped_column(
+        JSONB, comment="Permanent IDs of the Questions drawn, in the order they are asked."
+    )
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    correct_count: Mapped[int | None] = mapped_column(Integer, comment="Set on submission.")
+    passed: Mapped[bool | None] = mapped_column(Boolean, comment="Set on submission.")
+
+
+class Answer(Base):
+    """One answer a Learner gave to one Question, wherever it was asked.
+
+    Missed Questions (`correct` is false) and the Daily Review are read from here (#8, #9), so a
+    Question is named by permanent ID plus the Syllabus version it was asked from.
+
+    - `context` says where it was asked. Each context has its own nullable link column and the
+      check constraint requires the matching one: `lesson_quiz` uses `lesson_quiz_attempt_id`.
+      Retakes and Review Rounds add theirs (#8, #9).
+    - `response` is the choice ID or the written answer; null means left unanswered.
+    - `correct` is null while a written answer waits for grading (#7).
+    """
+
+    __tablename__ = "answers"
+    __table_args__ = (
+        _of_learner_stack(),
+        UniqueConstraint("lesson_quiz_attempt_id", "question_id"),
+        CheckConstraint(
+            "context <> 'lesson_quiz' OR lesson_quiz_attempt_id IS NOT NULL",
+            name="context_link",
+        ),
+        Index("ix_answers_learner_question", "learner_id", "stack_id", "question_id"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    learner_id: Mapped[int] = mapped_column(Integer)
+    stack_id: Mapped[str] = mapped_column(ID)
+    question_id: Mapped[str] = mapped_column(ID, comment="Permanent ID.")
+    syllabus_version: Mapped[str] = mapped_column(String(20))
+    context: Mapped[str] = mapped_column(String(20), comment="lesson_quiz, for now")
+    lesson_quiz_attempt_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("lesson_quiz_attempts.id", ondelete="CASCADE")
+    )
+    response: Mapped[str | None] = mapped_column(Text)
+    correct: Mapped[bool | None] = mapped_column(Boolean)
+    answered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

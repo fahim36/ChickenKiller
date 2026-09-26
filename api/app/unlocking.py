@@ -2,7 +2,7 @@
 
 A plain function with no database or HTTP, so the rule is tested directly
 (tests/test_unlocking.py). The Week map and the Lesson Quiz guard both get their states from
-here, through `progress.lesson_states_for`.
+here, through `progress.lesson_states`.
 
 - The **Unlocked Lesson** is the next Lesson after the Learner's last Completed Lesson, in
   Syllabus order. "Last" means furthest along, so pacing follows completion only, never the

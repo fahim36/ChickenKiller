@@ -1,7 +1,9 @@
 import re
+import uuid
 import zoneinfo
 from datetime import datetime
 from functools import cache
+from typing import Literal
 
 from pydantic import BaseModel as _BaseModel
 from pydantic import ConfigDict, field_validator
@@ -152,3 +154,59 @@ class InvitationIn(BaseModel):
 class InvitationOut(BaseModel):
     email: str
     invited_at: datetime
+
+
+# --- Lesson Quiz -----------------------------------------------------------------------------
+
+
+class ChoiceOut(BaseModel):
+    id: str
+    text: str
+
+
+class QuizQuestionOut(BaseModel):
+    """A Question as the Learner sees it while answering: never its answer, Model Answer or
+    Explanation."""
+
+    id: str
+    type: Literal["multiple_choice"]
+    prompt: str
+    choices: list[ChoiceOut]
+
+
+class LessonQuizOut(BaseModel):
+    """A started (or resumed) Lesson Quiz. `attempt_id` names it when submitting."""
+
+    attempt_id: uuid.UUID
+    lesson_id: str
+    version: str
+    pass_mark: int
+    """As a percentage."""
+    questions: list[QuizQuestionOut]
+
+
+class LessonQuizAnswersIn(BaseModel):
+    """The Learner's answers, by Question ID: a choice ID, or null for unanswered. A Question
+    left out is unanswered too."""
+
+    answers: dict[str, str | None]
+
+
+class QuestionResultOut(BaseModel):
+    id: str
+    correct: bool
+
+
+class LessonQuizResultOut(BaseModel):
+    """A submitted Lesson Quiz's score. `passed` means it met the Pass Mark, which made the
+    Lesson a Completed Lesson. Explanations and correct answers come with #8."""
+
+    attempt_id: uuid.UUID
+    lesson_id: str
+    correct: int
+    total: int
+    percent: int
+    passed: bool
+    pass_mark: int
+    questions: list[QuestionResultOut]
+    """In the order they were asked."""

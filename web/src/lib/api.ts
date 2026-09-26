@@ -82,6 +82,40 @@ export interface Lesson {
   next_lesson_id: string | null;
 }
 
+/** A Question as the Learner sees it while answering: never its answer or Explanation. */
+export interface QuizQuestion {
+  id: string;
+  type: "multiple_choice";
+  prompt: string;
+  choices: { id: string; text: string }[];
+}
+
+/** A started (or resumed) Lesson Quiz. */
+export interface LessonQuiz {
+  attempt_id: string;
+  lesson_id: string;
+  version: string;
+  /** As a percentage. */
+  pass_mark: number;
+  questions: QuizQuestion[];
+}
+
+/** The Learner's answers by Question ID. A Question left out is unanswered, so missed. */
+export type QuizAnswers = Record<string, string | null>;
+
+/** A submitted Lesson Quiz, scored by the API. */
+export interface LessonQuizResult {
+  attempt_id: string;
+  lesson_id: string;
+  correct: number;
+  total: number;
+  percent: number;
+  /** Met the Pass Mark, so the Lesson is now a Completed Lesson. */
+  passed: boolean;
+  pass_mark: number;
+  questions: { id: string; correct: boolean }[];
+}
+
 export interface ActiveStack {
   id: string;
   name: string;

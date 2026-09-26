@@ -1,14 +1,16 @@
+import uuid
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException
 
-from app import learners, lessons, onboarding, progress, schemas
+from app import learners, lessons, onboarding, progress, quiz, quizzes, schemas
 from app.auth import TokenVerifier
 from app.deps import (
     ActiveStack,
     ActiveStackInPath,
     AdminLearner,
     CurrentLearner,
+    QuizRandom,
     SessionDep,
     UnlockedLesson,
     VerifierDep,
@@ -155,21 +157,99 @@ def get_lesson(
     )
 
 
-QUIZ_NOT_BUILT = {
-    "code": "quiz_not_built",
-    "message": "Lesson Quizzes aren't available yet.",
+PASS_MARK_PERCENT = int(quiz.PASS_MARK * 100)
+
+QUIZ_UNAVAILABLE = {
+    "code": "quiz_unavailable",
+    "message": "This Lesson has no Lesson Quiz yet.",
+}
+QUIZ_SUBMITTED = {
+    "code": "quiz_submitted",
+    "message": "This Lesson Quiz has already been submitted.",
 }
 
 
 @router.post("/stacks/{stack_id}/lessons/{lesson_id}/quiz")
-def start_lesson_quiz(lesson: UnlockedLesson) -> None:
-    """Start a Lesson Quiz on the Learner's Unlocked Lesson.
+def start_lesson_quiz(
+    lesson: UnlockedLesson, active: ActiveStackInPath, session: SessionDep, rng: QuizRandom
+) -> schemas.LessonQuizOut:
+    """Start a Lesson Quiz on the Learner's Unlocked Lesson, or resume the one they started and
+    haven't submitted. The Questions come without their answers.
 
     The guard (`UnlockedLesson`) is final: the backend refuses a Locked Lesson's quiz whatever
-    the browser shows. The quiz itself is #6, which replaces this body with drawing the
-    Questions; until then a Learner the guard lets through gets 501 `quiz_not_built`.
+    the browser shows. 409 `quiz_unavailable` if the Lesson's Question Bank has no Questions to
+    draw.
     """
-    raise HTTPException(501, QUIZ_NOT_BUILT)
+    try:
+        started = quizzes.start_lesson_quiz(session, active, lesson, rng, datetime.now(UTC))
+    except quizzes.QuizUnavailable as error:
+        raise HTTPException(409, QUIZ_UNAVAILABLE) from error
+    return schemas.LessonQuizOut(
+        attempt_id=started.attempt.id,
+        lesson_id=started.attempt.lesson_id,
+        version=started.attempt.syllabus_version,
+        pass_mark=PASS_MARK_PERCENT,
+        questions=[
+            schemas.QuizQuestionOut(
+                id=q.id,
+                type="multiple_choice",
+                prompt=q.prompt,
+                choices=[schemas.ChoiceOut(id=c["id"], text=c["text"]) for c in q.choices or []],
+            )
+            for q in started.questions
+        ],
+    )
+
+
+@router.post("/stacks/{stack_id}/lessons/{lesson_id}/quiz/{attempt_id}/answers")
+def submit_lesson_quiz(
+    lesson_id: str,
+    attempt_id: str,
+    body: schemas.LessonQuizAnswersIn,
+    active: ActiveStackInPath,
+    session: SessionDep,
+) -> schemas.LessonQuizResultOut:
+    """Submit a Lesson Quiz's answers and get its score. Scoring is the server's: a pass makes
+    the Lesson a Completed Lesson and unlocks the next one.
+
+    Not guarded by `UnlockedLesson`: a quiz already started can always be finished (#9's
+    Pending Review Round). 404 for an attempt that isn't the Learner's; 409 `quiz_submitted`
+    the second time; 422 `question_not_in_quiz` or `not_a_choice` for answers that don't fit
+    the quiz, and then nothing is recorded.
+    """
+    try:
+        attempt_uuid = uuid.UUID(attempt_id)
+        result = quizzes.submit_lesson_quiz(
+            session, active, lesson_id, attempt_uuid, body.answers, datetime.now(UTC)
+        )
+    except (ValueError, quizzes.AttemptNotFound) as error:
+        raise HTTPException(404, "Lesson Quiz not found") from error
+    except quizzes.AlreadySubmitted as error:
+        raise HTTPException(409, QUIZ_SUBMITTED) from error
+    except quizzes.QuestionNotInQuiz as error:
+        detail = {
+            "code": "question_not_in_quiz",
+            "message": f"Not a Question of this quiz: {', '.join(error.question_ids)}",
+        }
+        raise HTTPException(422, detail) from error
+    except quizzes.NotAChoice as error:
+        detail = {
+            "code": "not_a_choice",
+            "message": f"That isn't one of the choices for {error.question_id}.",
+        }
+        raise HTTPException(422, detail) from error
+    return schemas.LessonQuizResultOut(
+        attempt_id=result.attempt.id,
+        lesson_id=result.attempt.lesson_id,
+        correct=result.score.correct,
+        total=result.score.total,
+        percent=result.score.percent,
+        passed=result.score.passed,
+        pass_mark=PASS_MARK_PERCENT,
+        questions=[
+            schemas.QuestionResultOut(id=qid, correct=ok) for qid, ok in result.correct.items()
+        ],
+    )
 
 
 @router.put("/stacks/{stack_id}/milestones/{milestone_id}")
