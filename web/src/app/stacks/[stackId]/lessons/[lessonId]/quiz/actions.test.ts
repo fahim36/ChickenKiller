@@ -26,6 +26,13 @@ it("submits the answers to the Learner's attempt and returns the API's score", a
   );
 });
 
+it("returns the grading failure instead of throwing, so the quiz can offer to resubmit", async () => {
+  const detail = { code: "grading_failed", message: "Couldn't grade: submit again." };
+  vi.stubGlobal("fetch", vi.fn(async () => Response.json({ detail }, { status: 503 })));
+
+  await expect(submitLessonQuiz("s", "l", "a", {})).resolves.toEqual(detail);
+});
+
 it("fails when the API refuses the answers", async () => {
   const detail = { code: "quiz_submitted", message: "Already submitted." };
   vi.stubGlobal("fetch", vi.fn(async () => Response.json({ detail }, { status: 409 })));

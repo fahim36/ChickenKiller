@@ -1,12 +1,12 @@
 """The Lesson Quiz rules as plain functions: scoring against the Pass Mark, and drawing Questions
-from a Question Bank (#6)."""
+from a Question Bank (#6), and composing a Lesson Quiz of both Question types (#7)."""
 
 import random
 from collections import Counter
 
 import pytest
 
-from app.quiz import BankQuestion, draw_questions, score
+from app.quiz import QUIZ_COMPOSITION, BankQuestion, draw_questions, draw_quiz, score
 
 # --- Scoring ---------------------------------------------------------------------------------
 
@@ -92,3 +92,35 @@ def test_the_same_seed_draws_the_same_quiz_and_others_vary() -> None:
 def test_a_bank_with_fewer_than_six_questions_gives_them_all() -> None:
     questions = bank(*"aabbc")
     assert sorted(draw_questions(questions, random.Random(0))) == ["a1", "a2", "b1", "b2", "c1"]
+
+
+# --- Composing a Lesson Quiz (#7) ------------------------------------------------------------
+
+
+def typed(mc: int, written: int) -> list[BankQuestion]:
+    """A bank with `mc` multiple-choice Questions (m1, m2, ...) and `written` written ones (w1,
+    ...), each on its own Concept."""
+    return [BankQuestion(f"m{n}", f"cm{n}") for n in range(1, mc + 1)] + [
+        BankQuestion(f"w{n}", f"cw{n}", "written") for n in range(1, written + 1)
+    ]
+
+
+def test_a_lesson_quiz_asks_four_multiple_choice_then_two_written() -> None:
+    assert QUIZ_COMPOSITION == {"multiple_choice": 4, "written": 2}
+    for seed in range(20):
+        drawn = draw_quiz(typed(6, 3), random.Random(seed))
+        assert [q[0] for q in drawn] == list("mmmmww"), drawn
+        assert len(set(drawn)) == 6
+
+
+def test_a_bank_short_of_written_questions_fills_up_with_multiple_choice() -> None:
+    assert [q[0] for q in draw_quiz(typed(6, 1), random.Random(0))] == list("mmmmmw")
+    assert sorted(draw_quiz(typed(6, 0), random.Random(0))) == [f"m{n}" for n in range(1, 7)]
+
+
+def test_a_bank_short_of_multiple_choice_fills_up_with_written() -> None:
+    assert [q[0] for q in draw_quiz(typed(2, 5), random.Random(0))] == list("mmwwww")
+
+
+def test_a_small_bank_gives_every_question() -> None:
+    assert sorted(draw_quiz(typed(2, 1), random.Random(0))) == ["m1", "m2", "w1"]

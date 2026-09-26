@@ -1,5 +1,6 @@
 """Taking a Lesson Quiz over the API: starting it, submitting answers, and what a pass unlocks
-(#6). The rules themselves are tested in test_lesson_quiz_rules.py."""
+(#6). The rules themselves are tested in test_lesson_quiz_rules.py; grading written answers in
+test_written_grading.py."""
 
 import json
 from collections.abc import Iterator
@@ -27,8 +28,12 @@ from tests.conftest import (
 QUIZ = "/stacks/mini-stack/lessons/w01-l01/quiz"
 
 # The mini Stack's bank for w01-l01 has six multiple-choice Questions, q01 to q06, each with
-# choices "a" (correct) and "b", and two written ones, q07 and q08.
+# choices "a" (correct) and "b", and two written ones, q07 and q08. A quiz asks four multiple
+# choice, then both written ones. The fake grader (conftest.py) passes a written answer that
+# says "right".
 MULTIPLE_CHOICE = {f"w01-l01-q{n:02}" for n in range(1, 7)}
+WRITTEN = ["w01-l01-q07", "w01-l01-q08"]
+RIGHT, WRONG = "The right answer.", "Not sure."
 
 
 def no_second_bank(syllabus: dict[str, Any], bank: dict[str, Any]) -> None:
@@ -60,8 +65,17 @@ def submit(
 
 def answer_all(quiz: dict[str, Any], *, wrong: int = 0) -> dict[str, str | None]:
     """Answer every Question: the first `wrong` of them wrongly, the rest correctly."""
-    ids = [q["id"] for q in quiz["questions"]]
-    return {qid: ("b" if i < wrong else "a") for i, qid in enumerate(ids)}
+    answers: dict[str, str | None] = {}
+    for i, q in enumerate(quiz["questions"]):
+        if q["type"] == "written":
+            answers[q["id"]] = WRONG if i < wrong else RIGHT
+        else:
+            answers[q["id"]] = "b" if i < wrong else "a"
+    return answers
+
+
+def is_right(answer: str | None) -> bool:
+    return answer in ("a", RIGHT)
 
 
 def lesson_states(client: TestClient) -> dict[str, str]:
@@ -80,19 +94,22 @@ def learner_id(session: Session, email: str = LEARNER_EMAIL) -> int:
 # --- Starting --------------------------------------------------------------------------------
 
 
-def test_the_quiz_draws_six_multiple_choice_questions_from_the_lessons_bank(
+def test_the_quiz_draws_four_multiple_choice_then_two_written_questions(
     learner: TestClient,
 ) -> None:
     quiz = start(learner)
 
-    assert {q["id"] for q in quiz["questions"]} == MULTIPLE_CHOICE
-    assert {q["type"] for q in quiz["questions"]} == {"multiple_choice"}
-    first = next(q for q in quiz["questions"] if q["id"] == "w01-l01-q01")
-    assert first == {
-        "id": "w01-l01-q01",
-        "type": "multiple_choice",
-        "prompt": "Question 1?",
-        "choices": [{"id": "a", "text": "Right"}, {"id": "b", "text": "Wrong"}],
+    questions = quiz["questions"]
+    assert [q["type"] for q in questions] == ["multiple_choice"] * 4 + ["written"] * 2
+    assert {q["id"] for q in questions[:4]} < MULTIPLE_CHOICE
+    assert sorted(q["id"] for q in questions[4:]) == WRITTEN
+    assert questions[0]["choices"] == [{"id": "a", "text": "Right"}, {"id": "b", "text": "Wrong"}]
+    written = next(q for q in questions if q["id"] == "w01-l01-q07")
+    assert written == {
+        "id": "w01-l01-q07",
+        "type": "written",
+        "prompt": "Explain 7.",
+        "choices": [],
     }
     assert (quiz["lesson_id"], quiz["version"], quiz["pass_mark"]) == ("w01-l01", "v2026-01-01", 80)
 
@@ -100,7 +117,9 @@ def test_the_quiz_draws_six_multiple_choice_questions_from_the_lessons_bank(
 def test_the_correct_answers_are_never_sent_before_submission(learner: TestClient) -> None:
     response = learner.post(QUIZ)
 
-    assert keys(response.json()).isdisjoint({"answer", "explanation", "model_answer"})
+    assert keys(response.json()).isdisjoint(
+        {"answer", "explanation", "model_answer", "key_points", "summary"}
+    )
     assert "Because." not in response.text  # every Explanation in the bank
 
 
@@ -155,8 +174,8 @@ def test_the_server_scores_the_quiz_against_the_pass_mark(
         percent,
         passed,
     )
-    assert result["questions"] == [
-        {"id": qid, "correct": answer == "a"} for qid, answer in answers.items()
+    assert [(q["id"], q["correct"]) for q in result["questions"]] == [
+        (qid, is_right(answer)) for qid, answer in answers.items()
     ]
 
 
@@ -222,7 +241,7 @@ def test_every_answer_is_recorded_against_the_learner_the_question_and_its_versi
         for a in recorded
     ) == sorted(
         [
-            (qid, "v2026-01-01", "lesson_quiz", quiz["attempt_id"], answer, answer == "a")
+            (qid, "v2026-01-01", "lesson_quiz", quiz["attempt_id"], answer, is_right(answer))
             for qid, answer in answers.items()
         ]
         + [(unanswered, "v2026-01-01", "lesson_quiz", quiz["attempt_id"], None, False)]
@@ -263,7 +282,8 @@ def test_an_answer_to_a_question_not_in_the_quiz_is_rejected(
     session: Session, learner: TestClient
 ) -> None:
     quiz = start(learner)
-    answers = {**answer_all(quiz), "w01-l01-q07": "a"}
+    undrawn = sorted(MULTIPLE_CHOICE - {q["id"] for q in quiz["questions"]})[0]
+    answers = {**answer_all(quiz), undrawn: "a"}
 
     response = submit(learner, quiz, answers)
 
@@ -337,5 +357,12 @@ def test_a_quiz_in_progress_finishes_on_the_version_it_started_on(
 def test_the_quiz_start_response_is_plain_json(learner: TestClient) -> None:
     # Guards against leaking internal row keys: only permanent IDs and a random attempt ID.
     quiz = start(learner)
-    assert set(quiz) == {"attempt_id", "lesson_id", "version", "pass_mark", "questions"}
+    assert set(quiz) == {
+        "attempt_id",
+        "lesson_id",
+        "version",
+        "pass_mark",
+        "max_answer_chars",
+        "questions",
+    }
     assert "pk" not in json.dumps(quiz)

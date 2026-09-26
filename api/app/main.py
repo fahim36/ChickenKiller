@@ -1,15 +1,28 @@
+import logging
 import uuid
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException
 
-from app import learners, lessons, onboarding, progress, quiz, quizzes, schemas
+from app import (
+    config,
+    grading,
+    learners,
+    lessons,
+    marking,
+    onboarding,
+    progress,
+    quiz,
+    quizzes,
+    schemas,
+)
 from app.auth import TokenVerifier
 from app.deps import (
     ActiveStack,
     ActiveStackInPath,
     AdminLearner,
     CurrentLearner,
+    GraderDep,
     QuizRandom,
     SessionDep,
     UnlockedLesson,
@@ -167,6 +180,13 @@ QUIZ_SUBMITTED = {
     "code": "quiz_submitted",
     "message": "This Lesson Quiz has already been submitted.",
 }
+GRADING_FAILED = {
+    "code": "grading_failed",
+    "message": (
+        "Your written answers couldn't be graded just now. Nothing was counted: "
+        "submit again in a moment."
+    ),
+}
 
 
 @router.post("/stacks/{stack_id}/lessons/{lesson_id}/quiz")
@@ -189,10 +209,11 @@ def start_lesson_quiz(
         lesson_id=started.attempt.lesson_id,
         version=started.attempt.syllabus_version,
         pass_mark=PASS_MARK_PERCENT,
+        max_answer_chars=grading.MAX_ANSWER_CHARS,
         questions=[
             schemas.QuizQuestionOut(
                 id=q.id,
-                type="multiple_choice",
+                type="written" if q.type == "written" else "multiple_choice",
                 prompt=q.prompt,
                 choices=[schemas.ChoiceOut(id=c["id"], text=c["text"]) for c in q.choices or []],
             )
@@ -208,19 +229,25 @@ def submit_lesson_quiz(
     body: schemas.LessonQuizAnswersIn,
     active: ActiveStackInPath,
     session: SessionDep,
+    grader: GraderDep,
 ) -> schemas.LessonQuizResultOut:
     """Submit a Lesson Quiz's answers and get its score. Scoring is the server's: a pass makes
     the Lesson a Completed Lesson and unlocks the next one.
 
     Not guarded by `UnlockedLesson`: a quiz already started can always be finished (#9's
     Pending Review Round). 404 for an attempt that isn't the Learner's; 409 `quiz_submitted`
-    the second time; 422 `question_not_in_quiz` or `not_a_choice` for answers that don't fit
-    the quiz, and then nothing is recorded.
+    the second time; 422 `question_not_in_quiz`, `not_a_choice` or `answer_too_long` for
+    answers that don't fit the quiz, and then nothing is recorded.
+
+    Written answers are graded against their Model Answers (app/grading.py), and each result
+    carries the grader's one-line `feedback`. 503 `grading_failed` when grading fails (a timeout,
+    an API error, or no ANTHROPIC_API_KEY): nothing is recorded, the attempt stays open, and
+    the Learner submits again without penalty.
     """
     try:
         attempt_uuid = uuid.UUID(attempt_id)
         result = quizzes.submit_lesson_quiz(
-            session, active, lesson_id, attempt_uuid, body.answers, datetime.now(UTC)
+            session, active, lesson_id, attempt_uuid, body.answers, datetime.now(UTC), grader
         )
     except (ValueError, quizzes.AttemptNotFound) as error:
         raise HTTPException(404, "Lesson Quiz not found") from error
@@ -232,12 +259,23 @@ def submit_lesson_quiz(
             "message": f"Not a Question of this quiz: {', '.join(error.question_ids)}",
         }
         raise HTTPException(422, detail) from error
-    except quizzes.NotAChoice as error:
+    except marking.NotAChoice as error:
         detail = {
             "code": "not_a_choice",
             "message": f"That isn't one of the choices for {error.question_id}.",
         }
         raise HTTPException(422, detail) from error
+    except marking.AnswerTooLong as error:
+        detail = {
+            "code": "answer_too_long",
+            "message": (
+                f"Your answer to {error.question_id} is too long: "
+                f"keep it under {grading.MAX_ANSWER_CHARS} characters."
+            ),
+        }
+        raise HTTPException(422, detail) from error
+    except grading.GradingFailed as error:
+        raise HTTPException(503, GRADING_FAILED) from error
     return schemas.LessonQuizResultOut(
         attempt_id=result.attempt.id,
         lesson_id=result.attempt.lesson_id,
@@ -247,7 +285,8 @@ def submit_lesson_quiz(
         passed=result.score.passed,
         pass_mark=PASS_MARK_PERCENT,
         questions=[
-            schemas.QuestionResultOut(id=qid, correct=ok) for qid, ok in result.correct.items()
+            schemas.QuestionResultOut(id=qid, correct=ok, feedback=result.feedback[qid])
+            for qid, ok in result.correct.items()
         ],
     )
 
@@ -266,10 +305,15 @@ def tick_milestone(
     return schemas.MilestoneTickOut(id=milestone_id, ticked=body.ticked)
 
 
-def create_app(verifier: TokenVerifier | None = None) -> FastAPI:
-    """The API. Session tokens are checked by `verifier`, by default the one CLERK_* configures."""
+def create_app(
+    verifier: TokenVerifier | None = None, grader: grading.Grader | None = None
+) -> FastAPI:
+    """The API. Session tokens are checked by `verifier`, by default the one CLERK_* configures;
+    written answers are graded by `grader`, by default Claude with ANTHROPIC_API_KEY."""
+    _configure_logging()
     app = FastAPI(title="Learning App API")
     app.state.verifier = verifier or TokenVerifier.from_config()
+    app.state.grader = grader or grading.grader_from_config(config.ANTHROPIC_API_KEY)
 
     @app.get("/health")
     def health() -> dict[str, str]:
@@ -277,6 +321,17 @@ def create_app(verifier: TokenVerifier | None = None) -> FastAPI:
 
     app.include_router(router)
     return app
+
+
+def _configure_logging() -> None:
+    """Send the app's own INFO logs (such as each grading call's cost) to stderr, next to
+    uvicorn's."""
+    logger = logging.getLogger("app")
+    if not logger.handlers:
+        handler = logging.StreamHandler()
+        handler.setFormatter(logging.Formatter("%(levelname)s:     %(name)s %(message)s"))
+        logger.addHandler(handler)
+        logger.setLevel(logging.INFO)
 
 
 app = create_app()

@@ -78,6 +78,7 @@ Open http://localhost:3000 and sign in with the `ADMIN_EMAILS` address. A first 
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY` | web | none. Without them `npm run dev` uses Clerk's keyless mode, but the API then needs that temporary instance's `CLERK_ISSUER` |
 | `DATABASE_URL` | API | `postgresql+psycopg://learning:learning@localhost:5433/learning` |
 | `CLERK_ISSUER`, `CLERK_JWKS_URL`, `CLERK_AUTHORIZED_PARTIES`, `ADMIN_EMAILS` | API | none. Without `CLERK_ISSUER`, everything except `/health` answers 503 ([details](docs/deploy.md#environment-variables)) |
+| `ANTHROPIC_API_KEY` | API | none. Grades written answers with Claude Haiku 4.5 (`api/app/grading.py`). Without it the app runs, but submitting a quiz with a written answer answers 503 `grading_failed` and the Learner can resubmit later. Never commit it |
 
 `.claude/launch.json` starts both servers with the local database, the API URL and `CLERK_AUTHORIZED_PARTIES`. The API still needs `CLERK_ISSUER` and `ADMIN_EMAILS` from the environment it is started in.
 

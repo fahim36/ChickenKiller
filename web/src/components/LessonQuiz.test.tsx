@@ -1,22 +1,32 @@
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import type { LessonQuiz as Quiz, LessonQuizResult, QuizAnswers } from "@/lib/api";
+import type { GradingFailed, LessonQuiz as Quiz, LessonQuizResult, QuizAnswers } from "@/lib/api";
 import { LessonQuiz } from "./LessonQuiz";
 
+// Four multiple-choice Questions (1 to 4), then two written ones (5 and 6).
 const quiz: Quiz = {
   attempt_id: "3f1c7a52-0000-4000-8000-000000000001",
   lesson_id: "w01-l01",
   version: "v2026-09-26",
   pass_mark: 80,
-  questions: [1, 2, 3, 4, 5, 6].map((n) => ({
-    id: `w01-l01-q0${n}`,
-    type: "multiple_choice",
-    prompt: `Question ${n}?`,
-    choices: [
-      { id: "a", text: `Right ${n}` },
-      { id: "b", text: `Wrong ${n}` },
-    ],
-  })),
+  max_answer_chars: 4000,
+  questions: [
+    ...[1, 2, 3, 4].map((n) => ({
+      id: `w01-l01-q0${n}`,
+      type: "multiple_choice" as const,
+      prompt: `Question ${n}?`,
+      choices: [
+        { id: "a", text: `Right ${n}` },
+        { id: "b", text: `Wrong ${n}` },
+      ],
+    })),
+    ...[5, 6].map((n) => ({
+      id: `w01-l01-q0${n}`,
+      type: "written" as const,
+      prompt: `Question ${n}?`,
+      choices: [],
+    })),
+  ],
 };
 
 function result(correct: number): LessonQuizResult {
@@ -28,46 +38,64 @@ function result(correct: number): LessonQuizResult {
     percent: Math.round((correct / 6) * 100),
     passed: correct >= 5,
     pass_mark: 80,
-    questions: quiz.questions.map((q, i) => ({ id: q.id, correct: i < correct })),
+    questions: quiz.questions.map((q, i) => ({ id: q.id, correct: i < correct, feedback: null })),
   };
 }
 
 afterEach(cleanup);
 
-function renderQuiz(submitAction: (answers: QuizAnswers) => Promise<LessonQuizResult>) {
+type Submit = (answers: QuizAnswers) => Promise<LessonQuizResult | GradingFailed>;
+
+function renderQuiz(submitAction: Submit) {
   render(<LessonQuiz quiz={quiz} stackId="agentic-ai-engineer" submitAction={submitAction} />);
 }
 
+const question = (n: number) => screen.getByRole("group", { name: new RegExp(`Question ${n}\\?`) });
+
 function choose(n: number, text: string) {
-  const question = screen.getByRole("group", { name: new RegExp(`Question ${n}\\?`) });
-  fireEvent.click(within(question).getByRole("radio", { name: text }));
+  fireEvent.click(within(question(n)).getByRole("radio", { name: text }));
 }
 
-const submitButton = () => screen.getByRole("button", { name: "Submit answers" });
+function write(n: number, text: string) {
+  fireEvent.change(within(question(n)).getByRole("textbox", { name: "Your answer" }), {
+    target: { value: text },
+  });
+}
 
-it("shows the six Questions with their choices", () => {
+const submitButton = () => screen.getByRole("button", { name: /Submit/ });
+
+it("shows the multiple-choice Questions with their choices and the written ones with a box", () => {
   renderQuiz(vi.fn());
 
   expect(screen.getAllByRole("group")).toHaveLength(6);
-  const first = screen.getByRole("group", { name: /Question 1\?/ });
+  const first = question(1);
   expect(within(first).getAllByRole("radio").map((r) => r.getAttribute("value"))).toEqual([
     "a",
     "b",
   ]);
   expect(within(first).getByText("Right 1")).toBeTruthy();
+  expect(within(question(5)).queryAllByRole("radio")).toHaveLength(0);
+  const box = within(question(5)).getByRole("textbox", { name: "Your answer" });
+  expect(box.getAttribute("maxlength")).toBe("4000");
 });
 
-it("submits the chosen answers, leaving unanswered Questions out", async () => {
+it("submits the chosen and written answers, leaving unanswered Questions out", async () => {
   const submitAction = vi.fn(async () => result(5));
   renderQuiz(submitAction);
 
   choose(1, "Right 1");
   choose(2, "Wrong 2");
   choose(2, "Right 2");
+  write(5, "An agent calls tools in a loop.");
+  write(6, "   ");
   fireEvent.click(submitButton());
 
   await vi.waitFor(() =>
-    expect(submitAction).toHaveBeenCalledWith({ "w01-l01-q01": "a", "w01-l01-q02": "a" }),
+    expect(submitAction).toHaveBeenCalledWith({
+      "w01-l01-q01": "a",
+      "w01-l01-q02": "a",
+      "w01-l01-q05": "An agent calls tools in a loop.",
+    }),
   );
 });
 
@@ -104,17 +132,54 @@ it("marks which Questions were right and which were missed", async () => {
   fireEvent.click(submitButton());
   await screen.findByRole("status");
 
-  const marks = quiz.questions.map((_, i) =>
-    within(screen.getByRole("group", { name: new RegExp(`Question ${i + 1}\\?`) })).getByText(
-      /^(Correct|Missed)$/,
-    ).textContent,
+  const marks = quiz.questions.map(
+    (_, i) => within(question(i + 1)).getByText(/^(Correct|Missed)$/).textContent,
   );
   expect(marks).toEqual(["Correct", "Correct", "Correct", "Correct", "Missed", "Missed"]);
 });
 
+it("shows the grader's feedback on each written answer", async () => {
+  const graded = result(5);
+  graded.questions[4].feedback = "Covers every key point.";
+  graded.questions[5].feedback = "Missing: the loop.";
+  renderQuiz(vi.fn(async () => graded));
+
+  fireEvent.click(submitButton());
+  await screen.findByRole("status");
+
+  expect(within(question(5)).getByText("Correct")).toBeTruthy();
+  expect(within(question(5)).getByText("Covers every key point.")).toBeTruthy();
+  expect(within(question(6)).getByText("Missed")).toBeTruthy();
+  expect(within(question(6)).getByText("Missing: the loop.")).toBeTruthy();
+});
+
+it("says nothing was counted when grading fails, and lets the Learner submit again", async () => {
+  const failure: GradingFailed = {
+    code: "grading_failed",
+    message: "Your written answers couldn't be graded just now. Nothing was counted.",
+  };
+  const submitAction = vi.fn<Submit>().mockResolvedValueOnce(failure).mockResolvedValueOnce(result(6));
+  renderQuiz(submitAction);
+  write(5, "My answer.");
+
+  fireEvent.click(submitButton());
+
+  expect((await screen.findByRole("alert")).textContent).toBe(failure.message);
+  expect(screen.queryByRole("status")).toBeNull();
+  expect(submitButton().textContent).toBe("Submit again");
+  const box = within(question(5)).getByRole("textbox", { name: "Your answer" });
+  expect((box as HTMLTextAreaElement).value).toBe("My answer.");
+
+  fireEvent.click(submitButton());
+
+  expect((await screen.findByRole("status")).textContent).toContain("6 of 6 (100%)");
+  expect(submitAction).toHaveBeenLastCalledWith({ "w01-l01-q05": "My answer." });
+  expect(screen.queryByRole("alert")).toBeNull();
+});
+
 it("says so and lets the Learner try again when submitting fails", async () => {
   const submitAction = vi
-    .fn<(answers: QuizAnswers) => Promise<LessonQuizResult>>()
+    .fn<Submit>()
     .mockRejectedValueOnce(new Error("HTTP 500"))
     .mockResolvedValueOnce(result(6));
   renderQuiz(submitAction);

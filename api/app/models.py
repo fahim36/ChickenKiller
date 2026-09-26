@@ -395,7 +395,9 @@ class Answer(Base):
       check constraint requires the matching one: `lesson_quiz` uses `lesson_quiz_attempt_id`.
       Retakes and Review Rounds add theirs (#8, #9).
     - `response` is the choice ID or the written answer; null means left unanswered.
-    - `correct` is null while a written answer waits for grading (#7).
+    - `correct` is null while a written answer waits for grading. (#7 grades before recording,
+      and records nothing if grading fails, so a Lesson Quiz answer always has it.)
+    - `feedback` is the grader's one line on a graded written answer (app/marking.py).
     """
 
     __tablename__ = "answers"
@@ -420,4 +422,5 @@ class Answer(Base):
     )
     response: Mapped[str | None] = mapped_column(Text)
     correct: Mapped[bool | None] = mapped_column(Boolean)
+    feedback: Mapped[str | None] = mapped_column(Text, comment="The grader's line (written).")
     answered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
