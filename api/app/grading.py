@@ -3,12 +3,17 @@ allows. It only judges an answer; it never creates or changes content.
 
 - `Grader` is the interface the rest of the app uses (`grade(...) -> Grade`). The API gets one
   through the `GraderDep` dependency (app/deps.py); tests swap in a fake.
-- `ClaudeCodeGrader` is the real one (ADR-0006): it runs the Claude Code CLI headless
+- `ClaudeCodeGrader` is the default (ADR-0006): it runs the Claude Code CLI headless
   (`claude -p`) on the API's own machine, so grading uses the Claude plan signed in there. One
   run per answer, with a JSON-schema structured output of `{passed, feedback}`. Every run's
   token use and cost is logged. Without the CLI (`find_claude` finds none) every grading fails
   with `GradingFailed`, which the API turns into 503 `grading_failed` and the Learner can
   resubmit.
+- `ChatCompletionsGrader` grades with an LLM provider's key instead, through an OpenAI-style
+  `/chat/completions` endpoint (NVIDIA's, for Nemotron). A Learner can save their own key in
+  Settings (app/llm_keys.py, stored encrypted); without one, the Admin's saved key is used, and
+  without that, the CLI. The same prompt and the same `{passed, feedback}` reply, read from the
+  message text.
 
 The model, the prompt, the command's flags and the limits are the constants below: change them
 here.
@@ -26,9 +31,12 @@ import re
 import shutil
 import subprocess
 import tempfile
-from collections.abc import Mapping
+import time
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, Protocol
+
+import httpx
 
 logger = logging.getLogger(__name__)
 
@@ -271,3 +279,130 @@ def _error_message(result: Mapping[str, Any] | None, stderr: str) -> str:
 
 def grader_from_config(claude_bin: str) -> Grader:
     return ClaudeCodeGrader(find_claude(claude_bin))
+
+
+NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1"
+NVIDIA_MODEL = "nvidia/nemotron-3.5-lightning-30b-a3b"
+"""NVIDIA's hosted Nemotron 3.5 Lightning (30B MoE, 3B active): small and fast, like Haiku."""
+
+CHAT_TIMEOUT_SECONDS = 30.0
+"""A provider call. NVIDIA's free endpoint answers in about a second, but sometimes queues a
+request for a minute or more: past this, the next grader in line takes over (`FallbackGrader`)."""
+
+CHAT_REPLY_FORMAT = (
+    "\n\nReply with only a JSON object and nothing else: "
+    '{"passed": true or false, "feedback": "<one line>"}'
+)
+
+_THINKING = re.compile(r"<think>.*?</think>", re.DOTALL | re.IGNORECASE)
+_JSON_OBJECT = re.compile(r"\{[^{}]*\}", re.DOTALL)
+
+
+def parse_chat_grade(text: str) -> Grade:
+    """The Grade in a chat model's reply: the last JSON object in it that has `passed` and
+    `feedback`, after any `<think>` block. Raises GradingFailed when there is none."""
+    for candidate in reversed(_JSON_OBJECT.findall(_THINKING.sub("", text))):
+        try:
+            data = json.loads(candidate)
+        except ValueError:
+            continue
+        passed, feedback = data.get("passed"), data.get("feedback")
+        if isinstance(passed, bool) and isinstance(feedback, str):
+            return Grade(passed=passed, feedback=" ".join(feedback.split())[:MAX_FEEDBACK_CHARS])
+    raise GradingFailed("the reply has no {passed, feedback} object")
+
+
+class ChatCompletionsGrader:
+    """Grades with one `/chat/completions` call per answer to an OpenAI-style endpoint, with the
+    caller's `api_key`. `client` is the seam tests fake (an `httpx.Client` with a mock
+    transport)."""
+
+    def __init__(
+        self,
+        api_key: str,
+        *,
+        base_url: str = NVIDIA_BASE_URL,
+        model: str = NVIDIA_MODEL,
+        client: httpx.Client | None = None,
+    ) -> None:
+        self._api_key = api_key
+        self._url = base_url.rstrip("/") + "/chat/completions"
+        self.model = model
+        self._client = client or httpx.Client(timeout=CHAT_TIMEOUT_SECONDS)
+
+    def grade(self, prompt: str, model_answer: Mapping[str, Any], answer: str) -> Grade:
+        body = {
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": SYSTEM_PROMPT + CHAT_REPLY_FORMAT},
+                {"role": "user", "content": build_prompt(prompt, model_answer, answer)},
+            ],
+            "temperature": 0,
+            "max_tokens": 300,
+            "stream": False,
+            # Nemotron thinks at length by default (a minute, and often out of tokens before it
+            # answers); a checklist needs none. Answers then take about a second.
+            "chat_template_kwargs": {"enable_thinking": False},
+        }
+        started = time.monotonic()
+        try:
+            response = self._client.post(
+                self._url, json=body, headers={"Authorization": f"Bearer {self._api_key}"}
+            )
+        except httpx.TimeoutException as error:
+            _log_failure({"error": "timeout", "model": self.model})
+            raise GradingFailed(
+                f"the provider timed out after {CHAT_TIMEOUT_SECONDS:g} s"
+            ) from error
+        except httpx.HTTPError as error:
+            _log_failure({"error": type(error).__name__, "model": self.model})
+            raise GradingFailed(
+                f"the provider couldn't be reached: {type(error).__name__}"
+            ) from error
+        if response.status_code != 200:
+            # Never log the body of a 401/403 in full: it can echo request details.
+            _log_failure({"error": f"http {response.status_code}", "model": self.model})
+            raise GradingFailed(f"the provider answered HTTP {response.status_code}")
+        try:
+            result = response.json()
+            text = result["choices"][0]["message"]["content"] or ""
+        except (ValueError, KeyError, IndexError, TypeError) as error:
+            _log_failure({"error": "unparseable response", "model": self.model})
+            raise GradingFailed("the provider's response couldn't be read") from error
+        usage = result.get("usage") or {}
+        logger.info(
+            "grading_call %s",
+            json.dumps(
+                {
+                    "model": self.model,
+                    "input_tokens": usage.get("prompt_tokens", 0),
+                    "output_tokens": usage.get("completion_tokens", 0),
+                    "duration_ms": round((time.monotonic() - started) * 1000),
+                }
+            ),
+        )
+        try:
+            return parse_chat_grade(text)
+        except GradingFailed:
+            _log_failure({"error": "no grade in the reply", "model": self.model})
+            raise
+
+
+class FallbackGrader:
+    """Tries each grader in turn until one grades: a key's provider may be down or slow, and
+    the next in line (the Admin's key, then the CLI) still grades. Raises the last
+    GradingFailed when every one fails."""
+
+    def __init__(self, graders: Sequence[Grader]) -> None:
+        assert graders, "at least one grader"
+        self.graders = list(graders)
+
+    def grade(self, prompt: str, model_answer: Mapping[str, Any], answer: str) -> Grade:
+        failure: GradingFailed | None = None
+        for grader in self.graders:
+            try:
+                return grader.grade(prompt, model_answer, answer)
+            except GradingFailed as error:
+                failure = error
+        assert failure is not None
+        raise failure

@@ -17,8 +17,10 @@
   `datetime.now`, so tests override `get_now` with a clock they control.
 - `QuizRandom`: the random source that draws a quiz's and a Retake's Questions. Tests override
   `get_quiz_rng` with a seeded one.
-- `GraderDep`: the `Grader` that grades written answers (app/grading.py), set on the app by
-  `create_app`. Pass it to `marking.mark` / `mark_all`. Tests override `get_grader` with a fake.
+- `GraderDep`: the `Grader` that grades the signed-in Learner's written answers: their own LLM
+  key's, else the Admin's, else the app's default set by `create_app` (app/llm_keys.py). Pass it
+  to `marking.mark` / `mark_all`. Tests override `get_grader` with a fake.
+- `KeyBoxDep`: encrypts and decrypts saved LLM keys (`LLM_KEY_SECRET`), set by `create_app`.
 """
 
 import random
@@ -29,7 +31,7 @@ from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
-from app import learners, lessons, onboarding, progress
+from app import learners, lessons, llm_keys, onboarding, progress
 from app.auth import Identity, InvalidToken, KeysUnavailable, TokenVerifier
 from app.db import get_session
 from app.grading import Grader
@@ -179,9 +181,25 @@ refused, whatever the browser shows: 409 `lesson_locked` for a Locked Lesson, 40
 new Questions come in Review), 409 `not_active_stack`, or 404."""
 
 
-def get_grader(request: Request) -> Grader:
-    grader: Grader = request.app.state.grader
-    return grader
+def get_key_box(request: Request) -> llm_keys.KeyBox:
+    box: llm_keys.KeyBox = request.app.state.key_box
+    return box
+
+
+KeyBoxDep = Annotated[llm_keys.KeyBox, Depends(get_key_box)]
+
+
+def get_grader(
+    request: Request,
+    learner: CurrentLearner,
+    session: SessionDep,
+    verifier: VerifierDep,
+    box: KeyBoxDep,
+) -> Grader:
+    """The signed-in Learner's grader: their own LLM key, else the Admin's, else the app's
+    default (the Claude Code CLI), each falling back to the next (app/llm_keys.py)."""
+    default: Grader = request.app.state.grader
+    return llm_keys.grader_for(session, box, learner, verifier.settings.admin_emails, default)
 
 
 GraderDep = Annotated[Grader, Depends(get_grader)]

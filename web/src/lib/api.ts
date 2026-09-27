@@ -393,6 +393,57 @@ export interface ActiveStacksIn {
   stack_ids: string[];
 }
 
+/** A saved LLM key, as the API shows it: never the key, only its last four characters. */
+export interface GradingKey {
+  provider: string;
+  model: string;
+  key_hint: string;
+  updated_at: string;
+}
+
+/**
+ * How the Learner's written answers are graded: their own key, the Admin's key (they have
+ * none), or the server's Claude Code CLI. `keys_enabled` is false when the server can't store
+ * keys (no LLM_KEY_SECRET).
+ */
+export interface Grading {
+  key: GradingKey | null;
+  grader: "own_key" | "admin_key" | "server";
+  keys_enabled: boolean;
+  default_model: string;
+}
+
+/** A personal access token for the MCP connector, without the token itself. */
+export interface AccessToken {
+  id: number;
+  name: string;
+  prefix: string;
+  created_at: string;
+  last_used_at: string | null;
+}
+
+/** A just-created token: `token` is in this one response only. */
+export interface NewAccessToken extends AccessToken {
+  token: string;
+}
+
+/** New Questions or a Daily Challenge proposed through the MCP connector (Admin only). */
+export interface Draft {
+  id: number;
+  stack_id: string;
+  kind: "questions" | "challenge";
+  status: "pending" | "accepted" | "rejected" | "exported";
+  author_email: string;
+  note: string;
+  payload: {
+    questions?: ({ id: string; type: string; prompt: string; lesson?: string | null } | string)[];
+    concepts?: { id: string; name: string }[];
+    day?: string;
+  };
+  created_at: string;
+  decided_at: string | null;
+}
+
 export interface Invitation {
   email: string;
   invited_at: string;
@@ -430,7 +481,7 @@ export class ApiError extends Error {
  * Call the API as the signed-in person: every request carries their Clerk session token.
  * A person who signed in but was never invited is sent to /not-invited, a Learner who
  * hasn't picked any Stack yet is sent to /onboarding, and one asking about a Stack that isn't
- * one of their Active Stacks is sent to /settings, where they can activate it. When the API
+ * one of their Active Stacks is sent to /stacks, where they can activate it. When the API
  * can't verify the sign-in (401), or can't check sign-ins at all (a 503 with a plain message,
  * unlike grading's coded 503s), the person is sent to a page that explains it instead of a
  * generic server error.
@@ -466,7 +517,7 @@ async function request(
   if (res.status === 409 && hasCode(detail, "onboarding_needed"))
     redirect("/onboarding");
   if (res.status === 409 && hasCode(detail, "not_active_stack"))
-    redirect("/settings");
+    redirect("/stacks");
   throw new ApiError(res.status, detail, `${method} ${path}`);
 }
 
@@ -529,4 +580,20 @@ export async function apiPut<T>(path: string, body: unknown): Promise<T> {
   const res = await request("PUT", path, body);
   if (res.status === 404) throw new ApiError(404, "Not found", `PUT ${path}`);
   return res.json() as Promise<T>;
+}
+
+/** DELETE on the API. Throws ApiError on any error status, including 404. */
+export async function apiDelete<T = null>(path: string): Promise<T | null> {
+  const res = await request("DELETE", path);
+  if (res.status === 404) throw new ApiError(404, "Not found", `DELETE ${path}`);
+  if (res.status === 204) return null;
+  return res.json() as Promise<T>;
+}
+
+/**
+ * Where a Claude client connects to the MCP connector: `MCP_PUBLIC_URL`, else the API's own
+ * address. Server-side only.
+ */
+export function mcpUrl(): string {
+  return process.env.MCP_PUBLIC_URL ?? `${API_URL}/mcp/`;
 }

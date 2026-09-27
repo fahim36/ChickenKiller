@@ -1,16 +1,24 @@
 import logging
 import uuid
-from datetime import UTC, date
+from collections.abc import AsyncIterator, Callable, Iterator
+from contextlib import asynccontextmanager, contextmanager
+from datetime import UTC, date, datetime
 
-from fastapi import APIRouter, Depends, FastAPI, HTTPException
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, Response
+from mcp.server.transport_security import TransportSecuritySettings
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from app import (
+    access_tokens,
     challenges,
     config,
     grading,
     learners,
     lessons,
+    llm_keys,
     marking,
+    mcp_server,
     onboarding,
     progress,
     quiz,
@@ -22,12 +30,14 @@ from app import (
     updated_lessons,
 )
 from app.auth import TokenVerifier
+from app.db import SessionLocal
 from app.deps import (
     ONBOARDING_NEEDED,
     ActiveStackInPath,
     AdminLearner,
     CurrentLearner,
     GraderDep,
+    KeyBoxDep,
     Now,
     QuizRandom,
     SessionDep,
@@ -35,8 +45,9 @@ from app.deps import (
     VerifierDep,
     get_active_stack_in_path,
     get_current_learner,
+    get_now,
 )
-from app.models import Learner, Question
+from app.models import ContentDraft, Learner, Question
 
 # Everything except the health check: only a signed-in, invited Learner gets in (app/deps.py).
 router = APIRouter(dependencies=[Depends(get_current_learner)])
@@ -802,22 +813,209 @@ def tick_milestone(
     return schemas.MilestoneTickOut(id=milestone_id, ticked=body.ticked)
 
 
+# --- Settings: grading key, access tokens, drafts ---------------------------------------------
+
+
+def _grading(
+    session: Session, learner: Learner, box: llm_keys.KeyBox, admin_emails: frozenset[str]
+) -> schemas.GradingOut:
+    own = llm_keys.summary(session, learner)
+    grader = (
+        "own_key"
+        if own is not None and box.enabled
+        else "admin_key"
+        if box.enabled and llm_keys.admin_has_key(session, admin_emails)
+        else "server"
+    )
+    return schemas.GradingOut(
+        key=schemas.GradingKeyOut.model_validate(own) if own else None,
+        grader=grader,
+        keys_enabled=box.enabled,
+        default_model=grading.NVIDIA_MODEL,
+    )
+
+
+@router.get("/me/grading")
+def get_grading(
+    learner: CurrentLearner, session: SessionDep, verifier: VerifierDep, box: KeyBoxDep
+) -> schemas.GradingOut:
+    """How the Learner's written answers are graded, and their saved key (never the key)."""
+    return _grading(session, learner, box, verifier.settings.admin_emails)
+
+
+@router.put("/me/grading-key")
+def save_grading_key(
+    body: schemas.GradingKeyIn,
+    learner: CurrentLearner,
+    session: SessionDep,
+    verifier: VerifierDep,
+    box: KeyBoxDep,
+    now: Now,
+) -> schemas.GradingOut:
+    """Save (or replace) the Learner's LLM key for grading, encrypted. 503 when the server has
+    no LLM_KEY_SECRET; 422 for a key or model that can't be right."""
+    try:
+        llm_keys.save_key(
+            session, box, learner, body.api_key, now, provider=body.provider, model=body.model
+        )
+    except llm_keys.KeysDisabled as error:
+        raise HTTPException(
+            503, "This server can't store keys yet: the Admin must set LLM_KEY_SECRET."
+        ) from error
+    except llm_keys.BadKey as error:
+        raise HTTPException(422, str(error)) from error
+    return _grading(session, learner, box, verifier.settings.admin_emails)
+
+
+@router.delete("/me/grading-key")
+def remove_grading_key(
+    learner: CurrentLearner, session: SessionDep, verifier: VerifierDep, box: KeyBoxDep
+) -> schemas.GradingOut:
+    llm_keys.remove_key(session, learner)
+    return _grading(session, learner, box, verifier.settings.admin_emails)
+
+
+@router.get("/me/access-tokens")
+def list_access_tokens(
+    learner: CurrentLearner, session: SessionDep
+) -> list[schemas.AccessTokenOut]:
+    return [
+        schemas.AccessTokenOut.model_validate(t)
+        for t in access_tokens.list_tokens(session, learner)
+    ]
+
+
+@router.post("/me/access-tokens", status_code=201)
+def create_access_token(
+    body: schemas.AccessTokenIn, learner: CurrentLearner, session: SessionDep, now: Now
+) -> schemas.NewAccessTokenOut:
+    """A new personal access token for the MCP connector. The token is in this response only."""
+    try:
+        new = access_tokens.create(session, learner, body.name, now)
+    except access_tokens.TooManyTokens as error:
+        raise HTTPException(
+            422, f"You have {access_tokens.MAX_TOKENS} tokens: revoke one first."
+        ) from error
+    return schemas.NewAccessTokenOut(
+        **schemas.AccessTokenOut.model_validate(new.row).model_dump(), token=new.token
+    )
+
+
+@router.delete("/me/access-tokens/{token_id}", status_code=204)
+def revoke_access_token(
+    token_id: int, learner: CurrentLearner, session: SessionDep, now: Now
+) -> Response:
+    try:
+        access_tokens.revoke(session, learner, token_id, now)
+    except access_tokens.TokenNotFound as error:
+        raise HTTPException(404, "Token not found") from error
+    return Response(status_code=204)
+
+
+def _draft_out(draft: ContentDraft, author: str) -> schemas.DraftOut:
+    return schemas.DraftOut(
+        id=draft.id,
+        stack_id=draft.stack_id,
+        kind=draft.kind,
+        status=draft.status,
+        author_email=author,
+        note=draft.note,
+        payload=draft.payload,
+        created_at=draft.created_at,
+        decided_at=draft.decided_at,
+    )
+
+
+@router.get("/admin/drafts")
+def list_drafts(_: AdminLearner, session: SessionDep) -> list[schemas.DraftOut]:
+    """Drafts submitted through the MCP connector, pending first, then newest first."""
+    rows = session.execute(
+        select(ContentDraft, Learner.email)
+        .join(Learner, Learner.id == ContentDraft.learner_id)
+        .order_by((ContentDraft.status != "pending"), ContentDraft.created_at.desc())
+        .limit(200)
+    ).all()
+    return [_draft_out(d, email) for d, email in rows]
+
+
+@router.put("/admin/drafts/{draft_id}")
+def decide_draft(
+    draft_id: int,
+    body: schemas.DraftDecisionIn,
+    _: AdminLearner,
+    session: SessionDep,
+    now: Now,
+) -> schemas.DraftOut:
+    """Accept or reject a pending draft. An accepted one waits for `content-export-drafts`."""
+    draft = session.get(ContentDraft, draft_id)
+    if draft is None:
+        raise HTTPException(404, "Draft not found")
+    if draft.status not in ("pending", "accepted", "rejected"):
+        raise HTTPException(409, "This draft was exported already.")
+    draft.status, draft.decided_at = body.status, now
+    session.commit()
+    author = session.get(Learner, draft.learner_id)
+    return _draft_out(draft, author.email if author else "")
+
+
 def create_app(
-    verifier: TokenVerifier | None = None, grader: grading.Grader | None = None
+    verifier: TokenVerifier | None = None,
+    grader: grading.Grader | None = None,
+    *,
+    key_box: llm_keys.KeyBox | None = None,
+    mcp_session_scope: mcp_server.SessionScope | None = None,
+    mcp_now: Callable[[], datetime] | None = None,
 ) -> FastAPI:
     """The API. Session tokens are checked by `verifier`, by default the one CLERK_* configures;
-    written answers are graded by `grader`, by default the Claude Code CLI (CLAUDE_BIN)."""
+    written answers are graded by `grader`, by default the Claude Code CLI (CLAUDE_BIN), unless
+    the Learner or the Admin saved an LLM key (encrypted by `key_box`, from LLM_KEY_SECRET).
+
+    The MCP connector is mounted at /mcp/, signed in by personal access tokens; its database
+    sessions come from `mcp_session_scope` and its clock from `mcp_now` (tests pass their own)."""
     _configure_logging()
-    app = FastAPI(title="Learning App API")
-    app.state.verifier = verifier or TokenVerifier.from_config()
+    app_verifier = verifier or TokenVerifier.from_config()
+    admin_emails = app_verifier.settings.admin_emails if app_verifier else frozenset[str]()
+    server = mcp_server.build_server(
+        mcp_session_scope or _session_scope, mcp_now or get_now, admin_emails
+    )
+    mcp_app = server.streamable_http_app(
+        streamable_http_path="/",
+        stateless_http=True,
+        json_response=True,
+        # The Host check guards against DNS rebinding, where a web page makes the browser send
+        # the user's cookies to a local server. The connector takes no cookies: every request
+        # needs a bearer token, which a browser never adds by itself. So any host may serve it.
+        transport_security=TransportSecuritySettings(enable_dns_rebinding_protection=False),
+    )
+
+    @asynccontextmanager
+    async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+        async with server.session_manager.run():
+            yield
+
+    app = FastAPI(title="Learning App API", lifespan=lifespan)
+    app.state.verifier = app_verifier
     app.state.grader = grader or grading.grader_from_config(config.CLAUDE_BIN)
+    app.state.key_box = key_box or llm_keys.KeyBox(config.LLM_KEY_SECRETS)
 
     @app.get("/health")
     def health() -> dict[str, str]:
         return {"status": "ok"}
 
     app.include_router(router)
+    app.mount(
+        "/mcp",
+        mcp_server.BearerTokenAuth(
+            mcp_app, mcp_session_scope or _session_scope, mcp_now or get_now, admin_emails
+        ),
+    )
     return app
+
+
+@contextmanager
+def _session_scope() -> Iterator[Session]:
+    with SessionLocal() as session:
+        yield session
 
 
 def _configure_logging() -> None:

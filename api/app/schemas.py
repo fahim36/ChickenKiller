@@ -1,7 +1,7 @@
 import re
 import uuid
 from datetime import date, datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel as _BaseModel
 from pydantic import ConfigDict, field_validator
@@ -500,3 +500,67 @@ class ChallengeAnswerOut(BaseModel):
     outcome: ChallengeOutcome
     question: AnsweredQuestionOut
     challenge: ChallengeOut
+
+
+# --- Settings: grading keys and access tokens -------------------------------------------------
+
+
+class GradingKeyOut(BaseModel):
+    """A saved LLM key as the Learner sees it: never the key, only its last four characters."""
+
+    provider: str
+    model: str
+    key_hint: str
+    updated_at: datetime
+
+
+class GradingOut(BaseModel):
+    """How the Learner's written answers are graded.
+
+    `key` is their own saved key, if any. `grader` is what grades them: `own_key`, `admin_key`
+    (they have none, and the Admin saved one) or `server` (the Claude Code CLI on the API's
+    machine). `keys_enabled` is false when the server can't store keys (no LLM_KEY_SECRET)."""
+
+    key: GradingKeyOut | None
+    grader: Literal["own_key", "admin_key", "server"]
+    keys_enabled: bool
+    default_model: str
+
+
+class GradingKeyIn(BaseModel):
+    provider: Literal["nvidia"] = "nvidia"
+    api_key: str
+    model: str | None = None
+
+
+class AccessTokenOut(BaseModel):
+    id: int
+    name: str
+    prefix: str
+    created_at: datetime
+    last_used_at: datetime | None
+
+
+class NewAccessTokenOut(AccessTokenOut):
+    token: str
+    """The token itself: shown this once."""
+
+
+class AccessTokenIn(BaseModel):
+    name: str = "Claude"
+
+
+class DraftOut(BaseModel):
+    id: int
+    stack_id: str
+    kind: Literal["questions", "challenge"]
+    status: Literal["pending", "accepted", "rejected", "exported"]
+    author_email: str
+    note: str
+    payload: dict[str, Any]
+    created_at: datetime
+    decided_at: datetime | None
+
+
+class DraftDecisionIn(BaseModel):
+    status: Literal["accepted", "rejected"]

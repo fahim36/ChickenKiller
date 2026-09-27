@@ -1,12 +1,13 @@
 "use client";
 
-import { House, Repeat, Settings } from "lucide-react";
+import { House, Layers, Repeat, Settings } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 const LINKS = [
   { href: "/", label: "Home", icon: House },
+  { href: "/stacks", label: "Stacks", icon: Layers },
   { href: "/review", label: "Review", icon: Repeat },
   { href: "/settings", label: "Settings", icon: Settings },
 ] as const;
@@ -17,12 +18,16 @@ export function SiteNav() {
   return (
     <nav aria-label="Main" className="flex items-center gap-1">
       {LINKS.map(({ href, label, icon: Icon }) => {
+        // A Stack's own pages (its Week map, Challenge, Archive) belong to Home; the Stacks
+        // screen is only /stacks itself.
         const current =
           href === "/"
-            ? pathname === "/" || pathname.startsWith("/stacks") || pathname === "/catch-up"
-            : href === "/settings"
-              ? pathname.startsWith("/settings") || pathname.startsWith("/admin")
-              : pathname.startsWith(href);
+            ? pathname === "/" || pathname.startsWith("/stacks/") || pathname === "/catch-up"
+            : href === "/stacks"
+              ? pathname === "/stacks"
+              : href === "/settings"
+                ? pathname.startsWith("/settings") || pathname.startsWith("/admin")
+                : pathname.startsWith(href);
         return (
           <Link
             key={href}

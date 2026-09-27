@@ -54,7 +54,7 @@ it("sends a Learner who hasn't onboarded yet to onboarding", async () => {
   );
 });
 
-it("sends a Learner to settings for a Stack that isn't one of their Active Stacks", async () => {
+it("sends a Learner to the Stacks screen for a Stack that isn't one of their Active Stacks", async () => {
   const detail = {
     code: "not_active_stack",
     message: "This isn't one of your Active Stacks.",
@@ -65,7 +65,7 @@ it("sends a Learner to settings for a Stack that isn't one of their Active Stack
   );
 
   await expect(api("/stacks/data-engineer")).rejects.toThrow(
-    expect.objectContaining({ digest: expect.stringContaining(";/settings;") }),
+    expect.objectContaining({ digest: expect.stringContaining(";/stacks;") }),
   );
 });
 

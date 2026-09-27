@@ -7,7 +7,7 @@ import {
   Map as MapIcon,
   Play,
   Repeat,
-  Settings,
+  Layers,
 } from "lucide-react";
 import Link from "next/link";
 import { redirect, unstable_rethrow } from "next/navigation";
@@ -39,8 +39,8 @@ export default async function Home() {
         description="Today's Daily Challenge for each Stack you study: three Questions, the same for everyone, released at 00:00 UTC."
         actions={
           <Button asChild variant="outline" size="lg">
-            <Link href="/settings">
-              <Settings aria-hidden />
+            <Link href="/stacks">
+              <Layers aria-hidden />
               Change Active Stacks
             </Link>
           </Button>

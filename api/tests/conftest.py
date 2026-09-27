@@ -5,6 +5,7 @@ import shutil
 import subprocess
 import time
 from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -26,6 +27,7 @@ from app.config import normalize_database_url
 from app.db import get_session
 from app.deps import get_grader, get_now
 from app.grading import Grade, GradingFailed
+from app.llm_keys import KeyBox
 from app.main import create_app
 from app.models import Learner, LearnerStack, Stack, Syllabus
 
@@ -458,13 +460,27 @@ def clock() -> FakeClock:
     return FakeClock()
 
 
+TEST_KEY_SECRET = "Yp6kJ6oYt1S6tWm1v1H8Gm0m0Jm5oP8m3hV7lV1z2rA="
+"""A Fernet key for encrypting LLM keys in tests."""
+
+
 @pytest.fixture
 def app(
     session: Session, signing_key: rsa.RSAPrivateKey, grader: FakeGrader, clock: FakeClock
 ) -> FastAPI:
     """The HTTP API, reading and writing through the test session, grading with `grader` and
     telling the time by `clock`."""
-    app = create_app(verifier=TokenVerifier(AUTH_SETTINGS, LocalKeys(signing_key)))
+
+    @contextmanager
+    def test_session_scope() -> Iterator[Session]:
+        yield session  # the test's own session: the MCP connector sees what the test wrote
+
+    app = create_app(
+        verifier=TokenVerifier(AUTH_SETTINGS, LocalKeys(signing_key)),
+        key_box=KeyBox([TEST_KEY_SECRET]),
+        mcp_session_scope=test_session_scope,
+        mcp_now=lambda: clock.now,
+    )
     app.dependency_overrides[get_session] = lambda: session
     app.dependency_overrides[get_grader] = lambda: grader
     app.dependency_overrides[get_now] = lambda: clock.now

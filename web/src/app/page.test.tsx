@@ -38,7 +38,7 @@ it("gives each Active Stack its own card, linking to its Week map", async () => 
     expect(within(card).getByRole("link", { name: "Week map" }).getAttribute("href")).toBe(href);
   }
   expect(screen.getByRole("link", { name: "Change Active Stacks" }).getAttribute("href")).toBe(
-    "/settings",
+    "/stacks",
   );
 });
 

@@ -38,3 +38,11 @@ CLAUDE_BIN = os.environ.get("CLAUDE_BIN", "")
 
 CONTENT_DIR = Path(os.environ.get("CONTENT_DIR", REPO_ROOT / "content"))
 CONTENT_SCHEMA_DIR = Path(os.environ.get("CONTENT_SCHEMA_DIR", CONTENT_DIR / "schema"))
+
+# Grading with an LLM provider's key (app/llm_keys.py). Keys saved in Settings are encrypted
+# with this Fernet key: make one with
+#   python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+# Without it no key can be saved, and grading uses the Claude Code CLI. Changing it makes every
+# saved key unreadable (each Learner saves theirs again). Several keys, comma-separated, rotate:
+# the first encrypts, and any of them decrypts.
+LLM_KEY_SECRETS = [s.strip() for s in os.environ.get("LLM_KEY_SECRET", "").split(",") if s.strip()]

@@ -4,7 +4,7 @@ import { Notice } from "@/components/Notice";
 import { PageHeader } from "@/components/PageHeader";
 import { StackSettingsForm } from "@/components/StackSettingsForm";
 import { api, type Me, type StackSummary } from "@/lib/api";
-import { saveActiveStacks } from "../settings/actions";
+import { saveActiveStacks } from "../stacks/actions";
 
 // A Learner's first sign-in lands here (see app/page.tsx and lib/api.ts). It must not call an
 // endpoint that needs onboarding, or it would redirect to itself.

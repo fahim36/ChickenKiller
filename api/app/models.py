@@ -614,3 +614,67 @@ class Answer(Base):
     correct: Mapped[bool | None] = mapped_column(Boolean)
     feedback: Mapped[str | None] = mapped_column(Text, comment="The grader's line (written).")
     answered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class GradingKey(Base):
+    """A Learner's own LLM provider key for grading their written answers (app/llm_keys.py).
+    The Admin's is used for every Learner who has none. The key is stored only encrypted, and
+    only its last four characters are ever shown back."""
+
+    __tablename__ = "grading_keys"
+
+    learner_id: Mapped[int] = mapped_column(
+        ForeignKey("learners.id", ondelete="CASCADE"), primary_key=True
+    )
+    provider: Mapped[str] = mapped_column(String(20), comment="nvidia")
+    base_url: Mapped[str] = mapped_column(Text)
+    model: Mapped[str] = mapped_column(Text)
+    key_ciphertext: Mapped[str] = mapped_column(Text, comment="Fernet token (LLM_KEY_SECRET).")
+    key_hint: Mapped[str] = mapped_column(String(8), comment="The key's last four characters.")
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class AccessToken(Base):
+    """A personal access token for the MCP connector (app/access_tokens.py): it signs a Claude
+    client in as its Learner, so every draft it submits is theirs. Only a hash is stored; the
+    token itself is shown once, when it is created."""
+
+    __tablename__ = "access_tokens"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    learner_id: Mapped[int] = mapped_column(
+        ForeignKey("learners.id", ondelete="CASCADE"), index=True
+    )
+    name: Mapped[str] = mapped_column(Text)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, comment="SHA-256, hex.")
+    prefix: Mapped[str] = mapped_column(String(12), comment="The token's start, to recognise it.")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class ContentDraft(Base):
+    """New Questions or a Daily Challenge proposed through the MCP connector (app/mcp_server.py),
+    waiting for the Admin. Content lives in git (ADR-0004), so a draft changes nothing by
+    itself: `content-export-drafts` writes accepted drafts out for /update-syllabus and
+    /write-challenges to merge and check."""
+
+    __tablename__ = "content_drafts"
+    __table_args__ = (
+        CheckConstraint("kind IN ('questions', 'challenge')", name="draft_kind"),
+        CheckConstraint(
+            "status IN ('pending', 'accepted', 'rejected', 'exported')", name="draft_status"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    learner_id: Mapped[int] = mapped_column(
+        ForeignKey("learners.id", ondelete="CASCADE"), index=True, comment="The author."
+    )
+    stack_id: Mapped[str] = mapped_column(ID)
+    kind: Mapped[str] = mapped_column(String(20))
+    payload: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    note: Mapped[str] = mapped_column(Text, server_default="")
+    status: Mapped[str] = mapped_column(String(20), server_default="pending")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
