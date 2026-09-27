@@ -128,6 +128,8 @@ def test_today_s_challenge_is_the_one_dated_today_utc(learner: TestClient) -> No
         "prompt": "Question 1?",
         "choices": [{"id": "a", "text": "Right"}, {"id": "b", "text": "Wrong"}],
         "retired": False,
+        "retired_reason": None,
+        "replaced_by": None,
         "outcome": None,
         "answered": None,
     }
@@ -403,6 +405,12 @@ def test_a_retired_question_can_t_be_answered_and_isn_t_scored(
         "prompt": "Explain 7.",
         "choices": [],
         "retired": True,
+        "retired_reason": "Out of date.",
+        "replaced_by": {
+            "question_id": "w01-l01-q09",
+            "challenge_number": None,
+            "challenge_label": None,
+        },
         "outcome": None,
         "answered": None,
     }
@@ -443,14 +451,15 @@ def test_a_play_started_on_its_day_can_be_finished_after_midnight_but_not_on_its
     assert today(learner)["challenge"]["number"] == 2
 
 
-def test_a_past_challenge_the_learner_never_started_is_not_today_s(
+def test_a_past_challenge_can_still_be_played_but_not_on_its_day(
     session: Session, learner: TestClient, clock: FakeClock
 ) -> None:
-    """Playing past Challenges is the Archive's (#19)."""
+    """From the Archive (#19, test_archive.py)."""
     clock.set(datetime(2026, 1, 2, 0, 0, tzinfo=UTC))
 
-    assert code(answer(learner, MC1, "a")) == (409, "challenge_not_today")
-    assert challenge_answers(session) == []
+    play_all(learner)
+
+    assert the_play(session).on_its_day is False
 
 
 # --- Review --------------------------------------------------------------------------------------

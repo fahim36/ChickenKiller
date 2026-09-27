@@ -1,4 +1,4 @@
-"""Daily Challenges, as imported (#16) and played (#17).
+"""Daily Challenges, as imported (#16), played (#17) and archived (#19).
 
 **The Admin's view** (`challenges_ahead`): how far ahead each Stack's Challenges are written. It
 only counts Days.
@@ -8,9 +8,11 @@ only counts Days.
 - Only a released Challenge (`is_frozen`: its Day has begun) is ever read for a Learner. An
   Upcoming Challenge's Questions are never sent, and answering one is refused like an unknown
   Challenge (`ChallengeNotFound`).
-- Today's Challenge on a Stack is the one dated today. A Learner can answer today's, or one they
-  have already started (so a play begun at 23:59 can be finished after midnight). Any other past
-  Challenge is the Archive's (#19): `ChallengeNotToday`.
+- Today's Challenge on a Stack is the one dated today. Every released one is in the Stack's
+  Archive (#19), and a Learner can answer any of them: today's, from home or the Archive alike,
+  or a past one. A play is on its Day only if it is finished on the Challenge's own Day, so an
+  Archive play of a past Challenge never counts toward a Streak, though it is scored and its
+  misses are Missed Questions like any first play.
 - **Only the first answer to each Question is scored.** It is an `Answer` with
   `context='daily_challenge'`, linked to the Learner's `ChallengePlay` (created by their first
   answer), so a wrong one is a Missed Question and every one counts as seen. Nothing else from a
@@ -24,11 +26,17 @@ only counts Days.
 - A Retired Question can't be answered (`QuestionRetired`), and the score counts only the
   Questions that can be. Once each of those has its first answer the play is finished: its
   score, its UTC Day and whether that was the Challenge's own Day are set once, for the Streak
-  (#18) and the Result Card.
+  (#18) and the Result Card. A Retired Question is shown with its reason and its replacement, if
+  it has one, linked to the first released Challenge that asks the replacement (none while only
+  an Upcoming one does).
 
 **Streaks and Result Cards** (`streak`, `result_card`, #18). A Streak is never stored: it is
 counted from the plays each time (`streak_length` is the rule), so no import or replay can
 change it. A Result Card is a finished play's score and marks, never its Questions or answers.
+
+**The Archive and Catch-up** (`archive`, `catch_up`, #19): every released Challenge of a Stack
+with the Learner's play of it, newest first; and, across their Active Stacks, the past ones they
+haven't finished. Catch-up is optional and never blocks anything.
 """
 
 from collections.abc import Collection, Iterable, Sequence
@@ -88,10 +96,6 @@ class ChallengeNotFound(Exception):
     """No such Challenge on the Stack, or it isn't released yet: the same to a Learner."""
 
 
-class ChallengeNotToday(Exception):
-    """A released Challenge that isn't today's, and that the Learner never started."""
-
-
 class QuestionNotInChallenge(Exception):
     def __init__(self, question_id: str) -> None:
         super().__init__(question_id)
@@ -110,11 +114,22 @@ def outcome(correct: bool | None) -> Outcome:
 
 
 @dataclass(frozen=True)
+class Replacement:
+    """The Question that replaces a Retired Question."""
+
+    question_id: str
+    challenge: DailyChallenge | None
+    """The first released Challenge that asks it, or None if none does yet."""
+
+
+@dataclass(frozen=True)
 class ChallengeQuestion:
     question: Question
     """Includes the correct answer: never send it unless `first_try` is set."""
     first_try: Answer | None
     """The Learner's scored answer, if they have given it."""
+    replacement: Replacement | None = None
+    """A Retired Question's replacement, if it has one."""
 
     @property
     def answerable(self) -> bool:
@@ -167,7 +182,7 @@ def challenge_state(
     """The Learner's play of `challenge` (a released one). A play left with nothing to answer,
     because a Question was retired while it was under way, is finished now."""
     play = _play(session, record, challenge.number)
-    state = _state(session, challenge, play)
+    state = _state(session, challenge, play, now)
     if play is not None and play.finished_at is None and _finish_if_done(state, now):
         session.commit()
     return state
@@ -187,7 +202,7 @@ def answer(
     Question is recorded and scored, even when grading it fails (ungraded); any other is marked
     and recorded nowhere.
 
-    Raises ChallengeNotFound, ChallengeNotToday, QuestionNotInChallenge, QuestionRetired,
+    Raises ChallengeNotFound, QuestionNotInChallenge, QuestionRetired,
     NotAChoice or AnswerTooLong, and GradingFailed for an answer that doesn't count; nothing is
     recorded then. The Learner's record on the Stack is locked while grading, so a double
     submission can't be scored twice.
@@ -203,7 +218,7 @@ def answer(
     try:
         challenge = _playable(session, record, number, now)
         play = _play(session, record, number)
-        state = _state(session, challenge, play)
+        state = _state(session, challenge, play, now)
         asked = next((q for q in state.questions if q.question.id == question_id), None)
         if asked is None:
             raise QuestionNotInChallenge(question_id)
@@ -227,7 +242,6 @@ def answer(
             correct, feedback = None, None  # ungraded: the first try is spent
     except (
         ChallengeNotFound,
-        ChallengeNotToday,
         QuestionNotInChallenge,
         QuestionRetired,
         NotAChoice,
@@ -260,7 +274,7 @@ def answer(
         )
     )
     session.flush()
-    state = _state(session, challenge, play)
+    state = _state(session, challenge, play, now)
     _finish_if_done(state, now)
     session.commit()
     return ChallengeAnswer(
@@ -288,17 +302,87 @@ def played_question_ids(session: Session, learner_id: int, stack_id: str) -> lis
     return list(dict.fromkeys(qid for ids in rows for qid in ids))
 
 
-def _playable(session: Session, record: LearnerStack, number: int, now: datetime) -> DailyChallenge:
+# --- The Archive and Catch-up (#19) ----------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class ArchivedChallenge:
+    """A released Challenge in the Archive, with the Learner's play of it, if any."""
+
+    challenge: DailyChallenge
+    play: ChallengePlay | None
+
+    @property
+    def status(self) -> Status:
+        if self.play is None:
+            return "not_started"
+        return "in_progress" if self.play.finished_at is None else "finished"
+
+
+@dataclass(frozen=True)
+class StackCatchUp:
+    record: LearnerStack
+    challenges: list[ArchivedChallenge]
+    """Newest first."""
+
+
+def archive(session: Session, record: LearnerStack, now: datetime) -> list[ArchivedChallenge]:
+    """Every released Challenge of the Learner's Active Stack, back to #1, newest first, with
+    their play of each. An Upcoming Challenge is never in it."""
+    rows = session.execute(
+        select(DailyChallenge, ChallengePlay)
+        .outerjoin(
+            ChallengePlay,
+            (ChallengePlay.stack_id == DailyChallenge.stack_id)
+            & (ChallengePlay.challenge_number == DailyChallenge.number)
+            & (ChallengePlay.learner_id == record.learner_id),
+        )
+        .where(
+            DailyChallenge.stack_id == record.stack_id,
+            DailyChallenge.day <= utc_day(now),  # released (`is_frozen`)
+        )
+        .order_by(DailyChallenge.day.desc())
+    )
+    return [ArchivedChallenge(c, play) for c, play in rows]
+
+
+def catch_up(
+    session: Session, records: Sequence[LearnerStack], now: datetime
+) -> list[StackCatchUp]:
+    """For each of the Learner's Active Stacks, in the order given: the Archive's past
+    Challenges they haven't finished, newest first. Today's is left out: it is home's."""
+    today = utc_day(now)
+    return [
+        StackCatchUp(
+            r,
+            [
+                a
+                for a in archive(session, r, now)
+                if a.challenge.day != today and a.status != "finished"
+            ],
+        )
+        for r in records
+    ]
+
+
+def released_challenge(
+    session: Session, stack_id: str, number: int, now: datetime
+) -> DailyChallenge | None:
+    """Challenge #`number` of the Stack, or None if there is none or it isn't released yet."""
     challenge = session.scalar(
         select(DailyChallenge).where(
-            DailyChallenge.stack_id == record.stack_id, DailyChallenge.number == number
+            DailyChallenge.stack_id == stack_id, DailyChallenge.number == number
         )
     )
-    today = utc_day(now)
-    if challenge is None or not is_frozen(challenge.day, today):
+    if challenge is None or not is_frozen(challenge.day, utc_day(now)):
+        return None
+    return challenge
+
+
+def _playable(session: Session, record: LearnerStack, number: int, now: datetime) -> DailyChallenge:
+    challenge = released_challenge(session, record.stack_id, number, now)
+    if challenge is None:
         raise ChallengeNotFound(number)
-    if challenge.day != today and _play(session, record, number) is None:
-        raise ChallengeNotToday(number)
     return challenge
 
 
@@ -313,7 +397,7 @@ def _play(session: Session, record: LearnerStack, number: int) -> ChallengePlay 
 
 
 def _state(
-    session: Session, challenge: DailyChallenge, play: ChallengePlay | None
+    session: Session, challenge: DailyChallenge, play: ChallengePlay | None, now: datetime
 ) -> ChallengeState:
     questions = _questions(session, challenge.stack_id, challenge.question_ids)
     first: dict[str, Answer] = {}
@@ -323,8 +407,26 @@ def _state(
             for a in session.scalars(select(Answer).where(Answer.challenge_play_id == play.id))
         }
     return ChallengeState(
-        challenge, play, [ChallengeQuestion(q, first.get(q.id)) for q in questions]
+        challenge,
+        play,
+        [ChallengeQuestion(q, first.get(q.id), _replacement(session, q, now)) for q in questions],
     )
+
+
+def _replacement(session: Session, question: Question, now: datetime) -> Replacement | None:
+    if question.replaced_by is None:
+        return None
+    first_asking = session.scalar(
+        select(DailyChallenge)
+        .where(
+            DailyChallenge.stack_id == question.stack_id,
+            DailyChallenge.question_ids.contains([question.replaced_by]),
+            DailyChallenge.day <= utc_day(now),  # released (`is_frozen`)
+        )
+        .order_by(DailyChallenge.number)
+        .limit(1)
+    )
+    return Replacement(question.replaced_by, first_asking)
 
 
 def _finish_if_done(state: ChallengeState, now: datetime) -> bool:

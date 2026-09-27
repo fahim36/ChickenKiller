@@ -140,3 +140,40 @@ it("links to Review, one page across every Active Stack", async () => {
 
   expect(screen.getByRole("link", { name: "Review" }).getAttribute("href")).toBe("/review");
 });
+
+it("links each Active Stack to its Archive", async () => {
+  stubApi({ "/me": ONBOARDED_TWICE });
+
+  render(await Home());
+
+  const card = screen.getByRole("region", { name: "Data Engineer" });
+  expect(within(card).getByRole("link", { name: "Archive" }).getAttribute("href")).toBe(
+    "/stacks/data-engineer/archive",
+  );
+});
+
+it("links to Catch-up with how many past Challenges aren't played, across Active Stacks", async () => {
+  const stack = { challenges: [], stack_name: "" };
+  stubApi({
+    "/me": ONBOARDED_TWICE,
+    "/catch-up": {
+      stacks: [
+        { ...stack, stack_id: "agentic-ai-engineer", count: 2 },
+        { ...stack, stack_id: "data-engineer", count: 1 },
+      ],
+    },
+  });
+
+  render(await Home());
+
+  expect(screen.getByRole("link", { name: "Catch-up" }).getAttribute("href")).toBe("/catch-up");
+  expect(screen.getByText(/3 past Challenges you haven't played/)).toBeTruthy();
+});
+
+it("shows no Catch-up when there's nothing to catch up on", async () => {
+  stubApi({ "/me": ONBOARDED, "/catch-up": { stacks: [] } });
+
+  render(await Home());
+
+  expect(screen.queryByRole("link", { name: "Catch-up" })).toBeNull();
+});

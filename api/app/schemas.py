@@ -364,9 +364,20 @@ class ReviewAnswerOut(BaseModel):
 ChallengeOutcome = Literal["correct", "wrong", "ungraded"]
 
 
+class ReplacementOut(BaseModel):
+    """The Question that replaces a Retired Question (#19). `challenge_number` / `challenge_label`
+    name the first released Daily Challenge that asks it, which is where it links to; both are
+    null while none does (an Upcoming Challenge is never named)."""
+
+    question_id: str
+    challenge_number: int | None
+    challenge_label: str | None
+
+
 class ChallengeQuestionOut(BaseModel):
     """A Question of a Daily Challenge. Until the Learner's first answer, `answered` is null and
-    nothing about its answer is sent. A Retired Question can't be answered: it has no choices.
+    nothing about its answer is sent. A Retired Question can't be answered: it has no choices,
+    and comes with `retired_reason` and, if it has one, its replacement (`replaced_by`).
 
     `outcome` is the first try's: "ungraded" when grading that written answer failed, which
     earns no point."""
@@ -376,6 +387,8 @@ class ChallengeQuestionOut(BaseModel):
     prompt: str
     choices: list[ChoiceOut]
     retired: bool
+    retired_reason: str | None
+    replaced_by: ReplacementOut | None
     outcome: ChallengeOutcome | None
     answered: AnsweredQuestionOut | None
     """The first answer, with the correct answer, Explanation, Sources and Materials."""
@@ -417,6 +430,55 @@ class TodaysChallengeOut(BaseModel):
     day: date
     streak: int
     challenge: ChallengeOut | None
+
+
+class ArchivedChallengeOut(BaseModel):
+    """A released Daily Challenge in the Archive (#19), with how the Learner played it: `status`
+    as in `ChallengeOut`, and the first play's `score` / `out_of` once finished."""
+
+    number: int
+    day: date
+    label: str
+    status: Literal["not_started", "in_progress", "finished"]
+    score: int | None
+    out_of: int | None
+
+
+class ArchiveOut(BaseModel):
+    """An Active Stack's Archive: every released Daily Challenge, back to #1, newest first. An
+    Upcoming Challenge is never in it. `day` is today (UTC)."""
+
+    stack_id: str
+    stack_name: str
+    day: date
+    challenges: list[ArchivedChallengeOut]
+
+
+class StackChallengeOut(BaseModel):
+    """One released Daily Challenge of an Active Stack, from its Archive. `day` is today (UTC):
+    a Challenge whose own Day it isn't is an Archive play, which never counts toward a Streak."""
+
+    stack_id: str
+    stack_name: str
+    day: date
+    challenge: ChallengeOut
+
+
+class CatchUpStackOut(BaseModel):
+    """One Active Stack's Catch-up: its past Daily Challenges the Learner hasn't finished, newest
+    first, and how many (`count`)."""
+
+    stack_id: str
+    stack_name: str
+    count: int
+    challenges: list[ArchivedChallengeOut]
+
+
+class CatchUpOut(BaseModel):
+    """Catch-up across the Learner's Active Stacks, one entry each (`count` 0 when there's
+    nothing to catch up on). Optional: it never blocks anything."""
+
+    stacks: list[CatchUpStackOut]
 
 
 class ChallengeAnswerIn(BaseModel):

@@ -22,6 +22,8 @@ function mc(id: string, prompt: string): ChallengeQuestion {
       { id: "b", text: "Equality" },
     ],
     retired: false,
+    retired_reason: null,
+    replaced_by: null,
     outcome: null,
     answered: null,
   };
@@ -35,6 +37,8 @@ const WRITTEN: ChallengeQuestion = {
   prompt: "Explain the GIL.",
   choices: [],
   retired: false,
+  retired_reason: null,
+  replaced_by: null,
   outcome: null,
   answered: null,
 };
@@ -104,7 +108,13 @@ function result(
 }
 
 function renderFlow(answerAction: AnswerChallengeAction, challenge: DailyChallenge = NEW) {
-  render(<DailyChallengeFlow challenge={challenge} answerAction={answerAction} />);
+  render(
+    <DailyChallengeFlow
+      stackId="agentic-ai-engineer"
+      challenge={challenge}
+      answerAction={answerAction}
+    />,
+  );
 }
 
 function submit() {
@@ -260,9 +270,39 @@ it("skips a Retired Question, which can't be answered", () => {
   const challenge: DailyChallenge = {
     ...played({ "c001-q01": "correct", "c001-q02": "correct" }, { status: "finished", score: 2, out_of: 2 }),
   };
-  challenge.questions[2] = { ...WRITTEN, retired: true };
+  challenge.questions[2] = { ...WRITTEN, retired: true, retired_reason: "Out of date." };
   renderFlow(vi.fn(), challenge);
 
   expect(screen.getByText("Played: 2/2")).toBeTruthy();
-  expect(screen.getByText(/Retired: it can't be answered/)).toBeTruthy();
+  expect(
+    screen.getByText(/Retired: Out of date\. It can't be answered and isn't scored\./),
+  ).toBeTruthy();
+  expect(screen.queryByRole("group")).toBeNull();
+});
+
+it("links a Retired Question to the Challenge that asks its replacement", () => {
+  const challenge = played({ "c001-q01": "correct" }, { status: "finished", score: 1, out_of: 1 });
+  challenge.questions[1] = {
+    ...Q2,
+    retired: true,
+    retired_reason: "Out of date.",
+    replaced_by: {
+      question_id: "c009-q01",
+      challenge_number: 9,
+      challenge_label: "Agentic AI Engineer #9 · 5 Oct",
+    },
+  };
+  challenge.questions[2] = {
+    ...WRITTEN,
+    retired: true,
+    retired_reason: "Wrong.",
+    replaced_by: { question_id: "c010-q01", challenge_number: null, challenge_label: null },
+  };
+  renderFlow(vi.fn(), challenge);
+
+  expect(
+    screen.getByRole("link", { name: "Agentic AI Engineer #9 · 5 Oct" }).getAttribute("href"),
+  ).toBe("/stacks/agentic-ai-engineer/archive/9");
+  const unlinked = screen.getByText(/Retired: Wrong\..*A newer Question replaces it\./);
+  expect(within(unlinked).queryByRole("link")).toBeNull();
 });

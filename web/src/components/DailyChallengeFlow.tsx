@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { type FormEvent, useState } from "react";
 import { Inline } from "@/components/Inline";
 import { AnsweredQuestionDetail } from "@/components/MissedQuestions";
@@ -26,17 +27,21 @@ const OUTCOME_LABELS: Record<ChallengeOutcome, string> = {
 };
 
 /**
- * Today's Daily Challenge, answered one Question at a time. The API scores only the first
+ * A Daily Challenge, today's or one from the Archive, answered one Question at a time. The API scores only the first
  * answer to each Question; after each one the Learner sees the result, the Explanation and
  * every Source. A written answer takes a while to grade ("Grading…"). If grading a first answer
  * fails, that Question is ungraded (no point, ever) and the Learner can resubmit it for feedback
  * only. Once finished, the page sums up the score, with the Result Card to copy and share, and
- * offers a replay, which is marked the same way but changes nothing. A Retired Question is skipped: it can't be answered.
+ * offers a replay, which is marked the same way but changes nothing. A Retired Question is
+ * skipped: it can't be answered. The summary shows its reason and links to its replacement, if
+ * it has one (#19).
  */
 export function DailyChallengeFlow({
+  stackId,
   challenge: initial,
   answerAction,
 }: {
+  stackId: string;
   challenge: DailyChallenge;
   answerAction: AnswerChallengeAction;
 }) {
@@ -98,16 +103,26 @@ export function DailyChallengeFlow({
   }
 
   return (
-    <Summary challenge={challenge} answerAction={answerAction} onReplay={() => setReplaying(true)} />
+    <Summary
+      stackId={stackId}
+      challenge={challenge}
+      answerAction={answerAction}
+      onReplay={() => setReplaying(true)}
+    />
   );
 }
 
-/** A finished Challenge: the score, its Result Card, each Question's first try, and the replay. */
+/**
+ * A finished Challenge: the score, its Result Card, each Question's first try, and the replay. A
+ * Retired Question shows why it was retired and links to its replacement.
+ */
 function Summary({
+  stackId,
   challenge,
   answerAction,
   onReplay,
 }: {
+  stackId: string;
   challenge: DailyChallenge;
   answerAction: AnswerChallengeAction;
   onReplay: () => void;
@@ -124,15 +139,18 @@ function Summary({
         {challenge.questions.map((q) => (
           <li key={q.id}>
             {q.outcome === null ? (
-              <p>
-                <Inline text={q.prompt} />{" "}
-                <span className="muted">{q.retired ? "Retired: it can't be answered." : ""}</span>
-              </p>
+              <>
+                <p>
+                  <Inline text={q.prompt} />
+                </p>
+                {q.retired && <Retired question={q} stackId={stackId} />}
+              </>
             ) : (
               <>
                 <p>
                   <strong>{OUTCOME_LABELS[q.outcome]}</strong>
                 </p>
+                {q.retired && <Retired question={q} stackId={stackId} />}
                 {q.answered && <AnsweredQuestionDetail question={q.answered} />}
                 {q.outcome === "ungraded" && q.answered && (
                   <Resubmit
@@ -156,6 +174,35 @@ function Summary({
         </span>
       </p>
     </section>
+  );
+}
+
+/**
+ * Why a Question was retired, and where its replacement is: the first released Challenge that
+ * asks it, in the Stack's Archive. A replacement no released Challenge asks yet has no link.
+ */
+function Retired({ question, stackId }: { question: ChallengeQuestion; stackId: string }) {
+  const replacement = question.replaced_by;
+  return (
+    <p className="small muted">
+      Retired{question.retired_reason ? `: ${question.retired_reason}` : "."} It can&apos;t be
+      answered and isn&apos;t scored.
+      {replacement &&
+        (replacement.challenge_number !== null ? (
+          <>
+            {" "}
+            Its replacement is in{" "}
+            <Link
+              href={`/stacks/${encodeURIComponent(stackId)}/archive/${replacement.challenge_number}`}
+            >
+              {replacement.challenge_label}
+            </Link>
+            .
+          </>
+        ) : (
+          " A newer Question replaces it."
+        ))}
+    </p>
   );
 }
 
