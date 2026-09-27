@@ -50,7 +50,7 @@ from sqlalchemy.orm import Session, selectinload
 from app.content.challenges import ChallengesAhead, is_frozen
 from app.content.challenges import challenges_ahead as days_ahead
 from app.grading import Grader, GradingFailed
-from app.marking import AnswerTooLong, NotAChoice, mark
+from app.marking import mark
 from app.models import Answer, ChallengePlay, DailyChallenge, LearnerStack, Question, Stack
 from app.review import utc_day
 
@@ -204,9 +204,35 @@ def answer(
 
     Raises ChallengeNotFound, QuestionNotInChallenge, QuestionRetired,
     NotAChoice or AnswerTooLong, and GradingFailed for an answer that doesn't count; nothing is
-    recorded then. The Learner's record on the Stack is locked while grading, so a double
-    submission can't be scored twice.
+    recorded then.
+
+    Grading (up to 45 s) runs before any lock is taken, so the Learner's other answers on the
+    Stack never wait on it. Only recording a first try locks the Learner's record on the Stack,
+    and it checks again under the lock: when a double submission already recorded this
+    Question's first try, this answer is marked like any later one and counts for nothing.
     """
+    challenge = _playable(session, record, number, now)
+    state = _state(session, challenge, _play(session, record, number), now)
+    asked = next((q for q in state.questions if q.question.id == question_id), None)
+    if asked is None:
+        raise QuestionNotInChallenge(question_id)
+    if asked.question.retired:
+        raise QuestionRetired(question_id)
+    question = asked.question
+    if asked.first_try is not None:
+        marked = mark(question, response, grader)
+        return ChallengeAnswer(
+            question, response, outcome(marked.correct), marked.feedback, counted=False, state=state
+        )
+
+    correct: bool | None
+    try:
+        first = mark(question, response, grader)
+        correct, feedback = first.correct, first.feedback
+    except GradingFailed:
+        correct, feedback = None, None  # ungraded: the first try is spent
+
+    session.rollback()  # end the reads; the lock below starts a fresh transaction
     session.execute(
         select(LearnerStack.learner_id)
         .where(
@@ -215,41 +241,16 @@ def answer(
         )
         .with_for_update()
     )
-    try:
-        challenge = _playable(session, record, number, now)
-        play = _play(session, record, number)
-        state = _state(session, challenge, play, now)
-        asked = next((q for q in state.questions if q.question.id == question_id), None)
-        if asked is None:
-            raise QuestionNotInChallenge(question_id)
-        if asked.question.retired:
-            raise QuestionRetired(question_id)
-        if asked.first_try is not None:
-            marked = mark(asked.question, response, grader)
-            session.commit()  # releases the lock; nothing is recorded
-            return ChallengeAnswer(
-                asked.question,
-                response,
-                outcome(marked.correct),
-                marked.feedback,
-                counted=False,
-                state=state,
-            )
-        try:
-            first = mark(asked.question, response, grader)
-            correct, feedback = first.correct, first.feedback
-        except GradingFailed:
-            correct, feedback = None, None  # ungraded: the first try is spent
-    except (
-        ChallengeNotFound,
-        QuestionNotInChallenge,
-        QuestionRetired,
-        NotAChoice,
-        AnswerTooLong,
-        GradingFailed,
-    ):
-        session.rollback()  # releases the lock; nothing was written
-        raise
+    play = _play(session, record, number)
+    state = _state(session, challenge, play, now)
+    asked = next(q for q in state.questions if q.question.id == question_id)
+    if asked.first_try is not None:
+        session.commit()  # releases the lock; another request recorded the first try
+        if correct is None:
+            raise GradingFailed("grading failed, and the first try was already recorded")
+        return ChallengeAnswer(
+            question, response, outcome(correct), feedback, counted=False, state=state
+        )
 
     if play is None:
         play = ChallengePlay(
@@ -278,7 +279,7 @@ def answer(
     _finish_if_done(state, now)
     session.commit()
     return ChallengeAnswer(
-        asked.question, response, outcome(correct), feedback, counted=True, state=state
+        question, response, outcome(correct), feedback, counted=True, state=state
     )
 
 
@@ -479,13 +480,27 @@ def streak_length(challenge_days: Iterable[date], played: Collection[date], toda
 def streak(session: Session, learner_id: int, stack_id: str, now: datetime) -> int:
     """The Learner's Streak on the Stack at `now` (UTC Days). A Day counts only if its play was
     *finished* on the Challenge's own Day (`ChallengePlay.on_its_day`): a play started at 23:59
-    and finished after midnight doesn't count, nor does any play from the Archive (#19)."""
+    and finished after midnight doesn't count, nor does any play from the Archive (#19).
+
+    A Day whose Challenge has every Question retired can't be played, so it is skipped like a
+    Day with no Challenge, unless the Learner had played it already."""
     today = utc_day(now)
-    days = session.scalars(
-        select(DailyChallenge.day).where(
-            DailyChallenge.stack_id == stack_id, DailyChallenge.day <= today
+    retired = set(
+        session.scalars(
+            select(Question.id).where(
+                Question.stack_id == stack_id, Question.retired_reason.is_not(None)
+            )
         )
     )
+    days = [
+        day
+        for day, question_ids in session.execute(
+            select(DailyChallenge.day, DailyChallenge.question_ids).where(
+                DailyChallenge.stack_id == stack_id, DailyChallenge.day <= today
+            )
+        )
+        if not set(question_ids) <= retired
+    ]
     played = set(
         session.scalars(
             select(DailyChallenge.day)
@@ -501,7 +516,7 @@ def streak(session: Session, learner_id: int, stack_id: str, now: datetime) -> i
             )
         )
     )
-    return streak_length(days, played, today)
+    return streak_length({*days, *played}, played, today)
 
 
 RESULT_MARKS: dict[Outcome, str] = {"correct": "✅", "wrong": "❌", "ungraded": "⬜"}

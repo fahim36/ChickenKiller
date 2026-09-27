@@ -12,7 +12,7 @@ rules that span several items.
 **The Question Bank** is checked against the Stack's newest Syllabus version: a Question's
 Lesson tag and Materials resolve there. It is also held to what is committed, the git
 `--baseline` (default `HEAD`, which is what the pre-commit hook needs; CI passes a pull
-request's base), read by `app.content.baseline`:
+request's base, or on a push the commit before it), read by `app.content.baseline`:
 
 - a committed Question is never deleted, and never changes except by adding `retired` or
   changing its Lesson tag; a retirement is never undone or edited;

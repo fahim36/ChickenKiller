@@ -12,6 +12,7 @@ vi.mock("@clerk/nextjs/server", () => ({
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 it("sends a first sign-in to onboarding", async () => {
@@ -36,7 +37,7 @@ it("gives each Active Stack its own card, linking to its Week map", async () => 
     const card = screen.getByRole("region", { name });
     expect(within(card).getByRole("link", { name: "Week map" }).getAttribute("href")).toBe(href);
   }
-  expect(screen.getByRole("link", { name: "Add or drop Stacks" }).getAttribute("href")).toBe(
+  expect(screen.getByRole("link", { name: "Change Active Stacks" }).getAttribute("href")).toBe(
     "/settings",
   );
 });
@@ -88,6 +89,25 @@ it("shows each Active Stack's Challenge for today, or says there is none", async
   const data = screen.getByRole("region", { name: "Data Engineer" });
   expect(within(data).getByText("No Challenge today")).toBeTruthy();
   expect(within(data).queryByRole("link", { name: "Play" })).toBeNull();
+});
+
+it("says when today's Challenge couldn't be loaded, instead of \"No Challenge today\"", async () => {
+  const fetch = stubApi({ "/me": ONBOARDED_TWICE });
+  const stubbed = fetch.getMockImplementation()!;
+  fetch.mockImplementation(async (url: string) =>
+    new URL(url).pathname === "/stacks/data-engineer/challenges/today"
+      ? Response.json({ detail: "boom" }, { status: 500 })
+      : stubbed(url),
+  );
+  vi.spyOn(console, "error").mockImplementation(() => {});
+
+  render(await Home());
+
+  for (const name of ["Agentic AI Engineer", "Data Engineer"]) {
+    const card = screen.getByRole("region", { name });
+    expect(within(card).getByRole("alert").textContent).toContain("couldn't be loaded");
+    expect(within(card).queryByText("No Challenge today")).toBeNull();
+  }
 });
 
 it.each([

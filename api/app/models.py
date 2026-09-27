@@ -157,8 +157,8 @@ class Lesson(Base):
     content_hash: Mapped[str | None] = mapped_column(
         String(64),
         comment=(
-            "The Lesson's content as content-diff compares it (fields, Week), plus question_ids. "
-            "Equal across versions means unchanged."
+            "The Lesson's content as content-diff compares it (fields, Week). Equal across "
+            "versions means its own content is unchanged."
         ),
     )
     question_ids: Mapped[list[str]] = mapped_column(

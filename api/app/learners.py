@@ -1,7 +1,7 @@
 """Who may use the app: the Admin's invitations, and the Learner created on first sign-in."""
 
 from collections.abc import Sequence
-from datetime import UTC, datetime
+from datetime import datetime
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -27,10 +27,12 @@ def normalize_email(email: str) -> str:
     return email.strip().lower()
 
 
-def sign_in(session: Session, identity: Identity, admin_emails: frozenset[str]) -> Learner:
+def sign_in(
+    session: Session, identity: Identity, admin_emails: frozenset[str], now: datetime
+) -> Learner:
     """The signed-in person's Learner, created on their first sign-in if they were invited.
 
-    The Admin is always let in. Accepting marks the invitation as no longer pending.
+    The Admin is always let in. Accepting marks the invitation as no longer pending, at `now`.
     """
     learner = _learner_for(session, identity.clerk_user_id)
     if learner is not None:
@@ -51,7 +53,7 @@ def sign_in(session: Session, identity: Identity, admin_emails: frozenset[str]) 
             raise
         return existing
     if invitation is not None and invitation.accepted_at is None:
-        invitation.accepted_at = datetime.now(UTC)
+        invitation.accepted_at = now
     session.commit()
     return learner
 

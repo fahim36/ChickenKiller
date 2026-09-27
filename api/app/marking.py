@@ -12,11 +12,14 @@ Quiz, #8's Retakes and #9's Review).
 - Unanswered (`None`, or a blank written answer): missed, with no feedback and no grading call.
 
 Callers that mark several answers should use `mark_all`, which refuses a bad choice or an
-overlong answer before any grading call is paid for.
+overlong answer before any grading call is paid for, then grades the written answers in
+parallel: a grading call takes seconds, so two written answers take about as long as one.
 """
 
 from collections.abc import Mapping, Sequence
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
+from typing import Any
 
 from app.grading import MAX_ANSWER_CHARS, Grader, GradingFailed
 from app.models import Question
@@ -59,22 +62,54 @@ def mark_all(
 ) -> dict[str, Marked]:
     """Mark each Question's response (a Question left out of `responses` is unanswered), keyed
     by Question ID in the order given. Multiple choice is marked first and every written answer's
-    length checked, before any grading call; any exception from `mark` propagates: all or
-    nothing."""
+    length checked, before any grading call; the written answers are then graded at the same
+    time. Any exception from `mark` propagates (the first Question's, in the order given): all
+    or nothing."""
     for q in questions:
         response = responses.get(q.id)
         if q.type == "written" and response is not None and len(response) > MAX_ANSWER_CHARS:
             raise AnswerTooLong(q.id)
-    order = sorted(questions, key=lambda q: q.type == "written")
-    marked = {q.id: mark(q, responses.get(q.id), grader) for q in order}
+    marked = {q.id: mark(q, responses.get(q.id), grader) for q in questions if q.type != "written"}
+    written = [q for q in questions if q.type == "written"]
+    if len(written) > 1:
+        # Only the grading call runs on the threads: the Questions' attributes are read here,
+        # since an ORM session must not be used from several threads.
+        calls = [(q, responses.get(q.id)) for q in written]
+        with ThreadPoolExecutor(max_workers=len(calls)) as pool:
+            futures = [
+                pool.submit(_mark_written_detached, *_detach(q, r), grader) for q, r in calls
+            ]
+        for q, future in zip(written, futures, strict=True):
+            marked[q.id] = future.result()
+    else:
+        marked.update({q.id: mark(q, responses.get(q.id), grader) for q in written})
     return {q.id: marked[q.id] for q in questions}
 
 
+def _detach(
+    question: Question, response: str | None
+) -> tuple[str, str, Mapping[str, Any], str | None]:
+    return question.id, question.prompt, question.model_answer or {}, response
+
+
 def _mark_written(question: Question, response: str | None, grader: Grader) -> Marked:
+    assert question.model_answer is not None, f"{question.id} has no Model Answer"
+    return _mark_written_detached(
+        question.id, question.prompt, question.model_answer, response, grader
+    )
+
+
+def _mark_written_detached(
+    question_id: str,
+    prompt: str,
+    model_answer: Mapping[str, Any],
+    response: str | None,
+    grader: Grader,
+) -> Marked:
     if response is None or not response.strip():
         return Marked(correct=False)
     if len(response) > MAX_ANSWER_CHARS:
-        raise AnswerTooLong(question.id)
-    assert question.model_answer is not None, f"{question.id} has no Model Answer"
-    grade = grader.grade(question.prompt, question.model_answer, response)
+        raise AnswerTooLong(question_id)
+    assert model_answer, f"{question_id} has no Model Answer"
+    grade = grader.grade(prompt, model_answer, response)
     return Marked(correct=grade.passed, feedback=grade.feedback)

@@ -105,17 +105,12 @@ def lesson_questions(folder: ContentFolder) -> dict[str, list[str]]:
 
 def lesson_fingerprints(folder: ContentFolder) -> dict[str, str]:
     """A hash of each Lesson's content, by permanent ID: its fields as `diff_contents` compares
-    them, plus the Questions tagged to it now (`lesson_questions`). The importer stores it with
-    each version, so two versions' fingerprints of a Lesson are equal exactly when the diff
-    wouldn't list it as changed and the version brought it no Question added, retired or
-    re-tagged."""
-    questions = lesson_questions(folder)
+    them (its Week included). The importer stores it with each version, so two versions'
+    fingerprints of a Lesson are equal exactly when the diff wouldn't list it as changed. The
+    Questions tagged to it are stored beside it (`lesson_questions`), not hashed, so a Question
+    that only left the Lesson (retired or re-tagged away) can be told from a new one."""
     return {
-        item_id: hashlib.sha256(
-            json.dumps(
-                {**item.fields, "questions": sorted(questions[item_id])}, sort_keys=True
-            ).encode()
-        ).hexdigest()
+        item_id: hashlib.sha256(json.dumps(item.fields, sort_keys=True).encode()).hexdigest()
         for item_id, item in content_items(folder).items()
         if item.kind == ItemKind.LESSON
     }

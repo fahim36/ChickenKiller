@@ -22,7 +22,7 @@ Daily Challenge #1 in the `learner` fixture, and its plays (#17) are in `PROGRES
 from those plays, and `test_the_streak_survives_an_import` checks it."""
 
 import copy
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from datetime import UTC, datetime
 from typing import Any
 
@@ -680,4 +680,92 @@ def test_an_unchanged_lesson_keeps_its_fingerprint_across_versions(
     ).all()
     by_version = {(lesson, version): h for lesson, version, h in rows}
     assert by_version[("w01-l03", V1)] == by_version[("w01-l03", V2)]
-    assert by_version[("w01-l01", V1)] != by_version[("w01-l01", V2)]
+    # w01-l01 only gained a Question: that is in `question_ids`, not the fingerprint.
+    assert by_version[("w01-l01", V1)] == by_version[("w01-l01", V2)]
+
+
+def import_version_2_editing(
+    session: Session,
+    make_content: ContentFactory,
+    edit: Callable[..., None],
+    *changes: dict[str, Any],
+) -> None:
+    """Import a version 2 that only applies `edit(syllabus, bank)` to version 1, with the
+    changelog `changes`."""
+
+    def version(syllabus: dict[str, Any], bank: dict[str, Any]) -> None:
+        version_1(syllabus, bank)
+        edit(syllabus, bank)
+
+    result = import_folder(
+        session,
+        make_content(
+            as_version(V2, version),
+            extra_banks=V1_BANKS,
+            changelog=make_changelog(V2, V1, *changes),
+        ),
+    )
+    assert (result.status, result.is_current) == ("imported", True)
+
+
+def test_a_completed_lesson_whose_title_changed_is_updated(
+    session: Session, make_content: ContentFactory, learner: TestClient
+) -> None:
+    def retitle(syllabus: dict[str, Any], bank: dict[str, Any]) -> None:
+        syllabus["weeks"][0]["lessons"][0]["title"] = "First lesson, rewritten"
+
+    import_version_2_editing(
+        session, make_content, retitle, changelog_entry("lesson", "w01-l01", "changed")
+    )
+
+    assert lesson_states(learner)["w01-l01"] == "updated"
+    assert lesson_states(learner)["w01-l02"] == "completed"
+    assert owed(session) == []
+
+
+def test_a_completed_lesson_that_only_lost_a_question_is_not_updated(
+    session: Session, make_content: ContentFactory, api: TestClient
+) -> None:
+    """w01-l01 has nine Questions in version 1; version 2 only retires one. That leaves it
+    nothing new for Review, so it stays Completed."""
+
+    def nine_questions(syllabus: dict[str, Any], bank: dict[str, Any]) -> None:
+        version_1(syllabus, bank)
+        bank["questions"].append(mc("w01-l01-q09", "w01-l01", "concept-a"))
+
+    def retire_one(syllabus: dict[str, Any], bank: dict[str, Any]) -> None:
+        nine_questions(syllabus, bank)
+        bank["questions"][0]["retired"] = {"reason": "Out of date."}
+
+    import_folder(session, make_content(as_version(V1, nine_questions), extra_banks=V1_BANKS))
+    onboard(api)
+    complete_lessons(session, "w01-l01")
+    result = import_folder(
+        session,
+        make_content(
+            as_version(V2, retire_one), extra_banks=V1_BANKS, changelog=make_changelog(V2, V1)
+        ),
+    )
+    assert (result.status, result.is_current) == ("imported", True)
+
+    assert lesson_states(api)["w01-l01"] == "completed"
+    assert owed(session) == []
+
+
+def fingerprints(session: Session) -> dict[str, str | None]:
+    return {lesson: h for lesson, h in session.execute(select(Lesson.id, Lesson.content_hash))}
+
+
+def test_an_import_fills_in_missing_fingerprints(
+    session: Session, make_content: ContentFactory
+) -> None:
+    folder = make_content(as_version(V1, version_1), extra_banks=V1_BANKS)
+    import_folder(session, folder)
+    stored = fingerprints(session)
+    for lesson in session.scalars(select(Lesson)):
+        lesson.content_hash = None
+    session.flush()
+
+    assert import_folder(session, folder).status == "unchanged"
+
+    assert fingerprints(session) == stored

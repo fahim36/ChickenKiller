@@ -9,9 +9,10 @@ becomes a Completed Lesson only when every Retake is correct.
   as the Lesson Quiz: a written sibling is graded against its Model Answer (#7). Correct: that
   Retake is done, and the last one done completes the Lesson. Wrong: its Explanation, Sources
   and Materials (and the grader's feedback) are shown and another sibling is asked
-  (`quiz.pick_sibling`: unused ones
-  first, then cycling, never the original). If grading fails, nothing is recorded and the
-  Learner answers again.
+  (`quiz.pick_sibling`: unused ones first, then cycling, never the original). A Concept with
+  no sibling left, because they were retired after the content check, asks the original
+  again, so no Retake is ever skipped. If grading fails, nothing is recorded and the Learner
+  answers again.
 - Siblings come from the Stack's Question Bank, and are never Retired Questions.
 - Every answer is an `Answer` with `context='retake'`, so a wrong sibling is a Missed Question
   too (`quizzes.missed_questions`).
@@ -126,9 +127,7 @@ def open_retakes(
     )
     for question_id in sorted(set(missed) - opened):
         original = _question(session, attempt, question_id)
-        sibling = quiz.pick_sibling(_concept_questions(session, original), original.id, [], rng)
-        if sibling is None:
-            continue  # a Concept with one Question: the content check rules this out
+        sibling = _next_question(session, original, [], rng)
         session.execute(
             insert(Retake)
             .values(
@@ -212,10 +211,7 @@ def answer_retake(
         retake.done_at = now
     else:
         original = _question(session, attempt, retake.missed_question_id)
-        next_id = quiz.pick_sibling(
-            _concept_questions(session, original), original.id, retake.asked_question_ids, rng
-        )
-        assert next_id is not None  # the Retake was opened, so a sibling exists
+        next_id = _next_question(session, original, retake.asked_question_ids, rng)
         retake.asked_question_ids = [*retake.asked_question_ids, next_id]
         next_question = _question(session, attempt, next_id)
     session.flush()
@@ -249,6 +245,17 @@ def _question(session: Session, attempt: LessonQuizAttempt, question_id: str) ->
     return session.scalars(
         select(Question).where(Question.stack_id == attempt.stack_id, Question.id == question_id)
     ).one()
+
+
+def _next_question(
+    session: Session, original: Question, asked: Sequence[str], rng: random.Random
+) -> str:
+    """The Question a Retake of `original` asks next: a sibling (`quiz.pick_sibling`), or the
+    original itself when its Concept has no sibling left. The content check keeps two
+    Questions per Concept, but a sibling can be retired after the check, and the Retake must
+    still be answerable rather than skipped."""
+    sibling = quiz.pick_sibling(_concept_questions(session, original), original.id, asked, rng)
+    return sibling if sibling is not None else original.id
 
 
 def _concept_questions(session: Session, original: Question) -> Sequence[str]:

@@ -10,10 +10,12 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 from httpx2 import Response
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app import quizzes
 from app.content.importer import import_folder
+from app.models import Question
 from tests.conftest import (
     LEARNER_EMAIL,
     ClientFactory,
@@ -343,6 +345,26 @@ def test_a_retake_never_asks_a_retired_sibling(
     asked = [answer_retake(api, retake, "b").json()["next_question"]["id"] for _ in range(3)]
 
     assert asked == [waiting] * 3
+
+
+def test_a_retake_with_no_sibling_left_asks_the_missed_question_again(
+    session: Session, learner: TestClient
+) -> None:
+    """The content check keeps two Questions per Concept, but the only sibling can still be
+    retired after the Retake opened. The Retake then asks the Missed Question itself rather
+    than failing or being skipped."""
+    missed, result = pass_missing_one(learner, "b")
+    [retake] = result["retakes"]
+    [sibling] = concept_siblings(missed)
+    assert retake["question"]["id"] == sibling
+    session.scalars(select(Question).where(Question.id == sibling)).one().retired_reason = "Gone."
+    session.commit()
+
+    wrong = answer_retake(learner, retake, "b")
+    assert wrong.status_code == 200, wrong.text
+    assert wrong.json()["next_question"]["id"] == missed
+
+    assert answer_retake(learner, retake, "a").json()["lesson_completed"] is True
 
 
 def test_wrong_retakes_cycle_through_the_siblings_in_use_and_skip_retired_ones(

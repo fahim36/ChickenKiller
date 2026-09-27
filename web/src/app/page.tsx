@@ -1,6 +1,16 @@
-import { ArrowRight, Archive, CalendarDays, History, Map as MapIcon, Play, Repeat, Settings } from "lucide-react";
+import {
+  ArrowRight,
+  Archive,
+  CalendarDays,
+  CircleAlert,
+  History,
+  Map as MapIcon,
+  Play,
+  Repeat,
+  Settings,
+} from "lucide-react";
 import Link from "next/link";
-import { redirect } from "next/navigation";
+import { redirect, unstable_rethrow } from "next/navigation";
 import { connection } from "next/server";
 import type { ReactNode } from "react";
 import { PageHeader } from "@/components/PageHeader";
@@ -19,11 +29,7 @@ export default async function Home() {
   await connection();
   const me = await api<Me>("/me");
   if (!me || me.needs_onboarding) redirect("/onboarding");
-  const todays = await Promise.all(
-    me.active_stacks.map((stack) =>
-      api<TodaysChallenge>(`/stacks/${encodeURIComponent(stack.id)}/challenges/today`),
-    ),
-  );
+  const todays = await Promise.all(me.active_stacks.map((stack) => loadToday(stack.id)));
   const catchUp = await api<CatchUp>("/catch-up");
 
   return (
@@ -35,7 +41,7 @@ export default async function Home() {
           <Button asChild variant="outline" size="lg">
             <Link href="/settings">
               <Settings aria-hidden />
-              Add or drop Stacks
+              Change Active Stacks
             </Link>
           </Button>
         }
@@ -150,7 +156,24 @@ function CatchUpLine({ catchUp }: { catchUp: CatchUp | null }) {
   );
 }
 
-/** A Stack's Daily Challenge for today (UTC): Play, Continue, or "Played: 2/3 · Replay". */
+/**
+ * A Stack's Daily Challenge for today, or null when it couldn't be loaded: a failed request must
+ * not look like a Day with no Challenge. The API's redirects (sign-in, onboarding) still apply.
+ */
+async function loadToday(stackId: string): Promise<TodaysChallenge | null> {
+  try {
+    return await api<TodaysChallenge>(`/stacks/${encodeURIComponent(stackId)}/challenges/today`);
+  } catch (error) {
+    unstable_rethrow(error);
+    console.error(error);
+    return null;
+  }
+}
+
+/**
+ * A Stack's Daily Challenge for today (UTC): Play, Continue, or "Played: 2/3 · Replay"; "No
+ * Challenge today" when none is written for the Day, and a notice when it couldn't be loaded.
+ */
 function TodaysChallengeLine({
   stackId,
   today,
@@ -158,7 +181,18 @@ function TodaysChallengeLine({
   stackId: string;
   today: TodaysChallenge | null;
 }) {
-  const challenge = today?.challenge;
+  if (!today) {
+    return (
+      <div
+        role="alert"
+        className="flex h-full items-center gap-3 rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-5 text-sm"
+      >
+        <CircleAlert aria-hidden className="size-5 shrink-0 text-destructive" />
+        <p>Today&apos;s Challenge couldn&apos;t be loaded. Reload the page to try again.</p>
+      </div>
+    );
+  }
+  const challenge = today.challenge;
   if (!challenge) {
     return (
       <div className="flex h-full items-center gap-3 rounded-xl border border-dashed px-4 py-5 text-sm">

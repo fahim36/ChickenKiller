@@ -1,9 +1,13 @@
 """`marking.mark`: one answer to one Question, marked the same way wherever it is asked (Lesson
 Quiz, Retakes and Review). No database: Questions are plain objects."""
 
+import threading
+from typing import Any
+
 import pytest
 
-from app.marking import AnswerTooLong, GradingFailed, Marked, NotAChoice, mark
+from app.grading import Grade
+from app.marking import AnswerTooLong, GradingFailed, Marked, NotAChoice, mark, mark_all
 from app.models import Question
 from tests.conftest import FakeGrader
 
@@ -56,3 +60,52 @@ def test_a_grading_failure_is_raised_not_marked_missed() -> None:
 def test_an_overlong_written_answer_is_refused() -> None:
     with pytest.raises(AnswerTooLong):
         mark(WRITTEN, "x" * 4001, FakeGrader())
+
+
+WRITTEN_2 = Question(
+    id="q-w2",
+    type="written",
+    prompt="Explain again.",
+    model_answer={"summary": "S", "key_points": ["three"]},
+)
+
+
+class MeetingGrader(FakeGrader):
+    """Grades only once `parties` calls are in flight together, so sequential grading would
+    time out."""
+
+    def __init__(self, parties: int) -> None:
+        super().__init__()
+        self.barrier = threading.Barrier(parties, timeout=5)
+
+    def grade(self, prompt: str, model_answer: Any, answer: str) -> Grade:
+        self.barrier.wait()
+        return super().grade(prompt, model_answer, answer)
+
+
+def test_mark_all_grades_the_written_answers_at_the_same_time() -> None:
+    grader = MeetingGrader(2)
+    responses = {"q-mc": "a", "q-w": "The right idea.", "q-w2": "Hmm."}
+
+    marked = mark_all([WRITTEN, MULTIPLE_CHOICE, WRITTEN_2], responses, grader)
+
+    assert list(marked) == ["q-w", "q-mc", "q-w2"]
+    assert marked == {
+        "q-w": Marked(True, "Covers every key point."),
+        "q-mc": Marked(correct=True),
+        "q-w2": Marked(False, "Missing: three."),
+    }
+
+
+def test_mark_all_refuses_a_bad_choice_before_any_grading() -> None:
+    grader = FakeGrader()
+    with pytest.raises(NotAChoice):
+        mark_all([WRITTEN, MULTIPLE_CHOICE, WRITTEN_2], {"q-mc": "z", "q-w": "x"}, grader)
+    assert grader.calls == []
+
+
+def test_mark_all_raises_when_any_parallel_grading_fails() -> None:
+    grader = FakeGrader()
+    grader.failing = True
+    with pytest.raises(GradingFailed):
+        mark_all([WRITTEN, WRITTEN_2], {"q-w": "The right idea.", "q-w2": "Also right."}, grader)

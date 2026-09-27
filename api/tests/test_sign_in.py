@@ -1,11 +1,14 @@
 """Every endpoint except the health check needs a valid Clerk session token."""
 
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterator, Sequence
 
 import pytest
 from cryptography.hazmat.primitives.asymmetric import rsa
+from fastapi import FastAPI
+from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
+from starlette.routing import BaseRoute
 
 from tests.conftest import ADMIN_EMAIL, TokenFactory
 
@@ -22,6 +25,38 @@ def test_a_request_without_a_token_is_refused(anonymous: TestClient, path: str) 
 
     assert response.status_code == 401
     assert response.json()["detail"] == "Sign in first."
+
+
+def api_routes(routes: Sequence[BaseRoute], prefix: str = "") -> Iterator[tuple[str, APIRoute]]:
+    """Every API route with its prefix, looking inside included routers (which FastAPI keeps as
+    one entry each, holding the original router)."""
+    for route in routes:
+        if isinstance(route, APIRoute):
+            yield prefix, route
+        elif (router := getattr(route, "original_router", None)) is not None:
+            yield from api_routes(router.routes, prefix + route.include_context.prefix)  # type: ignore[attr-defined]
+
+
+def test_every_route_but_the_health_check_refuses_a_request_without_a_token(
+    app: FastAPI, anonymous: TestClient
+) -> None:
+    """Walks the whole app, so a new route can't be left open by mistake. Path parameters are
+    filled with a placeholder and bodies left empty: the sign-in check comes first."""
+    checked, open_routes = 0, []
+    for prefix, route in api_routes(app.routes):
+        if route.path == "/health":
+            continue
+        path = prefix + route.path_format
+        for name in route.param_convertors:
+            path = path.replace("{" + name + "}", "00000000-0000-0000-0000-000000000000")
+        for method in route.methods or ():
+            response = anonymous.request(method, path, json={})
+            checked += 1
+            if response.status_code != 401:
+                open_routes.append(f"{method} {route.path}: {response.status_code}")
+
+    assert open_routes == []
+    assert checked >= 20  # every route of the main router
 
 
 def test_a_valid_token_is_accepted(anonymous: TestClient, make_token: TokenFactory) -> None:

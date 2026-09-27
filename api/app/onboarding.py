@@ -8,7 +8,7 @@ A Learner always keeps at least one Active Stack once onboarded: saving none is 
 (`NoStack`), so deactivating the last one means activating another in the same save.
 """
 
-from datetime import UTC, datetime
+from datetime import datetime
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -46,9 +46,11 @@ def active_stack(session: Session, learner: Learner, stack_id: str) -> LearnerSt
     return record if record is not None and record.active else None
 
 
-def set_active_stacks(session: Session, learner: Learner, stack_ids: list[str]) -> None:
+def set_active_stacks(
+    session: Session, learner: Learner, stack_ids: list[str], now: datetime
+) -> None:
     """Make exactly `stack_ids` the Learner's Active Stacks: activate each (creating its record
-    the first time) and deactivate the rest, keeping their records and progress.
+    the first time, started at `now`) and deactivate the rest, keeping their records and progress.
 
     At least one Stack must be picked (`NoStack`), and each must be a published Stack
     (`NotPublished`), except that a Learner keeps an Active Stack the Admin has since withdrawn.
@@ -80,7 +82,7 @@ def set_active_stacks(session: Session, learner: Learner, stack_ids: list[str]) 
                 LearnerStack(
                     learner_id=learner.id,
                     stack=stacks[stack_id],
-                    started_at=datetime.now(UTC),
+                    started_at=now,
                     active=True,
                 )
             )

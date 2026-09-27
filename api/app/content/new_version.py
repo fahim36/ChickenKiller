@@ -2,10 +2,11 @@
 
     content-new-version <stack-id> [--content DIR] [--version vYYYY-MM-DD[.N]]
 
-Copies the Stack's newest version folder to a new one named for today (`app.content.versions`),
-changing only the `version` in `syllabus.json`. Edits then go into the copy, so every item the
-update leaves alone keeps its permanent ID by construction. A committed version is never edited:
-the importer refuses changed content under a version it has already imported.
+Copies the Stack's newest version folder to a new one named for today's UTC date
+(`app.content.versions`), changing only the `version` in `syllabus.json`. Edits then go into the
+copy, so every item the update leaves alone keeps its permanent ID by construction. A committed
+version is never edited: the importer refuses changed content under a version it has already
+imported.
 
 It also starts the new version's `changelog.json`, naming the version it follows, with an empty
 `summary` and no `changes`: the content check fails until the update fills them in.
@@ -22,7 +23,7 @@ import json
 import re
 import shutil
 import sys
-from datetime import date
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -84,7 +85,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--version", help="the new version name (default: today's)")
     args = parser.parse_args(argv)
     try:
-        target = new_version(args.content, args.stack, date.today(), args.version)
+        # Today is the UTC Day, like every date in the app (ADR-0005).
+        today = datetime.now(UTC).date()
+        target = new_version(args.content, args.stack, today, args.version)
     except (FileExistsError, ValueError) as e:
         print(f"ERROR   {e}")
         return 1

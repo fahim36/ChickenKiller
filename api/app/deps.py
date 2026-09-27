@@ -94,9 +94,10 @@ def get_current_learner(
     session: SessionDep,
     verifier: VerifierDep,
     identity: Annotated[Identity, Depends(get_identity)],
+    now: Now,
 ) -> Learner:
     try:
-        return learners.sign_in(session, identity, verifier.settings.admin_emails)
+        return learners.sign_in(session, identity, verifier.settings.admin_emails, now)
     except learners.NotInvited as error:
         raise HTTPException(403, NOT_INVITED) from error
 

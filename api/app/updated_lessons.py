@@ -6,13 +6,14 @@ Nothing is copied or rewritten when a version is imported. Progress is keyed by 
 (`progress`), so it all carries over as it is, and everything here is worked out when read by
 comparing the current version with the ones the Learner completed Lessons in:
 
-- **Changed**: a Completed Lesson is changed when its fingerprint in the current version
-  differs from the one in the version it was completed in (`CompletedLesson.syllabus_version`,
-  the version current when their Lesson Quiz started). The fingerprint is `content-diff`'s
-  rule, the Lesson's own fields and its Week, plus the Questions tagged to it when the version
-  was imported (`Lesson.question_ids`). So a Lesson changed and then changed back is not
-  Updated, and a Learner who completed a Lesson on the new version already is not behind on
-  it. A Lesson whose fingerprint is unknown (imported before fingerprints) is taken as
+- **Changed**: a Completed Lesson is changed when, compared with the version it was completed
+  in (`CompletedLesson.syllabus_version`, the version current when their Lesson Quiz started),
+  its fingerprint differs (`content-diff`'s rule: the Lesson's own fields and its Week), or the
+  current version tags a Question to it that that version didn't (`Lesson.question_ids`, as
+  each version was imported). A Question that only left the Lesson, retired or re-tagged away,
+  changes nothing: there is nothing new in it for Review. So a Lesson changed and then changed
+  back is not Updated, and a Learner who completed a Lesson on the new version already is not
+  behind on it. A Lesson whose fingerprint is unknown (not filled in yet) is taken as
   unchanged.
 - **Updated Lessons** are those changed Completed Lessons, plus Lessons behind the Learner that
   aren't Completed (new ones a version added there): `unlocking.lesson_states` decides from
@@ -87,24 +88,25 @@ class RemovedLesson:
 def standing(session: Session, learner_id: int, stack_id: str) -> Standing:
     """The Learner's `Standing` on the Stack's current Syllabus."""
     current = session.execute(
-        select(Lesson.id, Lesson.content_hash)
+        select(Lesson.id, Lesson.content_hash, Lesson.question_ids)
         .join(Stack, Stack.current_syllabus_pk == Lesson.syllabus_pk)
         .where(Stack.id == stack_id)
         .order_by(Lesson.position)
     ).all()
-    lesson_ids = [lesson_id for lesson_id, _ in current]
-    fingerprint_now = dict(current)
+    lesson_ids = [lesson_id for lesson_id, _, _ in current]
+    now = {lesson_id: (fingerprint, set(ids)) for lesson_id, fingerprint, ids in current}
     completed = _completed(session, learner_id, stack_id)
 
-    fingerprint_then = _fingerprints(session, stack_id, completed)
-    changed = {
-        lesson_id
-        for lesson_id in completed.keys() & fingerprint_now.keys()
-        if fingerprint_now[lesson_id] is not None
-        and fingerprint_then.get(lesson_id) is not None
-        and fingerprint_now[lesson_id] != fingerprint_then[lesson_id]
-    }
-    removed = [lesson_id for lesson_id in completed if lesson_id not in fingerprint_now]
+    then = _fingerprints(session, stack_id, completed)
+    changed: set[str] = set()
+    for lesson_id in completed.keys() & now.keys():
+        fingerprint_now, questions_now = now[lesson_id]
+        fingerprint_then, questions_then = then.get(lesson_id, (None, set()))
+        if fingerprint_now is None or fingerprint_then is None:
+            continue
+        if fingerprint_now != fingerprint_then or questions_now - questions_then:
+            changed.add(lesson_id)
+    removed = [lesson_id for lesson_id in completed if lesson_id not in now]
     reached = {
         r for lesson_id in removed if (r := _reached(session, stack_id, lesson_id, lesson_ids))
     }
@@ -210,12 +212,13 @@ def _completed(session: Session, learner_id: int, stack_id: str) -> dict[str, st
 
 def _fingerprints(
     session: Session, stack_id: str, completed: dict[str, str]
-) -> dict[str, str | None]:
-    """Each Completed Lesson's fingerprint in the version it was completed in."""
+) -> dict[str, tuple[str | None, set[str]]]:
+    """Each Completed Lesson's fingerprint and tagged Questions in the version it was completed
+    in."""
     if not completed:
         return {}
     rows = session.execute(
-        select(Lesson.id, Syllabus.version, Lesson.content_hash)
+        select(Lesson.id, Syllabus.version, Lesson.content_hash, Lesson.question_ids)
         .join(Syllabus, Syllabus.pk == Lesson.syllabus_pk)
         .where(
             Syllabus.stack_id == stack_id,
@@ -224,8 +227,8 @@ def _fingerprints(
         )
     ).all()
     return {
-        lesson_id: fingerprint
-        for lesson_id, version, fingerprint in rows
+        lesson_id: (fingerprint, set(question_ids))
+        for lesson_id, version, fingerprint, question_ids in rows
         if completed[lesson_id] == version
     }
 

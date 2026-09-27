@@ -66,6 +66,7 @@ def save_active_stacks(
     learner: CurrentLearner,
     session: SessionDep,
     verifier: VerifierDep,
+    now: Now,
 ) -> schemas.MeOut:
     """Onboarding, and settings later: make `stack_ids` the Learner's Active Stacks. A Stack
     left out is deactivated and keeps its progress; activating it again resumes it.
@@ -73,7 +74,7 @@ def save_active_stacks(
     422 when no Stack is picked (so the last Active Stack can't be deactivated on its own), or
     for a Stack that isn't published (unless it is already Active); nothing changes then."""
     try:
-        onboarding.set_active_stacks(session, learner, body.stack_ids)
+        onboarding.set_active_stacks(session, learner, body.stack_ids, now)
     except onboarding.NoStack as error:
         raise HTTPException(422, "Pick at least one Stack.") from error
     except onboarding.NotPublished as error:

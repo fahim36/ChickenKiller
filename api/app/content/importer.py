@@ -154,6 +154,7 @@ def import_content(
                     )
                 ]
             )
+        _fill_fingerprints(session, existing.pk, content)
         bank = import_bank(session, syllabus.stack.id, content.bank)
         challenges = import_challenges(session, syllabus.stack.id, content.challenges, today)
         return ImportResult(
@@ -199,6 +200,18 @@ def import_content(
         bank,
         challenges,
     )
+
+
+def _fill_fingerprints(session: Session, syllabus_pk: int, content: ContentFolder) -> None:
+    """Give an already-imported version's Lessons their fingerprint where it is missing (a
+    migration cleared it, or it predates fingerprints). The version's files are unchanged, so
+    this is what importing it now would store. Its `question_ids` stay as imported."""
+    fingerprints = lesson_fingerprints(content)
+    for lesson in session.scalars(
+        select(Lesson).where(Lesson.syllabus_pk == syllabus_pk, Lesson.content_hash.is_(None))
+    ):
+        lesson.content_hash = fingerprints.get(lesson.id)
+    session.flush()
 
 
 def import_challenges(

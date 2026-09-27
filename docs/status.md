@@ -43,10 +43,10 @@ Found by the code review of `scaffold-v1` against `main` on 2026-09-27.
 
 - [ ] **No Playwright tests.** [build-plan.md](build-plan.md) asks for one per milestone demo from M2 on.
 - [ ] **No grader eval set.** [build-plan.md](build-plan.md) M4 asks for 30+ labelled written answers and a CI check on agreement.
-- [ ] **Clock reads that bypass `Now`.** `api/app/learners.py:54` and `api/app/onboarding.py:83` call `datetime.now(UTC)` directly.
-- [ ] **Local date.** `api/app/content/new_version.py:87` uses `date.today()` instead of the UTC date (ADR-0005).
-- [ ] **Stale build plan.** [build-plan.md](build-plan.md) still describes the old grading: "pending grade" regraded later, and a score plus missed key points. The grader now returns pass/fail with one line of feedback, and a failure is resubmitted (ADR-0003, ADR-0006).
-- [ ] **Glossary.** The home page says "Add or drop Stacks"; CONTEXT.md says deactivate.
+- [x] **Clock reads that bypass `Now`.** `api/app/learners.py:54` and `api/app/onboarding.py:83` call `datetime.now(UTC)` directly. **Fixed:** `sign_in` and `set_active_stacks` take `now` from the route.
+- [x] **Local date.** `api/app/content/new_version.py:87` uses `date.today()` instead of the UTC date (ADR-0005). **Fixed:** `content-new-version` names the folder for the UTC date.
+- [x] **Stale build plan.** [build-plan.md](build-plan.md) still describes the old grading: "pending grade" regraded later, and a score plus missed key points. The grader now returns pass/fail with one line of feedback, and a failure is resubmitted (ADR-0003, ADR-0006). **Fixed:** M4 now describes pass/fail grading and resubmitting.
+- [x] **Glossary.** The home page says "Add or drop Stacks"; CONTEXT.md says deactivate. **Fixed:** the home page link is now "Change Active Stacks".
 - [ ] **Duplicated code worth tidying.** Judgement calls, not bugs:
   - the answer forms in `ReviewFlow` and `DailyChallengeFlow`;
   - the `status` logic of `ChallengeState` and `ArchivedChallenge`;
@@ -58,19 +58,19 @@ Found by the code review of `scaffold-v1` against `main` on 2026-09-27.
 
 - [ ] **#1: not live.** The app has no public URL yet (see To do).
 - [ ] **#2: link check.** Material links are checked only by the `Content links` workflow (weekly, and on PRs that touch `content/`), not by the pre-commit hook or the main CI job.
-- [ ] **#15/#16: direct pushes.** A push straight to `main` compares content against itself, so CI can't catch an edited or deleted Question or Challenge. Pull requests are checked properly. Fix it by comparing with the previous commit on push, or by requiring PRs into `main`.
+- [x] **#15/#16: direct pushes.** A push straight to `main` compares content against itself, so CI can't catch an edited or deleted Question or Challenge. Pull requests are checked properly. Fix it by comparing with the previous commit on push, or by requiring PRs into `main`. **Fixed:** on a push, CI compares with the commit `main` was at before it (or the parent commit).
 - [ ] **#12/#16: headless untested.** "Runs headless (`claude -p`)" is documented in the README but hasn't been run. "Re-running on unchanged sources changes nothing" is an instruction in the skill, not something a test enforces.
-- [ ] **#13: changed-Lesson test.** The test's "changed Lesson" only gains a Question. No end-to-end test changes a Lesson's title or topics; that path is unit-tested only.
-- [ ] **#17: errors look like "No Challenge today".** If the home page's request for today's Challenge fails, the card still says "No Challenge today".
-- [ ] **#3: route coverage.** The no-token test covers four routes. Every other route is protected by the router-wide dependency, but no test walks all routes.
+- [x] **#13: changed-Lesson test.** The test's "changed Lesson" only gains a Question. No end-to-end test changes a Lesson's title or topics; that path is unit-tested only. **Fixed:** an end-to-end test retitles a Completed Lesson.
+- [x] **#17: errors look like "No Challenge today".** If the home page's request for today's Challenge fails, the card still says "No Challenge today". **Fixed:** a failed request shows "Today's Challenge couldn't be loaded".
+- [x] **#3: route coverage.** The no-token test covers four routes. Every other route is protected by the router-wide dependency, but no test walks all routes. **Fixed:** a test walks every route and checks each refuses a request without a token.
 
 ### Small edge cases
 
-- [ ] **Updated with nothing new.** A Lesson is marked Updated even when a new version only retired Questions or re-tagged them away, so there is nothing new for Review.
-- [ ] **Missed Question with no sibling.** If a Missed Question's Concept has no sibling left, its Retake is skipped. The content check prevents this, but nothing enforces it at runtime.
-- [ ] **All Questions retired.** If every Question of a Day's Challenge is retired, that Day can't be played and breaks the Streak.
-- [ ] **Slow grading holds a lock.** Grading, which takes up to 45 s, runs while the Learner's Stack row is locked, so a second answer on that Stack waits.
-- [ ] **Two Written Questions graded one at a time.** A Lesson Quiz with two written answers takes about 20 s to submit. Grading them in parallel would halve that.
+- [x] **Updated with nothing new.** A Lesson is marked Updated even when a new version only retired Questions or re-tagged them away, so there is nothing new for Review. **Fixed:** a Lesson's fingerprint now hashes only its own content; its Questions are compared separately, and only a new one makes it Updated. Migration 0015 clears the old fingerprints; the next import fills them in.
+- [x] **Missed Question with no sibling.** If a Missed Question's Concept has no sibling left, its Retake is skipped. The content check prevents this, but nothing enforces it at runtime. **Fixed:** the Retake asks the Missed Question itself.
+- [x] **All Questions retired.** If every Question of a Day's Challenge is retired, that Day can't be played and breaks the Streak. **Fixed:** such a Day is skipped by the Streak, like a Day with no Challenge.
+- [x] **Slow grading holds a lock.** Grading, which takes up to 45 s, runs while the Learner's Stack row is locked, so a second answer on that Stack waits. **Fixed:** grading runs first; only recording the first try locks, and it checks again under the lock.
+- [x] **Two Written Questions graded one at a time.** A Lesson Quiz with two written answers takes about 20 s to submit. Grading them in parallel would halve that. **Fixed:** `mark_all` grades them in parallel.
 
 ## To do
 
@@ -83,7 +83,7 @@ Found by the code review of `scaffold-v1` against `main` on 2026-09-27.
 
 ### Next development
 
-- [ ] Fix the review gaps above, starting with the clock reads, the UTC date, the build-plan wording, the error-versus-"No Challenge today" display and the direct-push check.
+- [x] Fix the review gaps above that code can fix (2026-09-27). Still open: Playwright tests, the grader eval set, the duplicated code, the link check outside the weekly workflow, and the owner's steps.
 - [ ] Add Playwright tests for the milestone demos and the grader eval set.
 - [x] **One command to run locally.** `run-app.cmd` rebuilds the Docker images, starts Postgres and the web app in Docker, migrates and imports, and runs the API on the host (README).
 - [x] **Clear sign-in errors.** A 401 from the API goes to `/sign-in-failed` and a sign-in 503 goes to `/sign-in-unavailable`, not a generic server error.

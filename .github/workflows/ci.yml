@@ -45,8 +45,11 @@ jobs:
 
   # The same command as the pre-commit hook: every committed Stack, failing on any error.
   # Material links are checked by content-links.yml, so this job never depends on the network.
-  # On a pull request the Question Bank is held to the PR's base (never deleted or edited), and
-  # "this run" for new Questions' Sources is the day of the PR's last commit, in UTC.
+  # The Question Bank and the Challenges are held to a baseline (never deleted or edited): on a
+  # pull request its base, and on a push the commit `main` was at before the push, so a direct
+  # push can't slip an edit through. A new branch, or a force push whose old tip is gone, falls
+  # back to the parent commit. "This run" for new Questions' Sources is the day of the last
+  # commit, in UTC.
   content:
     runs-on: ubuntu-latest
     steps:
@@ -56,10 +59,15 @@ jobs:
       - uses: astral-sh/setup-uv@v6
       - name: Check every committed Stack
         env:
-          BASE: ${{ github.event.pull_request.base.sha }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          BEFORE: ${{ github.event.before }}
         run: |
+          base=${PR_BASE:-$BEFORE}
+          if [ -z "$base" ] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+            base=$(git rev-parse --verify --quiet HEAD^ || git rev-parse HEAD)
+          fi
           today=$(TZ=UTC git log -1 --date=format-local:%Y-%m-%d --format=%cd HEAD)
-          uv run --locked --project api content-check content --baseline "${BASE:-HEAD}" --today "$today"
+          uv run --locked --project api content-check content --baseline "$base" --today "$today"
 
   web:
     runs-on: ubuntu-latest

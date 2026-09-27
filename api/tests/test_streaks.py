@@ -16,11 +16,12 @@ from datetime import UTC, date, datetime
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app import challenges
 from app.content.importer import import_folder
-from app.models import ChallengePlay
+from app.models import ChallengePlay, Question
 from tests.conftest import (
     CHALLENGE_MIX,
     ContentFactory,
@@ -134,6 +135,23 @@ def test_a_day_with_no_challenge_neither_extends_nor_breaks_it(
     assert streak(learner) == 2
     play(learner, 4)
     assert streak(learner) == 3
+
+
+def test_a_day_whose_questions_were_all_retired_neither_extends_nor_breaks_it(
+    session: Session, learner: TestClient, clock: FakeClock
+) -> None:
+    """Every Challenge here is the same three Questions. Once all three are retired, #4 and #5
+    can't be played, so missing them doesn't break the Streak; #1 and #2, played already,
+    still count."""
+    play(learner, 1)
+    clock.set(at(2))
+    play(learner, 2)
+    for question in session.scalars(select(Question).where(Question.id.in_(CHALLENGE_MIX))):
+        question.retired_reason = "Out of date."
+    session.commit()
+
+    clock.set(at(5))
+    assert streak(learner) == 2
 
 
 def test_a_missed_day_resets_the_streak_and_changes_nothing_else(
