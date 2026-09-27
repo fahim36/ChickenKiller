@@ -35,6 +35,8 @@ const TODAY: TodaysChallenge = {
           { id: "b", text: "Equality" },
         ],
         retired: false,
+        retired_reason: null,
+        replaced_by: null,
         outcome: null,
         answered: null,
       },

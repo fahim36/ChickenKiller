@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
-import { api, type Me, type TodaysChallenge } from "@/lib/api";
+import { api, type CatchUp, type Me, type TodaysChallenge } from "@/lib/api";
 
 /**
  * Home: one card per Active Stack, with its Streak, today's Daily Challenge (Play, Continue, or
- * the score and a Replay) and a link to its Week map, and a link to Review, which spans every
- * Active Stack. A first sign-in has no Active Stack yet, so it goes to onboarding. Each Stack's
+ * the score and a Replay) and links to its Week map and its Archive; a link to Review, which
+ * spans every Active Stack; and, when there are past Challenges not played yet, a link to
+ * Catch-up (#19), which spans every Active Stack too and is optional. A first sign-in has no Active Stack yet, so it goes to onboarding. Each Stack's
  * card is its own section.
  */
 export default async function Home() {
@@ -18,6 +19,7 @@ export default async function Home() {
       api<TodaysChallenge>(`/stacks/${encodeURIComponent(stack.id)}/challenges/today`),
     ),
   );
+  const catchUp = await api<CatchUp>("/catch-up");
 
   return (
     <main>
@@ -32,6 +34,9 @@ export default async function Home() {
               <p>
                 <Link href={`/stacks/${encodeURIComponent(stack.id)}`}>Week map</Link>
               </p>
+              <p>
+                <Link href={`/stacks/${encodeURIComponent(stack.id)}/archive`}>Archive</Link>
+              </p>
             </section>
           </li>
         ))}
@@ -42,6 +47,7 @@ export default async function Home() {
           Practise Missed Questions and past Lessons from all your Stacks, whenever you like.
         </span>
       </p>
+      <CatchUpLine catchUp={catchUp} />
       <p className="small">
         <Link href="/settings">Add or drop Stacks</Link>
       </p>
@@ -56,6 +62,20 @@ export default async function Home() {
 function StreakLine({ streak }: { streak: number }) {
   if (streak === 0) return <p className="small muted">No Streak running</p>;
   return <p className="streak">🔥 {streak}-Day Streak</p>;
+}
+
+/** Catch-up across every Active Stack: the past Challenges not played yet, if any. Optional. */
+function CatchUpLine({ catchUp }: { catchUp: CatchUp | null }) {
+  const count = catchUp?.stacks.reduce((sum, s) => sum + s.count, 0) ?? 0;
+  if (count === 0) return null;
+  return (
+    <p>
+      <Link href="/catch-up">Catch-up</Link>{" "}
+      <span className="small muted">
+        {count} past Challenge{count === 1 ? "" : "s"} you haven&apos;t played. Optional.
+      </span>
+    </p>
+  );
 }
 
 /** A Stack's Daily Challenge for today (UTC): Play, Continue, or "Played: 2/3 · Replay". */

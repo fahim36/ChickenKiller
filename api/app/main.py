@@ -499,10 +499,6 @@ def answer_retake(
 
 # --- Daily Challenges ------------------------------------------------------------------------
 
-CHALLENGE_NOT_TODAY = {
-    "code": "challenge_not_today",
-    "message": "This isn't today's Daily Challenge.",
-}
 QUESTION_RETIRED = {
     "code": "question_retired",
     "message": "This Question was retired, so it can't be answered. It isn't scored.",
@@ -538,11 +534,41 @@ def _challenge_out(stack_name: str, state: challenges.ChallengeState) -> schemas
         out_of=play.out_of if finished and play else None,
         result_card=challenges.result_card(label, state),
         max_answer_chars=grading.MAX_ANSWER_CHARS,
-        questions=[_challenge_question(q) for q in state.questions],
+        questions=[_challenge_question(stack_name, q) for q in state.questions],
     )
 
 
-def _challenge_question(asked: challenges.ChallengeQuestion) -> schemas.ChallengeQuestionOut:
+def _replacement(
+    stack_name: str, replacement: challenges.Replacement | None
+) -> schemas.ReplacementOut | None:
+    if replacement is None:
+        return None
+    c = replacement.challenge
+    return schemas.ReplacementOut(
+        question_id=replacement.question_id,
+        challenge_number=None if c is None else c.number,
+        challenge_label=None if c is None else challenge_label(stack_name, c.number, c.day),
+    )
+
+
+def _archived(
+    stack_name: str, archived: challenges.ArchivedChallenge
+) -> schemas.ArchivedChallengeOut:
+    c, play = archived.challenge, archived.play
+    finished = play is not None and play.finished_at is not None
+    return schemas.ArchivedChallengeOut(
+        number=c.number,
+        day=c.day,
+        label=challenge_label(stack_name, c.number, c.day),
+        status=archived.status,
+        score=play.score if finished and play else None,
+        out_of=play.out_of if finished and play else None,
+    )
+
+
+def _challenge_question(
+    stack_name: str, asked: challenges.ChallengeQuestion
+) -> schemas.ChallengeQuestionOut:
     q, first = asked.question, asked.first_try
     unanswerable = q.retired and first is None
     return schemas.ChallengeQuestionOut(
@@ -553,6 +579,8 @@ def _challenge_question(asked: challenges.ChallengeQuestion) -> schemas.Challeng
         if unanswerable
         else [schemas.ChoiceOut(id=c["id"], text=c["text"]) for c in q.choices or []],
         retired=q.retired,
+        retired_reason=q.retired_reason,
+        replaced_by=_replacement(stack_name, asked.replacement),
         outcome=None if first is None else challenges.outcome(first.correct),
         answered=None if first is None else _answered_question(q, first.response, first.feedback),
     )
@@ -582,6 +610,58 @@ def get_todays_challenge(
     )
 
 
+@router.get("/stacks/{stack_id}/challenges")
+def get_archive(active: ActiveStackInPath, session: SessionDep, now: Now) -> schemas.ArchiveOut:
+    """This Active Stack's Archive (#19): every released Daily Challenge, back to #1, newest
+    first, each with the Learner's status and first score. An Upcoming Challenge is never in it.
+    Any of them can be played (`GET /stacks/{stack_id}/challenges/{number}`)."""
+    stack = active.stack
+    return schemas.ArchiveOut(
+        stack_id=stack.id,
+        stack_name=stack.name,
+        day=review.utc_day(now),
+        challenges=[_archived(stack.name, a) for a in challenges.archive(session, active, now)],
+    )
+
+
+@router.get("/stacks/{stack_id}/challenges/{number}")
+def get_archived_challenge(
+    number: int, active: ActiveStackInPath, session: SessionDep, now: Now
+) -> schemas.StackChallengeOut:
+    """Daily Challenge #`number` from this Active Stack's Archive, as the Learner has played it,
+    exactly as today's is sent (`GET /stacks/{stack_id}/challenges/today`). 404 for one that
+    doesn't exist or isn't released yet."""
+    stack = active.stack
+    challenge = challenges.released_challenge(session, stack.id, number, now)
+    if challenge is None:
+        raise HTTPException(404, "Daily Challenge not found")
+    state = challenges.challenge_state(session, active, challenge, now)
+    return schemas.StackChallengeOut(
+        stack_id=stack.id,
+        stack_name=stack.name,
+        day=review.utc_day(now),
+        challenge=_challenge_out(stack.name, state),
+    )
+
+
+@router.get("/catch-up")
+def get_catch_up(learner: CurrentLearner, session: SessionDep, now: Now) -> schemas.CatchUpOut:
+    """Catch-up (#19): for each of the Learner's Active Stacks, the past Daily Challenges in its
+    Archive they haven't finished (not today's, which is home's), newest first, with a count.
+    Optional: it never blocks anything."""
+    return schemas.CatchUpOut(
+        stacks=[
+            schemas.CatchUpStackOut(
+                stack_id=s.record.stack.id,
+                stack_name=s.record.stack.name,
+                count=len(s.challenges),
+                challenges=[_archived(s.record.stack.name, a) for a in s.challenges],
+            )
+            for s in challenges.catch_up(session, onboarding.active_stacks(session, learner), now)
+        ]
+    )
+
+
 @router.post("/stacks/{stack_id}/challenges/{number}/answers")
 def answer_challenge_question(
     number: int,
@@ -591,8 +671,10 @@ def answer_challenge_question(
     grader: GraderDep,
     now: Now,
 ) -> schemas.ChallengeAnswerOut:
-    """Answer one Question of Daily Challenge #`number`: a choice ID, a written answer, or null.
-    Scoring is the server's. Only the first answer to each Question counts (`counted`); a wrong
+    """Answer one Question of Daily Challenge #`number`, today's or any other released one in
+    the Archive (#19): a choice ID, a written answer, or null. Scoring is the server's. A past
+    Challenge's play is scored the same, with its misses recorded, but never counts toward a
+    Streak. Only the first answer to each Question counts (`counted`); a wrong
     one is a Missed Question. Any later answer, such as a replay after finishing, is marked and
     shown but changes no score, Streak or Missed Question. The result carries the correct
     answer or Model Answer, the grader's feedback (written), the Explanation and every Source,
@@ -601,8 +683,7 @@ def answer_challenge_question(
     A written first answer that can't be graded is recorded as ungraded (`outcome`): it earns no
     point, and the Learner can resubmit for feedback only.
 
-    404 for a Challenge that doesn't exist or isn't released yet; 409 `challenge_not_today` for
-    a past one the Learner never started (the Archive's, #19); 409 `question_retired`; 422
+    404 for a Challenge that doesn't exist or isn't released yet; 409 `question_retired`; 422
     `question_not_in_challenge`, `not_a_choice` or `answer_too_long`; 503 `grading_failed` when
     an answer that doesn't count can't be graded. In each of those nothing is recorded.
     """
@@ -612,8 +693,6 @@ def answer_challenge_question(
         )
     except challenges.ChallengeNotFound as error:
         raise HTTPException(404, "Daily Challenge not found") from error
-    except challenges.ChallengeNotToday as error:
-        raise HTTPException(409, CHALLENGE_NOT_TODAY) from error
     except challenges.QuestionRetired as error:
         raise HTTPException(409, QUESTION_RETIRED) from error
     except challenges.QuestionNotInChallenge as error:

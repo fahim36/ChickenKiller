@@ -257,11 +257,24 @@ export interface ReviewAnswerResult {
 export type ChallengeOutcome = "correct" | "wrong" | "ungraded";
 
 /**
+ * The Question that replaces a Retired Question. It links to the first released Daily
+ * Challenge that asks it (`challenge_number`, `challenge_label`); both are null while none does.
+ */
+export interface Replacement {
+  question_id: string;
+  challenge_number: number | null;
+  challenge_label: string | null;
+}
+
+/**
  * A Question of a Daily Challenge. Until the Learner's first answer, `answered` is null and
- * nothing about its answer is sent. A Retired Question can't be answered and has no choices.
+ * nothing about its answer is sent. A Retired Question can't be answered and has no choices; it
+ * comes with its reason and, if it has one, its replacement.
  */
 export interface ChallengeQuestion extends QuizQuestion {
   retired: boolean;
+  retired_reason: string | null;
+  replaced_by: Replacement | null;
   /** The first try's outcome; null until answered. */
   outcome: ChallengeOutcome | null;
   /** The first answer, with the correct answer, Explanation, Sources and Materials. */
@@ -303,6 +316,52 @@ export interface TodaysChallenge {
   day: string;
   streak: number;
   challenge: DailyChallenge | null;
+}
+
+/**
+ * A released Daily Challenge in a Stack's Archive, with how the Learner played it: the first
+ * play's `score` / `out_of` once finished.
+ */
+export interface ArchivedChallenge {
+  number: number;
+  /** Its UTC Day, as YYYY-MM-DD. */
+  day: string;
+  label: string;
+  status: DailyChallenge["status"];
+  score: number | null;
+  out_of: number | null;
+}
+
+/** An Active Stack's Archive: every released Daily Challenge, newest first. `day` is today. */
+export interface Archive {
+  stack_id: string;
+  stack_name: string;
+  day: string;
+  challenges: ArchivedChallenge[];
+}
+
+/**
+ * One released Daily Challenge from an Active Stack's Archive. `day` is today (UTC): a
+ * Challenge from another Day is an Archive play, which never counts toward a Streak.
+ */
+export interface StackChallenge {
+  stack_id: string;
+  stack_name: string;
+  day: string;
+  challenge: DailyChallenge;
+}
+
+/** One Active Stack's Catch-up: the past Challenges the Learner hasn't finished, newest first. */
+export interface StackCatchUp {
+  stack_id: string;
+  stack_name: string;
+  count: number;
+  challenges: ArchivedChallenge[];
+}
+
+/** Catch-up across the Learner's Active Stacks, one entry each. Optional: it blocks nothing. */
+export interface CatchUp {
+  stacks: StackCatchUp[];
 }
 
 /**

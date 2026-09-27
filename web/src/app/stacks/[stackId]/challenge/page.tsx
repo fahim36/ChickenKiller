@@ -28,6 +28,7 @@ export default async function ChallengePage({ params }: PageProps<"/stacks/[stac
       <h1>{challenge ? challenge.label : `${today.stack_name}: Daily Challenge`}</h1>
       {challenge ? (
         <DailyChallengeFlow
+          stackId={stackId}
           challenge={challenge}
           answerAction={answerChallengeQuestion.bind(null, stackId, challenge.number)}
         />
