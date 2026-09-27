@@ -1,9 +1,12 @@
 # InterviewCrackerAssistant
 
-A self-evaluation app for interview preparation. A Learner picks a Stack, studies a Syllabus of Weekly Lessons, and proves each Lesson with a quiz before the next one unlocks. An optional Review brings Missed Questions back until they stick. The Syllabus is kept current by Claude Code, which runs in the Admin's terminal and writes reviewed, version-numbered content files.
+Daily interview-prep games, modeled on LinkedIn Games. Every Stack (such as Agentic AI Engineer) releases one numbered Daily Challenge a day: three Questions, the same for everyone, released at 00:00 UTC. Playing it keeps your Streak going, and a Result Card shows how you did. Past Challenges stay playable in the Archive, and Catch-up lists the ones you missed. Next to the Challenges, each Stack has a researched Syllabus of Weekly Lessons. Each Lesson ends with a quiz you must pass before the next one unlocks. An optional Review brings Missed Questions back until they stick.
+
+Claude Code does the content work. In the Admin's terminal it keeps the Syllabus current and writes the Upcoming Challenges as reviewed, version-numbered content files. On the API's machine it grades written answers.
 
 - Glossary: [CONTEXT.md](CONTEXT.md)
 - Decisions: [docs/adr/](docs/adr/)
+- Where Version 1 stands (progress, known gaps, to do): [docs/status.md](docs/status.md)
 - Plan: [docs/build-plan.md](docs/build-plan.md) (milestones, tests and demos) and [docs/implementation-order.md](docs/implementation-order.md) (ticket order)
 
 ```mermaid
@@ -28,11 +31,49 @@ graph LR
 | `.claude/skills/write-challenges/` | The `/write-challenges` command that writes the next Upcoming Challenges ([below](#write-upcoming-challenges)) |
 | `api/` | FastAPI app, SQLAlchemy models, Alembic migrations, and the `content-check`, `content-diff`, `content-import`, `content-migrate-bank`, `content-new-version` and `content-schema` commands |
 | `web/` | Next.js 16 front end (App Router, server components) |
+| `run-app.cmd`, `docker-compose.yml`, `web/Dockerfile`, `.env.example` | Running the whole app on this machine ([below](#run-it-locally)) |
 | `render.yaml`, `api/Dockerfile` | Deployment ([docs/deploy.md](docs/deploy.md)) |
 
 ## Run it locally
 
-On Windows, a single command does all of it. Copy `.env.example` to `.env.local`, fill in the Clerk keys and your email, then run `run-app.cmd`. It rebuilds the Docker images and starts Postgres and the web app in Docker. It then migrates the database, imports the content, and runs the API on this machine, so the Claude Code CLI can grade written answers. Open http://localhost:3000, and run `run-app.cmd stop` to stop the containers. To do the same steps by hand:
+### One command (Windows)
+
+Needs Docker Desktop (running), [uv](https://docs.astral.sh/uv/), and [Claude Code](https://claude.com/claude-code) installed and signed in (it grades written answers).
+
+1. **Set up Clerk once.** Create a Clerk development instance for sign-in, as in [docs/deploy.md](docs/deploy.md#sign-in-with-clerk). Then open **Configure → Sessions → Customize session token** and set it to:
+
+   ```json
+   { "email": "{{user.primary_email_address}}" }
+   ```
+
+   Without this claim the API refuses every sign-in, and the app shows "Your sign-in couldn't be verified".
+
+2. **Fill in `.env.local`.** Copy `.env.example` to `.env.local` at the repo root; git ignores it. Fill in the two Clerk keys, `CLERK_ISSUER` (the instance's Frontend API URL) and `ADMIN_EMAILS`, the address you sign in with. That account is the Admin.
+
+3. **Start it:**
+
+   ```bash
+   run-app.cmd
+   ```
+
+   It does four things:
+   - rebuilds the Docker images;
+   - starts Postgres (host port 5433) and the web app (http://localhost:3000) in Docker;
+   - migrates the database and imports `content/`;
+   - runs the API on this machine at http://localhost:8000.
+
+   The API runs outside Docker so it can use your signed-in Claude Code ([ADR-0006](docs/adr/0006-grading-runs-the-claude-code-cli.md)). Once it prints "Application startup complete", open http://localhost:3000. Ctrl+C stops the API. `run-app.cmd stop` stops the containers.
+
+Run it again after pulling changes. It rebuilds the images and imports any new content.
+
+| Problem | What to do |
+|---|---|
+| "Port 8000 is already in use" | An API from an earlier run is still going. Stop it, or set `API_PORT` in `.env.local`. |
+| "Your sign-in couldn't be verified" | Add the `email` session-token claim (step 1), then sign out and in again. |
+| "You haven't been invited yet" | Sign in with the address in `ADMIN_EMAILS`, or fix `ADMIN_EMAILS` and run `run-app.cmd` again. |
+| `content-import` says "already imported with different content" | The local database holds content from an older layout. If it has no progress you want to keep, recreate it: `docker compose exec db psql -U learning -d postgres -c "drop database learning with (force)" -c "create database learning owner learning"`. |
+
+### By hand
 
 Needs [uv](https://docs.astral.sh/uv/), Node 24, Docker, and a Clerk development instance for sign-in (set it up as in [docs/deploy.md](docs/deploy.md#sign-in-with-clerk), including the `email` session-token claim).
 
