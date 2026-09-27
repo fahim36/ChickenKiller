@@ -76,7 +76,7 @@ Found by the code review of `scaffold-v1` against `main` on 2026-09-27.
 
 ### Steps only the owner can do
 
-- [ ] **Sign-in (Clerk).** Create a Clerk application with Email and Google, add the session-token claim `{"email": "{{user.primary_email_address}}"}`, and set the keys ([deploy.md](deploy.md#sign-in-with-clerk)).
+- [x] **Sign-in (Clerk).** Create a Clerk application with Email and Google, add the session-token claim `{"email": "{{user.primary_email_address}}"}`, and set the keys ([deploy.md](deploy.md#sign-in-with-clerk)).
 - [ ] **Public URL (Render).** Apply the Blueprint in `render.yaml` ([deploy.md](deploy.md)). A hosted API has no Claude Code, so written answers can't be graded there (ADR-0006); run the API locally to grade them.
 - [ ] **Pre-commit hook.** Run `uvx pre-commit install` in your clone.
 - [ ] **Branch protection.** Make `CI / content` a required check, and require PRs into `main`. Requiring PRs also closes the direct-push gap above.

@@ -11,12 +11,12 @@ Claude Code does the content work. In the Admin's terminal it keeps the Syllabus
 
 ```mermaid
 graph LR
-  CC[Claude Code<br/>Admin's terminal] -->|writes + commits| C[content/&lt;stack&gt;/&lt;version&gt;/]
-  C -->|content-check| C
-  C -->|content-import| DB[(Postgres)]
-  API[FastAPI · api/] --> DB
-  WEB[Next.js · web/] --> API
-  API -->|grade written answers<br/>claude -p| CL[Claude Code CLI<br/>API's machine]
+  CC["Claude Code<br/>(Admin terminal)"] -->|"writes + commits"| C["content/stack/version"]
+  C -->|"content-check"| C
+  C -->|"content-import"| DB[("Postgres")]
+  API["FastAPI (api/)"] --> DB
+  WEB["Next.js (web/)"] --> API
+  API -->|"grades written answers<br/>with claude -p"| CL["Claude Code CLI<br/>(on the API machine)"]
 ```
 
 ## Repo layout
@@ -40,13 +40,7 @@ graph LR
 
 Needs Docker Desktop (running), [uv](https://docs.astral.sh/uv/), and [Claude Code](https://claude.com/claude-code) installed and signed in (it grades written answers).
 
-1. **Set up Clerk once.** Create a Clerk development instance for sign-in, as in [docs/deploy.md](docs/deploy.md#sign-in-with-clerk). Then open **Configure → Sessions → Customize session token** and set it to:
-
-   ```json
-   { "email": "{{user.primary_email_address}}" }
-   ```
-
-   Without this claim the API refuses every sign-in, and the app shows "Your sign-in couldn't be verified".
+1. **Set up Clerk once.** Create a Clerk development instance for sign-in, as in [docs/deploy.md](docs/deploy.md#sign-in-with-clerk).
 
 2. **Fill in `.env.local`.** Copy `.env.example` to `.env.local` at the repo root; git ignores it. Fill in the two Clerk keys, `CLERK_ISSUER` (the instance's Frontend API URL) and `ADMIN_EMAILS`, the address you sign in with. That account is the Admin.
 
@@ -69,13 +63,13 @@ Run it again after pulling changes. It rebuilds the images and imports any new c
 | Problem | What to do |
 |---|---|
 | "Port 8000 is already in use" | An API from an earlier run is still going. Stop it, or set `API_PORT` in `.env.local`. |
-| "Your sign-in couldn't be verified" | Add the `email` session-token claim (step 1), then sign out and in again. |
+| "Your sign-in couldn't be verified" | Sign out and in again. If it keeps happening, check the Clerk setup in [docs/deploy.md](docs/deploy.md#sign-in-with-clerk). |
 | "You haven't been invited yet" | Sign in with the address in `ADMIN_EMAILS`, or fix `ADMIN_EMAILS` and run `run-app.cmd` again. |
 | `content-import` says "already imported with different content" | The local database holds content from an older layout. If it has no progress you want to keep, recreate it: `docker compose exec db psql -U learning -d postgres -c "drop database learning with (force)" -c "create database learning owner learning"`. |
 
 ### By hand
 
-Needs [uv](https://docs.astral.sh/uv/), Node 24, Docker, and a Clerk development instance for sign-in (set it up as in [docs/deploy.md](docs/deploy.md#sign-in-with-clerk), including the `email` session-token claim).
+Needs [uv](https://docs.astral.sh/uv/), Node 24, Docker, and a Clerk development instance for sign-in (set it up as in [docs/deploy.md](docs/deploy.md#sign-in-with-clerk)).
 
 1. Put the Clerk keys in `web/.env.local`, which git ignores:
 
