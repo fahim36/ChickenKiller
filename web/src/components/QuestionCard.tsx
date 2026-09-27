@@ -119,7 +119,10 @@ export function Spinner() {
   return <LoaderCircle aria-hidden className="size-4 animate-spin" />;
 }
 
-/** "Question 2 of 3" and a bar showing how far through a set the Learner is. */
+/**
+ * "Question 2 of 3" and a bar showing how far through a set the Learner is. `step` counts from
+ * 0; the bar fills up to and including the current Question.
+ */
 export function StepProgress({
   label,
   step,
@@ -129,7 +132,7 @@ export function StepProgress({
   step: number;
   total: number;
 }) {
-  const percent = total === 0 ? 0 : Math.round((step / total) * 100);
+  const percent = total === 0 ? 0 : Math.round(((step + 1) / total) * 100);
   return (
     <div className="mb-4 space-y-2">
       <p className="text-sm font-medium text-muted-foreground">{label}</p>

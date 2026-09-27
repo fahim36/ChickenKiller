@@ -2,6 +2,7 @@ import { BookOpenCheck, ExternalLink, Lightbulb } from "lucide-react";
 import { Inline } from "@/components/Inline";
 import { MaterialList } from "@/components/MaterialList";
 import type { AnsweredQuestion } from "@/lib/api";
+import { cn } from "@/lib/utils";
 
 /**
  * The results screen's Missed Questions: for each, the Learner's answer, the grader's
@@ -24,6 +25,14 @@ export function MissedQuestions({ missed }: { missed: AnsweredQuestion[] }) {
 export function AnsweredQuestionDetail({ question: q }: { question: AnsweredQuestion }) {
   const promptId = `answered-${q.id}`;
   const choice = (id: string | null) => q.choices.find((c) => c.id === id)?.text ?? id ?? "";
+  // A choice is right or wrong at a glance; a written answer is judged by the grader's feedback.
+  const rightChoice = q.type !== "written" && q.response !== null && q.response === q.answer;
+  const tone =
+    q.type === "written"
+      ? { box: "border-border bg-muted/50", label: "text-muted-foreground" }
+      : rightChoice
+        ? { box: "border-success/25 bg-success/5", label: "text-success-foreground" }
+        : { box: "border-destructive/20 bg-destructive/5", label: "text-destructive" };
   return (
     <article
       className="space-y-4 rounded-2xl border bg-card p-5 text-sm leading-relaxed shadow-xs sm:p-6 sm:text-base"
@@ -33,10 +42,10 @@ export function AnsweredQuestionDetail({ question: q }: { question: AnsweredQues
         <Inline text={q.prompt} />
       </h3>
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-3">
+      <div className={cn("grid gap-3", !rightChoice && "sm:grid-cols-2")}>
+        <div className={cn("rounded-xl border p-3", tone.box)}>
           <p>
-            <strong className="block text-xs font-semibold tracking-wide text-destructive uppercase">
+            <strong className={cn("block text-xs font-semibold tracking-wide uppercase", tone.label)}>
               Your answer:
             </strong>{" "}
             {q.response === null ? (
@@ -63,14 +72,16 @@ export function AnsweredQuestionDetail({ question: q }: { question: AnsweredQues
             </ul>
           </div>
         ) : (
-          <div className="rounded-xl border border-success/25 bg-success/5 p-3">
-            <p>
-              <strong className="block text-xs font-semibold tracking-wide text-success-foreground uppercase">
-                Correct answer:
-              </strong>{" "}
-              <Inline text={choice(q.answer)} />
-            </p>
-          </div>
+          !rightChoice && (
+            <div className="rounded-xl border border-success/25 bg-success/5 p-3">
+              <p>
+                <strong className="block text-xs font-semibold tracking-wide text-success-foreground uppercase">
+                  Correct answer:
+                </strong>{" "}
+                <Inline text={choice(q.answer)} />
+              </p>
+            </div>
+          )
         )}
       </div>
 
