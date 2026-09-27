@@ -1,0 +1,45 @@
+name: Content links
+
+# Checks that every Material link loads (`content-check --links`). It is kept out of CI so an
+# ordinary pull request never depends on other people's websites:
+# - weekly and on demand, it checks every committed Stack version, catching links that died;
+# - on a pull request that touches content/, it checks only the Stack versions that PR changes.
+# A dead link fails the run; a site that refuses automated requests (401/403/429) only warns.
+on:
+  schedule:
+    - cron: "0 6 * * 1" # Mondays 06:00 UTC
+  workflow_dispatch:
+  pull_request:
+    paths: ["content/**"]
+
+permissions:
+  contents: read
+
+jobs:
+  links:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v6
+      - name: Check Material links
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ "$EVENT" = pull_request ]; then
+            # content/<stack>/<version>/... -> content/<stack>/<version>, if it still exists
+            mapfile -t changed < <(git diff --name-only "$BASE...HEAD" -- content/ | cut -d/ -f1-3 | sort -u)
+            folders=()
+            for d in "${changed[@]}"; do
+              if [ -f "$d/syllabus.json" ]; then folders+=("$d"); fi
+            done
+          else
+            folders=(content)
+          fi
+          if [ ${#folders[@]} -eq 0 ]; then
+            echo "No Stack version changed."
+            exit 0
+          fi
+          uv run --locked --project api content-check --links "${folders[@]}"

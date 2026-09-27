@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  api:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: api
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: learning
+          POSTGRES_PASSWORD: learning
+          POSTGRES_DB: learning
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U learning -d learning"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+    env:
+      DATABASE_URL: postgresql+psycopg://learning:learning@localhost:5432/learning
+      TEST_DATABASE_URL: postgresql+psycopg://learning:learning@localhost:5432/learning_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --locked
+      - run: uv run ruff check
+      - run: uv run ruff format --check
+      - run: uv run mypy
+      - run: uv run content-schema --check
+      - name: Migrate and import the committed content (as a deploy would)
+        run: |
+          uv run alembic upgrade head
+          uv run content-import ../content
+          uv run content-import ../content
+      - run: uv run pytest -q
+
+  # The same command as the pre-commit hook: every committed Stack, failing on any error.
+  # Material links are checked by content-links.yml, so this job never depends on the network.
+  # On a pull request the Question Bank is held to the PR's base (never deleted or edited), and
+  # "this run" for new Questions' Sources is the day of the PR's last commit, in UTC.
+  content:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v6
+      - name: Check every committed Stack
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          today=$(TZ=UTC git log -1 --date=format-local:%Y-%m-%d --format=%cd HEAD)
+          uv run --locked --project api content-check content --baseline "${BASE:-HEAD}" --today "$today"
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build

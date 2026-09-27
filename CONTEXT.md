@@ -15,8 +15,12 @@ A Stack a Learner has chosen to study. A Learner can have any number of Active S
 _Avoid_: Subscription, current course, enrolment
 
 **Admin**:
-The person who writes Syllabus Updates and Upcoming Challenges from their own terminal with Claude Code.
+The person who writes Syllabus Updates and Upcoming Challenges from their own terminal with Claude Code, and who invites Learners. The Admin is a Learner too.
 _Avoid_: Owner, maintainer
+
+**Invitation**:
+The Admin's permission for one email address to join. It is pending until that person first signs in, which makes them a Learner. Anyone signing in without one is refused.
+_Avoid_: Invite code, allowlist entry
 
 ### Content
 
@@ -45,7 +49,7 @@ A hands-on task in a Week, such as a build or a job-hunt action. The Learner tic
 _Avoid_: Project, assignment, task
 
 **Updated Lesson**:
-A Lesson a Syllabus Update added or changed after the Learner had already passed it. The Learner's progress on it is kept; its new Questions go into the Learner's Review.
+A Lesson a Syllabus Update added or changed after the Learner had already passed it: a Completed Lesson that differs from the version it was completed in, or a new Lesson behind the Learner's position. The Learner's progress on it is kept; its new Questions go into the Learner's Review. It never locks anything.
 _Avoid_: Changed lesson, outdated lesson
 
 **Material**:
@@ -107,11 +111,11 @@ The Daily Challenges in the Archive a Learner hasn't played, across their Active
 _Avoid_: Backlog, missed challenges, debt
 
 **Result Card**:
-A shareable summary of a Learner's score on one Daily Challenge, showing how they did on each Question but not the Questions or answers.
+A shareable summary of a Learner's score on one Daily Challenge, showing how they did on each Question but not the Questions or answers: "Agentic AI Engineer #40 · 26 Sep · 2/3 ✅❌✅". A Question whose first try couldn't be graded has its own mark.
 _Avoid_: Share image, score card
 
 **Streak**:
-For one Active Stack, the number of consecutive Days on which the Learner played that Day's Daily Challenge. Breaking it resets the count and nothing else.
+For one Active Stack, the number of consecutive Days on which the Learner played that Day's Daily Challenge, finishing it on that Day. A Day with no Daily Challenge is skipped, and today's, until played, doesn't break it. Breaking it resets the count and nothing else.
 _Avoid_: Chain, run
 
 ### Progress
@@ -145,7 +149,7 @@ A Lesson whose Lesson Quiz met the pass mark and whose Missed Questions have all
 _Avoid_: Finished, passed, done
 
 **Review**:
-An optional queue of Questions to practise, in sets of up to 10, whenever the Learner likes. Missed Questions come first, then spaced repeats from Completed Lessons and played Daily Challenges, across all Active Stacks. It has no rounds or timers and never blocks anything.
+An optional queue of Questions to practise, in sets of up to 10, whenever the Learner likes. Missed Questions come first, then spaced repeats from Completed Lessons and played Daily Challenges, across all Active Stacks. A Missed Question leaves it once answered correctly on three different Days since it was last missed. It has no rounds or timers and never blocks anything.
 _Avoid_: Daily Review, revision, daily quiz
 
 **Weak Concept**:
@@ -153,7 +157,7 @@ One of the Concepts the Learner has missed most often, shown with a link to the 
 _Avoid_: Gap, weakness, problem area
 
 **Unlocked Lesson**:
-The next Lesson after the Learner's last Completed Lesson in a Stack. Only completion sets the pace; nothing else locks it.
+The next Lesson after the Learner's last Completed Lesson in a Stack. Only completion sets the pace; nothing else locks it. If a Syllabus Update removes that Completed Lesson, it is the next Lesson after it that is still in the Syllabus.
 _Avoid_: Available, open, scheduled
 
 **Locked Lesson**:

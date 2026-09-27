@@ -1,0 +1,353 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "context-manager-protocol",
+      "name": "The context manager protocol"
+    },
+    {
+      "id": "contextmanager-decorator",
+      "name": "`contextlib.contextmanager`"
+    },
+    {
+      "id": "dunder-methods",
+      "name": "Dunder methods and the data model"
+    },
+    {
+      "id": "dataclass-options",
+      "name": "Dataclass defaults and `frozen`"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w01-l05-q01",
+      "lesson": "w01-l05",
+      "concept": "context-manager-protocol",
+      "type": "multiple_choice",
+      "prompt": "In `with open(path) as f: ...`, when is the file's `__exit__` method called?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Only when the block finishes without an error"
+        },
+        {
+          "id": "b",
+          "text": "Whenever the block exits, including when an exception is raised"
+        },
+        {
+          "id": "c",
+          "text": "Only when the program ends"
+        },
+        {
+          "id": "d",
+          "text": "Only when you call `f.close()` yourself"
+        }
+      ],
+      "answer": "b",
+      "explanation": "`__exit__` always runs when the block is left, whether it finishes normally, returns early or raises. That is what makes `with` reliable for cleanup.",
+      "materials": [
+        "real-python-context-managers-and-with",
+        "python-docs-the-data-model"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/reference/compound_stmts.html",
+          "title": "8. Compound statements — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "The `with` statement always invokes `__exit__()` when the suite is left, passing the exception details if an exception caused the exit and three Nones otherwise."
+        },
+        {
+          "url": "https://docs.python.org/3/tutorial/inputoutput.html",
+          "title": "7. Input and Output — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "Using `with` on a file closes it properly after the suite finishes, even if an exception is raised."
+        }
+      ]
+    },
+    {
+      "id": "w01-l05-q02",
+      "lesson": "w01-l05",
+      "concept": "context-manager-protocol",
+      "type": "multiple_choice",
+      "prompt": "What happens when `__exit__` returns `True` after an exception was raised inside the `with` block?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The exception is re-raised twice"
+        },
+        {
+          "id": "b",
+          "text": "The exception is suppressed and execution continues after the block"
+        },
+        {
+          "id": "c",
+          "text": "The block runs again"
+        },
+        {
+          "id": "d",
+          "text": "Python raises `RuntimeError`"
+        }
+      ],
+      "answer": "b",
+      "explanation": "A truthy return value from `__exit__` tells Python the exception has been handled, so it is swallowed. Suppress only what you mean to, as `contextlib.suppress` does.",
+      "materials": [
+        "real-python-context-managers-and-with"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/reference/compound_stmts.html",
+          "title": "8. Compound statements — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "If the suite exited because of an exception and `__exit__()` returns a true value, the exception is suppressed and execution continues after the `with` statement."
+        },
+        {
+          "url": "https://docs.python.org/3/reference/datamodel.html",
+          "title": "3. Data model — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "`__exit__` should return a true value to suppress the exception it was given; otherwise the exception propagates normally."
+        },
+        {
+          "url": "https://docs.python.org/3/library/contextlib.html",
+          "title": "contextlib — Utilities for with-statement contexts — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "`contextlib.suppress` suppresses only the listed exceptions and resumes execution after the `with` statement."
+        }
+      ]
+    },
+    {
+      "id": "w01-l05-q03",
+      "lesson": "w01-l05",
+      "concept": "contextmanager-decorator",
+      "type": "multiple_choice",
+      "prompt": "In a function decorated with `@contextlib.contextmanager`, when does the code after `yield` run?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Before the `with` block starts, straight after the setup code"
+        },
+        {
+          "id": "b",
+          "text": "When the `with` block exits normally; on error only if it is in a `finally`"
+        },
+        {
+          "id": "c",
+          "text": "Only when the generator object is garbage-collected later"
+        },
+        {
+          "id": "d",
+          "text": "Every time the block accesses the yielded value"
+        }
+      ],
+      "answer": "b",
+      "explanation": "The code before `yield` is setup and the code after it is teardown. When the block exits normally the generator resumes after `yield` and the teardown runs. If the block raises, the exception is re-raised at the `yield` point, so the teardown only runs on an error if it sits in a `finally` (or you catch the exception).",
+      "materials": [
+        "real-python-context-managers-and-with"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/library/contextlib.html",
+          "title": "contextlib — Utilities for with-statement contexts — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "The generator runs until `yield`, the `with` block runs, and the generator resumes after the block exits; an exception in the block is re-raised at the `yield`, so cleanup needs try/finally to run on error."
+        }
+      ]
+    },
+    {
+      "id": "w01-l05-q04",
+      "lesson": "w01-l05",
+      "concept": "contextmanager-decorator",
+      "type": "written",
+      "prompt": "Describe a `timer()` context manager built with `contextlib.contextmanager` that logs elapsed milliseconds. Why does `try`/`finally` matter here?",
+      "model_answer": {
+        "summary": "Record the start time, yield inside `try`, and compute and log the elapsed time in `finally`, so the timing is logged even when the block raises.",
+        "key_points": [
+          "Record the start with `time.perf_counter()` before the `yield`",
+          "Wrap the `yield` in `try`/`finally`",
+          "In `finally`, compute the elapsed milliseconds and log them",
+          "`finally` guarantees the log line even if the block raises, and the exception still propagates to the caller"
+        ]
+      },
+      "explanation": "Timing and tracing helpers like this are how you measure latency per step in an agent. Without `finally`, a failing call records no timing at all, which is exactly the case you most want to see.",
+      "materials": [
+        "real-python-context-managers-and-with"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/library/contextlib.html",
+          "title": "contextlib — Utilities for with-statement contexts — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "An exception raised in the `with` block is re-raised inside the generator at the `yield`, so try/finally around the `yield` ensures cleanup runs, and the exception still propagates unless suppressed."
+        },
+        {
+          "url": "https://docs.python.org/3/library/time.html",
+          "title": "time — Time access and conversions — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "`time.perf_counter()` returns a high-resolution performance counter in fractional seconds meant for measuring short durations, where only the difference between two calls is meaningful."
+        }
+      ]
+    },
+    {
+      "id": "w01-l05-q05",
+      "lesson": "w01-l05",
+      "concept": "dunder-methods",
+      "type": "multiple_choice",
+      "prompt": "Which method makes `len(obj)` work on your class?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`__size__`"
+        },
+        {
+          "id": "b",
+          "text": "`__len__`"
+        },
+        {
+          "id": "c",
+          "text": "`__count__`"
+        },
+        {
+          "id": "d",
+          "text": "`__length__`"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Built-in functions call dunder methods: `len()` calls `__len__`, `repr()` calls `__repr__`, and `obj[i]` calls `__getitem__`. Implementing them makes your objects work like built-in types.",
+      "materials": [
+        "python-docs-the-data-model",
+        "fluent-python-2nd-ed"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/reference/datamodel.html",
+          "title": "3. Data model — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "`object.__len__` is called to implement the built-in `len()`; `__repr__` is called by `repr()` and `__getitem__` implements `self[key]`."
+        }
+      ]
+    },
+    {
+      "id": "w01-l05-q06",
+      "lesson": "w01-l05",
+      "concept": "dunder-methods",
+      "type": "multiple_choice",
+      "prompt": "A class defines `__eq__` but not `__hash__`. What happens to its instances?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "They hash by `id()` as before"
+        },
+        {
+          "id": "b",
+          "text": "They become unhashable, because `__hash__` is set to `None`"
+        },
+        {
+          "id": "c",
+          "text": "Python raises an error when the class is defined"
+        },
+        {
+          "id": "d",
+          "text": "They hash by the result of `__eq__`"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Objects that compare equal must have equal hashes. Python can't guarantee that for a custom `__eq__`, so it sets `__hash__` to `None`. Define `__hash__` consistently, or use a frozen dataclass.",
+      "materials": [
+        "python-docs-the-data-model"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/reference/datamodel.html",
+          "title": "3. Data model — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "A class that overrides `__eq__()` and does not define `__hash__()` has its `__hash__` implicitly set to None, so its instances are unhashable."
+        },
+        {
+          "url": "https://docs.python.org/3/library/dataclasses.html",
+          "title": "dataclasses — Data Classes — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "With `eq=True` and `frozen=True`, `@dataclass` generates a `__hash__()` method by default."
+        }
+      ]
+    },
+    {
+      "id": "w01-l05-q07",
+      "lesson": "w01-l05",
+      "concept": "dataclass-options",
+      "type": "multiple_choice",
+      "prompt": "What happens when you assign to a field of a `@dataclass(frozen=True)` instance?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The value changes"
+        },
+        {
+          "id": "b",
+          "text": "It raises `dataclasses.FrozenInstanceError`"
+        },
+        {
+          "id": "c",
+          "text": "It is silently ignored"
+        },
+        {
+          "id": "d",
+          "text": "A new instance is created automatically"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Frozen dataclasses block attribute assignment after `__init__`. To change a value, create a new instance, for example with `dataclasses.replace`.",
+      "materials": [
+        "python-docs-the-data-model",
+        "fluent-python-2nd-ed"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/library/dataclasses.html",
+          "title": "dataclasses — Data Classes — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "`frozen=True` adds `__setattr__`/`__delattr__` that raise `FrozenInstanceError`, and `dataclasses.replace()` builds a new instance with changed fields."
+        }
+      ]
+    },
+    {
+      "id": "w01-l05-q08",
+      "lesson": "w01-l05",
+      "concept": "dataclass-options",
+      "type": "written",
+      "prompt": "Why does a dataclass list field need `field(default_factory=list)`? What does `frozen=True` give you for a record like token `Usage`?",
+      "model_answer": {
+        "summary": "A plain list default would be shared by every instance, so dataclasses reject it; `default_factory` builds a new list for each instance. Frozen instances can't change, so they are safe to share and can be hashed.",
+        "key_points": [
+          "A mutable default would be shared by every instance, the same bug as mutable default arguments",
+          "Dataclasses refuse a bare `list`, `dict` or `set` default and raise `ValueError`",
+          "`default_factory=list` creates a new list for each instance",
+          "`frozen=True` makes instances immutable, so they are safe to pass around and hashable; you combine usage records with `__add__` returning a new instance"
+        ]
+      },
+      "explanation": "Immutable value objects remove a whole class of shared-state bugs. That matters in async agent code, where many tasks handle the same records.",
+      "materials": [
+        "python-docs-the-data-model"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/library/dataclasses.html",
+          "title": "dataclasses — Data Classes — Python 3.14.7 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-09-26",
+          "claim": "`@dataclass` raises ValueError for an unhashable default such as a list, dict or set (since 3.11 by checking hashability); `field(default_factory=list)` creates a new list per instance, and eq plus frozen generates `__hash__`."
+        }
+      ]
+    }
+  ]
+}

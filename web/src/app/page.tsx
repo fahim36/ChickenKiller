@@ -1,0 +1,109 @@
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { connection } from "next/server";
+import { api, type CatchUp, type Me, type TodaysChallenge } from "@/lib/api";
+
+/**
+ * Home: one card per Active Stack, with its Streak, today's Daily Challenge (Play, Continue, or
+ * the score and a Replay) and links to its Week map and its Archive; a link to Review, which
+ * spans every Active Stack; and, when there are past Challenges not played yet, a link to
+ * Catch-up (#19), which spans every Active Stack too and is optional. A first sign-in has no Active Stack yet, so it goes to onboarding. Each Stack's
+ * card is its own section.
+ */
+export default async function Home() {
+  await connection();
+  const me = await api<Me>("/me");
+  if (!me || me.needs_onboarding) redirect("/onboarding");
+  const todays = await Promise.all(
+    me.active_stacks.map((stack) =>
+      api<TodaysChallenge>(`/stacks/${encodeURIComponent(stack.id)}/challenges/today`),
+    ),
+  );
+  const catchUp = await api<CatchUp>("/catch-up");
+
+  return (
+    <main>
+      <h1>Your Stacks</h1>
+      <ul className="cards">
+        {me.active_stacks.map((stack, i) => (
+          <li key={stack.id}>
+            <section className="card" aria-labelledby={`stack-${stack.id}`}>
+              <h2 id={`stack-${stack.id}`}>{stack.name}</h2>
+              {todays[i] && <StreakLine streak={todays[i].streak} />}
+              <TodaysChallengeLine stackId={stack.id} today={todays[i]} />
+              <p>
+                <Link href={`/stacks/${encodeURIComponent(stack.id)}`}>Week map</Link>
+              </p>
+              <p>
+                <Link href={`/stacks/${encodeURIComponent(stack.id)}/archive`}>Archive</Link>
+              </p>
+            </section>
+          </li>
+        ))}
+      </ul>
+      <p>
+        <Link href="/review">Review</Link>{" "}
+        <span className="small muted">
+          Practise Missed Questions and past Lessons from all your Stacks, whenever you like.
+        </span>
+      </p>
+      <CatchUpLine catchUp={catchUp} />
+      <p className="small">
+        <Link href="/settings">Add or drop Stacks</Link>
+      </p>
+    </main>
+  );
+}
+
+/**
+ * A Stack's Streak: consecutive Days whose Challenge the Learner finished on its Day. Today's,
+ * until played, doesn't break it, and a Day with no Challenge is skipped.
+ */
+function StreakLine({ streak }: { streak: number }) {
+  if (streak === 0) return <p className="small muted">No Streak running</p>;
+  return <p className="streak">🔥 {streak}-Day Streak</p>;
+}
+
+/** Catch-up across every Active Stack: the past Challenges not played yet, if any. Optional. */
+function CatchUpLine({ catchUp }: { catchUp: CatchUp | null }) {
+  const count = catchUp?.stacks.reduce((sum, s) => sum + s.count, 0) ?? 0;
+  if (count === 0) return null;
+  return (
+    <p>
+      <Link href="/catch-up">Catch-up</Link>{" "}
+      <span className="small muted">
+        {count} past Challenge{count === 1 ? "" : "s"} you haven&apos;t played. Optional.
+      </span>
+    </p>
+  );
+}
+
+/** A Stack's Daily Challenge for today (UTC): Play, Continue, or "Played: 2/3 · Replay". */
+function TodaysChallengeLine({
+  stackId,
+  today,
+}: {
+  stackId: string;
+  today: TodaysChallenge | null;
+}) {
+  const challenge = today?.challenge;
+  if (!challenge) return <p className="muted">No Challenge today</p>;
+  const href = `/stacks/${encodeURIComponent(stackId)}/challenge`;
+  return (
+    <p>
+      <strong>{challenge.label}</strong>{" "}
+      {challenge.status === "finished" ? (
+        <>
+          <span>
+            Played: {challenge.score}/{challenge.out_of}
+          </span>{" "}
+          · <Link href={href}>Replay</Link>
+        </>
+      ) : (
+        <Link className="button" href={href}>
+          {challenge.status === "in_progress" ? "Continue" : "Play"}
+        </Link>
+      )}
+    </p>
+  );
+}

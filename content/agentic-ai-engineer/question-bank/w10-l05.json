@@ -1,0 +1,492 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "w10-l05-genai-platform-components",
+      "name": "The components of a generative AI platform"
+    },
+    {
+      "id": "w10-l05-caching-tradeoffs",
+      "name": "Exact vs semantic caching"
+    },
+    {
+      "id": "w10-l05-input-output-guardrails",
+      "name": "Input and output guardrails"
+    },
+    {
+      "id": "w10-l05-rag-over-finetuning",
+      "name": "RAG vs fine-tuning vs long context"
+    },
+    {
+      "id": "w10-l05-evals-and-operations",
+      "name": "Evals and day-to-day operations"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w10-l05-q01",
+      "lesson": "w10-l05",
+      "concept": "w10-l05-genai-platform-components",
+      "type": "multiple_choice",
+      "prompt": "Chip Huyen builds her generative AI platform up from a bare call to a model. Which component does she add first?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Context construction, such as retrieval (RAG) and query rewriting"
+        },
+        {
+          "id": "b",
+          "text": "A model gateway, so every team shares one API and its keys are kept safe"
+        },
+        {
+          "id": "c",
+          "text": "A semantic cache, to cut cost and latency on repeated queries"
+        },
+        {
+          "id": "d",
+          "text": "Write actions, so the model can change external systems on the user's behalf"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Her steps are: enhance context, put in guardrails, add a model router and gateway, reduce latency with caches, then add complex logic and write actions, with observability and orchestration across all of them. Context comes first because it improves answers most directly. Write actions come last because they carry the most risk.",
+      "materials": [
+        "chip-huyen-building-a-generative-ai"
+      ],
+      "sources": [
+        {
+          "url": "https://huyenchip.com/2024/07/25/genai-platform.html",
+          "title": "Building A Generative AI Platform",
+          "publisher": "Chip Huyen",
+          "accessed": "2026-09-26",
+          "claim": "Huyen's steps are: enhance context, put in guardrails, add a model router and gateway, reduce latency with caches, then add complex logic and write actions, with observability and orchestration across the platform."
+        }
+      ]
+    },
+    {
+      "id": "w10-l05-q02",
+      "lesson": "w10-l05",
+      "concept": "w10-l05-genai-platform-components",
+      "type": "written",
+      "prompt": "Sketch Chip Huyen's generative AI platform from memory: list its components in the order she adds them and say what each one does.",
+      "model_answer": {
+        "summary": "Start from a model call, then add context, guardrails, a router and gateway, caching, and complex logic with write actions, with observability and orchestration running across the whole system.",
+        "key_points": [
+          "Context construction: retrieval (RAG), query rewriting and tools that fetch the information the model needs",
+          "Guardrails on the input (such as masking private data before an external API) and on the output (such as checking format and quality)",
+          "A model router that classifies intent to pick a model or pipeline, and a gateway that gives one secure, unified way to reach models",
+          "Caches to reduce latency and cost, then complex logic (loops) and write actions that change external systems",
+          "Observability (logs, metrics, traces) and orchestration that chains the components together"
+        ]
+      },
+      "explanation": "Being able to draw this from memory is a common system-design interview test. Knowing the order also tells you why: each step adds capability and risk, so the riskiest pieces, such as write actions, come last.",
+      "materials": [
+        "chip-huyen-building-a-generative-ai"
+      ],
+      "sources": [
+        {
+          "url": "https://huyenchip.com/2024/07/25/genai-platform.html",
+          "title": "Building A Generative AI Platform",
+          "publisher": "Chip Huyen",
+          "accessed": "2026-09-26",
+          "claim": "The platform adds context construction (RAG, query rewriting), input and output guardrails, a model router and gateway, caching, and complex logic with write actions, plus observability and orchestration."
+        }
+      ]
+    },
+    {
+      "id": "w10-l05-q03",
+      "lesson": "w10-l05",
+      "concept": "w10-l05-genai-platform-components",
+      "type": "multiple_choice",
+      "prompt": "In Chip Huyen's platform, what does the model router do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It balances load between replicas of the same model to keep latency low"
+        },
+        {
+          "id": "b",
+          "text": "It stores provider API keys, tracks spend and enforces each team's budget"
+        },
+        {
+          "id": "c",
+          "text": "It retries failed calls on another provider whenever the first provider errors out"
+        },
+        {
+          "id": "d",
+          "text": "It predicts the user's intent and picks a fitting model or pipeline for the query"
+        }
+      ],
+      "answer": "d",
+      "explanation": "The router uses an intent classifier to predict what the user wants, then sends the query to the right solution, such as a cheaper model for simple queries or a canned answer for out-of-scope ones. Keys, spend tracking, load balancing and fallbacks are gateway jobs.",
+      "materials": [
+        "chip-huyen-building-a-generative-ai"
+      ],
+      "sources": [
+        {
+          "url": "https://huyenchip.com/2024/07/25/genai-platform.html",
+          "title": "Building A Generative AI Platform",
+          "publisher": "Chip Huyen",
+          "accessed": "2026-09-26",
+          "claim": "The model router uses an intent classifier to predict user intent and route queries to a suitable model, a cheaper model for simple queries, or a stock response for out-of-scope queries."
+        }
+      ]
+    },
+    {
+      "id": "w10-l05-q04",
+      "lesson": "w10-l05",
+      "concept": "w10-l05-caching-tradeoffs",
+      "type": "multiple_choice",
+      "prompt": "Why is a semantic cache riskier than an exact cache?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It adds an embedding call, so it's slower than calling the model"
+        },
+        {
+          "id": "b",
+          "text": "It hits on similar embeddings, so a merely similar question can get a wrong answer"
+        },
+        {
+          "id": "c",
+          "text": "It can only store short answers, so long ones get cut off"
+        },
+        {
+          "id": "d",
+          "text": "It stops the provider's prompt caching from working on every request that it misses"
+        }
+      ],
+      "answer": "b",
+      "explanation": "An exact cache only hits on an identical query. A semantic cache hits on a similar one, and depends on the embedding, the vector search and a similarity threshold, each of which can be wrong. Chip Huyen calls its value more dubious for this reason, and Eugene Yan notes that some practitioners see it as a disaster waiting to happen.",
+      "materials": [
+        "chip-huyen-building-a-generative-ai",
+        "eugene-yan-patterns-for-building-llm"
+      ],
+      "sources": [
+        {
+          "url": "https://huyenchip.com/2024/07/25/genai-platform.html",
+          "title": "Building A Generative AI Platform",
+          "publisher": "Chip Huyen",
+          "accessed": "2026-09-26",
+          "claim": "An exact cache serves only identical queries, while a semantic cache's value is more dubious because its embedding, vector search and similarity threshold are all prone to failure."
+        },
+        {
+          "url": "https://eugeneyan.com/writing/llm-patterns/",
+          "title": "Patterns for Building LLM-based Systems & Products",
+          "publisher": "Eugene Yan",
+          "accessed": "2026-09-26",
+          "claim": "Yan reports that some practitioners consider semantic caching a disaster waiting to happen because similar-but-different queries can get the wrong cached answer."
+        }
+      ]
+    },
+    {
+      "id": "w10-l05-q05",
+      "lesson": "w10-l05",
+      "concept": "w10-l05-caching-tradeoffs",
+      "type": "multiple_choice",
+      "prompt": "Which workload benefits most from a plain exact-match cache?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "An open-ended chat where every conversation is different"
+        },
+        {
+          "id": "b",
+          "text": "An agent whose answers depend on live tool data"
+        },
+        {
+          "id": "c",
+          "text": "A summary generated for each product page, keyed by product ID and version"
+        },
+        {
+          "id": "d",
+          "text": "A creative-writing feature that samples at high temperature"
+        }
+      ],
+      "answer": "c",
+      "explanation": "The applied-llms authors call caching underrated and suggest keying it on a unique ID for the item being processed, such as a product or article. The same input comes back often and the right answer doesn't change until the item does. Open chats rarely repeat, live data goes stale, and creative output is meant to vary.",
+      "materials": [
+        "what-we-learned-from-a-year",
+        "chip-huyen-building-a-generative-ai"
+      ],
+      "sources": [
+        {
+          "url": "https://applied-llms.org/",
+          "title": "What We've Learned From A Year of Building with LLMs – Applied LLMs",
+          "publisher": "Applied LLMs (Yan, Bischof, Frye, Husain, Liu, Shankar)",
+          "accessed": "2026-09-26",
+          "claim": "The authors call caching underrated and suggest keying it on a unique ID for the item being processed, such as a product ID or article URL."
+        }
+      ]
+    },
+    {
+      "id": "w10-l05-q06",
+      "lesson": "w10-l05",
+      "concept": "w10-l05-input-output-guardrails",
+      "type": "multiple_choice",
+      "prompt": "Which of these is an input guardrail?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Masking personal data in a query before it's sent to an external model"
+        },
+        {
+          "id": "b",
+          "text": "Checking that the model's answer is valid JSON before the app parses it"
+        },
+        {
+          "id": "c",
+          "text": "Scoring the answer for toxicity before showing it to the user"
+        },
+        {
+          "id": "d",
+          "text": "Retrying when the model returns an empty answer"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Input guardrails act before the model sees the query: preventing private data leaking to external APIs, and blocking bad prompts such as jailbreaks. Checking format, toxicity or empty answers happens after generation, so those are output guardrails.",
+      "materials": [
+        "chip-huyen-building-a-generative-ai",
+        "eugene-yan-patterns-for-building-llm"
+      ],
+      "sources": [
+        {
+          "url": "https://huyenchip.com/2024/07/25/genai-platform.html",
+          "title": "Building A Generative AI Platform",
+          "publisher": "Chip Huyen",
+          "accessed": "2026-09-26",
+          "claim": "Input guardrails address leaking private information to external APIs (for example by masking) and jailbreak prompts, while output guardrails check format, quality and toxicity."
+        },
+        {
+          "url": "https://eugeneyan.com/writing/llm-patterns/",
+          "title": "Patterns for Building LLM-based Systems & Products",
+          "publisher": "Eugene Yan",
+          "accessed": "2026-09-26",
+          "claim": "Output guardrails validate structure, factuality and safety of generated content, while input guardrails limit which prompts the model responds to."
+        }
+      ]
+    },
+    {
+      "id": "w10-l05-q07",
+      "lesson": "w10-l05",
+      "concept": "w10-l05-input-output-guardrails",
+      "type": "written",
+      "prompt": "Explain the difference between input and output guardrails, with an example of each, and say what the system should do when an output guardrail fails.",
+      "model_answer": {
+        "summary": "Input guardrails check or change what goes into the model; output guardrails check what comes out. A failed output check triggers a recovery step, not a crash.",
+        "key_points": [
+          "Input guardrails run before the model: for example masking personal data before an external API call, or blocking a jailbreak prompt",
+          "Output guardrails run on the answer: for example checking format (valid JSON), quality, toxicity or leaked sensitive data",
+          "When an output check fails: retry, or generate more than one answer in parallel and pick the better one",
+          "Escalate to a human for high-risk or ambiguous cases"
+        ]
+      },
+      "explanation": "Chip Huyen treats failure management as part of the guardrail. Detecting a bad answer only helps if the system knows what to do next.",
+      "materials": [
+        "chip-huyen-building-a-generative-ai"
+      ],
+      "sources": [
+        {
+          "url": "https://huyenchip.com/2024/07/25/genai-platform.html",
+          "title": "Building A Generative AI Platform",
+          "publisher": "Chip Huyen",
+          "accessed": "2026-09-26",
+          "claim": "Input guardrails mask sensitive data and block jailbreaks, output guardrails check format and toxicity, and failed outputs are handled by retrying, making parallel calls, or escalating to humans."
+        }
+      ]
+    },
+    {
+      "id": "w10-l05-q08",
+      "lesson": "w10-l05",
+      "concept": "w10-l05-rag-over-finetuning",
+      "type": "multiple_choice",
+      "prompt": "Why does applied-llms recommend RAG over fine-tuning for adding new knowledge?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Fine-tuning can't change a model's behaviour or knowledge at all"
+        },
+        {
+          "id": "b",
+          "text": "RAG always gives lower latency than a fine-tuned model, since no training is involved"
+        },
+        {
+          "id": "c",
+          "text": "Fine-tuned models can't use retrieved documents in their prompts once they are trained"
+        },
+        {
+          "id": "d",
+          "text": "Indexes update cheaply, bad documents can be dropped at once, and access restricted per organization"
+        }
+      ],
+      "answer": "d",
+      "explanation": "The authors point to research where RAG beats fine-tuning for new knowledge, and to practical wins: updating an index is cheap, a problematic document can be deleted quickly, and partitioned indices keep each organization to its own documents. Fine-tuning is better for teaching a task or a style, not for facts that change.",
+      "materials": [
+        "what-we-learned-from-a-year",
+        "eugene-yan-patterns-for-building-llm"
+      ],
+      "sources": [
+        {
+          "url": "https://applied-llms.org/",
+          "title": "What We've Learned From A Year of Building with LLMs – Applied LLMs",
+          "publisher": "Applied LLMs (Yan, Bischof, Frye, Husain, Liu, Shankar)",
+          "accessed": "2026-09-26",
+          "claim": "Research shows RAG outperforms fine-tuning for new knowledge, and RAG indices are cheaper to keep current, problematic documents can be removed easily, and partitioned indices restrict each organization to its own documents."
+        },
+        {
+          "url": "https://eugeneyan.com/writing/llm-patterns/",
+          "title": "Patterns for Building LLM-based Systems & Products",
+          "publisher": "Eugene Yan",
+          "accessed": "2026-09-26",
+          "claim": "Yan notes RAG is more cost-efficient for recent external knowledge since updating indices is cheaper than retraining, while fine-tuning suits task-specific behaviour."
+        }
+      ]
+    },
+    {
+      "id": "w10-l05-q09",
+      "lesson": "w10-l05",
+      "concept": "w10-l05-rag-over-finetuning",
+      "type": "multiple_choice",
+      "prompt": "A teammate says that million-token context windows make retrieval unnecessary: just put every document in the prompt. What do the applied-llms authors argue?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "They agree: long context replaces RAG for any corpus that fits in the window"
+        },
+        {
+          "id": "b",
+          "text": "Keep retrieval: all-in prompts cost more, run slower, and irrelevant text hurts reasoning"
+        },
+        {
+          "id": "c",
+          "text": "Long context only works reliably with fine-tuned models, so fine-tune first"
+        },
+        {
+          "id": "d",
+          "text": "Retrieval is only needed for keyword search; long context already covers semantic search"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Their heading is that long-context models won't make RAG obsolete. You still have to pick what's relevant: sending everything multiplies cost and latency, and more irrelevant context makes the model's reasoning worse. They also recommend keeping keyword search as a baseline and in hybrid search.",
+      "materials": [
+        "what-we-learned-from-a-year"
+      ],
+      "sources": [
+        {
+          "url": "https://applied-llms.org/",
+          "title": "What We've Learned From A Year of Building with LLMs – Applied LLMs",
+          "publisher": "Applied LLMs (Yan, Bischof, Frye, Husain, Liu, Shankar)",
+          "accessed": "2026-09-26",
+          "claim": "The authors argue long-context models won't make RAG obsolete: you still need to select relevant context, models reason poorly over large contexts full of distractors, and cost grows with context length; keyword search stays valuable in hybrid search."
+        }
+      ]
+    },
+    {
+      "id": "w10-l05-q10",
+      "lesson": "w10-l05",
+      "concept": "w10-l05-evals-and-operations",
+      "type": "multiple_choice",
+      "prompt": "Which practice makes LLM-as-judge evaluations more reliable, according to applied-llms?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Ask for a score from 1 to 10 with no reasoning, so the judge can't ramble"
+        },
+        {
+          "id": "b",
+          "text": "Always put your own system's answer first so the judge reads it with full attention"
+        },
+        {
+          "id": "c",
+          "text": "Compare answers pairwise, swap their order to control position bias, and allow ties"
+        },
+        {
+          "id": "d",
+          "text": "Prefer the longer answer when the judge is unsure, since it's usually more complete"
+        }
+      ],
+      "answer": "c",
+      "explanation": "Their tips: use pairwise comparisons instead of absolute scores, swap the order of the two answers because judges prefer one position, allow ties, ask for reasoning before the verdict, and control for length because judges favour longer answers. They also warn that LLM-as-judge works only somewhat and is no silver bullet.",
+      "materials": [
+        "what-we-learned-from-a-year",
+        "hamel-husain-using-llm-as-a"
+      ],
+      "sources": [
+        {
+          "url": "https://applied-llms.org/",
+          "title": "What We've Learned From A Year of Building with LLMs – Applied LLMs",
+          "publisher": "Applied LLMs (Yan, Bischof, Frye, Husain, Liu, Shankar)",
+          "accessed": "2026-09-26",
+          "claim": "The authors recommend pairwise comparisons, swapping answer order to control position bias, allowing ties, chain-of-thought and controlling for response length, and warn LLM-as-judge is not a silver bullet."
+        }
+      ]
+    },
+    {
+      "id": "w10-l05-q11",
+      "lesson": "w10-l05",
+      "concept": "w10-l05-evals-and-operations",
+      "type": "multiple_choice",
+      "prompt": "Why do the applied-llms authors recommend pinning model versions?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A provider update behind an unpinned alias can silently change your app's behaviour"
+        },
+        {
+          "id": "b",
+          "text": "Pinned versions are always cheaper per token than the latest alias"
+        },
+        {
+          "id": "c",
+          "text": "Providers delete unpinned models every month, so unpinned apps break without notice"
+        },
+        {
+          "id": "d",
+          "text": "Pinning is required before a model will accept structured-output schemas"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Moving prompts between models is painful, and a new version can shift results noticeably. Pin a specific version in production, and run the newer one in a parallel shadow pipeline with your evals before you switch.",
+      "materials": [
+        "what-we-learned-from-a-year"
+      ],
+      "sources": [
+        {
+          "url": "https://applied-llms.org/",
+          "title": "What We've Learned From A Year of Building with LLMs – Applied LLMs",
+          "publisher": "Applied LLMs (Yan, Bischof, Frye, Husain, Liu, Shankar)",
+          "accessed": "2026-09-26",
+          "claim": "The authors recommend pinning specific model versions in production to avoid unexpected behaviour changes, and running a shadow pipeline on the latest version to validate it first."
+        }
+      ]
+    },
+    {
+      "id": "w10-l05-q12",
+      "lesson": "w10-l05",
+      "concept": "w10-l05-evals-and-operations",
+      "type": "written",
+      "prompt": "Your team uses an unpinned model alias. The provider updates it, and answer quality drops for a week before anyone notices. Using applied-llms' operational advice, what would you change?",
+      "model_answer": {
+        "summary": "Pin the model version and trial upgrades against evals in a shadow pipeline, and look at real inputs and outputs every day so drift shows up in days, not weeks.",
+        "key_points": [
+          "Pin a specific model version in production instead of an alias that can change",
+          "Run a new version in a shadow pipeline with your evals before switching production to it",
+          "Look at samples of production inputs and outputs every day, so a quality change is noticed quickly",
+          "Watch for differences between development and production data (dev-prod skew), and turn failures into eval cases"
+        ]
+      },
+      "explanation": "Most of applied-llms' operational advice is about noticing change early: in the model, in the data, and in what users send.",
+      "materials": [
+        "what-we-learned-from-a-year"
+      ],
+      "sources": [
+        {
+          "url": "https://applied-llms.org/",
+          "title": "What We've Learned From A Year of Building with LLMs – Applied LLMs",
+          "publisher": "Applied LLMs (Yan, Bischof, Frye, Husain, Liu, Shankar)",
+          "accessed": "2026-09-26",
+          "claim": "Pin model versions and trial new ones in a shadow pipeline, and review samples of production inputs and outputs daily to catch failure patterns and drift."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,234 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c006-thinking-with-tool-use",
+      "name": "Extended thinking with tool use"
+    },
+    {
+      "id": "c006-mcp-structured-tool-output",
+      "name": "MCP structured tool output"
+    },
+    {
+      "id": "c006-self-consistency-decoding",
+      "name": "Self-consistency decoding"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c006-q01",
+      "lesson": null,
+      "concept": "c006-thinking-with-tool-use",
+      "type": "multiple_choice",
+      "prompt": "Your agent calls Claude with manual extended thinking (`thinking: {type: \"enabled\"}`) and tools. The response has a thinking block and a `tool_use` block, and you run the tool. What must the next request contain?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Only a user message with the `tool_result`; the API keeps the thinking server-side"
+        },
+        {
+          "id": "b",
+          "text": "The assistant turn with its thinking block complete and unmodified, then the `tool_result`"
+        },
+        {
+          "id": "c",
+          "text": "The assistant turn with the thinking text trimmed to save input tokens, then the `tool_result`"
+        },
+        {
+          "id": "d",
+          "text": "The `tool_result`, plus `tool_choice: {type: \"any\"}` so Claude must finish the tool call"
+        }
+      ],
+      "answer": "b",
+      "explanation": "When you return a tool result, Claude continues the same assistant response, so its earlier reasoning must be there: you pass every thinking block back complete and unmodified (its `signature` lets the API verify it), and a modified thinking block is rejected with a 400 error. Sending only the `tool_result` drops that reasoning; the API doesn't hold it for you. Forcing tool use with `tool_choice` `any` or `tool` is an error under manual extended thinking, which allows only `auto` or `none`.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://platform.claude.com/docs/en/build-with-claude/thinking",
+          "title": "Thinking (Claude API docs): Thinking with tool use",
+          "publisher": "Anthropic",
+          "accessed": "2026-09-26",
+          "claim": "When you return tool results you must pass the thinking blocks from the assistant message back complete and unmodified; modified thinking blocks are rejected with a 400 error; manual extended thinking supports only `tool_choice` `auto` or `none`, and `any` or `tool` result in an error."
+        }
+      ]
+    },
+    {
+      "id": "c006-q02",
+      "lesson": null,
+      "concept": "c006-mcp-structured-tool-output",
+      "type": "multiple_choice",
+      "prompt": "Your MCP server's `get_invoice` tool declares an `outputSchema`. Under MCP spec revision 2026-07-28, what should its `tools/call` result contain?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`structuredContent` that fits the schema, plus the same JSON serialized in a text block"
+        },
+        {
+          "id": "b",
+          "text": "Only a text block holding the JSON; the client parses it and checks it against the schema"
+        },
+        {
+          "id": "c",
+          "text": "`structuredContent` alone, because a text block would duplicate the data and confuse clients"
+        },
+        {
+          "id": "d",
+          "text": "A `resource_link` to the JSON, which the client fetches and checks against the schema"
+        }
+      ],
+      "answer": "a",
+      "explanation": "If a tool declares an `outputSchema`, the server must return structured results that conform to it, in the result's `structuredContent` field. For backwards compatibility with clients that only read `content`, a tool that returns structured content should also return the serialized JSON in a text block. So dropping the text block (c) loses that compatibility, and a text block alone (b) doesn't give clients the structured field the schema describes.",
+      "materials": [
+        "mcp-specification"
+      ],
+      "sources": [
+        {
+          "url": "https://modelcontextprotocol.io/specification/latest/server/tools",
+          "title": "Tools (MCP specification, revision 2026-07-28)",
+          "publisher": "Model Context Protocol",
+          "accessed": "2026-09-26",
+          "claim": "Structured content is returned in the result's `structuredContent` field and conforms to the tool's `outputSchema` if one is defined; for backwards compatibility a tool returning structured content SHOULD also return the serialized JSON in a TextContent block; servers MUST provide structured results that conform to the output schema."
+        }
+      ]
+    },
+    {
+      "id": "c006-q03",
+      "lesson": null,
+      "concept": "c006-self-consistency-decoding",
+      "type": "written",
+      "prompt": "A team answers math word problems with chain-of-thought prompting and greedy decoding, and wants better accuracy without any training. Explain self-consistency decoding, why it helps, and what it costs.",
+      "model_answer": {
+        "summary": "Self-consistency samples several diverse chain-of-thought reasoning paths instead of one greedy path, then picks the final answer that most paths agree on. It raises accuracy with no extra training, at the cost of several times the calls and tokens.",
+        "key_points": [
+          "Sample many reasoning paths (for example with temperature sampling) instead of taking the single greedy decode.",
+          "Parse each path's final answer and choose the most frequent one (majority vote), marginalizing out the reasoning paths.",
+          "It helps because a hard problem usually has several valid ways to reach the one correct answer, while wrong paths tend to disagree; it needs no training, fine-tuning or verifier.",
+          "It costs one generation per sampled path (5 to 10 paths get most of the gain), and it needs final answers that can be compared, such as a number or a choice from a fixed set."
+        ]
+      },
+      "explanation": "Self-consistency replaces greedy decoding in chain-of-thought prompting: sample a set of diverse reasoning paths, then take the answer that is most consistent across them, which the paper does with a simple majority vote over the parsed final answers. The intuition is that complex reasoning problems admit many ways of thinking that lead to the same correct answer. It is not free: every extra path is another generation, and the vote only works when final answers can be matched, as with a number or a multiple-choice letter; open-ended text would need a consistency metric.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://arxiv.org/abs/2203.11171",
+          "title": "Self-Consistency Improves Chain of Thought Reasoning in Language Models",
+          "publisher": "arXiv (Wang et al., ICLR 2023)",
+          "accessed": "2026-09-26",
+          "claim": "Self-consistency replaces naive greedy decoding in chain-of-thought prompting: it samples a diverse set of reasoning paths and selects the most consistent answer by marginalizing out the paths, since a complex problem typically admits multiple ways of thinking that lead to its unique correct answer."
+        },
+        {
+          "url": "https://arxiv.org/html/2203.11171",
+          "title": "Self-Consistency Improves Chain of Thought Reasoning in Language Models (HTML full text)",
+          "publisher": "arXiv (Wang et al., ICLR 2023)",
+          "accessed": "2026-09-26",
+          "claim": "The final answer is chosen by majority vote over the sampled paths' parsed answers; it needs no additional training, fine-tuning or extra data; it incurs more computation cost, though 5 or 10 paths realize most of the gains; and it applies only where the final answer is from a fixed answer set unless a consistency metric for open text is defined."
+        }
+      ]
+    },
+    {
+      "id": "c006-q04",
+      "lesson": null,
+      "concept": "c006-thinking-with-tool-use",
+      "type": "multiple_choice",
+      "prompt": "On a model that uses manual extended thinking (`thinking: {type: \"enabled\"}`), you set `tool_choice: {type: \"tool\", name: \"lookup_order\"}` to force one tool call. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It works, and Claude skips its thinking and goes straight to calling `lookup_order`"
+        },
+        {
+          "id": "b",
+          "text": "It works, and Claude thinks first and is then made to call `lookup_order` anyway"
+        },
+        {
+          "id": "c",
+          "text": "The request errors, since manual thinking allows only `auto` or `none` tool choice"
+        },
+        {
+          "id": "d",
+          "text": "The API quietly switches to `auto`, so Claude may answer without calling the tool"
+        }
+      ],
+      "answer": "c",
+      "explanation": "Tool use with manual extended thinking supports only `tool_choice` `auto` (the default) or `none`. Setting `any` or a specific `tool` returns an error, because forcing tool use is incompatible with manual extended thinking. The API does not fall back to `auto` or skip thinking for you; to steer toward one tool, use `auto` with clear instructions, or move to adaptive thinking on a model that allows forced tool use.",
+      "materials": [
+        "anthropic-docs-tool-use-with-claude"
+      ],
+      "sources": [
+        {
+          "url": "https://platform.claude.com/docs/en/build-with-claude/thinking",
+          "title": "Thinking (Claude API docs): Thinking with tool use",
+          "publisher": "Anthropic",
+          "accessed": "2026-09-26",
+          "claim": "Tool use with manual extended thinking only supports `tool_choice` `auto` (the default) or `none`; `any` or `tool` result in an error because forcing tool use is incompatible with manual extended thinking."
+        }
+      ]
+    },
+    {
+      "id": "c006-q05",
+      "lesson": null,
+      "concept": "c006-mcp-structured-tool-output",
+      "type": "written",
+      "prompt": "Your MCP client gets a `tools/call` result whose `structuredContent` doesn't match the tool's declared `outputSchema`. Who broke the spec, what should the client do, and why does the spec also ask servers for a text block?",
+      "model_answer": {
+        "summary": "The server broke a MUST: with an `outputSchema`, its structured results have to conform. The client should catch this by validating, not pass the bad data on as trusted, and the text block exists so older clients that ignore `structuredContent` still get the result.",
+        "key_points": [
+          "The server is at fault: when a tool declares an `outputSchema`, servers MUST return structured results that conform to it.",
+          "Clients SHOULD validate structured results against the `outputSchema`, which is how this mismatch is caught.",
+          "The client should treat the result as invalid rather than passing it on to code or the model as trusted data.",
+          "Servers SHOULD also put the serialized JSON in a text content block for backwards compatibility with clients that don't read `structuredContent`."
+        ]
+      },
+      "explanation": "In MCP spec revision 2026-07-28, an `outputSchema` puts an obligation on both sides: servers must provide structured results that conform to it, and clients should validate them against it. A mismatch is therefore a server bug that a validating client catches, and the security guidance also says clients should validate tool results before passing them to the model. The duplicate text block is for backwards compatibility, not validation: a client that only reads `content` still sees the data.",
+      "materials": [
+        "mcp-specification"
+      ],
+      "sources": [
+        {
+          "url": "https://modelcontextprotocol.io/specification/latest/server/tools",
+          "title": "Tools (MCP specification, revision 2026-07-28)",
+          "publisher": "Model Context Protocol",
+          "accessed": "2026-09-26",
+          "claim": "If an output schema is provided, servers MUST provide structured results that conform to it and clients SHOULD validate structured results against it; a tool returning structured content SHOULD also return the serialized JSON in a TextContent block for backwards compatibility; clients SHOULD validate tool results before passing them to the LLM."
+        }
+      ]
+    },
+    {
+      "id": "c006-q06",
+      "lesson": null,
+      "concept": "c006-self-consistency-decoding",
+      "type": "multiple_choice",
+      "prompt": "You want to use self-consistency on an agent that writes free-form incident summaries. According to the paper, what is the main obstacle?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It needs a re-ranker trained on human-labelled summaries to score each sample first"
+        },
+        {
+          "id": "b",
+          "text": "It relies on greedy decoding, which gives only one summary to choose from each time"
+        },
+        {
+          "id": "c",
+          "text": "Its vote needs final answers that match, so free text needs a consistency metric"
+        },
+        {
+          "id": "d",
+          "text": "It needs the model fine-tuned on examples of the new task before sampling any paths"
+        }
+      ],
+      "answer": "c",
+      "explanation": "Self-consistency picks the answer that most sampled reasoning paths agree on, so it works where final answers come from a fixed set, like numbers or choice letters. The paper notes it could extend to open-text generation only if a good metric of consistency between generations is defined. It needs no trained verifier, re-ranker or fine-tuning, and it replaces greedy decoding with sampling rather than relying on it.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://arxiv.org/html/2203.11171",
+          "title": "Self-Consistency Improves Chain of Thought Reasoning in Language Models (HTML full text)",
+          "publisher": "arXiv (Wang et al., ICLR 2023)",
+          "accessed": "2026-09-26",
+          "claim": "Self-consistency can be applied only to problems where the final answer is from a fixed answer set, but could extend to open-text generation if a good consistency metric between generations is defined; it needs no additional training, fine-tuning or extra data, and replaces greedy decoding with sampling diverse paths."
+        }
+      ]
+    }
+  ]
+}

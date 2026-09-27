@@ -1,0 +1,471 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "w04-l05-merge-vs-rebase",
+      "name": "Merge vs rebase"
+    },
+    {
+      "id": "w04-l05-resolving-conflicts",
+      "name": "Resolving merge and rebase conflicts"
+    },
+    {
+      "id": "w04-l05-partial-staging-amend-reflog",
+      "name": "Partial staging, `--amend` and `reflog`"
+    },
+    {
+      "id": "w04-l05-good-pull-requests",
+      "name": "Good pull requests and conventional commit messages"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w04-l05-q01",
+      "lesson": "w04-l05",
+      "concept": "w04-l05-merge-vs-rebase",
+      "type": "multiple_choice",
+      "prompt": "On your `feature` branch you run `git rebase main`. What happens to your feature commits?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Git adds one merge commit that joins `main` into `feature`"
+        },
+        {
+          "id": "b",
+          "text": "They are replayed on top of `main` as new commits with new hashes"
+        },
+        {
+          "id": "c",
+          "text": "They are moved onto `main`, and `main` now points at your last commit"
+        },
+        {
+          "id": "d",
+          "text": "They are squashed into one commit and pushed to the remote"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Rebase takes the changes introduced by each of your commits and reapplies them, one by one, on top of `main`. Each reapplied commit is a new commit with a new SHA, and the result is a linear history. Rebasing `feature` doesn't move `main`, doesn't squash unless you ask it to, and never pushes. Creating a merge commit is what `git merge` does.",
+      "materials": [
+        "pro-git-book",
+        "learn-git-branching"
+      ],
+      "sources": [
+        {
+          "url": "https://git-scm.com/book/en/v2/Git-Branching-Rebasing",
+          "title": "Git - Rebasing (Pro Git 3.6)",
+          "publisher": "Git project (git-scm.com)",
+          "accessed": "2026-09-26",
+          "claim": "Rebase takes the diff introduced by each commit on your branch and applies each in turn on top of the branch you rebase onto, creating new commits and a linear history."
+        }
+      ]
+    },
+    {
+      "id": "w04-l05-q02",
+      "lesson": "w04-l05",
+      "concept": "w04-l05-merge-vs-rebase",
+      "type": "multiple_choice",
+      "prompt": "What is the \"golden rule\" of rebasing in the Pro Git book?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Always rebase instead of merging, so the project history stays linear"
+        },
+        {
+          "id": "b",
+          "text": "Only rebase when you are sure it will not cause any merge conflicts"
+        },
+        {
+          "id": "c",
+          "text": "Never rebase a branch before it has been pushed to the shared remote repository"
+        },
+        {
+          "id": "d",
+          "text": "Don't rebase commits that exist outside your repo and others may build on"
+        }
+      ],
+      "answer": "d",
+      "explanation": "Rebasing replaces commits with new ones. If others already have the old commits, they now have duplicates, and their work has to be merged again. So rebase your local work before you push, but never rebase what you've shared. Rebasing purely local commits is exactly the safe case.",
+      "materials": [
+        "pro-git-book"
+      ],
+      "sources": [
+        {
+          "url": "https://git-scm.com/book/en/v2/Git-Branching-Rebasing",
+          "title": "Git - Rebasing (Pro Git 3.6)",
+          "publisher": "Git project (git-scm.com)",
+          "accessed": "2026-09-26",
+          "claim": "The golden rule: do not rebase commits that exist outside your repository and that people may have based work on."
+        }
+      ]
+    },
+    {
+      "id": "w04-l05-q03",
+      "lesson": "w04-l05",
+      "concept": "w04-l05-merge-vs-rebase",
+      "type": "written",
+      "prompt": "Compare merge and rebase as ways to bring `main`'s new commits into your feature branch. When would you use each?",
+      "model_answer": {
+        "summary": "Merge records a new merge commit and keeps the real, branching history; rebase replays your commits on top of `main` and gives a linear history. Rebase your own unpushed work; merge when the commits are already shared.",
+        "key_points": [
+          "Merge makes a new commit with two parents and leaves existing commits untouched",
+          "Rebase rewrites your commits as new commits (new hashes) on top of the target, giving a linear history",
+          "Both end with the same final snapshot; only the history differs",
+          "Never rebase commits others have pulled; use merge for shared branches",
+          "A common workflow: rebase local work onto `main` before pushing or opening a PR"
+        ]
+      },
+      "explanation": "Pro Git notes that the final snapshot is the same either way; it's only the history that differs. The choice is about the history you want to read later and about not rewriting commits that other people depend on.",
+      "materials": [
+        "pro-git-book",
+        "learn-git-branching"
+      ],
+      "sources": [
+        {
+          "url": "https://git-scm.com/book/en/v2/Git-Branching-Rebasing",
+          "title": "Git - Rebasing (Pro Git 3.6)",
+          "publisher": "Git project (git-scm.com)",
+          "accessed": "2026-09-26",
+          "claim": "The final snapshot is the same whether you rebase or merge, only the history differs; rebase local changes before pushing but never rebase anything you've pushed."
+        },
+        {
+          "url": "https://git-scm.com/book/en/v2/Git-Branching-Basic-Branching-and-Merging",
+          "title": "Git - Basic Branching and Merging (Pro Git 3.2)",
+          "publisher": "Git project (git-scm.com)",
+          "accessed": "2026-09-26",
+          "claim": "A merge that isn't a fast-forward creates a new merge commit with more than one parent."
+        }
+      ]
+    },
+    {
+      "id": "w04-l05-q04",
+      "lesson": "w04-l05",
+      "concept": "w04-l05-resolving-conflicts",
+      "type": "multiple_choice",
+      "prompt": "A merge stops with conflict markers in `api.py`. You edit the file to the correct content and delete the markers. How do you tell Git this file's conflict is resolved?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Run `git commit --amend`"
+        },
+        {
+          "id": "b",
+          "text": "Run `git reset api.py`"
+        },
+        {
+          "id": "c",
+          "text": "Run `git add api.py`"
+        },
+        {
+          "id": "d",
+          "text": "Delete `.git/MERGE_HEAD`"
+        }
+      ],
+      "answer": "c",
+      "explanation": "Staging the file with `git add` marks it resolved; after all conflicted files are staged, `git commit` completes the merge. `git reset api.py` unstages the file, the opposite of what you want. `--amend` would rewrite the previous commit. Deleting files inside `.git` by hand can leave the repository in a broken state.",
+      "materials": [
+        "pro-git-book"
+      ],
+      "sources": [
+        {
+          "url": "https://git-scm.com/book/en/v2/Git-Branching-Basic-Branching-and-Merging",
+          "title": "Git - Basic Branching and Merging (Pro Git 3.2)",
+          "publisher": "Git project (git-scm.com)",
+          "accessed": "2026-09-26",
+          "claim": "After resolving the conflicted sections, run git add on each file to mark it resolved, then git commit to finalize the merge commit."
+        }
+      ]
+    },
+    {
+      "id": "w04-l05-q05",
+      "lesson": "w04-l05",
+      "concept": "w04-l05-resolving-conflicts",
+      "type": "multiple_choice",
+      "prompt": "Halfway through `git rebase main` you hit a messy conflict and want to give up and return your branch to exactly where it was. Which command?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`git rebase --skip`"
+        },
+        {
+          "id": "b",
+          "text": "`git rebase --abort`"
+        },
+        {
+          "id": "c",
+          "text": "`git reset --soft HEAD~1`"
+        },
+        {
+          "id": "d",
+          "text": "`git merge --continue`"
+        }
+      ],
+      "answer": "b",
+      "explanation": "`git rebase --abort` stops the rebase and restores the branch to its state before the rebase began. `--skip` is the dangerous look-alike: it drops the commit that conflicted and carries on, so that commit's changes are lost from the result. `--continue` (for a rebase, `git rebase --continue`) is what you run after fixing and staging a conflict.",
+      "materials": [
+        "pro-git-book"
+      ],
+      "sources": [
+        {
+          "url": "https://git-scm.com/docs/git-rebase",
+          "title": "Git - git-rebase Documentation",
+          "publisher": "Git project (git-scm.com)",
+          "accessed": "2026-09-26",
+          "claim": "--abort aborts the rebase and resets HEAD to where it was when the rebase began, --skip restarts by skipping the current patch, and --continue restarts after a conflict is resolved."
+        }
+      ]
+    },
+    {
+      "id": "w04-l05-q06",
+      "lesson": "w04-l05",
+      "concept": "w04-l05-partial-staging-amend-reflog",
+      "type": "multiple_choice",
+      "prompt": "You haven't pushed yet. Your last commit forgot a file. Which commands fix the commit without adding a new one or changing its message?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`git add forgotten.py` then `git commit --amend --no-edit`"
+        },
+        {
+          "id": "b",
+          "text": "`git add forgotten.py` then `git commit -m \"add forgotten file\"`"
+        },
+        {
+          "id": "c",
+          "text": "`git revert HEAD` then `git add forgotten.py`"
+        },
+        {
+          "id": "d",
+          "text": "`git reset --hard HEAD~1` then `git add forgotten.py`"
+        }
+      ],
+      "answer": "a",
+      "explanation": "`--amend` replaces the last commit with a new one that includes whatever is staged, and `--no-edit` keeps the old message. The amended commit gets a new SHA, so only do it before pushing. A plain `git commit` adds a second commit. `revert` creates a commit that undoes the last one. `reset --hard` throws away the commit and your uncommitted changes.",
+      "materials": [
+        "pro-git-book"
+      ],
+      "sources": [
+        {
+          "url": "https://git-scm.com/docs/git-commit",
+          "title": "Git - git-commit Documentation",
+          "publisher": "Git project (git-scm.com)",
+          "accessed": "2026-09-26",
+          "claim": "--amend replaces the tip of the current branch with a new commit, and --no-edit reuses the existing message, so git commit --amend --no-edit amends without changing the message."
+        },
+        {
+          "url": "https://git-scm.com/book/en/v2/Git-Basics-Undoing-Things",
+          "title": "Git - Undoing Things (Pro Git 2.4)",
+          "publisher": "Git project (git-scm.com)",
+          "accessed": "2026-09-26",
+          "claim": "The forgot-a-file example stages the file and runs git commit --amend, replacing the previous commit; only amend commits that are still local."
+        }
+      ]
+    },
+    {
+      "id": "w04-l05-q07",
+      "lesson": "w04-l05",
+      "concept": "w04-l05-partial-staging-amend-reflog",
+      "type": "multiple_choice",
+      "prompt": "You ran `git reset --hard HEAD~3` by mistake and your three latest commits vanished from `git log`. None were pushed. How do you get them back?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "You can't: `--hard` deletes the commits permanently"
+        },
+        {
+          "id": "b",
+          "text": "Run `git revert HEAD~3` to bring them back"
+        },
+        {
+          "id": "c",
+          "text": "Run `git pull`, since the remote still has them"
+        },
+        {
+          "id": "d",
+          "text": "Find the old tip in `git reflog`, then `git reset --hard HEAD@{1}`"
+        }
+      ],
+      "answer": "d",
+      "explanation": "The commits still exist; nothing points at them any more. The reflog records every move of `HEAD`, so right after the reset, `HEAD@{0}` is the reset and `HEAD@{1}` is where `HEAD` was just before it. Resetting to `HEAD@{1}` restores the branch. The remote can't help with commits that were never pushed, and `revert` makes a new commit that undoes changes.",
+      "materials": [
+        "pro-git-book",
+        "learn-git-branching"
+      ],
+      "sources": [
+        {
+          "url": "https://git-scm.com/docs/git-reflog",
+          "title": "Git - git-reflog Documentation",
+          "publisher": "Git project (git-scm.com)",
+          "accessed": "2026-09-26",
+          "claim": "Reflogs record when branch tips and other references were updated in the local repository, and HEAD@{n} means where HEAD was n moves ago."
+        },
+        {
+          "url": "https://git-scm.com/book/en/v2/Git-Internals-Maintenance-and-Data-Recovery",
+          "title": "Git - Maintenance and Data Recovery (Pro Git 10.7)",
+          "publisher": "Git project (git-scm.com)",
+          "accessed": "2026-09-26",
+          "claim": "After an accidental git reset --hard, git reflog shows the lost commit (the reset at HEAD@{0}, the previous tip at HEAD@{1}), and pointing a branch at it recovers it."
+        }
+      ]
+    },
+    {
+      "id": "w04-l05-q08",
+      "lesson": "w04-l05",
+      "concept": "w04-l05-partial-staging-amend-reflog",
+      "type": "multiple_choice",
+      "prompt": "You made two unrelated changes in the same file and want them in two separate commits. Which command lets you stage only some of the changes?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`git add -A`"
+        },
+        {
+          "id": "b",
+          "text": "`git commit -a`"
+        },
+        {
+          "id": "c",
+          "text": "`git add -p`"
+        },
+        {
+          "id": "d",
+          "text": "`git stash`"
+        }
+      ],
+      "answer": "c",
+      "explanation": "`git add -p` (`--patch`) shows each hunk and asks whether to stage it: `y` yes, `n` no, `s` to split a hunk into smaller ones. Stage one change, commit, then stage the rest. `git add -A` and `git commit -a` take every change at once, and `git stash` puts all of them aside.",
+      "materials": [
+        "pro-git-book"
+      ],
+      "sources": [
+        {
+          "url": "https://git-scm.com/book/en/v2/Git-Tools-Interactive-Staging",
+          "title": "Git - Interactive Staging (Pro Git 7.2)",
+          "publisher": "Git project (git-scm.com)",
+          "accessed": "2026-09-26",
+          "claim": "git add -p (--patch) shows hunks one by one and asks whether to stage each: y stages, n skips, s splits the hunk into smaller ones."
+        },
+        {
+          "url": "https://git-scm.com/docs/git-commit",
+          "title": "Git - git-commit Documentation",
+          "publisher": "Git project (git-scm.com)",
+          "accessed": "2026-09-26",
+          "claim": "git commit -a automatically stages all modified and deleted tracked files."
+        }
+      ]
+    },
+    {
+      "id": "w04-l05-q09",
+      "lesson": "w04-l05",
+      "concept": "w04-l05-partial-staging-amend-reflog",
+      "type": "written",
+      "prompt": "Explain what the reflog is, how it can rescue you after a bad `reset`, `rebase` or `--amend`, and what its limits are.",
+      "model_answer": {
+        "summary": "The reflog is a local log of where `HEAD` and each branch tip have pointed. Commits you \"lost\" by moving a branch are usually still reachable through it, but it is local-only and its entries expire.",
+        "key_points": [
+          "It records each time `HEAD` or a branch tip moved in your local repository",
+          "Old positions are named `HEAD@{n}`; `git reset --hard HEAD@{1}` or `git branch rescue HEAD@{n}` gets a lost commit back",
+          "It works because reset, rebase and amend don't delete old commits straight away; they just stop pointing at them",
+          "It is local only: it isn't pushed, and a fresh clone has none of your history of moves",
+          "Entries expire (by default 90 days, or 30 for unreachable commits) and garbage collection can then delete the commits"
+        ]
+      },
+      "explanation": "The `git reflog` manual describes it as a record of when branch tips and other references were updated in the local repository. The expiry defaults are `gc.reflogExpire` (90 days) and `gc.reflogExpireUnreachable` (30 days).",
+      "materials": [
+        "pro-git-book"
+      ],
+      "sources": [
+        {
+          "url": "https://git-scm.com/docs/git-reflog",
+          "title": "Git - git-reflog Documentation",
+          "publisher": "Git project (git-scm.com)",
+          "accessed": "2026-09-26",
+          "claim": "Reflogs record updates to branch tips and other references in the local repository; gc.reflogExpire defaults to 90 days and gc.reflogExpireUnreachable to 30 days."
+        },
+        {
+          "url": "https://git-scm.com/book/en/v2/Git-Internals-Maintenance-and-Data-Recovery",
+          "title": "Git - Maintenance and Data Recovery (Pro Git 10.7)",
+          "publisher": "Git project (git-scm.com)",
+          "accessed": "2026-09-26",
+          "claim": "Commits lost by git reset --hard can be found with git reflog and recovered by creating a branch at their SHA-1."
+        }
+      ]
+    },
+    {
+      "id": "w04-l05-q10",
+      "lesson": "w04-l05",
+      "concept": "w04-l05-good-pull-requests",
+      "type": "multiple_choice",
+      "prompt": "Under Conventional Commits 1.0.0, which message marks a breaking change?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`feat!: drop the v1 /chat endpoint`"
+        },
+        {
+          "id": "b",
+          "text": "`fix: drop the v1 /chat endpoint`"
+        },
+        {
+          "id": "c",
+          "text": "`chore(major): drop the v1 /chat endpoint`"
+        },
+        {
+          "id": "d",
+          "text": "`feat: drop the v1 /chat endpoint (major)`"
+        }
+      ],
+      "answer": "a",
+      "explanation": "A `!` after the type or scope, or a `BREAKING CHANGE:` footer, marks a breaking change, which maps to a MAJOR version bump. `fix` maps to PATCH and `feat` to MINOR. Other types such as `chore`, `docs` and `test` are allowed, but a scope or a word in the description doesn't signal a breaking change.",
+      "materials": [
+        "conventional-commits-1-0-0"
+      ],
+      "sources": [
+        {
+          "url": "https://www.conventionalcommits.org/en/v1.0.0/",
+          "title": "Conventional Commits 1.0.0",
+          "publisher": "Conventional Commits",
+          "accessed": "2026-09-26",
+          "claim": "A ! after the type/scope or a BREAKING CHANGE footer marks a breaking change (MAJOR); fix maps to PATCH, feat to MINOR, and other types such as chore, docs and test are allowed."
+        }
+      ]
+    },
+    {
+      "id": "w04-l05-q11",
+      "lesson": "w04-l05",
+      "concept": "w04-l05-good-pull-requests",
+      "type": "written",
+      "prompt": "What makes a good pull request? Describe how you would prepare one for a change that adds API-key authentication and a per-key rate limiter to your agent API.",
+      "model_answer": {
+        "summary": "A good PR is small and has one purpose, explains the problem, the approach and how it was tested, and has been reviewed by its author first. Here that means two PRs, auth first, then the rate limiter, each with tests.",
+        "key_points": [
+          "Keep it small and focused on one purpose: split auth and rate limiting into separate PRs",
+          "Write a clear title and description: the problem, the approach, and anything reviewers should look at closely",
+          "Include tests and say how the change was tested (for example `TestClient` tests for 401 and 429 responses)",
+          "Review your own diff and check the builds and tests pass before asking for review",
+          "Use clear commit messages, such as `feat(auth): require an API key on /chat`"
+        ]
+      },
+      "explanation": "GitHub's guidance is that small, focused pull requests are easier to review and safer to merge, that a clear description helps reviewers understand the problem, approach and result, and that authors should review their own PR first.",
+      "materials": [
+        "github-docs-helping-others-review-your-changes",
+        "conventional-commits-1-0-0"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.github.com/en/pull-requests/concepts/helping-others-review-your-changes",
+          "title": "Helping others review your changes - GitHub Docs",
+          "publisher": "GitHub",
+          "accessed": "2026-09-26",
+          "claim": "Small, focused pull requests are easier to review and safer to merge, a clear title and description explain the problem, approach and result, and authors should review their own PR and check builds/tests first."
+        },
+        {
+          "url": "https://www.conventionalcommits.org/en/v1.0.0/",
+          "title": "Conventional Commits 1.0.0",
+          "publisher": "Conventional Commits",
+          "accessed": "2026-09-26",
+          "claim": "Commit messages take the form type(scope): description, with feat for new features."
+        }
+      ]
+    }
+  ]
+}

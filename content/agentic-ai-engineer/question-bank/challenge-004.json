@@ -1,0 +1,240 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c004-parallel-tool-results",
+      "name": "Returning parallel tool results"
+    },
+    {
+      "id": "c004-langgraph-state-reducers",
+      "name": "LangGraph state reducers"
+    },
+    {
+      "id": "c004-improper-output-handling",
+      "name": "Improper output handling (OWASP LLM05)"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c004-q01",
+      "lesson": null,
+      "concept": "c004-parallel-tool-results",
+      "type": "multiple_choice",
+      "prompt": "Claude's response has two `tool_use` blocks: `get_weather` for Paris and `get_weather` for London. How should your agent loop send the two results back to the Messages API?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "One user message: both `tool_result` blocks first, then any text"
+        },
+        {
+          "id": "b",
+          "text": "Two user messages, one `tool_result` each, in the order of the calls"
+        },
+        {
+          "id": "c",
+          "text": "One user message: a short text summary first, then both results"
+        },
+        {
+          "id": "d",
+          "text": "Only the first result now; Claude asks for the next one next turn"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Every `tool_result` for a parallel batch goes back together in the next user message, matched by `tool_use_id`, and all of them come before any text in that message. Sending one user message per result is the tempting wrong answer: the docs call it the most common reason Claude stops making parallel calls, because that history \"teaches\" it to avoid them. Text placed before the results is also wrong: it breaks the ordering rule and returns a 400 error.",
+      "materials": [
+        "anthropic-docs-handle-tool-calls"
+      ],
+      "sources": [
+        {
+          "url": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/parallel-tool-use",
+          "title": "Parallel tool use",
+          "publisher": "Anthropic",
+          "accessed": "2026-09-26",
+          "claim": "Return one tool_result per tool_use block, all together in the next user message, with every tool_result before any text; a separate user message per result is the most common formatting mistake and teaches Claude to avoid parallel calls."
+        },
+        {
+          "url": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/handle-tool-calls",
+          "title": "Handle tool calls",
+          "publisher": "Anthropic",
+          "accessed": "2026-09-26",
+          "claim": "In the user message containing tool results, tool_result blocks must come first in the content array; text before a tool_result causes a 400 error."
+        }
+      ]
+    },
+    {
+      "id": "c004-q02",
+      "lesson": null,
+      "concept": "c004-langgraph-state-reducers",
+      "type": "multiple_choice",
+      "prompt": "In LangGraph, state is `class State(TypedDict): messages: list`, and it holds three messages. A node returns `{\"messages\": [ai_msg]}`. What does `messages` hold after that update?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Four messages: LangGraph appends list updates by default"
+        },
+        {
+          "id": "b",
+          "text": "Nothing new: it raises an error, since list keys need a reducer"
+        },
+        {
+          "id": "c",
+          "text": "Only `[ai_msg]`: with no reducer, the update overwrites the key"
+        },
+        {
+          "id": "d",
+          "text": "Four messages, deduplicated by ID the way `add_messages` does it"
+        }
+      ],
+      "answer": "c",
+      "explanation": "Each state key has its own reducer, and a key without one uses the default reducer, which replaces the old value with the node's update. So the three earlier messages are lost and `messages` is just `[ai_msg]`. Appending is the tempting answer, but it only happens when you declare a reducer, such as `Annotated[list, operator.add]` or `Annotated[list, add_messages]` (which `MessagesState` uses).",
+      "materials": [
+        "langgraph-graph-api"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.langchain.com/oss/python/langgraph/graph-api",
+          "title": "Graph API overview (LangGraph, Python)",
+          "publisher": "LangChain",
+          "accessed": "2026-09-26",
+          "claim": "Each state key has its own reducer; with no reducer specified, updates to a key override it, while a reducer such as operator.add merges the update into the existing value (['hi'] plus ['bye'] gives ['hi', 'bye'])."
+        }
+      ]
+    },
+    {
+      "id": "c004-q03",
+      "lesson": null,
+      "concept": "c004-improper-output-handling",
+      "type": "written",
+      "prompt": "Your agent asks an LLM to write a SQL query from the user's question and runs it, then renders the model's reply as HTML in a web chat. Using OWASP LLM05 (Improper Output Handling, 2025 list), what can go wrong, and how do you defend against it?",
+      "model_answer": {
+        "summary": "Model output is untrusted input, so passing it unchecked to the database or the browser opens the app to SQL injection and XSS. Treat it with zero trust: validate it, use parameterised queries, and encode it for the context it lands in.",
+        "key_points": [
+          "LLM output must be treated as untrusted (zero trust) and validated or sanitised before it reaches downstream systems.",
+          "Running model-written SQL without parameterisation risks SQL injection; use parameterised queries.",
+          "Rendering model-produced JavaScript or Markdown in the browser without encoding risks XSS; use context-aware output encoding (HTML encoding for web) and a Content Security Policy.",
+          "The damage grows when the LLM's integration has excessive privileges, such as a database user that can write or drop tables."
+        ]
+      },
+      "explanation": "LLM05 is about insufficient validation, sanitisation and handling of model output before it goes to other components. Because prompt injection can steer what the model writes, its output is effectively attacker-influenced input: unparameterised SQL invites SQL injection, and unencoded JavaScript or Markdown sent to a browser invites XSS. The tempting mistake is to rely on the prompt or on filtering the user's input alone; OWASP asks you to validate and encode the output itself, per destination.",
+      "materials": [
+        "owasp-top-10-for-llm-applications"
+      ],
+      "sources": [
+        {
+          "url": "https://genai.owasp.org/llmrisk/llm052025-improper-output-handling/",
+          "title": "LLM05:2025 Improper Output Handling",
+          "publisher": "OWASP Gen AI Security Project",
+          "accessed": "2026-09-26",
+          "claim": "Improper Output Handling is insufficient validation, sanitisation and handling of LLM output before it goes downstream; examples include shell execution (RCE), unencoded JavaScript or Markdown in browsers (XSS) and unparameterised SQL (SQL injection); mitigations are a zero-trust approach with validation, context-aware output encoding, parameterised queries, CSP and logging; impact grows with excessive LLM privileges."
+        }
+      ]
+    },
+    {
+      "id": "c004-q04",
+      "lesson": null,
+      "concept": "c004-parallel-tool-results",
+      "type": "multiple_choice",
+      "prompt": "After a `tool_use` turn, your loop sends a user message whose content is a text block \"Here are the results:\" followed by the `tool_result` block. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It works: the API reorders the content blocks by type for you"
+        },
+        {
+          "id": "b",
+          "text": "It works, but Claude skips any text sent in a tool-result turn"
+        },
+        {
+          "id": "c",
+          "text": "Claude treats the result as missing and calls the tool again"
+        },
+        {
+          "id": "d",
+          "text": "The API returns a 400 error: text came before `tool_result`"
+        }
+      ],
+      "answer": "d",
+      "explanation": "In a user message that carries tool results, the `tool_result` blocks must come first in the content array, and any text must come after all of them. Text first is rejected with a 400 error, so nothing reaches Claude. The API does not reorder blocks for you; put the results first and your text after them.",
+      "materials": [
+        "anthropic-docs-handle-tool-calls"
+      ],
+      "sources": [
+        {
+          "url": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/handle-tool-calls",
+          "title": "Handle tool calls",
+          "publisher": "Anthropic",
+          "accessed": "2026-09-26",
+          "claim": "In the user message containing tool results, tool_result blocks must come first in the content array and any text after them; a text block before a tool_result causes a 400 error."
+        }
+      ]
+    },
+    {
+      "id": "c004-q05",
+      "lesson": null,
+      "concept": "c004-langgraph-state-reducers",
+      "type": "written",
+      "prompt": "In a LangGraph chat agent, several nodes add turns to `messages`, and one node sometimes rewrites an earlier message. Why declare the key as `Annotated[list, add_messages]` rather than with no reducer or with `operator.add`?",
+      "model_answer": {
+        "summary": "With no reducer each node's update replaces the whole list, and `operator.add` only concatenates. `add_messages` appends new messages but updates an existing one when the ID matches, which is what a rewrite needs.",
+        "key_points": [
+          "With no reducer, a node's update overwrites the key, so earlier messages are lost.",
+          "`operator.add` concatenates lists, so resending a changed message adds a duplicate instead of replacing it.",
+          "`add_messages` appends new messages and updates existing messages that have the same ID.",
+          "`add_messages` also deserialises dicts such as `{\"type\": \"human\", ...}` into LangChain message objects; `MessagesState` uses it for its `messages` key."
+        ]
+      },
+      "explanation": "Reducers are set per state key and decide how a node's update merges into state. The default replaces the value; `operator.add` merges by concatenation but knows nothing about message identity. `add_messages` tracks message IDs, so a message with a known ID updates in place and a new one is appended. That is why `MessagesState` declares `messages` with `add_messages`.",
+      "materials": [
+        "langgraph-graph-api"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.langchain.com/oss/python/langgraph/graph-api",
+          "title": "Graph API overview (LangGraph, Python)",
+          "publisher": "LangChain",
+          "accessed": "2026-09-26",
+          "claim": "Without a reducer, updates override a key; operator.add concatenates lists; add_messages appends new messages, updates existing messages by ID, and deserialises dicts into LangChain Message objects; MessagesState's messages key uses add_messages."
+        }
+      ]
+    },
+    {
+      "id": "c004-q06",
+      "lesson": null,
+      "concept": "c004-improper-output-handling",
+      "type": "multiple_choice",
+      "prompt": "An agent passes the model's reply straight to `subprocess.run(reply, shell=True)`. Which change best fixes the root problem that OWASP LLM05 describes?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Tell the model in its system prompt never to write shell commands"
+        },
+        {
+          "id": "b",
+          "text": "Treat the reply as untrusted and validate it before any shell runs"
+        },
+        {
+          "id": "c",
+          "text": "Switch to a larger model that is less likely to hallucinate commands"
+        },
+        {
+          "id": "d",
+          "text": "Filter the user's input for injection, so the model's reply is safe"
+        }
+      ],
+      "answer": "b",
+      "explanation": "LLM05 says model output must get the same zero-trust validation as any user input before it reaches a downstream system; sending it to a shell unchecked is its first example, leading to remote code execution. A system-prompt rule is tempting, but the model can be steered past it by prompt injection, so it is not a control. Filtering only the user's input misses injected content from other sources, and a bigger model addresses accuracy (overreliance), not unsafe handling.",
+      "materials": [
+        "owasp-top-10-for-llm-applications"
+      ],
+      "sources": [
+        {
+          "url": "https://genai.owasp.org/llmrisk/llm052025-improper-output-handling/",
+          "title": "LLM05:2025 Improper Output Handling",
+          "publisher": "OWASP Gen AI Security Project",
+          "accessed": "2026-09-26",
+          "claim": "Passing LLM output directly into a system shell or exec function can cause remote code execution; the mitigation is to treat the model as any other user with a zero-trust approach and validate its responses before they reach backend functions. LLM05 is distinct from Overreliance, which is about depending on output accuracy."
+        }
+      ]
+    }
+  ]
+}

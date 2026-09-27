@@ -1,0 +1,413 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "question-bank.schema.json",
+  "$defs": {
+    "Choice": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[a-h]$",
+          "title": "Id",
+          "type": "string"
+        },
+        "text": {
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "text"
+      ],
+      "title": "Choice",
+      "type": "object"
+    },
+    "Concept": {
+      "additionalProperties": false,
+      "description": "The single idea a Question tests. Concepts belong to the Stack, like the Question Bank.",
+      "properties": {
+        "id": {
+          "description": "Permanent ID: lowercase words joined by hyphens. It never changes across Syllabus versions, so Learner progress can be keyed by it.",
+          "maxLength": 80,
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "title": "Concept",
+      "type": "object"
+    },
+    "ModelAnswer": {
+      "additionalProperties": false,
+      "properties": {
+        "summary": {
+          "minLength": 1,
+          "title": "Summary",
+          "type": "string"
+        },
+        "key_points": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 2,
+          "title": "Key Points",
+          "type": "array"
+        }
+      },
+      "required": [
+        "summary",
+        "key_points"
+      ],
+      "title": "ModelAnswer",
+      "type": "object"
+    },
+    "MultipleChoiceQuestion": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "description": "Permanent ID: lowercase words joined by hyphens. It never changes across Syllabus versions, so Learner progress can be keyed by it.",
+          "maxLength": 80,
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "lesson": {
+          "anyOf": [
+            {
+              "description": "Permanent ID: lowercase words joined by hyphens. It never changes across Syllabus versions, so Learner progress can be keyed by it.",
+              "maxLength": 80,
+              "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The Lesson the Question belongs to, in the Stack's newest Syllabus; null for none. It is the one field of a committed Question that may change (a re-tag).",
+          "title": "Lesson"
+        },
+        "concept": {
+          "description": "Permanent ID: lowercase words joined by hyphens. It never changes across Syllabus versions, so Learner progress can be keyed by it.",
+          "maxLength": 80,
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "title": "Concept",
+          "type": "string"
+        },
+        "type": {
+          "const": "multiple_choice",
+          "title": "Type",
+          "type": "string"
+        },
+        "prompt": {
+          "minLength": 1,
+          "title": "Prompt",
+          "type": "string"
+        },
+        "choices": {
+          "items": {
+            "$ref": "#/$defs/Choice"
+          },
+          "minItems": 2,
+          "title": "Choices",
+          "type": "array"
+        },
+        "answer": {
+          "pattern": "^[a-h]$",
+          "title": "Answer",
+          "type": "string"
+        },
+        "explanation": {
+          "minLength": 1,
+          "title": "Explanation",
+          "type": "string"
+        },
+        "materials": {
+          "description": "IDs of Materials in this Syllabus.",
+          "items": {
+            "description": "Permanent ID: lowercase words joined by hyphens. It never changes across Syllabus versions, so Learner progress can be keyed by it.",
+            "maxLength": 80,
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+            "type": "string"
+          },
+          "title": "Materials",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "sources": {
+          "items": {
+            "$ref": "#/$defs/Source"
+          },
+          "minItems": 1,
+          "title": "Sources",
+          "type": "array"
+        },
+        "retired": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Retirement"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Set once to retire the Question; a retirement is never undone."
+        }
+      },
+      "required": [
+        "id",
+        "concept",
+        "type",
+        "prompt",
+        "choices",
+        "answer",
+        "explanation",
+        "materials",
+        "sources"
+      ],
+      "title": "MultipleChoiceQuestion",
+      "type": "object"
+    },
+    "Retirement": {
+      "additionalProperties": false,
+      "description": "Why a Question was taken out of use. It stays in the Question Bank, and is never drawn.",
+      "properties": {
+        "reason": {
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        },
+        "replaced_by": {
+          "anyOf": [
+            {
+              "description": "Permanent ID: lowercase words joined by hyphens. It never changes across Syllabus versions, so Learner progress can be keyed by it.",
+              "maxLength": 80,
+              "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The Question that replaces it, if any: a Question in the bank.",
+          "title": "Replaced By"
+        },
+        "on": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The UTC date it was retired.",
+          "title": "On"
+        }
+      },
+      "required": [
+        "reason"
+      ],
+      "title": "Retirement",
+      "type": "object"
+    },
+    "Source": {
+      "additionalProperties": false,
+      "description": "Where a Question's content came from. A Source is for checking a Question; a Material is\nfor learning.",
+      "properties": {
+        "url": {
+          "pattern": "^https://",
+          "title": "Url",
+          "type": "string"
+        },
+        "title": {
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "publisher": {
+          "minLength": 1,
+          "title": "Publisher",
+          "type": "string"
+        },
+        "accessed": {
+          "description": "The UTC date the Source was read, YYYY-MM-DD: in the run that wrote the Question (the content check allows today or yesterday for a new Question).",
+          "format": "date",
+          "title": "Accessed",
+          "type": "string"
+        },
+        "claim": {
+          "description": "The claim the Question relies on.",
+          "minLength": 1,
+          "title": "Claim",
+          "type": "string"
+        }
+      },
+      "required": [
+        "url",
+        "title",
+        "publisher",
+        "accessed",
+        "claim"
+      ],
+      "title": "Source",
+      "type": "object"
+    },
+    "WrittenQuestion": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "description": "Permanent ID: lowercase words joined by hyphens. It never changes across Syllabus versions, so Learner progress can be keyed by it.",
+          "maxLength": 80,
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "lesson": {
+          "anyOf": [
+            {
+              "description": "Permanent ID: lowercase words joined by hyphens. It never changes across Syllabus versions, so Learner progress can be keyed by it.",
+              "maxLength": 80,
+              "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The Lesson the Question belongs to, in the Stack's newest Syllabus; null for none. It is the one field of a committed Question that may change (a re-tag).",
+          "title": "Lesson"
+        },
+        "concept": {
+          "description": "Permanent ID: lowercase words joined by hyphens. It never changes across Syllabus versions, so Learner progress can be keyed by it.",
+          "maxLength": 80,
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "title": "Concept",
+          "type": "string"
+        },
+        "type": {
+          "const": "written",
+          "title": "Type",
+          "type": "string"
+        },
+        "prompt": {
+          "minLength": 1,
+          "title": "Prompt",
+          "type": "string"
+        },
+        "model_answer": {
+          "$ref": "#/$defs/ModelAnswer"
+        },
+        "explanation": {
+          "minLength": 1,
+          "title": "Explanation",
+          "type": "string"
+        },
+        "materials": {
+          "description": "IDs of Materials in this Syllabus.",
+          "items": {
+            "description": "Permanent ID: lowercase words joined by hyphens. It never changes across Syllabus versions, so Learner progress can be keyed by it.",
+            "maxLength": 80,
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+            "type": "string"
+          },
+          "title": "Materials",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "sources": {
+          "items": {
+            "$ref": "#/$defs/Source"
+          },
+          "minItems": 1,
+          "title": "Sources",
+          "type": "array"
+        },
+        "retired": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Retirement"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Set once to retire the Question; a retirement is never undone."
+        }
+      },
+      "required": [
+        "id",
+        "concept",
+        "type",
+        "prompt",
+        "model_answer",
+        "explanation",
+        "materials",
+        "sources"
+      ],
+      "title": "WrittenQuestion",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "One file of a Stack's Question Bank (`question-bank/<name>.json`). The bank is every file\ntogether: files only group Questions for readable diffs, and a Concept declared in one file\ncan be tested in another. Questions testing the same Concept are siblings.\n\nThe bank is append-only (ADR-0004): a committed Question is never edited or deleted, only\nretired or re-tagged to another Lesson.",
+  "properties": {
+    "schema_version": {
+      "const": 2,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "concepts": {
+      "items": {
+        "$ref": "#/$defs/Concept"
+      },
+      "title": "Concepts",
+      "type": "array"
+    },
+    "questions": {
+      "items": {
+        "discriminator": {
+          "mapping": {
+            "multiple_choice": "#/$defs/MultipleChoiceQuestion",
+            "written": "#/$defs/WrittenQuestion"
+          },
+          "propertyName": "type"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/$defs/MultipleChoiceQuestion"
+          },
+          {
+            "$ref": "#/$defs/WrittenQuestion"
+          }
+        ]
+      },
+      "title": "Questions",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "concepts",
+    "questions"
+  ],
+  "title": "Question Bank",
+  "type": "object"
+}

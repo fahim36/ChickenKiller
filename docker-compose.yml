@@ -1,0 +1,39 @@
+# Local Postgres for development and tests: `docker compose up -d db`.
+# Host port 5433 avoids clashing with a Postgres already installed on 5432.
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: learning
+      POSTGRES_PASSWORD: learning
+      POSTGRES_DB: learning
+    ports:
+      - "5433:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U learning -d learning"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  # The web app, for running the whole app locally: run-app.cmd builds and starts it. The API
+  # runs on the host instead (uv), because grading written answers runs the Claude Code CLI
+  # signed in on this machine (docs/adr/0006). Clerk keys come from .env.local.
+  web:
+    build:
+      context: ./web
+      args:
+        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:-}
+    env_file:
+      - path: .env.local
+        required: false
+    environment:
+      API_URL: http://host.docker.internal:${API_PORT:-8000}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "127.0.0.1:3000:3000"
+
+volumes:
+  db-data:

@@ -1,0 +1,56 @@
+[project]
+name = "learning-app-api"
+version = "0.1.0"
+description = "Backend for the Learning App: Syllabus content, Lessons and quizzes."
+requires-python = ">=3.12"
+dependencies = [
+    "alembic>=1.13",
+    "fastapi>=0.115",
+    "httpx>=0.27",
+    "psycopg[binary]>=3.2",
+    "pydantic>=2.9",
+    "pyjwt[crypto]>=2.9",
+    "sqlalchemy>=2.0.36",
+    "tzdata>=2025.1",
+    "uvicorn[standard]>=0.30",
+]
+
+[project.scripts]
+content-check = "app.content.check:main"
+content-diff = "app.content.diff:main"
+content-import = "app.content.importer:main"
+content-migrate-bank = "app.content.migrate_bank:main"
+content-new-version = "app.content.new_version:main"
+content-schema = "app.content.schema:main"
+
+[dependency-groups]
+dev = [
+    "httpx2>=2.13",
+    "mypy>=1.13",
+    "pytest>=8",
+    "pyyaml>=6",
+    "ruff>=0.6",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["pydantic.mypy"]
+files = ["app"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,0 +1,470 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "w09-l03-why-not-in-request",
+      "name": "Why long agent runs shouldn't live inside an HTTP request"
+    },
+    {
+      "id": "w09-l03-rq-jobs",
+      "name": "Enqueueing and running jobs with RQ"
+    },
+    {
+      "id": "w09-l03-job-status",
+      "name": "Reporting job status: polling or webhooks"
+    },
+    {
+      "id": "w09-l03-at-least-once-idempotency",
+      "name": "At-least-once delivery and idempotent jobs"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w09-l03-q01",
+      "lesson": "w09-l03",
+      "concept": "w09-l03-why-not-in-request",
+      "type": "multiple_choice",
+      "prompt": "`/chat` runs a 3-minute agent loop inside the HTTP request. Which problem does moving the run onto a background worker solve?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It makes each LLM call inside the loop faster, since the worker has no HTTP overhead"
+        },
+        {
+          "id": "b",
+          "text": "It removes the need to store the run's result, since the worker returns it to the client"
+        },
+        {
+          "id": "c",
+          "text": "A dropped connection or proxy timeout no longer kills the run, and web workers stay free"
+        },
+        {
+          "id": "d",
+          "text": "It guarantees each run executes exactly once, even if the worker crashes midway"
+        }
+      ],
+      "answer": "c",
+      "explanation": "A long request ties up a web worker for minutes and depends on every hop keeping the connection open; networks and proxies drop idle connections. With a queue, the request only enqueues the job and returns, and the worker runs it to completion independently. The run isn't faster, the result must now be stored, and queues typically give at-least-once, not exactly-once.",
+      "materials": [
+        "rq-for-background-jobs"
+      ],
+      "sources": [
+        {
+          "url": "https://python-rq.org/docs/",
+          "title": "RQ: Documentation Overview",
+          "publisher": "RQ (python-rq project)",
+          "accessed": "2026-09-26",
+          "claim": "RQ queues jobs in Redis so separate worker processes run them in the background, outside the process that enqueued them."
+        },
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status/202",
+          "title": "202 Accepted - HTTP | MDN",
+          "publisher": "Mozilla (MDN Web Docs)",
+          "accessed": "2026-09-26",
+          "claim": "A 202 response signals the request was accepted and handed to another process, with processing not yet complete."
+        }
+      ]
+    },
+    {
+      "id": "w09-l03-q02",
+      "lesson": "w09-l03",
+      "concept": "w09-l03-why-not-in-request",
+      "type": "written",
+      "prompt": "Explain why long agent runs should not live inside an HTTP request, and describe the design you would use instead for `agent-api`.",
+      "model_answer": {
+        "summary": "Long runs block web workers and die with the connection, so `/chat` should enqueue a job, return its ID at once, and let a worker run it while the client checks the status.",
+        "key_points": [
+          "A long request holds a web worker and fails if any client, proxy or load balancer timeout cuts the connection",
+          "A deploy or crash of the web process loses the in-flight run",
+          "Instead, `POST /chat` enqueues a job (for example in Redis with RQ) and returns `202 Accepted` with a job ID",
+          "A separate worker process runs the job and stores the result",
+          "The client gets the result by polling a status endpoint or receiving a webhook"
+        ]
+      },
+      "explanation": "This is the lesson's exercise. The request path does only fast work, and the slow work moves to processes you can scale and restart on their own. The job ID is the handle that ties the two together.",
+      "materials": [
+        "rq-for-background-jobs",
+        "mdn-http-202-accepted"
+      ],
+      "sources": [
+        {
+          "url": "https://python-rq.org/docs/",
+          "title": "RQ: Documentation Overview",
+          "publisher": "RQ (python-rq project)",
+          "accessed": "2026-09-26",
+          "claim": "With RQ the web process enqueues a function call in Redis and a separate worker process executes it and keeps the result."
+        },
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status/202",
+          "title": "202 Accepted - HTTP | MDN",
+          "publisher": "Mozilla (MDN Web Docs)",
+          "accessed": "2026-09-26",
+          "claim": "202 Accepted means the request was accepted for processing that has not completed, and the response can include a URL the client uses to monitor the task's status."
+        }
+      ]
+    },
+    {
+      "id": "w09-l03-q03",
+      "lesson": "w09-l03",
+      "concept": "w09-l03-rq-jobs",
+      "type": "multiple_choice",
+      "prompt": "You define `def run_agent(chat_id): ...` in `app.py`, start it with `python app.py`, and call `q.enqueue(run_agent, chat_id)`. The RQ worker can't run the job. Why?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The worker must import the function, and one defined in `__main__` can't be imported"
+        },
+        {
+          "id": "b",
+          "text": "`enqueue` only accepts functions with no arguments, so `chat_id` must go in `job.meta`"
+        },
+        {
+          "id": "c",
+          "text": "RQ can only run `async` functions, so `run_agent` must be declared `async def`"
+        },
+        {
+          "id": "d",
+          "text": "The job needs an explicit `job_id` before any worker can pick it up from the queue"
+        }
+      ],
+      "answer": "a",
+      "explanation": "RQ stores a reference to the function, and the worker imports its module to run it. The RQ docs warn that you can't enqueue functions declared in `__main__`. Put job functions in an importable module, such as `agent_api/jobs.py`, that both the web app and the worker import.",
+      "materials": [
+        "rq-for-background-jobs"
+      ],
+      "sources": [
+        {
+          "url": "https://python-rq.org/docs/",
+          "title": "RQ: Documentation Overview",
+          "publisher": "RQ (python-rq project)",
+          "accessed": "2026-09-26",
+          "claim": "The function's module must be importable by the worker, so functions declared in the __main__ module cannot be enqueued."
+        }
+      ]
+    },
+    {
+      "id": "w09-l03-q04",
+      "lesson": "w09-l03",
+      "concept": "w09-l03-rq-jobs",
+      "type": "multiple_choice",
+      "prompt": "Agent runs take about 5 minutes, and every one fails in RQ after about 3 minutes. What is the likely cause?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Redis evicts jobs that have waited in the queue for more than 3 minutes"
+        },
+        {
+          "id": "b",
+          "text": "`job_timeout` defaults to 180 seconds; pass a longer one, like `job_timeout=\"10m\"`"
+        },
+        {
+          "id": "c",
+          "text": "The default `result_ttl` deletes jobs that are still running after 3 minutes"
+        },
+        {
+          "id": "d",
+          "text": "The worker must be started with `--with-scheduler` to run jobs longer than 3 minutes"
+        }
+      ],
+      "answer": "b",
+      "explanation": "RQ interrupts a job that runs longer than its `job_timeout`, which defaults to 180 seconds, and marks it failed. Set it per job with `enqueue(..., job_timeout=\"10m\")`. `result_ttl` controls how long a finished job's result is kept, not how long a job may run.",
+      "materials": [
+        "rq-for-background-jobs"
+      ],
+      "sources": [
+        {
+          "url": "https://python-rq.org/docs/results/",
+          "title": "RQ: Results",
+          "publisher": "RQ (python-rq project)",
+          "accessed": "2026-09-26",
+          "claim": "By default RQ jobs must finish within 180 seconds, after which the worker kills the work horse and marks the job failed; job_timeout on enqueue() changes it."
+        },
+        {
+          "url": "https://python-rq.org/docs/jobs/",
+          "title": "RQ: Jobs",
+          "publisher": "RQ (python-rq project)",
+          "accessed": "2026-09-26",
+          "claim": "job_timeout is the maximum runtime before a job is interrupted and marked failed, and accepts strings such as '1h', '3m' or '5s'."
+        }
+      ]
+    },
+    {
+      "id": "w09-l03-q05",
+      "lesson": "w09-l03",
+      "concept": "w09-l03-rq-jobs",
+      "type": "multiple_choice",
+      "prompt": "A client polls for a finished job's result 20 minutes after it completed, and the result is gone. Why, with RQ's defaults?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Successful results are kept for 500 seconds by default (`result_ttl`), then deleted"
+        },
+        {
+          "id": "b",
+          "text": "RQ never stores return values; you must write them yourself"
+        },
+        {
+          "id": "c",
+          "text": "Results are deleted as soon as the worker exits"
+        },
+        {
+          "id": "d",
+          "text": "Results expire after 1 year, so another worker must have overwritten it"
+        }
+      ],
+      "answer": "a",
+      "explanation": "RQ keeps a successful job's result for `result_ttl` seconds, 500 by default; failed jobs are kept for `failure_ttl`, one year by default. For results a client may fetch much later, raise `result_ttl` or, better, save the result to your own database keyed by the job ID.",
+      "materials": [
+        "rq-for-background-jobs"
+      ],
+      "sources": [
+        {
+          "url": "https://python-rq.org/docs/jobs/",
+          "title": "RQ: Jobs",
+          "publisher": "RQ (python-rq project)",
+          "accessed": "2026-09-26",
+          "claim": "result_ttl sets how long successful jobs and their results are kept and defaults to 500 seconds."
+        },
+        {
+          "url": "https://python-rq.org/docs/",
+          "title": "RQ: Documentation Overview",
+          "publisher": "RQ (python-rq project)",
+          "accessed": "2026-09-26",
+          "claim": "failure_ttl sets how long failed jobs are kept and defaults to 1 year."
+        }
+      ]
+    },
+    {
+      "id": "w09-l03-q06",
+      "lesson": "w09-l03",
+      "concept": "w09-l03-rq-jobs",
+      "type": "multiple_choice",
+      "prompt": "You enqueue jobs with `retry=Retry(max=3, interval=[10, 30, 60])`, but failed jobs are never retried after their delays. What is missing?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`Retry` only works when `job_timeout` is also set on the same job"
+        },
+        {
+          "id": "b",
+          "text": "The intervals must be equal, like `[30, 30, 30]`, or RQ ignores them"
+        },
+        {
+          "id": "c",
+          "text": "A `depends_on` job that re-enqueues the failed job to trigger each retry"
+        },
+        {
+          "id": "d",
+          "text": "Start the worker with `--with-scheduler`; retries with intervals need it"
+        }
+      ],
+      "answer": "d",
+      "explanation": "Retries with an interval are scheduled for later, and in RQ scheduled work only runs when a worker is started with `--with-scheduler`. Without an interval, a failed job is requeued immediately. A list like `[10, 30, 60]` gives a different wait before each retry.",
+      "materials": [
+        "rq-for-background-jobs"
+      ],
+      "sources": [
+        {
+          "url": "https://python-rq.org/docs/exceptions/",
+          "title": "RQ: Exceptions & Retries",
+          "publisher": "RQ (python-rq project)",
+          "accessed": "2026-09-26",
+          "claim": "Retry takes max and an interval that may be a list of per-retry delays; with an interval, workers must run with --with-scheduler, and without one a failed job is requeued immediately."
+        }
+      ]
+    },
+    {
+      "id": "w09-l03-q07",
+      "lesson": "w09-l03",
+      "concept": "w09-l03-job-status",
+      "type": "multiple_choice",
+      "prompt": "`POST /chat` enqueues the run and immediately returns its job ID. Which HTTP status fits this response?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`202 Accepted`: accepted for processing, which hasn't finished yet"
+        },
+        {
+          "id": "b",
+          "text": "`201 Created`: the chat reply has been created and can be fetched"
+        },
+        {
+          "id": "c",
+          "text": "`200 OK` with an empty body, since the reply isn't ready yet"
+        },
+        {
+          "id": "d",
+          "text": "`303 See Other`, so the browser follows it straight to the finished result"
+        }
+      ],
+      "answer": "a",
+      "explanation": "`202 Accepted` means the request was accepted but processing hasn't completed, and may not have started. It is non-committal: HTTP can't later send the outcome, so the response should tell the client where to check, such as `/jobs/{id}`. `201` would claim the result already exists.",
+      "materials": [
+        "mdn-http-202-accepted"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status/202",
+          "title": "202 Accepted - HTTP | MDN",
+          "publisher": "Mozilla (MDN Web Docs)",
+          "accessed": "2026-09-26",
+          "claim": "202 Accepted means the request was accepted but processing is not complete or may not have started, and is non-committal because HTTP cannot later send the outcome."
+        }
+      ]
+    },
+    {
+      "id": "w09-l03-q08",
+      "lesson": "w09-l03",
+      "concept": "w09-l03-job-status",
+      "type": "written",
+      "prompt": "Compare polling and webhooks for telling a client that an agent job has finished. Which would you use for a browser front end, and which for a partner's backend server?",
+      "model_answer": {
+        "summary": "Polling is simple and works from any client; webhooks push the result but need a reachable, secured endpoint, so use polling for the browser and webhooks for the partner's server.",
+        "key_points": [
+          "Polling: the client repeatedly calls a status endpoint such as `GET /jobs/{id}` until the job is finished or failed",
+          "Polling needs nothing on the client side, but costs repeated requests and adds up to one poll interval of delay",
+          "Webhooks: your server calls a URL the client registered when the job finishes, so there's no wasted polling",
+          "Webhooks need a publicly reachable endpoint, so they suit a server, not a browser",
+          "The webhook receiver must handle retries and duplicates and should verify the call really came from you"
+        ]
+      },
+      "explanation": "The deciding question is whether the client can receive a call. A browser can't expose an endpoint, so it polls (or holds a stream open). A partner's backend can, and a webhook saves both sides the polling traffic.",
+      "materials": [
+        "rq-for-background-jobs",
+        "mdn-http-202-accepted"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status/202",
+          "title": "202 Accepted - HTTP | MDN",
+          "publisher": "Mozilla (MDN Web Docs)",
+          "accessed": "2026-09-26",
+          "claim": "Because a 202 is non-committal, the response can include a status-monitor URL that the client checks later for the task's outcome."
+        },
+        {
+          "url": "https://python-rq.org/docs/jobs/",
+          "title": "RQ: Jobs",
+          "publisher": "RQ (python-rq project)",
+          "accessed": "2026-09-26",
+          "claim": "RQ jobs have IDs and statuses that can be fetched later, which a status endpoint can expose for polling."
+        }
+      ]
+    },
+    {
+      "id": "w09-l03-q09",
+      "lesson": "w09-l03",
+      "concept": "w09-l03-at-least-once-idempotency",
+      "type": "multiple_choice",
+      "prompt": "In Celery you set `acks_late=True` on a task, and a worker crashes halfway through running it. What can happen?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The task is lost, because it was acknowledged when it started"
+        },
+        {
+          "id": "b",
+          "text": "The task resumes from where it stopped"
+        },
+        {
+          "id": "c",
+          "text": "The task can run again from the start, so it must be idempotent"
+        },
+        {
+          "id": "d",
+          "text": "Celery guarantees it runs exactly once"
+        }
+      ],
+      "answer": "c",
+      "explanation": "By default Celery acknowledges a message just before running the task, so a started task is never run again (at most once). With `acks_late` it acknowledges after the task finishes, so a crash leaves the message unacknowledged and it may run again (at least once). The Celery docs say such tasks should be idempotent. Nothing resumes midway.",
+      "materials": [
+        "celery-tasks-user-guide"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.celeryq.dev/en/stable/userguide/tasks.html",
+          "title": "Tasks — Celery 5.6.3 documentation",
+          "publisher": "Celery Project",
+          "accessed": "2026-09-26",
+          "claim": "By default Celery acknowledges a task just before executing it so a started task never runs again; with acks_late it acknowledges after execution, so a worker crash mid-task can cause it to run again, and tasks should ideally be idempotent."
+        }
+      ]
+    },
+    {
+      "id": "w09-l03-q10",
+      "lesson": "w09-l03",
+      "concept": "w09-l03-at-least-once-idempotency",
+      "type": "multiple_choice",
+      "prompt": "A job saves an agent run's answer and emails the user. With at-least-once delivery, how do you stop a rerun from sending a second email?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Set retries to 0, so the queue never runs the job a second time"
+        },
+        {
+          "id": "b",
+          "text": "Record \"email sent\" under the run ID (unique constraint); skip if it exists"
+        },
+        {
+          "id": "c",
+          "text": "Give the job a much longer timeout, so it never fails partway and never gets rerun"
+        },
+        {
+          "id": "d",
+          "text": "Send the email first, then save the answer, so a crash can't skip the email"
+        }
+      ],
+      "answer": "b",
+      "explanation": "An idempotent job has the same effect however many times it runs. Keying each side effect by a stable ID, such as the run ID, and checking it before acting turns a duplicate run into a no-op. Fewer retries or longer timeouts only make duplicates rarer; a crash can still cause one.",
+      "materials": [
+        "celery-tasks-user-guide"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.celeryq.dev/en/stable/userguide/tasks.html",
+          "title": "Tasks — Celery 5.6.3 documentation",
+          "publisher": "Celery Project",
+          "accessed": "2026-09-26",
+          "claim": "Celery recommends idempotent tasks, which cause no unintended effects when called multiple times with the same arguments, because redelivery can run a task more than once."
+        }
+      ]
+    },
+    {
+      "id": "w09-l03-q11",
+      "lesson": "w09-l03",
+      "concept": "w09-l03-at-least-once-idempotency",
+      "type": "written",
+      "prompt": "Explain at-most-once and at-least-once delivery, and how you would make an agent job that calls an LLM, writes the answer to the database and charges the user's credits safe to run twice.",
+      "model_answer": {
+        "summary": "At-most-once can lose a job; at-least-once can run it twice, so the job must be idempotent, keyed by its run ID.",
+        "key_points": [
+          "At-most-once acknowledges before running, so a crash mid-job loses the work",
+          "At-least-once acknowledges after running, so a crash means the job can run again",
+          "Under at-least-once the job must be idempotent: running it twice has the same effect as once",
+          "Use the run ID as the key: upsert the answer by run ID and record the credit charge under the run ID so it applies only once",
+          "Store the LLM result once it arrives, so a rerun reuses it instead of paying for a new, possibly different answer"
+        ]
+      },
+      "explanation": "Losing agent runs is usually worse than running one twice, so queues are set up for at-least-once, and correctness moves into the job. The LLM call deserves special care because a repeat costs money and can return a different answer.",
+      "materials": [
+        "celery-tasks-user-guide",
+        "rq-for-background-jobs"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.celeryq.dev/en/stable/userguide/tasks.html",
+          "title": "Tasks — Celery 5.6.3 documentation",
+          "publisher": "Celery Project",
+          "accessed": "2026-09-26",
+          "claim": "Early acknowledgement (the default) means a started task is never re-executed, while acks_late acknowledges after execution so a crash can re-run the task, which is why tasks should be idempotent."
+        },
+        {
+          "url": "https://python-rq.org/docs/results/",
+          "title": "RQ: Results",
+          "publisher": "RQ (python-rq project)",
+          "accessed": "2026-09-26",
+          "claim": "RQ stores a successful job's return value for result_ttl (500 seconds by default), so durable results should be saved elsewhere."
+        }
+      ]
+    }
+  ]
+}

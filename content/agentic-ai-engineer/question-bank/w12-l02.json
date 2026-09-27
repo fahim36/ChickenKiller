@@ -1,0 +1,516 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "w12-l02-lambda-time-limit",
+      "name": "Lambda's 15-minute limit vs long agent runs"
+    },
+    {
+      "id": "w12-l02-cold-starts",
+      "name": "Cold starts and how to reduce them"
+    },
+    {
+      "id": "w12-l02-compute-options",
+      "name": "Lambda vs ECS Fargate vs App Runner vs EC2"
+    },
+    {
+      "id": "w12-l02-containers-as-unit",
+      "name": "Containers as the unit of deployment"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w12-l02-q01",
+      "lesson": "w12-l02",
+      "concept": "w12-l02-lambda-time-limit",
+      "type": "multiple_choice",
+      "prompt": "An agent run makes many tool calls and sometimes takes 25 minutes. What happens if it runs inside one invocation of a standard Lambda function?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Lambda extends the timeout while the function is waiting on network calls"
+        },
+        {
+          "id": "b",
+          "text": "Lambda pauses the run and resumes it in a fresh execution environment"
+        },
+        {
+          "id": "c",
+          "text": "The invocation is stopped at its timeout, which can be at most 900 seconds"
+        },
+        {
+          "id": "d",
+          "text": "It finishes, but every second after 15 minutes is billed at a higher rate"
+        }
+      ],
+      "answer": "c",
+      "explanation": "A standard Lambda function's timeout can be set to at most 900 seconds (15 minutes); when it's reached, the invocation ends. Waiting on the network still counts. (As of 2026 AWS also offers Lambda durable functions and Lambda Managed Instances with longer limits, but they are different programming models, not a longer timeout for a normal handler.)",
+      "materials": [
+        "aws-lambda-quotas"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.aws.amazon.com/lambda/latest/dg/gettingstarted-limits.html",
+          "title": "Lambda quotas",
+          "publisher": "AWS",
+          "accessed": "2026-09-26",
+          "claim": "The function timeout quota is 900 seconds (15 minutes); only Lambda Managed Instances functions invoked asynchronously or via most event source mappings allow up to 90 minutes."
+        },
+        {
+          "url": "https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtime-environment.html",
+          "title": "Understanding the Lambda execution environment lifecycle",
+          "publisher": "AWS",
+          "accessed": "2026-09-26",
+          "claim": "The function timeout limits the whole Invoke phase, and standard functions run up to 15 minutes while Durable Functions are a separate model for long-running workflows."
+        }
+      ]
+    },
+    {
+      "id": "w12-l02-q02",
+      "lesson": "w12-l02",
+      "concept": "w12-l02-lambda-time-limit",
+      "type": "multiple_choice",
+      "prompt": "Which of these workloads is the best fit for a standard Lambda function?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A webhook handler that validates a payload and puts a job on a queue in under a second"
+        },
+        {
+          "id": "b",
+          "text": "An agent loop that can run for up to 40 minutes per request"
+        },
+        {
+          "id": "c",
+          "text": "A server that holds WebSocket connections open for hours"
+        },
+        {
+          "id": "d",
+          "text": "A process that must keep an in-memory cache alive indefinitely between requests"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Lambda is designed for short-lived tasks that don't rely on state between invocations. A 40-minute agent loop exceeds the 15-minute limit, a long-lived connection server doesn't fit the request-by-request model, and Lambda terminates execution environments every few hours, so an in-memory cache can't be relied on. A quick webhook that hands work to a queue is the classic fit.",
+      "materials": [
+        "aws-lambda-quotas",
+        "aws-lambda-execution-environment"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.aws.amazon.com/lambda/latest/dg/gettingstarted-limits.html",
+          "title": "Lambda quotas",
+          "publisher": "AWS",
+          "accessed": "2026-09-26",
+          "claim": "Lambda is designed for short-lived compute tasks that don't rely on state between invocations, with up to 15 minutes per invocation."
+        },
+        {
+          "url": "https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtime-environment.html",
+          "title": "Understanding the Lambda execution environment lifecycle",
+          "publisher": "AWS",
+          "accessed": "2026-09-26",
+          "claim": "Lambda terminates execution environments every few hours even for continuously invoked functions, so you shouldn't assume an environment persists."
+        }
+      ]
+    },
+    {
+      "id": "w12-l02-q03",
+      "lesson": "w12-l02",
+      "concept": "w12-l02-lambda-time-limit",
+      "type": "written",
+      "prompt": "This Lesson's exercise: write the decision for where `agent-api` should run. Should it be a standard Lambda function or a container service such as ECS Fargate? Give your reasons.",
+      "model_answer": {
+        "summary": "Run `agent-api` as a container service such as ECS Fargate, because agent runs and streamed responses can outlast Lambda's 15-minute limit and the app is already a long-running web server in a container.",
+        "key_points": [
+          "A standard Lambda invocation can run for at most 15 minutes, and a long agent run with many tool calls can exceed that",
+          "Fargate runs your container without you managing servers, and a service's tasks keep running with no per-request time limit",
+          "The existing Docker image (a FastAPI or similar web server) runs on Fargate as it is, while Lambda needs the Lambda runtime interface",
+          "Lambda still suits short side jobs, such as a webhook that enqueues work",
+          "The trade-off: a Fargate service costs money while its tasks run even when idle, while Lambda bills per use"
+        ]
+      },
+      "explanation": "A good decision names the constraint that settles it (run length) and the cost of the choice (paying for idle tasks). Lambda's quotas page gives the 900-second maximum; the Fargate docs describe running containers without managing EC2 instances. Mentioning that Lambda remains useful for short event-driven pieces shows you understand where each fits.",
+      "materials": [
+        "aws-lambda-quotas",
+        "aws-fargate-for-amazon-ecs"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.aws.amazon.com/lambda/latest/dg/gettingstarted-limits.html",
+          "title": "Lambda quotas",
+          "publisher": "AWS",
+          "accessed": "2026-09-26",
+          "claim": "A standard Lambda invocation can run for at most 900 seconds (15 minutes)."
+        },
+        {
+          "url": "https://docs.aws.amazon.com/AmazonECS/latest/developerguide/AWS_Fargate.html",
+          "title": "Architect for AWS Fargate for Amazon ECS",
+          "publisher": "AWS",
+          "accessed": "2026-09-26",
+          "claim": "Fargate runs containers without managing servers or EC2 clusters, and a service maintains a number of identical tasks."
+        },
+        {
+          "url": "https://aws.amazon.com/fargate/pricing/",
+          "title": "AWS Fargate Pricing",
+          "publisher": "AWS",
+          "accessed": "2026-09-26",
+          "claim": "Fargate charges for vCPU, memory and storage from image download until the task terminates, so running tasks cost money even when idle."
+        }
+      ]
+    },
+    {
+      "id": "w12-l02-q04",
+      "lesson": "w12-l02",
+      "concept": "w12-l02-cold-starts",
+      "type": "multiple_choice",
+      "prompt": "What is a Lambda cold start?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The time your handler spends reconnecting to the database on every single call"
+        },
+        {
+          "id": "b",
+          "text": "Lambda downloading your code into a new environment and running code outside the handler"
+        },
+        {
+          "id": "c",
+          "text": "The delay while Lambda restores the function's `/tmp` directory from its backup copy in S3"
+        },
+        {
+          "id": "d",
+          "text": "The extra time the first invocation of each day spends compiling your handler code"
+        }
+      ],
+      "answer": "b",
+      "explanation": "When no warm environment is available, Lambda downloads the code, starts an execution environment, and runs the initialisation code outside your handler before the handler runs. That extra latency is the cold start, and you are billed for it. Later requests can reuse the environment (a warm start), which is why connections created at module level survive between calls.",
+      "materials": [
+        "aws-lambda-execution-environment"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtime-environment.html",
+          "title": "Understanding the Lambda execution environment lifecycle",
+          "publisher": "AWS",
+          "accessed": "2026-09-26",
+          "claim": "A cold start is Lambda downloading the code, starting the environment and running initialisation code outside the handler; this time is billed, and reused environments give warm starts where module-level objects stay initialised."
+        }
+      ]
+    },
+    {
+      "id": "w12-l02-q05",
+      "lesson": "w12-l02",
+      "concept": "w12-l02-cold-starts",
+      "type": "multiple_choice",
+      "prompt": "A user-facing Lambda function must start quickly on every request. Which change most directly removes cold starts from the request path?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Raise the function timeout to the 900-second maximum"
+        },
+        {
+          "id": "b",
+          "text": "Move all imports inside the handler so they run on every call"
+        },
+        {
+          "id": "c",
+          "text": "Set reserved concurrency so the function always has capacity"
+        },
+        {
+          "id": "d",
+          "text": "Configure provisioned concurrency so environments are initialised in advance"
+        }
+      ],
+      "answer": "d",
+      "explanation": "AWS recommends provisioned concurrency when you need predictable start times: Lambda initialises that many execution environments ahead of requests. Reserved concurrency only caps or guarantees how many can run; it doesn't pre-warm them. Moving imports into the handler makes every warm call slower, and the timeout has nothing to do with start-up.",
+      "materials": [
+        "aws-lambda-execution-environment"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtime-environment.html",
+          "title": "Understanding the Lambda execution environment lifecycle",
+          "publisher": "AWS",
+          "accessed": "2026-09-26",
+          "claim": "For predictable start times provisioned concurrency is the recommended solution because it pre-initialises execution environments."
+        },
+        {
+          "url": "https://docs.aws.amazon.com/lambda/latest/dg/configuration-concurrency.html",
+          "title": "Configuring reserved concurrency for a function",
+          "publisher": "AWS",
+          "accessed": "2026-09-26",
+          "claim": "Reserved concurrency sets the maximum and minimum concurrent instances, whereas provisioned concurrency is the number of pre-initialised environments that reduce cold starts."
+        }
+      ]
+    },
+    {
+      "id": "w12-l02-q06",
+      "lesson": "w12-l02",
+      "concept": "w12-l02-compute-options",
+      "type": "multiple_choice",
+      "prompt": "It's 2026 and you're setting up a new AWS account. You want App Runner-style simplicity: give AWS a container image and get an HTTPS URL with load balancing and auto scaling. What does AWS recommend?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "AWS App Runner, since it's the newest and simplest container service"
+        },
+        {
+          "id": "b",
+          "text": "Amazon ECS Express Mode, which provisions a Fargate service, load balancer and scaling for you"
+        },
+        {
+          "id": "c",
+          "text": "Lambda function URLs, because App Runner was merged into Lambda"
+        },
+        {
+          "id": "d",
+          "text": "EC2 with an Auto Scaling group, since AWS has no managed option for containers"
+        }
+      ],
+      "answer": "b",
+      "explanation": "AWS closed App Runner to new customers (from 30 April 2026); existing customers can keep using it, but no new features are planned. AWS points to ECS Express Mode instead: one call with a container image and two IAM roles creates an ECS service on Fargate, an Application Load Balancer, auto scaling and a URL. This is a recent change, so older tutorials still recommend App Runner.",
+      "materials": [
+        "aws-app-runner-availability-change"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.aws.amazon.com/apprunner/latest/dg/apprunner-availability-change.html",
+          "title": "AWS App Runner availability change",
+          "publisher": "AWS",
+          "accessed": "2026-09-26",
+          "claim": "App Runner is closed to new customers, existing customers continue, no new features are planned, and AWS recommends ECS Express Mode, which from an image and two IAM roles provisions an ECS service on Fargate, an ALB, auto scaling and a URL."
+        },
+        {
+          "url": "https://aws.amazon.com/apprunner/",
+          "title": "AWS App Runner - Managed Container Apps Service",
+          "publisher": "AWS",
+          "accessed": "2026-09-26",
+          "claim": "App Runner stops accepting new customers on April 30, 2026, and AWS recommends Amazon ECS Express Mode."
+        }
+      ]
+    },
+    {
+      "id": "w12-l02-q07",
+      "lesson": "w12-l02",
+      "concept": "w12-l02-compute-options",
+      "type": "multiple_choice",
+      "prompt": "Which AWS compute option gives you the most control (choice of instance type, custom drivers, SSH access) but makes you responsible for patching the operating system?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "ECS on Fargate"
+        },
+        {
+          "id": "b",
+          "text": "AWS Lambda"
+        },
+        {
+          "id": "c",
+          "text": "Amazon EC2"
+        },
+        {
+          "id": "d",
+          "text": "ECS Express Mode"
+        }
+      ],
+      "answer": "c",
+      "explanation": "EC2 gives you virtual machines, so you choose the instance type and control everything on it, and under the shared responsibility model you patch the guest operating system. Fargate, Express Mode (which runs on Fargate) and Lambda hide the servers, trading control for less work.",
+      "materials": [
+        "aws-fargate-for-amazon-ecs",
+        "aws-shared-responsibility-model"
+      ],
+      "sources": [
+        {
+          "url": "https://aws.amazon.com/compliance/shared-responsibility-model/",
+          "title": "Shared Responsibility Model - Amazon Web Services (AWS)",
+          "publisher": "AWS",
+          "accessed": "2026-09-26",
+          "claim": "EC2 customers manage the guest operating system including updates and security patches."
+        },
+        {
+          "url": "https://docs.aws.amazon.com/AmazonECS/latest/developerguide/AWS_Fargate.html",
+          "title": "Architect for AWS Fargate for Amazon ECS",
+          "publisher": "AWS",
+          "accessed": "2026-09-26",
+          "claim": "With Fargate you don't provision or choose server types for EC2 clusters to run containers."
+        }
+      ]
+    },
+    {
+      "id": "w12-l02-q08",
+      "lesson": "w12-l02",
+      "concept": "w12-l02-compute-options",
+      "type": "written",
+      "prompt": "Compare Lambda, ECS on Fargate and EC2 for hosting an agent API. Cover time limits, what you manage yourself, and how you pay when there is no traffic.",
+      "model_answer": {
+        "summary": "Lambda is serverless and billed per use but limited to 15 minutes per invocation; Fargate runs containers without servers to manage and without a request time limit, but you pay while tasks run; EC2 gives full control, but you manage and pay for the instances.",
+        "key_points": [
+          "A standard Lambda invocation runs for at most 15 minutes; Fargate tasks and EC2 instances have no such per-request limit",
+          "With Lambda and Fargate you don't manage servers; with EC2 you manage and patch the operating system",
+          "Lambda is billed for the time your code runs, so no traffic costs close to nothing",
+          "A Fargate service keeps its desired number of tasks running, so you pay for them even when idle",
+          "EC2 instances are billed while they run, whether or not they receive traffic"
+        ]
+      },
+      "explanation": "Interviewers want to hear that the choice follows from the workload: run length, how much control you need, and the shape of your traffic. Long agent runs rule out standard Lambda; low ops effort favours Fargate over EC2; spiky, short work favours Lambda.",
+      "materials": [
+        "aws-lambda-quotas",
+        "aws-fargate-for-amazon-ecs",
+        "aws-skill-builder-cloud-practitioner-essentials"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.aws.amazon.com/lambda/latest/dg/gettingstarted-limits.html",
+          "title": "Lambda quotas",
+          "publisher": "AWS",
+          "accessed": "2026-09-26",
+          "claim": "A standard Lambda invocation runs at most 15 minutes."
+        },
+        {
+          "url": "https://aws.amazon.com/lambda/pricing/",
+          "title": "AWS Lambda Pricing",
+          "publisher": "AWS",
+          "accessed": "2026-09-26",
+          "claim": "Lambda is priced by requests served and the duration your code runs, so you pay only for what you use."
+        },
+        {
+          "url": "https://aws.amazon.com/fargate/pricing/",
+          "title": "AWS Fargate Pricing",
+          "publisher": "AWS",
+          "accessed": "2026-09-26",
+          "claim": "Fargate bills vCPU, memory and storage for as long as a task runs, until it terminates."
+        }
+      ]
+    },
+    {
+      "id": "w12-l02-q09",
+      "lesson": "w12-l02",
+      "concept": "w12-l02-containers-as-unit",
+      "type": "multiple_choice",
+      "prompt": "Why is a container image a good unit of deployment for `agent-api`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Code inside a container runs noticeably faster than on a plain virtual machine"
+        },
+        {
+          "id": "b",
+          "text": "A container platform doesn't need health checks, because images can't crash"
+        },
+        {
+          "id": "c",
+          "text": "Secrets baked into an image are encrypted, so they're safe to ship with it"
+        },
+        {
+          "id": "d",
+          "text": "The same image, built once, runs in CI, staging and production, so you ship what you tested"
+        }
+      ],
+      "answer": "d",
+      "explanation": "An image packages the code with its runtime and dependencies. Build it once, tag it, and run the identical artefact everywhere, changing only configuration through environment variables. Most platforms (Fargate, Railway, Fly.io, and Lambda via container images) accept it. Containers don't make code faster, and secrets in an image are readable by anyone who can pull it.",
+      "materials": [
+        "docker-get-started",
+        "aws-fargate-for-amazon-ecs"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.docker.com/get-started/docker-concepts/the-basics/what-is-an-image/",
+          "title": "What is an image? | Docker Docs",
+          "publisher": "Docker",
+          "accessed": "2026-09-26",
+          "claim": "An image packages all the files, binaries, libraries and configuration needed to run a container and is immutable once created."
+        },
+        {
+          "url": "https://docs.docker.com/get-started/docker-overview/",
+          "title": "What is Docker? | Docker Docs",
+          "publisher": "Docker",
+          "accessed": "2026-09-26",
+          "claim": "Containers contain everything needed to run the app, work the same way for everyone they're shared with, and run on laptops, data centres or clouds."
+        }
+      ]
+    },
+    {
+      "id": "w12-l02-q10",
+      "lesson": "w12-l02",
+      "concept": "w12-l02-containers-as-unit",
+      "type": "multiple_choice",
+      "prompt": "You want to run your existing `agent-api` Docker image (a FastAPI app started by `uvicorn`) as a Lambda function from a container image. What does Lambda require?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Nothing: any Linux image under 10 GB runs unchanged, since Lambda forwards HTTP requests to it"
+        },
+        {
+          "id": "b",
+          "text": "It must implement the Lambda Runtime API, as AWS base images or a runtime interface client do"
+        },
+        {
+          "id": "c",
+          "text": "The image must first be exported and converted into a .zip deployment package"
+        },
+        {
+          "id": "d",
+          "text": "The image must be a multi-architecture build covering both x86_64 and arm64"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Lambda talks to your code through the Lambda Runtime API. AWS base images include a runtime interface client; with any other base image you must add one. A plain web server image that just listens on a port doesn't implement it. Lambda images must be Linux and at most 10 GB uncompressed, and Lambda does not support multi-architecture images: you build for one architecture.",
+      "materials": [
+        "aws-lambda-container-images",
+        "aws-lambda-quotas"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.aws.amazon.com/lambda/latest/dg/images-create.html",
+          "title": "Create a Lambda function using a container image",
+          "publisher": "AWS",
+          "accessed": "2026-09-26",
+          "claim": "A Lambda container image must implement the Lambda Runtime API (AWS base images include a runtime interface client; others must add one), must be Linux-based, at most 10 GB uncompressed, and multi-architecture images aren't supported."
+        },
+        {
+          "url": "https://docs.aws.amazon.com/lambda/latest/dg/gettingstarted-limits.html",
+          "title": "Lambda quotas",
+          "publisher": "AWS",
+          "accessed": "2026-09-26",
+          "claim": "Container image code package size is at most 10 GB uncompressed, including all layers."
+        }
+      ]
+    },
+    {
+      "id": "w12-l02-q11",
+      "lesson": "w12-l02",
+      "concept": "w12-l02-containers-as-unit",
+      "type": "written",
+      "prompt": "Explain what \"build once, deploy the same image everywhere\" means, and what should differ between the staging and production copies of `agent-api`.",
+      "model_answer": {
+        "summary": "You build one image per commit and promote that exact image from test to staging to production; only configuration, supplied at runtime, differs between environments.",
+        "key_points": [
+          "The image is built once, for example tagged with the commit SHA, and never rebuilt for a later environment",
+          "Staging and production run byte-for-byte the same image, so what passed tests is what ships",
+          "Environment-specific values such as database URLs, API keys and log levels come from environment variables or the platform's secret store at runtime",
+          "Nothing environment-specific, and no secret, is baked into the image",
+          "Rolling back means running the previous image tag again"
+        ]
+      },
+      "explanation": "Rebuilding for each environment can pull different dependency versions, so staging would no longer prove anything about production. Keeping config outside the image is what makes one image usable everywhere, and immutable tags make rollback simple.",
+      "materials": [
+        "docker-get-started"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.docker.com/get-started/docker-concepts/the-basics/what-is-an-image/",
+          "title": "What is an image? | Docker Docs",
+          "publisher": "Docker",
+          "accessed": "2026-09-26",
+          "claim": "Images are immutable: once created they can't be modified, so the same built image can be promoted between environments."
+        },
+        {
+          "url": "https://12factor.net/config",
+          "title": "The Twelve-Factor App - III. Config",
+          "publisher": "The Twelve-Factor App (Adam Wiggins)",
+          "accessed": "2026-09-26",
+          "claim": "Config is everything that varies between deploys, must be strictly separated from code, and is stored in environment variables."
+        }
+      ]
+    }
+  ]
+}

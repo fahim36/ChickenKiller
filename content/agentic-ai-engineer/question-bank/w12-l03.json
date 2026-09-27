@@ -1,0 +1,523 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "w12-l03-s3-rds-secrets",
+      "name": "What goes in S3, RDS for Postgres and Secrets Manager"
+    },
+    {
+      "id": "w12-l03-runtime-secrets",
+      "name": "Fetching secrets at runtime instead of baking them in"
+    },
+    {
+      "id": "w12-l03-bedrock-model-access",
+      "name": "Bedrock model access and inference profiles"
+    },
+    {
+      "id": "w12-l03-converse-api",
+      "name": "The Bedrock Converse API"
+    },
+    {
+      "id": "w12-l03-bedrock-vs-direct",
+      "name": "Bedrock vs calling the model provider directly"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w12-l03-q01",
+      "lesson": "w12-l03",
+      "concept": "w12-l03-s3-rds-secrets",
+      "type": "multiple_choice",
+      "prompt": "Your app stores three things: PDFs that users upload, conversation records with their pgvector embeddings, and the model provider's API key. Where should each go on AWS?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "PDFs in RDS as `bytea`, records in S3 as JSON files, key in an environment variable in the image"
+        },
+        {
+          "id": "b",
+          "text": "PDFs in Secrets Manager, records in RDS for PostgreSQL, key in S3 with encryption"
+        },
+        {
+          "id": "c",
+          "text": "PDFs in S3, records in RDS for PostgreSQL, key in Secrets Manager"
+        },
+        {
+          "id": "d",
+          "text": "All three in one S3 bucket, with a separate prefix for each"
+        }
+      ],
+      "answer": "c",
+      "explanation": "S3 is object storage for files of any size. RDS for PostgreSQL gives you a managed relational database that can run the `vector` extension for embeddings, with queries, joins and transactions. Secrets Manager exists to store credentials and API keys so the application fetches them at runtime instead of hard-coding them.",
+      "materials": [
+        "amazon-s3-user-guide",
+        "aws-secrets-manager-user-guide",
+        "pgvector-vector-search-in-postgres"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html",
+          "title": "What is Amazon S3?",
+          "publisher": "AWS",
+          "accessed": "2026-09-26",
+          "claim": "S3 is object storage for any amount of data, where an object is a file and its metadata."
+        },
+        {
+          "url": "https://docs.aws.amazon.com/AmazonRDS/latest/PostgreSQLReleaseNotes/postgresql-extensions.html",
+          "title": "Extension versions for Amazon RDS for PostgreSQL",
+          "publisher": "AWS",
+          "accessed": "2026-09-26",
+          "claim": "pgvector is a supported extension on current RDS for PostgreSQL versions (0.8.2)."
+        },
+        {
+          "url": "https://docs.aws.amazon.com/secretsmanager/latest/userguide/intro.html",
+          "title": "What is AWS Secrets Manager?",
+          "publisher": "AWS",
+          "accessed": "2026-09-26",
+          "claim": "Secrets Manager stores and rotates secrets such as API keys and database credentials, fetched at runtime instead of hard-coded."
+        }
+      ]
+    },
+    {
+      "id": "w12-l03-q02",
+      "lesson": "w12-l03",
+      "concept": "w12-l03-s3-rds-secrets",
+      "type": "multiple_choice",
+      "prompt": "A worker writes `results/doc-42.json` to S3 with a successful `PutObject`. Immediately afterwards another service calls `GetObject` on the same key. What does S3 guarantee?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Nothing yet: S3 is eventually consistent, so the GET may return 404 for a few seconds"
+        },
+        {
+          "id": "b",
+          "text": "The GET returns the new object, because S3 has strong read-after-write consistency"
+        },
+        {
+          "id": "c",
+          "text": "The new object is returned only if versioning is enabled on the bucket"
+        },
+        {
+          "id": "d",
+          "text": "The new object is returned only when both services are in US East (N. Virginia)"
+        }
+      ],
+      "answer": "b",
+      "explanation": "S3 provides strong read-after-write consistency for PUT and DELETE of objects in all Regions: any read that starts after a successful PUT returns the new data. The \"eventually consistent\" answer describes S3 before December 2020 and still appears in old tutorials. Bucket configuration changes, such as enabling versioning, are still eventually consistent.",
+      "materials": [
+        "amazon-s3-user-guide"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html",
+          "title": "What is Amazon S3?",
+          "publisher": "AWS",
+          "accessed": "2026-09-26",
+          "claim": "S3 provides strong read-after-write consistency for PUT and DELETE of objects in all Regions, so a read started after a successful PUT returns the new data, while bucket configurations such as enabling versioning are eventually consistent."
+        }
+      ]
+    },
+    {
+      "id": "w12-l03-q03",
+      "lesson": "w12-l03",
+      "concept": "w12-l03-runtime-secrets",
+      "type": "multiple_choice",
+      "prompt": "What is the main benefit of having your app fetch its database password from Secrets Manager at runtime, rather than putting it in the container image?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The password stays out of code and images, and it can be rotated without redeploying the app"
+        },
+        {
+          "id": "b",
+          "text": "Database connections open faster because Secrets Manager caches them"
+        },
+        {
+          "id": "c",
+          "text": "Secrets Manager encrypts the password, so it's then safe to commit to Git"
+        },
+        {
+          "id": "d",
+          "text": "Secrets Manager is free, while storing secrets in images costs extra"
+        }
+      ],
+      "answer": "a",
+      "explanation": "AWS's own description: you replace hard-coded credentials with a runtime call to Secrets Manager, so anyone who can inspect the code or image can't read them. Because the app fetches the current value when it needs it, you can turn on automatic rotation without changing or redeploying the app. Secrets Manager is billed per use, and it doesn't make anything safe to commit.",
+      "materials": [
+        "aws-secrets-manager-user-guide"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.aws.amazon.com/secretsmanager/latest/userguide/intro.html",
+          "title": "What is AWS Secrets Manager?",
+          "publisher": "AWS",
+          "accessed": "2026-09-26",
+          "claim": "Replacing hard-coded credentials with a runtime Secrets Manager call keeps them from anyone inspecting the app, and rotation then needs no application update or redeploy; you pay per use."
+        }
+      ]
+    },
+    {
+      "id": "w12-l03-q04",
+      "lesson": "w12-l03",
+      "concept": "w12-l03-runtime-secrets",
+      "type": "written",
+      "prompt": "Your ECS task needs the model provider's API key. Describe how it gets the key without the key appearing in the image, the repository or the task definition.",
+      "model_answer": {
+        "summary": "Store the key in Secrets Manager, give the task's IAM role permission to read only that secret, and have ECS inject it as an environment variable or have the app fetch it at startup.",
+        "key_points": [
+          "The key is stored once in Secrets Manager, never in the Dockerfile, the image or Git",
+          "An IAM role used by the task is allowed `secretsmanager:GetSecretValue` on that one secret's ARN only",
+          "ECS can inject the secret into the container as an environment variable through the task definition's `secrets` field (which holds only the secret's ARN), or the app can call Secrets Manager with the SDK",
+          "The app reads the value at runtime, so rotating the key needs no rebuild"
+        ]
+      },
+      "explanation": "The task definition's `secrets` field names the environment variable and points to the secret with `valueFrom`, so the task definition holds a reference, not the value. Combined with a least-privilege role, only this task can read this one secret.",
+      "materials": [
+        "aws-secrets-manager-user-guide",
+        "aws-iam-user-guide"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.aws.amazon.com/AmazonECS/latest/developerguide/secrets-envvar-secrets-manager.html",
+          "title": "Pass Secrets Manager secrets through Amazon ECS environment variables",
+          "publisher": "AWS",
+          "accessed": "2026-09-26",
+          "claim": "A container definition's secrets field names the environment variable and gives the secret's ARN in valueFrom; the task execution role needs Secrets Manager permissions, and an injected value only updates when a new task starts."
+        },
+        {
+          "url": "https://docs.aws.amazon.com/secretsmanager/latest/userguide/intro.html",
+          "title": "What is AWS Secrets Manager?",
+          "publisher": "AWS",
+          "accessed": "2026-09-26",
+          "claim": "Apps retrieve credentials from Secrets Manager at runtime rather than storing them in code."
+        },
+        {
+          "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html",
+          "title": "Security best practices in IAM",
+          "publisher": "AWS",
+          "accessed": "2026-09-26",
+          "claim": "Grant least-privilege permissions: only the needed actions on specific resources."
+        }
+      ]
+    },
+    {
+      "id": "w12-l03-q05",
+      "lesson": "w12-l03",
+      "concept": "w12-l03-bedrock-model-access",
+      "type": "multiple_choice",
+      "prompt": "You call `converse` with `modelId=\"anthropic.claude-sonnet-4-5-20250929-v1:0\"` and get HTTP 400: \"Invocation of model ID ... with on-demand throughput isn't supported\". What's the fix?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Request access to the model on the Bedrock Model access page and wait for approval"
+        },
+        {
+          "id": "b",
+          "text": "Switch from `converse` to `invoke_model`, which accepts base model IDs"
+        },
+        {
+          "id": "c",
+          "text": "Ask for a quota increase for on-demand throughput in Service Quotas"
+        },
+        {
+          "id": "d",
+          "text": "Pass an inference profile ID instead, such as `us.anthropic.claude-sonnet-4-5-20250929-v1:0`"
+        }
+      ],
+      "answer": "d",
+      "explanation": "Newer Claude models on Bedrock are served through cross-Region inference, so you invoke them with an inference profile: the base model ID with a prefix such as `us.`, `eu.` or `global.`. The error is not about access or quota, and `invoke_model` has the same requirement. A geographic profile keeps processing in that geography; the global profile can route anywhere, and per Anthropic regional endpoints cost 10% more than global for Sonnet 4.5 and later.",
+      "materials": [
+        "claude-on-amazon-bedrock",
+        "amazon-bedrock-user-guide"
+      ],
+      "sources": [
+        {
+          "url": "https://platform.claude.com/docs/en/build-with-claude/claude-on-amazon-bedrock-legacy",
+          "title": "Claude on Amazon Bedrock (Opus 4.6 and earlier)",
+          "publisher": "Anthropic",
+          "accessed": "2026-09-26",
+          "claim": "Newer Claude models are served via cross-region inference, so passing the base model ID fails with the on-demand throughput 400 error and you must pass an inference profile ID such as us.anthropic.claude-sonnet-4-5-20250929-v1:0; regional endpoints carry a 10% premium over global for Sonnet 4.5 and later."
+        }
+      ]
+    },
+    {
+      "id": "w12-l03-q06",
+      "lesson": "w12-l03",
+      "concept": "w12-l03-bedrock-model-access",
+      "type": "multiple_choice",
+      "prompt": "As of 2026, what must you do before the first call to an Anthropic model through the standard Bedrock runtime in a new AWS account?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Submit Anthropic's one-time use-case form; model access is otherwise on by default"
+        },
+        {
+          "id": "b",
+          "text": "Request each Anthropic model on the Model access page and wait for manual approval"
+        },
+        {
+          "id": "c",
+          "text": "Buy Provisioned Throughput, since Anthropic models have no on-demand option"
+        },
+        {
+          "id": "d",
+          "text": "Paste an API key from the Anthropic Console into Bedrock's provider settings"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Bedrock now enables access to serverless foundation models by default, given the right AWS Marketplace permissions: the first invocation starts the subscription automatically. Anthropic additionally requires a one-time use-case form per account (or once at the organisation's management account). The per-model \"Model access\" request page is the older process, still used in GovCloud. This changed in 2025, so older tutorials show the old steps.",
+      "materials": [
+        "amazon-bedrock-model-access"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.aws.amazon.com/bedrock/latest/userguide/model-access.html",
+          "title": "Request access to models",
+          "publisher": "AWS",
+          "accessed": "2026-09-26",
+          "claim": "Access to Bedrock foundation models is on by default with AWS Marketplace permissions, the first invocation starts the subscription, and Anthropic models need a one-time use-case (FTU) form per account or at the organisation's management account; the Model access page is used in GovCloud."
+        }
+      ]
+    },
+    {
+      "id": "w12-l03-q07",
+      "lesson": "w12-l03",
+      "concept": "w12-l03-converse-api",
+      "type": "multiple_choice",
+      "prompt": "Given this boto3 code, which expression gives you the model's reply text?\n\n```python\nclient = boto3.client(\"bedrock-runtime\", region_name=\"us-east-1\")\nresp = client.converse(\n    modelId=\"us.anthropic.claude-haiku-4-5-20251001-v1:0\",\n    messages=[{\"role\": \"user\", \"content\": [{\"text\": \"Hi\"}]}],\n    inferenceConfig={\"maxTokens\": 200},\n)\n```",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`resp[\"content\"][0][\"text\"]`"
+        },
+        {
+          "id": "b",
+          "text": "`resp[\"choices\"][0][\"message\"][\"content\"]`"
+        },
+        {
+          "id": "c",
+          "text": "`resp[\"output\"][\"message\"][\"content\"][0][\"text\"]`"
+        },
+        {
+          "id": "d",
+          "text": "`json.loads(resp[\"body\"].read())[\"completion\"]`"
+        }
+      ],
+      "answer": "c",
+      "explanation": "Converse returns a normalised envelope for every model: `output.message` holds the assistant message, whose `content` is a list of blocks such as `{\"text\": ...}`, plus `stopReason` and `usage`. Option a is the shape of Anthropic's own Messages API, b is OpenAI's, and d looks like an `invoke_model` call, whose body is the model's native JSON.",
+      "materials": [
+        "amazon-bedrock-converse-api"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.aws.amazon.com/bedrock/latest/userguide/conversation-inference.html",
+          "title": "Inference using Converse API",
+          "publisher": "AWS",
+          "accessed": "2026-09-26",
+          "claim": "Converse returns a normalised envelope with output (whose message has a content list of blocks such as text), stopReason, usage and metrics, read as response['output']['message']['content']."
+        }
+      ]
+    },
+    {
+      "id": "w12-l03-q08",
+      "lesson": "w12-l03",
+      "concept": "w12-l03-converse-api",
+      "type": "multiple_choice",
+      "prompt": "Why would you use Bedrock's `Converse` operation rather than `InvokeModel` for a chat feature?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`Converse` is the only Bedrock operation that can stream responses"
+        },
+        {
+          "id": "b",
+          "text": "`Converse` uses one request and response shape for every model that supports messages"
+        },
+        {
+          "id": "c",
+          "text": "`Converse` is billed at a lower price per token than `InvokeModel`"
+        },
+        {
+          "id": "d",
+          "text": "`InvokeModel` cannot call Anthropic models at all"
+        }
+      ],
+      "answer": "b",
+      "explanation": "The Converse API gives a consistent interface across Bedrock models, so you can switch models without rewriting request code; model-specific parameters go in `additionalModelRequestFields`. Streaming exists for both (`ConverseStream` and `InvokeModelWithResponseStream`), pricing is per model, not per operation, and `InvokeModel` works with Anthropic models using their native request body.",
+      "materials": [
+        "amazon-bedrock-converse-api"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.aws.amazon.com/bedrock/latest/userguide/conversation-inference.html",
+          "title": "Inference using Converse API",
+          "publisher": "AWS",
+          "accessed": "2026-09-26",
+          "claim": "Converse provides a consistent API for all Bedrock models that support messages so code works across models, model-specific parameters go in additionalModelRequestFields, and ConverseStream and InvokeModelWithResponseStream handle streaming."
+        }
+      ]
+    },
+    {
+      "id": "w12-l03-q09",
+      "lesson": "w12-l03",
+      "concept": "w12-l03-converse-api",
+      "type": "written",
+      "prompt": "This Lesson's exercise is calling a Claude model through Bedrock with boto3. Explain what a minimal `converse` call needs and how you would continue the conversation for a second turn.",
+      "model_answer": {
+        "summary": "Create a `bedrock-runtime` client, call `converse` with a model or inference profile ID and a list of messages, read the reply from `output.message`, and for the next turn append that message and the new user message before calling again.",
+        "key_points": [
+          "The client is `boto3.client(\"bedrock-runtime\")` with a Region, using AWS credentials from the environment or an IAM role",
+          "`modelId` is the model or inference profile ID, and `messages` is a list of `{\"role\", \"content\"}` where content is a list of blocks such as `{\"text\": ...}`",
+          "Optional `system` holds the system prompt and `inferenceConfig` holds `maxTokens`, `temperature` and similar settings",
+          "The reply is `response[\"output\"][\"message\"]`; `usage` reports input and output tokens",
+          "The API is stateless: for a second turn you send the whole history, appending the assistant message and then the next user message"
+        ]
+      },
+      "explanation": "AWS's own example does exactly this: it appends `response['output']['message']` to `messages`, then the next user message, and calls `converse` again. The IAM permission needed is `bedrock:InvokeModel`. Logging `usage` on every call is the start of cost tracking.",
+      "materials": [
+        "amazon-bedrock-converse-api",
+        "amazon-bedrock-user-guide"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.aws.amazon.com/bedrock/latest/userguide/conversation-inference.html",
+          "title": "Inference using Converse API",
+          "publisher": "AWS",
+          "accessed": "2026-09-26",
+          "claim": "Converse needs bedrock:InvokeModel permission, takes modelId, messages, optional system and inferenceConfig, returns usage, and AWS's example appends response['output']['message'] then the next user message before calling again."
+        },
+        {
+          "url": "https://docs.aws.amazon.com/bedrock/latest/userguide/what-is-bedrock.html",
+          "title": "Overview - Amazon Bedrock",
+          "publisher": "AWS",
+          "accessed": "2026-09-26",
+          "claim": "The Converse example creates boto3.client('bedrock-runtime', region_name=...) and calls converse with modelId and messages whose content is a list of text blocks."
+        }
+      ]
+    },
+    {
+      "id": "w12-l03-q10",
+      "lesson": "w12-l03",
+      "concept": "w12-l03-bedrock-vs-direct",
+      "type": "written",
+      "prompt": "Your team runs everything on AWS. Compare calling Claude through Amazon Bedrock with calling Anthropic's API directly, and say which you would choose.",
+      "model_answer": {
+        "summary": "Bedrock fits an AWS shop: IAM authentication, AWS billing, logging and data-residency controls. The direct API gets new features first and supports some features Bedrock's integration lacks. Choose Bedrock unless you need one of those features.",
+        "key_points": [
+          "Bedrock authenticates with IAM roles and temporary credentials, so there is no separate provider API key to manage",
+          "Usage is billed on the AWS bill, and calls are logged in CloudTrail in your account",
+          "Geographic inference profiles keep processing within a geography such as the US or EU, which helps with data-residency rules",
+          "Some Claude API features are not available through Bedrock's legacy InvokeModel and Converse integration, for example the Message Batches API and the Files API (as of 2026)",
+          "Model IDs, quotas and model availability are managed in AWS, so they differ from Anthropic's and can lag new releases"
+        ]
+      },
+      "explanation": "There is no universally right answer; a good one names the trade-offs and picks based on the team's constraints. Security and procurement usually favour Bedrock in an AWS shop. If the design depends on a feature only the direct API has, such as batch pricing, that settles it the other way.",
+      "materials": [
+        "claude-on-amazon-bedrock",
+        "amazon-bedrock-user-guide"
+      ],
+      "sources": [
+        {
+          "url": "https://platform.claude.com/docs/en/build-with-claude/claude-on-amazon-bedrock-legacy",
+          "title": "Claude on Amazon Bedrock (Opus 4.6 and earlier)",
+          "publisher": "Anthropic",
+          "accessed": "2026-09-26",
+          "claim": "Bedrock uses AWS credentials, offers regional endpoints for data residency, and does not support the Message Batches API, Files API or server-side tools."
+        },
+        {
+          "url": "https://platform.claude.com/docs/en/build-with-claude/claude-in-amazon-bedrock",
+          "title": "Claude in Amazon Bedrock (Opus 4.7 and later)",
+          "publisher": "Anthropic",
+          "accessed": "2026-09-26",
+          "claim": "Claude in Amazon Bedrock runs inside the AWS security boundary with IAM authentication, logs to CloudWatch and CloudTrail, and also lacks Message Batches and the Files API."
+        }
+      ]
+    },
+    {
+      "id": "w12-l03-q11",
+      "lesson": "w12-l03",
+      "concept": "w12-l03-bedrock-vs-direct",
+      "type": "multiple_choice",
+      "prompt": "Anthropic documents a legacy Bedrock integration for Claude (the `InvokeModel` and `Converse` APIs with ARN-versioned model IDs, covering Opus 4.6 and earlier). As of 2026, which feature is NOT available through it but is on Anthropic's own API?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Prompt caching"
+        },
+        {
+          "id": "b",
+          "text": "Tool use"
+        },
+        {
+          "id": "c",
+          "text": "Streaming responses"
+        },
+        {
+          "id": "d",
+          "text": "The Message Batches API"
+        }
+      ],
+      "answer": "d",
+      "explanation": "Anthropic lists prompt caching, tool use and streaming as supported on Bedrock, and lists the Message Batches API, the Files API and server-side tools such as web search among the features that aren't. If a design relies on Anthropic's 50% batch discount, calling Bedrock's Claude integration won't give it to you. Feature lists change: Anthropic also documents a newer Messages-API endpoint on Bedrock for its latest models, so check the current page for the model you plan to use.",
+      "materials": [
+        "claude-on-amazon-bedrock"
+      ],
+      "sources": [
+        {
+          "url": "https://platform.claude.com/docs/en/build-with-claude/claude-on-amazon-bedrock-legacy",
+          "title": "Claude on Amazon Bedrock (Opus 4.6 and earlier)",
+          "publisher": "Anthropic",
+          "accessed": "2026-09-26",
+          "claim": "The legacy integration supports prompt caching and tool use but lists the Message Batches endpoint, Files API and server-side tools such as web search as not supported."
+        }
+      ]
+    },
+    {
+      "id": "w12-l03-q12",
+      "lesson": "w12-l03",
+      "concept": "w12-l03-bedrock-vs-direct",
+      "type": "multiple_choice",
+      "prompt": "Anthropic documents a newer way to call Claude on Bedrock, \"Claude in Amazon Bedrock\", for Opus 4.7 and later. How does it differ from the legacy `InvokeModel` and `Converse` integration?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It uses the `Converse` envelope for every model, so request code is portable across providers"
+        },
+        {
+          "id": "b",
+          "text": "It serves the Messages API at `/anthropic/v1/messages`, with the same request body as Anthropic's own API and SSE streaming"
+        },
+        {
+          "id": "c",
+          "text": "It uses an OpenAI-compatible Chat Completions endpoint so existing OpenAI clients work unchanged"
+        },
+        {
+          "id": "d",
+          "text": "It is `InvokeModel` with ARN-versioned model IDs, but without AWS event-stream encoding"
+        }
+      ],
+      "answer": "b",
+      "explanation": "The newer endpoint (`https://bedrock-mantle.{region}.api.aws/anthropic/v1/messages`) takes the same Messages API request shape as Anthropic's first-party API and streams with standard SSE, still inside AWS with IAM authentication. The legacy integration is `InvokeModel` and `Converse` with ARN-versioned model IDs and AWS event-stream encoding. `Converse` is Bedrock's own cross-model envelope, not this endpoint's shape.",
+      "materials": [
+        "claude-in-amazon-bedrock",
+        "claude-on-amazon-bedrock"
+      ],
+      "sources": [
+        {
+          "url": "https://platform.claude.com/docs/en/build-with-claude/claude-in-amazon-bedrock",
+          "title": "Claude in Amazon Bedrock (Opus 4.7 and later)",
+          "publisher": "Anthropic",
+          "accessed": "2026-09-26",
+          "claim": "The newer endpoint https://bedrock-mantle.{region}.api.aws/anthropic/v1/messages uses standard SSE streaming and the same request body as Anthropic's first-party API, unlike the InvokeModel-based integration."
+        },
+        {
+          "url": "https://platform.claude.com/docs/en/build-with-claude/claude-on-amazon-bedrock-legacy",
+          "title": "Claude on Amazon Bedrock (Opus 4.6 and earlier)",
+          "publisher": "Anthropic",
+          "accessed": "2026-09-26",
+          "claim": "The legacy integration is InvokeModel and Converse with ARN-versioned model IDs and AWS event-stream encoding."
+        }
+      ]
+    }
+  ]
+}

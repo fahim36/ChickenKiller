@@ -1,0 +1,510 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "w11-l05-loop-structure",
+      "name": "The shape of the agent loop"
+    },
+    {
+      "id": "w11-l05-max-steps-guard",
+      "name": "The max-steps guard"
+    },
+    {
+      "id": "w11-l05-budget-guard",
+      "name": "The budget guard"
+    },
+    {
+      "id": "w11-l05-validation-errors",
+      "name": "Handling invalid tool calls"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w11-l05-q01",
+      "lesson": "w11-l05",
+      "concept": "w11-l05-loop-structure",
+      "type": "multiple_choice",
+      "prompt": "Your TypeScript loop calls the Anthropic Messages API and gets `stop_reason: \"tool_use\"`. What must the next request's `messages` end with?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Only a user message with the tool results, since the API already remembers the assistant turn"
+        },
+        {
+          "id": "b",
+          "text": "One message with the role `tool` per result, keyed by `tool_use_id`"
+        },
+        {
+          "id": "c",
+          "text": "The assistant's `tool_use` turn, then a user message led by a `tool_result` for each call"
+        },
+        {
+          "id": "d",
+          "text": "A system message summarising the tool results, placed after the assistant's reply"
+        }
+      ],
+      "answer": "c",
+      "explanation": "The API is stateless, so each request resends the conversation. Append the assistant's reply as it came (with its `tool_use` blocks), then one user message whose `tool_result` blocks, matched by `tool_use_id`, come first in its content. Claude has no `tool` role; tool results go inside a user message.",
+      "materials": [
+        "anthropic-docs-handle-tool-calls",
+        "anthropic-docs-tool-use-with-claude"
+      ],
+      "sources": [
+        {
+          "url": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/handle-tool-calls",
+          "title": "Handle tool calls",
+          "publisher": "Anthropic",
+          "accessed": "2026-09-26",
+          "claim": "Tool results go in a user message whose tool_result blocks (matched by tool_use_id) come first and immediately follow the assistant's tool_use message; Claude has no separate tool role."
+        },
+        {
+          "url": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/overview",
+          "title": "Tool use with Claude",
+          "publisher": "Anthropic",
+          "accessed": "2026-09-26",
+          "claim": "The round-trip example resends the user message, the assistant's content with its tool_use block, then a user message with the tool_result."
+        }
+      ]
+    },
+    {
+      "id": "w11-l05-q02",
+      "lesson": "w11-l05",
+      "concept": "w11-l05-loop-structure",
+      "type": "multiple_choice",
+      "prompt": "In the loop, which condition means the agent has finished normally?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The response contains a text block, which is the final answer"
+        },
+        {
+          "id": "b",
+          "text": "The response is shorter than the previous one, so the model has converged"
+        },
+        {
+          "id": "c",
+          "text": "A tool returned an empty result, so there is nothing left for the model to look up"
+        },
+        {
+          "id": "d",
+          "text": "The reply has no tool calls (for Claude, `stop_reason` isn't `\"tool_use\"`)"
+        }
+      ],
+      "answer": "d",
+      "explanation": "The model asks for tools by replying with tool-use blocks. When it answers without any, it's done, and its text is the final answer. A reply can contain text and tool calls together, so text alone doesn't mean the end. The guards (max steps, budget) are the other, abnormal ways out.",
+      "materials": [
+        "anthropic-docs-tool-use-with-claude",
+        "anthropic-building-effective-agents"
+      ],
+      "sources": [
+        {
+          "url": "https://platform.claude.com/docs/en/build-with-claude/handling-stop-reasons",
+          "title": "Stop reasons and fallback",
+          "publisher": "Anthropic",
+          "accessed": "2026-09-26",
+          "claim": "stop_reason tool_use means Claude is calling a tool and expects results, while end_turn means it finished naturally; tool_use responses can contain other blocks alongside tool calls."
+        },
+        {
+          "url": "https://www.anthropic.com/engineering/building-effective-agents",
+          "title": "Building Effective AI Agents",
+          "publisher": "Anthropic",
+          "accessed": "2026-09-26",
+          "claim": "Agents use tools in a loop based on environmental feedback and have stopping conditions such as a maximum number of iterations."
+        }
+      ]
+    },
+    {
+      "id": "w11-l05-q03",
+      "lesson": "w11-l05",
+      "concept": "w11-l05-loop-structure",
+      "type": "written",
+      "prompt": "Describe the steps of your TypeScript agent loop, and say what stays the same as in your Python version.",
+      "model_answer": {
+        "summary": "Both versions run the same loop: call the model with the history and tools, stop if it didn't ask for a tool, otherwise validate and run each tool, append the results, and repeat under the same guards.",
+        "key_points": [
+          "Keep a `messages` array and send it, with the tool definitions, on every call",
+          "If the reply has no tool calls, return its text as the answer",
+          "Otherwise append the assistant reply, validate and run each tool call, and append one tool result per call (errors included)",
+          "Check the guards on every pass: maximum steps and budget, and stop with a clear reason when one trips",
+          "The loop logic is the same in both languages; TypeScript adds static types, such as a discriminated union for the model's reply and `z.infer` types for tool inputs"
+        ]
+      },
+      "explanation": "Porting the loop is a check that you understand it rather than a library: the steps don't depend on the language. Anthropic's advice for agents, to get ground truth from the environment at each step and keep stopping conditions, applies to both.",
+      "materials": [
+        "anthropic-building-effective-agents",
+        "anthropic-docs-handle-tool-calls"
+      ],
+      "sources": [
+        {
+          "url": "https://www.anthropic.com/engineering/building-effective-agents",
+          "title": "Building Effective AI Agents",
+          "publisher": "Anthropic",
+          "accessed": "2026-09-26",
+          "claim": "Agents are LLMs using tools in a loop, gaining ground truth from the environment at each step, with stopping conditions such as a maximum number of iterations."
+        },
+        {
+          "url": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/handle-tool-calls",
+          "title": "Handle tool calls",
+          "publisher": "Anthropic",
+          "accessed": "2026-09-26",
+          "claim": "For each tool_use, run the tool and send a tool_result (with is_error: true on failure) back in a user message."
+        }
+      ]
+    },
+    {
+      "id": "w11-l05-q04",
+      "lesson": "w11-l05",
+      "concept": "w11-l05-max-steps-guard",
+      "type": "multiple_choice",
+      "prompt": "`for (let step = 0; step < MAX_STEPS; step++) { ... }` makes one model call per pass, with `MAX_STEPS = 5`. The model asks for a tool on every turn. How many model calls happen, and what should the function do after the loop?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "5 calls; then return a typed `max_steps` result saying the step limit was hit"
+        },
+        {
+          "id": "b",
+          "text": "6 calls (`step` runs 0 to 5); then return the last tool result as the final answer"
+        },
+        {
+          "id": "c",
+          "text": "4 calls; then throw, because the last pass is reserved for the answer"
+        },
+        {
+          "id": "d",
+          "text": "5 calls; then return the last reply's text, since it's the model's most recent answer"
+        }
+      ],
+      "answer": "a",
+      "explanation": "`step` takes the values 0, 1, 2, 3 and 4: five passes, five calls. Falling out of the loop means the model never finished, so say so explicitly and log it. Returning whatever text happens to be there hides a failure. Anthropic recommends stopping conditions such as a maximum number of iterations to keep an agent under control.",
+      "materials": [
+        "anthropic-building-effective-agents"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/for",
+          "title": "for - JavaScript | MDN",
+          "publisher": "Mozilla (MDN Web Docs)",
+          "accessed": "2026-09-26",
+          "claim": "A for loop checks its condition before each iteration and exits when it is false, so i from 0 while i < N runs N times."
+        },
+        {
+          "url": "https://www.anthropic.com/engineering/building-effective-agents",
+          "title": "Building Effective AI Agents",
+          "publisher": "Anthropic",
+          "accessed": "2026-09-26",
+          "claim": "Agents should include stopping conditions such as a maximum number of iterations to maintain control."
+        }
+      ]
+    },
+    {
+      "id": "w11-l05-q05",
+      "lesson": "w11-l05",
+      "concept": "w11-l05-max-steps-guard",
+      "type": "multiple_choice",
+      "prompt": "You move the loop onto the AI SDK instead of writing it by hand. Which option replaces your `MAX_STEPS` guard?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`maxRetries: MAX_STEPS`, which caps how many times the model is called"
+        },
+        {
+          "id": "b",
+          "text": "`maxOutputTokens: MAX_STEPS`, which limits the number of replies"
+        },
+        {
+          "id": "c",
+          "text": "`toolChoice: 'none'`, set once `MAX_STEPS` tool calls have run"
+        },
+        {
+          "id": "d",
+          "text": "`stopWhen: isStepCount(MAX_STEPS)` (`stepCountIs` before AI SDK 7)"
+        }
+      ],
+      "answer": "d",
+      "explanation": "`stopWhen` decides when the multi-step loop ends, and `isStepCount(n)` stops after `n` steps. `maxRetries` (default 2) retries failed requests, and `maxOutputTokens` limits one reply's length; neither counts steps. AI SDK 7 renamed `stepCountIs` to `isStepCount`.",
+      "materials": [
+        "ai-sdk-loop-control",
+        "ai-sdk-migration-guide-7-0"
+      ],
+      "sources": [
+        {
+          "url": "https://ai-sdk.dev/docs/agents/loop-control",
+          "title": "Agents: Loop Control",
+          "publisher": "Vercel",
+          "accessed": "2026-09-26",
+          "claim": "stopWhen with isStepCount(n) stops the tool loop after n steps."
+        },
+        {
+          "url": "https://ai-sdk.dev/docs/migration-guides/migration-guide-7-0",
+          "title": "Migrate AI SDK 6.x to 7.0",
+          "publisher": "Vercel",
+          "accessed": "2026-09-26",
+          "claim": "AI SDK 7 renames stepCountIs to isStepCount."
+        },
+        {
+          "url": "https://ai-sdk.dev/docs/ai-sdk-core/settings",
+          "title": "AI SDK Core: Settings",
+          "publisher": "Vercel",
+          "accessed": "2026-09-26",
+          "claim": "maxRetries is the maximum number of retries (default 2) and maxOutputTokens is the maximum tokens to generate; neither counts steps."
+        }
+      ]
+    },
+    {
+      "id": "w11-l05-q06",
+      "lesson": "w11-l05",
+      "concept": "w11-l05-budget-guard",
+      "type": "multiple_choice",
+      "prompt": "Where should the budget check go in your agent loop?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Once, before the loop starts, estimating the whole run's cost from the prompt"
+        },
+        {
+          "id": "b",
+          "text": "Before each model call, comparing the summed `usage` so far with the budget"
+        },
+        {
+          "id": "c",
+          "text": "After the loop ends, comparing the total `usage` with the budget"
+        },
+        {
+          "id": "d",
+          "text": "Inside each tool, adding up the tokens that tool's result returns"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Each response reports its `usage` (input and output tokens). Add it up after every call and check the total before making the next one, so the loop stops before it overspends. Checking once at the start or only at the end can't stop a run that is burning money.",
+      "materials": [
+        "anthropic-docs-tool-use-with-claude",
+        "anthropic-building-effective-agents"
+      ],
+      "sources": [
+        {
+          "url": "https://platform.claude.com/docs/en/build-with-claude/handling-stop-reasons",
+          "title": "Stop reasons and fallback",
+          "publisher": "Anthropic",
+          "accessed": "2026-09-26",
+          "claim": "Every successful Messages API response includes a usage field with input_tokens and output_tokens for tracking cost."
+        },
+        {
+          "url": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/overview",
+          "title": "Tool use with Claude",
+          "publisher": "Anthropic",
+          "accessed": "2026-09-26",
+          "claim": "Tool use requests are priced on total input tokens (including tools, tool_use and tool_result blocks) and output tokens, reported in usage."
+        }
+      ]
+    },
+    {
+      "id": "w11-l05-q07",
+      "lesson": "w11-l05",
+      "concept": "w11-l05-budget-guard",
+      "type": "written",
+      "prompt": "Why isn't a max-steps limit enough on its own, and how does a budget guard work?",
+      "model_answer": {
+        "summary": "Steps don't cost the same: every step resends a longer history, so cost per step grows. A budget guard adds up real usage after each call and stops the loop before it passes a spending limit.",
+        "key_points": [
+          "Each call resends the whole conversation, so input tokens, and cost, grow with every step",
+          "Tool results can be large, so one step can cost far more than another",
+          "After each call, add the response's `usage` (input and output tokens times their prices) to a running total",
+          "Before the next call, stop with a clear `budget_exceeded` result if the total has reached the budget, and log which guard fired"
+        ]
+      },
+      "explanation": "Max steps bounds how long the loop runs; the budget bounds how much it spends. You want both, because a loop can stay under one while blowing through the other.",
+      "materials": [
+        "anthropic-docs-tool-use-with-claude",
+        "anthropic-building-effective-agents"
+      ],
+      "sources": [
+        {
+          "url": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/overview",
+          "title": "Tool use with Claude",
+          "publisher": "Anthropic",
+          "accessed": "2026-09-26",
+          "claim": "Each request is priced on all input tokens sent, including prior tool_use and tool_result blocks, so resending a growing history raises cost per call; usage reports the counts."
+        },
+        {
+          "url": "https://www.anthropic.com/engineering/building-effective-agents",
+          "title": "Building Effective AI Agents",
+          "publisher": "Anthropic",
+          "accessed": "2026-09-26",
+          "claim": "Agents' autonomy brings higher costs and compounding errors, so they need stopping conditions and guardrails."
+        }
+      ]
+    },
+    {
+      "id": "w11-l05-q08",
+      "lesson": "w11-l05",
+      "concept": "w11-l05-validation-errors",
+      "type": "multiple_choice",
+      "prompt": "The model calls `search` with input that fails `SearchInput.safeParse`. What should your loop do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Throw a validation error and end the run, since the model broke the schema"
+        },
+        {
+          "id": "b",
+          "text": "Fill in defaults for the missing or invalid fields and run the tool anyway, then log it"
+        },
+        {
+          "id": "c",
+          "text": "Send a `tool_result` with `is_error: true` saying what's wrong, so the model retries"
+        },
+        {
+          "id": "d",
+          "text": "Skip the call and ask the model again, sending no `tool_result` for it"
+        }
+      ],
+      "answer": "c",
+      "explanation": "An invalid call is expected from time to time and the model can usually fix it. Anthropic's docs say that after an error result for missing or invalid parameters, Claude will retry 2-3 times with corrections. Make the message instructive, for example built from `error.issues`. Skipping the result breaks the API's rule that every `tool_use` gets a `tool_result`, and guessing defaults runs the tool on inputs nobody asked for.",
+      "materials": [
+        "anthropic-docs-handle-tool-calls",
+        "zod-basic-usage"
+      ],
+      "sources": [
+        {
+          "url": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/handle-tool-calls",
+          "title": "Handle tool calls",
+          "publisher": "Anthropic",
+          "accessed": "2026-09-26",
+          "claim": "For an invalid call you can return a tool_result with is_error: true describing the problem, and Claude retries 2-3 times with corrections; error messages should be instructive."
+        },
+        {
+          "url": "https://zod.dev/basics",
+          "title": "Basic usage | Zod",
+          "publisher": "Zod",
+          "accessed": "2026-09-26",
+          "claim": "safeParse returns an error whose issues describe each validation failure."
+        }
+      ]
+    },
+    {
+      "id": "w11-l05-q09",
+      "lesson": "w11-l05",
+      "concept": "w11-l05-validation-errors",
+      "type": "multiple_choice",
+      "prompt": "Your loop drops a tool call whose input failed validation and sends the next request with no `tool_result` for it. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The API ignores the missing result and the model carries on"
+        },
+        {
+          "id": "b",
+          "text": "The API returns a 400 error: every `tool_use` needs a `tool_result` right after it"
+        },
+        {
+          "id": "c",
+          "text": "The API fills in an empty `tool_result`, so the model assumes that the tool succeeded"
+        },
+        {
+          "id": "d",
+          "text": "The model sees no result and repeats the same tool call automatically"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Anthropic's docs require tool results to immediately follow their tool-use blocks, and name the error you get otherwise: tool_use ids found without tool_result blocks immediately after. Always answer every call, with `is_error: true` when it failed.",
+      "materials": [
+        "anthropic-docs-handle-tool-calls"
+      ],
+      "sources": [
+        {
+          "url": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/handle-tool-calls",
+          "title": "Handle tool calls",
+          "publisher": "Anthropic",
+          "accessed": "2026-09-26",
+          "claim": "Tool result blocks must immediately follow their tool use blocks; otherwise you get an error that tool_use ids were found without tool_result blocks immediately after."
+        }
+      ]
+    },
+    {
+      "id": "w11-l05-q10",
+      "lesson": "w11-l05",
+      "concept": "w11-l05-validation-errors",
+      "type": "multiple_choice",
+      "prompt": "The model calls a tool named `web_search`, but your registry only has `search`. What should the loop do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Run `search`, the closest registered name, and return its result"
+        },
+        {
+          "id": "b",
+          "text": "Let it throw a `TypeError` on `tools[name]` so the bug surfaces in the error logs"
+        },
+        {
+          "id": "c",
+          "text": "Skip the unknown call and return the reply's text as the final answer"
+        },
+        {
+          "id": "d",
+          "text": "Send an `is_error: true` `tool_result`: no such tool, plus the available names"
+        }
+      ],
+      "answer": "d",
+      "explanation": "An unknown tool name is another invalid call, so handle it like a validation error: an error result the model can learn from. Guessing a similar tool can run something the model didn't mean. The AI SDK reports this case as `NoSuchToolError`.",
+      "materials": [
+        "anthropic-docs-handle-tool-calls",
+        "ai-sdk-tool-calling"
+      ],
+      "sources": [
+        {
+          "url": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/handle-tool-calls",
+          "title": "Handle tool calls",
+          "publisher": "Anthropic",
+          "accessed": "2026-09-26",
+          "claim": "An invalid tool call can be answered with an is_error: true tool_result and instructive message so Claude can try again."
+        },
+        {
+          "url": "https://ai-sdk.dev/docs/ai-sdk-core/tools-and-tool-calling",
+          "title": "AI SDK Core: Tool Calling",
+          "publisher": "Vercel",
+          "accessed": "2026-09-26",
+          "claim": "The AI SDK raises NoSuchToolError when the model calls a tool not defined in the tools object."
+        }
+      ]
+    },
+    {
+      "id": "w11-l05-q11",
+      "lesson": "w11-l05",
+      "concept": "w11-l05-validation-errors",
+      "type": "written",
+      "prompt": "Explain how your TypeScript loop handles a tool call whose input doesn't match the tool's schema.",
+      "model_answer": {
+        "summary": "Validate every tool input at run time with the tool's Zod schema. On failure, return an error tool result explaining the problem so the model can retry, with the step limit capping the retries.",
+        "key_points": [
+          "Tool inputs come from the model and TypeScript types are erased, so validate each input at run time, for example with `schema.safeParse(input)`",
+          "On success, pass `result.data`, typed with `z.infer`, to the tool",
+          "On failure, return a `tool_result` with `is_error: true` and an instructive message built from `error.issues`",
+          "The model usually retries with corrected input; the max-steps guard stops endless retries",
+          "An unknown tool name is handled the same way: an error result, not a crash"
+        ]
+      },
+      "explanation": "This is the same guard as in the Python loop, with Zod in place of Pydantic. Validation errors are data for the model, not exceptions for your program.",
+      "materials": [
+        "anthropic-docs-handle-tool-calls",
+        "zod-basic-usage"
+      ],
+      "sources": [
+        {
+          "url": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/handle-tool-calls",
+          "title": "Handle tool calls",
+          "publisher": "Anthropic",
+          "accessed": "2026-09-26",
+          "claim": "Invalid or missing parameters can be reported as an is_error: true tool_result, and Claude retries 2-3 times with corrections."
+        },
+        {
+          "url": "https://zod.dev/basics",
+          "title": "Basic usage | Zod",
+          "publisher": "Zod",
+          "accessed": "2026-09-26",
+          "claim": "safeParse returns success/data or an error with issues, and z.infer gives the static type."
+        }
+      ]
+    }
+  ]
+}
