@@ -13,13 +13,7 @@ export default function SignInFailedPage() {
       <SignOutButton redirectUrl="/sign-in">
         <button type="button">Sign out and sign in again</button>
       </SignOutButton>
-      <p className="muted">
-        If this keeps happening, the Admin should check that the Clerk session
-        token includes your email: in the Clerk dashboard, under{" "}
-        <strong>Sessions → Customize session token</strong>, it needs{" "}
-        <code>{`{"email": "{{user.primary_email_address}}"}`}</code>{" "}
-        (docs/deploy.md).
-      </p>
+      <p className="muted">If this keeps happening, tell the Admin.</p>
     </main>
   );
 }

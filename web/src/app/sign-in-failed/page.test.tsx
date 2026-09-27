@@ -9,7 +9,7 @@ vi.mock("@clerk/nextjs", () => ({
 
 afterEach(cleanup);
 
-it("explains a sign-in the API couldn't verify, offers to sign in again, and hints the Admin", () => {
+it("explains a sign-in the API couldn't verify, offers to sign in again, or to tell the Admin", () => {
   render(<SignInFailedPage />);
 
   expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
@@ -18,6 +18,5 @@ it("explains a sign-in the API couldn't verify, offers to sign in again, and hin
   expect(
     screen.getByRole("button", { name: "Sign out and sign in again" }),
   ).toBeTruthy();
-  expect(screen.getByText(/Customize session token/)).toBeTruthy();
-  expect(screen.getByText(/primary_email_address/)).toBeTruthy();
+  expect(screen.getByText(/tell the Admin/)).toBeTruthy();
 });
