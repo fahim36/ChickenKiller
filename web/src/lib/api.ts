@@ -4,14 +4,7 @@ import { redirect } from "next/navigation";
 // Types mirror the FastAPI response models in api/app/schemas.py.
 
 export type MaterialType =
-  | "docs"
-  | "free"
-  | "video"
-  | "book"
-  | "paper"
-  | "tool"
-  | "paid"
-  | "platform";
+  "docs" | "free" | "video" | "book" | "paper" | "tool" | "paid" | "platform";
 
 export interface StackSummary {
   id: string;
@@ -427,7 +420,9 @@ export class ApiError extends Error {
     readonly detail: unknown,
     request: string,
   ) {
-    super(typeof detail === "string" ? detail : `${request} failed: HTTP ${status}`);
+    super(
+      typeof detail === "string" ? detail : `${request} failed: HTTP ${status}`,
+    );
   }
 }
 
@@ -435,9 +430,16 @@ export class ApiError extends Error {
  * Call the API as the signed-in person: every request carries their Clerk session token.
  * A person who signed in but was never invited is sent to /not-invited, a Learner who
  * hasn't picked any Stack yet is sent to /onboarding, and one asking about a Stack that isn't
- * one of their Active Stacks is sent to /settings, where they can activate it.
+ * one of their Active Stacks is sent to /settings, where they can activate it. When the API
+ * can't verify the sign-in (401), or can't check sign-ins at all (a 503 with a plain message,
+ * unlike grading's coded 503s), the person is sent to a page that explains it instead of a
+ * generic server error.
  */
-async function request(method: string, path: string, body?: unknown): Promise<Response> {
+async function request(
+  method: string,
+  path: string,
+  body?: unknown,
+): Promise<Response> {
   const { getToken } = await auth();
   const token = await getToken();
   const headers: Record<string, string> = {};
@@ -456,15 +458,23 @@ async function request(method: string, path: string, body?: unknown): Promise<Re
     .json()
     .then((json: { detail?: unknown }) => json.detail)
     .catch(() => null);
-  if (res.status === 403 && hasCode(detail, "not_invited")) redirect("/not-invited");
-  if (res.status === 409 && hasCode(detail, "onboarding_needed")) redirect("/onboarding");
-  if (res.status === 409 && hasCode(detail, "not_active_stack")) redirect("/settings");
+  if (res.status === 401) redirect("/sign-in-failed");
+  if (res.status === 503 && typeof detail === "string")
+    redirect("/sign-in-unavailable");
+  if (res.status === 403 && hasCode(detail, "not_invited"))
+    redirect("/not-invited");
+  if (res.status === 409 && hasCode(detail, "onboarding_needed"))
+    redirect("/onboarding");
+  if (res.status === 409 && hasCode(detail, "not_active_stack"))
+    redirect("/settings");
   throw new ApiError(res.status, detail, `${method} ${path}`);
 }
 
 function hasCode(detail: unknown, code: string): boolean {
   return (
-    typeof detail === "object" && detail !== null && (detail as { code?: unknown }).code === code
+    typeof detail === "object" &&
+    detail !== null &&
+    (detail as { code?: unknown }).code === code
   );
 }
 
@@ -487,11 +497,18 @@ export async function apiPost<T>(path: string, body: unknown): Promise<T> {
  * throwing when written answers couldn't be graded (a thrown error loses its detail on the way
  * to the browser), so the page can offer to submit again. Any other refusal throws.
  */
-export async function apiPostGraded<T>(path: string, body: unknown): Promise<T | GradingFailed> {
+export async function apiPostGraded<T>(
+  path: string,
+  body: unknown,
+): Promise<T | GradingFailed> {
   try {
     return await apiPost<T>(path, body);
   } catch (error) {
-    if (error instanceof ApiError && error.status === 503 && isGradingFailed(error.detail)) {
+    if (
+      error instanceof ApiError &&
+      error.status === 503 &&
+      isGradingFailed(error.detail)
+    ) {
       return { code: "grading_failed", message: error.detail.message };
     }
     throw error;

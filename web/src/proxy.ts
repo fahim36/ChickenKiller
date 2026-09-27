@@ -1,7 +1,12 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
 // Next.js 16 calls middleware "proxy". Every page needs a signed-in person, except these.
-const isPublic = createRouteMatcher(["/sign-in(.*)", "/sign-up(.*)", "/not-invited"]);
+// "/sign-in(.*)" also covers /sign-in-failed and /sign-in-unavailable (lib/api.ts).
+const isPublic = createRouteMatcher([
+  "/sign-in(.*)",
+  "/sign-up(.*)",
+  "/not-invited",
+]);
 
 export default clerkMiddleware(
   async (auth, request) => {
