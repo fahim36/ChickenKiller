@@ -251,7 +251,7 @@ def write_folder(
 ) -> Path:
     """Write a version folder, and replace the Stack's Question Bank with `banks` ({file stem:
     bank file}). Returns the version folder."""
-    folder = root / syllabus["stack"]["id"] / syllabus["version"]
+    folder: Path = root / syllabus["stack"]["id"] / syllabus["version"]
     folder.mkdir(parents=True, exist_ok=True)
     (folder / "syllabus.json").write_text(json.dumps(syllabus), encoding="utf-8")
     bank_dir = folder.parent / "question-bank"
@@ -287,7 +287,7 @@ def make_content(tmp_path: Path) -> ContentFactory:
     a version that follows another. Each call replaces the Stack's Question Bank."""
 
     def factory(
-        edit: Callable[[dict, dict], None] | None = None,
+        edit: Edit | None = None,
         *,
         extra_banks: dict[str, dict[str, Any]] | None = None,
         changelog: dict[str, Any] | None = None,

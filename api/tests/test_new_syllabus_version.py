@@ -28,7 +28,7 @@ from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import inspect, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app import updated_lessons
@@ -258,7 +258,7 @@ def learner_data(session: Session) -> dict[str, list[tuple[Any, ...]]]:
     session.expire_all()
     data = {}
     for table in PROGRESS_TABLES:
-        columns = [c.key for c in inspect(table).column_attrs]
+        columns = [c.key for c in table.__mapper__.column_attrs]
         rows = session.scalars(select(table)).all()
         data[table.__tablename__] = sorted(
             (tuple(getattr(row, c) for c in columns) for row in rows), key=repr
@@ -463,7 +463,7 @@ def reimport_version_2(
 
 
 def mc(question_id: str, lesson: str, concept: str) -> dict[str, Any]:
-    question = copy.deepcopy(V2_BANKS["w01-new"]["questions"][0])
+    question: dict[str, Any] = copy.deepcopy(V2_BANKS["w01-new"]["questions"][0])
     question.update(id=question_id, lesson=lesson, concept=concept)
     return question
 

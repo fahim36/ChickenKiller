@@ -1,6 +1,7 @@
 """Version names: `vYYYY-MM-DD`, plus `.N` for a second (third, ...) version on the same day."""
 
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -10,7 +11,7 @@ from tests.conftest import ContentFactory
 
 @pytest.mark.parametrize("version", ["v2026-01-01.1", "v2026-01-01.2", "v2026-01-01.10"])
 def test_a_version_may_carry_a_same_day_number(make_content: ContentFactory, version: str) -> None:
-    def edit(syllabus: dict, bank: dict) -> None:
+    def edit(syllabus: dict[str, Any], bank: dict[str, Any]) -> None:
         syllabus["version"] = version
 
     assert [p for p in check_folder(make_content(edit)) if p.level == "error"] == []
@@ -33,7 +34,7 @@ def test_version_folders_under_a_content_root_come_oldest_first(tmp_path: Path) 
     "version", ["v2026-01-01.0", "v2026-01-01.01", "v2026-1-01", "v2026-01-01-2", "v2026-13-01"]
 )
 def test_a_malformed_version_is_refused(make_content: ContentFactory, version: str) -> None:
-    def edit(syllabus: dict, bank: dict) -> None:
+    def edit(syllabus: dict[str, Any], bank: dict[str, Any]) -> None:
         syllabus["version"] = version
 
     [problem] = [p for p in check_folder(make_content(edit)) if p.level == "error"]

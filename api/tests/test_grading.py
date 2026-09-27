@@ -5,6 +5,7 @@ test_written_grading.py."""
 
 import json
 import logging
+import shutil
 import subprocess
 from decimal import Decimal
 from typing import Any
@@ -14,7 +15,7 @@ import pytest
 from app import config, grading
 from app.grading import ClaudeCodeGrader, Grade, GradingFailed, build_prompt, find_claude
 
-MODEL_ANSWER = {
+MODEL_ANSWER: dict[str, Any] = {
     "summary": "An agent is a model calling tools in a loop until the task is done.",
     "key_points": ["The model chooses which tool to call", "It loops until a stop condition"],
 }
@@ -225,14 +226,14 @@ def windows(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> 
 
 
 def test_claude_bin_wins_over_the_path(monkeypatch: pytest.MonkeyPatch, windows: bool) -> None:
-    monkeypatch.setattr(grading.shutil, "which", lambda name: f"/on/path/{name}")
+    monkeypatch.setattr(shutil, "which", lambda name: f"/on/path/{name}")
     claude_bin = r"C:\opt\claude.exe" if windows else "/opt/claude"
 
     assert find_claude(claude_bin) == claude_bin
 
 
 def test_otherwise_the_cli_is_found_on_the_path(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(grading.shutil, "which", lambda name: f"/on/path/{name}")
+    monkeypatch.setattr(shutil, "which", lambda name: f"/on/path/{name}")
     monkeypatch.setattr(grading, "_WINDOWS", False)
 
     assert find_claude("") == "/on/path/claude"
@@ -241,7 +242,7 @@ def test_otherwise_the_cli_is_found_on_the_path(monkeypatch: pytest.MonkeyPatch)
 def test_on_windows_only_the_native_executable_is_used(monkeypatch: pytest.MonkeyPatch) -> None:
     """A `claude.cmd` shim runs through cmd.exe, which would mangle the prompt's `<` and `>`."""
     found = {"claude.exe": r"C:\bin\claude.exe"}
-    monkeypatch.setattr(grading.shutil, "which", lambda name: found.get(name))
+    monkeypatch.setattr(shutil, "which", lambda name: found.get(name))
     monkeypatch.setattr(grading, "_WINDOWS", True)
 
     assert find_claude("") == r"C:\bin\claude.exe"
@@ -251,6 +252,6 @@ def test_on_windows_only_the_native_executable_is_used(monkeypatch: pytest.Monke
 
 
 def test_with_no_cli_found_there_is_none(monkeypatch: pytest.MonkeyPatch, windows: bool) -> None:
-    monkeypatch.setattr(grading.shutil, "which", lambda name: None)
+    monkeypatch.setattr(shutil, "which", lambda name: None)
 
     assert find_claude("") is None

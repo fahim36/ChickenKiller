@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Any
 
 import httpx
 import pytest
@@ -9,11 +10,11 @@ from app.content.check import Problem, check_folder, check_stack
 from tests.conftest import ContentFactory, make_bank
 
 
-def error_problems(folder: Path, **kwargs: bool) -> list[Problem]:
+def error_problems(folder: Path, **kwargs: Any) -> list[Problem]:
     return [p for p in check_folder(folder, **kwargs) if p.level == "error"]
 
 
-def errors(folder: Path, **kwargs: bool) -> list[str]:
+def errors(folder: Path, **kwargs: Any) -> list[str]:
     return [f"{p.item}: {p.message}" for p in error_problems(folder, **kwargs)]
 
 
@@ -36,7 +37,7 @@ def test_lesson_without_questions_is_only_a_warning(make_content: ContentFactory
 
 
 def test_format_violation_names_the_item(make_content: ContentFactory) -> None:
-    def edit(syllabus: dict, bank: dict) -> None:
+    def edit(syllabus: dict[str, Any], bank: dict[str, Any]) -> None:
         del syllabus["weeks"][0]["lessons"][0]["topics"]
 
     folder = make_content(edit)
@@ -49,7 +50,7 @@ def test_format_violation_names_the_item(make_content: ContentFactory) -> None:
 def test_format_violation_in_a_question_bank_names_the_question(
     make_content: ContentFactory,
 ) -> None:
-    def edit(syllabus: dict, bank: dict) -> None:
+    def edit(syllabus: dict[str, Any], bank: dict[str, Any]) -> None:
         bank["questions"][2]["answer"] = "z"  # not a choice ID at all
 
     folder = make_content(edit)
@@ -60,7 +61,7 @@ def test_format_violation_in_a_question_bank_names_the_question(
 
 
 def test_format_violation_in_a_choice_names_the_question(make_content: ContentFactory) -> None:
-    def edit(syllabus: dict, bank: dict) -> None:
+    def edit(syllabus: dict[str, Any], bank: dict[str, Any]) -> None:
         bank["questions"][1]["choices"][1]["id"] = "z"
 
     [problem] = error_problems(make_content(edit))
@@ -69,7 +70,7 @@ def test_format_violation_in_a_choice_names_the_question(make_content: ContentFa
 
 
 def test_format_violation_outside_any_item_names_the_field(make_content: ContentFactory) -> None:
-    def edit(syllabus: dict, bank: dict) -> None:
+    def edit(syllabus: dict[str, Any], bank: dict[str, Any]) -> None:
         syllabus["version"] = "2026-01-01"
 
     [problem] = error_problems(make_content(edit))
@@ -89,7 +90,7 @@ def test_file_that_is_not_json_is_named(make_content: ContentFactory) -> None:
 
 
 def test_duplicate_permanent_id(make_content: ContentFactory) -> None:
-    def edit(syllabus: dict, bank: dict) -> None:
+    def edit(syllabus: dict[str, Any], bank: dict[str, Any]) -> None:
         syllabus["weeks"][0]["lessons"][1]["id"] = "w01-l01"
 
     folder = make_content(edit)
@@ -118,7 +119,7 @@ def test_folder_must_match_the_stack_id_and_version(
 
 
 def test_duplicate_concept_id_in_one_bank(make_content: ContentFactory) -> None:
-    def edit(syllabus: dict, bank: dict) -> None:
+    def edit(syllabus: dict[str, Any], bank: dict[str, Any]) -> None:
         bank["concepts"].append({"id": "concept-a", "name": "Again"})
 
     folder = make_content(edit)
@@ -146,7 +147,7 @@ def test_concept_id_reused_in_another_bank_names_both_files(
 
 
 def test_ids_are_unique_across_kinds(make_content: ContentFactory) -> None:
-    def edit(syllabus: dict, bank: dict) -> None:
+    def edit(syllabus: dict[str, Any], bank: dict[str, Any]) -> None:
         bank["concepts"][0]["id"] = "w01-l02"  # the second Lesson's ID
         for q in bank["questions"]:
             if q["concept"] == "concept-a":
@@ -161,7 +162,7 @@ def test_ids_are_unique_across_kinds(make_content: ContentFactory) -> None:
 
 
 def test_duplicate_question_id(make_content: ContentFactory) -> None:
-    def edit(syllabus: dict, bank: dict) -> None:
+    def edit(syllabus: dict[str, Any], bank: dict[str, Any]) -> None:
         bank["questions"][1]["id"] = bank["questions"][0]["id"]
 
     folder = make_content(edit)
@@ -189,7 +190,7 @@ def test_question_id_reused_in_another_bank_names_both_files(
 
 
 def test_concept_needs_two_questions(make_content: ContentFactory) -> None:
-    def edit(syllabus: dict, bank: dict) -> None:
+    def edit(syllabus: dict[str, Any], bank: dict[str, Any]) -> None:
         bank["concepts"].append({"id": "concept-e", "name": "Lonely"})
         bank["questions"][0]["concept"] = "concept-e"
 
@@ -204,21 +205,21 @@ def test_concept_needs_two_questions(make_content: ContentFactory) -> None:
 
 
 def test_unknown_material_reference(make_content: ContentFactory) -> None:
-    def edit(syllabus: dict, bank: dict) -> None:
+    def edit(syllabus: dict[str, Any], bank: dict[str, Any]) -> None:
         syllabus["weeks"][0]["milestones"][0]["materials"] = ["nope"]
 
     assert "w01-m01: unknown material 'nope'" in errors(make_content(edit))
 
 
 def test_answer_must_be_a_choice(make_content: ContentFactory) -> None:
-    def edit(syllabus: dict, bank: dict) -> None:
+    def edit(syllabus: dict[str, Any], bank: dict[str, Any]) -> None:
         bank["questions"][0]["answer"] = "c"
 
     assert "w01-l01-q01: answer is not one of the choices" in errors(make_content(edit))
 
 
 def test_lesson_must_support_a_lesson_quiz(make_content: ContentFactory) -> None:
-    def edit(syllabus: dict, bank: dict) -> None:
+    def edit(syllabus: dict[str, Any], bank: dict[str, Any]) -> None:
         bank["questions"][6]["type"] = "multiple_choice"  # leaves only one written Question
         bank["questions"][6]["choices"] = [{"id": "a", "text": "x"}, {"id": "b", "text": "y"}]
         bank["questions"][6]["answer"] = "a"
@@ -228,7 +229,7 @@ def test_lesson_must_support_a_lesson_quiz(make_content: ContentFactory) -> None
 
 
 def test_question_tagged_to_an_unknown_lesson(make_content: ContentFactory) -> None:
-    def edit(syllabus: dict, bank: dict) -> None:
+    def edit(syllabus: dict[str, Any], bank: dict[str, Any]) -> None:
         bank["questions"][0]["lesson"] = "w09-l09"
 
     assert (
@@ -280,7 +281,7 @@ def test_links_are_not_checked_without_the_flag(
 
 
 def test_cli_exit_code(make_content: ContentFactory) -> None:
-    def edit(syllabus: dict, bank: dict) -> None:
+    def edit(syllabus: dict[str, Any], bank: dict[str, Any]) -> None:
         bank["questions"][0]["answer"] = "z"
 
     assert check.main([str(make_content())]) == 0

@@ -15,7 +15,9 @@ from tests.conftest import API_DIR, BANK, LESSON, SYLLABUS, write_folder
 
 
 def content_check_hook() -> dict[str, Any]:
-    config = yaml.safe_load((REPO_ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8"))
+    text = (REPO_ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
+    config: dict[str, Any] = yaml.safe_load(text)
+    hook: dict[str, Any]
     [hook] = [h for repo in config["repos"] for h in repo["hooks"] if h["id"] == "content-check"]
     return hook
 
