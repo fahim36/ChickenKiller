@@ -32,6 +32,8 @@ graph LR
 
 ## Run it locally
 
+On Windows, a single command does all of it. Copy `.env.example` to `.env.local`, fill in the Clerk keys and your email, then run `run-app.cmd`. It rebuilds the Docker images and starts Postgres and the web app in Docker. It then migrates the database, imports the content, and runs the API on this machine, so the Claude Code CLI can grade written answers. Open http://localhost:3000, and run `run-app.cmd stop` to stop the containers. To do the same steps by hand:
+
 Needs [uv](https://docs.astral.sh/uv/), Node 24, Docker, and a Clerk development instance for sign-in (set it up as in [docs/deploy.md](docs/deploy.md#sign-in-with-clerk), including the `email` session-token claim).
 
 1. Put the Clerk keys in `web/.env.local`, which git ignores:
