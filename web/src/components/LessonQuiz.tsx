@@ -1,12 +1,16 @@
 "use client";
 
+import { ArrowLeft, RotateCcw } from "lucide-react";
 import Link from "next/link";
 import { type FormEvent, useState } from "react";
-import { Inline } from "@/components/Inline";
 import { MissedQuestions } from "@/components/MissedQuestions";
+import { Notice } from "@/components/Notice";
+import { AnswerChoices, Mark, QuestionCard, Spinner } from "@/components/QuestionCard";
 import { type AnswerRetakeAction, RetakeFlow } from "@/components/RetakeFlow";
+import { Button } from "@/components/ui/button";
 import { WrittenAnswer } from "@/components/WrittenAnswer";
 import type { GradingFailed, LessonQuiz as Quiz, LessonQuizResult, QuizAnswers } from "@/lib/api";
+import { cn } from "@/lib/utils";
 
 /**
  * A Lesson Quiz: multiple-choice Questions answered by picking one choice, and written ones
@@ -38,6 +42,7 @@ export function LessonQuiz({
   const [failed, setFailed] = useState(false);
   const [gradingFailed, setGradingFailed] = useState<string | null>(null);
   const marks = new Map(result?.questions.map((q) => [q.id, q] as const));
+  const answeredCount = quiz.questions.filter((q) => (answers[q.id] ?? "").trim() !== "").length;
 
   function answer(questionId: string, value: string) {
     setAnswers((current) => ({ ...current, [questionId]: value }));
@@ -65,16 +70,23 @@ export function LessonQuiz({
 
   return (
     <>
-      <form onSubmit={submit}>
-        <ol className="quiz">
-          {quiz.questions.map((q) => {
+      {result && <ScoreBanner result={result} stackId={stackId} />}
+
+      <form onSubmit={submit} className="space-y-5">
+        <ol className="space-y-5">
+          {quiz.questions.map((q, i) => {
             const mark = marks.get(q.id);
             return (
               <li key={q.id}>
-                <fieldset disabled={result !== null}>
-                  <legend>
-                    <Inline text={q.prompt} />
-                  </legend>
+                <QuestionCard
+                  prompt={q.prompt}
+                  number={i + 1}
+                  disabled={result !== null}
+                  className={cn(
+                    mark?.correct === true && "border-success/40",
+                    mark?.correct === false && "border-destructive/40",
+                  )}
+                >
                   {q.type === "written" ? (
                     <WrittenAnswer
                       question={q}
@@ -83,65 +95,57 @@ export function LessonQuiz({
                       onChange={(value) => answer(q.id, value)}
                     />
                   ) : (
-                    q.choices.map((c) => (
-                      <label key={c.id} className="choice">
-                        <input
-                          type="radio"
-                          name={q.id}
-                          value={c.id}
-                          checked={answers[q.id] === c.id}
-                          onChange={() => answer(q.id, c.id)}
-                        />{" "}
-                        <Inline text={c.text} />
-                      </label>
-                    ))
+                    <AnswerChoices
+                      name={q.id}
+                      choices={q.choices}
+                      value={answers[q.id]}
+                      onChange={(choiceId) => answer(q.id, choiceId)}
+                    />
                   )}
                   {mark && (
-                    <p className={mark.correct ? "mark mark-correct" : "mark mark-missed"}>
+                    <Mark correct={mark.correct} className="pt-1">
                       {mark.correct ? "Correct" : "Missed"}
+                    </Mark>
+                  )}
+                  {mark?.feedback && (
+                    <p className="rounded-xl bg-muted px-3 py-2 text-sm text-muted-foreground">
+                      {mark.feedback}
                     </p>
                   )}
-                  {mark?.feedback && <p className="feedback">{mark.feedback}</p>}
-                </fieldset>
+                </QuestionCard>
               </li>
             );
           })}
         </ol>
 
         {failed && (
-          <p role="alert" className="notice notice-error">
+          <Notice tone="error" role="alert">
             Couldn&apos;t submit your answers. Try again.
-          </p>
+          </Notice>
         )}
         {gradingFailed && (
-          <p role="alert" className="notice notice-error">
+          <Notice tone="error" role="alert">
             {gradingFailed}
-          </p>
+          </Notice>
         )}
-        <button type="submit" disabled={submitting || result !== null}>
-          {submitting ? "Grading…" : gradingFailed ? "Submit again" : "Submit answers"}
-        </button>
+        <div
+          className={cn(
+            "z-10 flex flex-wrap items-center justify-between gap-3 rounded-2xl border bg-card/95 p-3 pl-5 backdrop-blur",
+            result === null && "sticky bottom-4 shadow-lg",
+          )}
+        >
+          <span className="text-sm text-muted-foreground tabular-nums" aria-hidden>
+            {result === null
+              ? `${answeredCount} of ${quiz.questions.length} answered`
+              : "Answers submitted"}
+          </span>
+          <Button type="submit" size="lg" className="px-4" disabled={submitting || result !== null}>
+            {submitting && <Spinner />}
+            {submitting ? "Grading…" : gradingFailed ? "Submit again" : "Submit answers"}
+          </Button>
+        </div>
       </form>
 
-      {result && (
-        <div role="status" className={`notice ${result.passed ? "" : "notice-error"}`}>
-          <p>
-            You scored {result.correct} of {result.total} ({result.percent}%).{" "}
-            {outcome(result)}
-          </p>
-          <p>
-            {!result.passed && (
-              <>
-                <a href={`/stacks/${stackId}/lessons/${result.lesson_id}/quiz`}>
-                  Take a fresh Lesson Quiz
-                </a>{" "}
-                ·{" "}
-              </>
-            )}
-            <Link href={`/stacks/${stackId}`}>Back to the Week map</Link>
-          </p>
-        </div>
-      )}
       {result && <MissedQuestions missed={result.missed} />}
       {result && result.next_step === "retakes" && (
         <RetakeFlow
@@ -152,6 +156,55 @@ export function LessonQuiz({
         />
       )}
     </>
+  );
+}
+
+/** The score, whether it passed, and what to do next. */
+function ScoreBanner({ result, stackId }: { result: LessonQuizResult; stackId: string }) {
+  return (
+    <div
+      role="status"
+      className={cn(
+        "mb-6 space-y-4 rounded-2xl border p-5 sm:p-6",
+        result.passed
+          ? "border-success/30 bg-success/8 text-foreground"
+          : "border-destructive/30 bg-destructive/8 text-foreground",
+      )}
+    >
+      <div className="flex items-center gap-4">
+        <span
+          aria-hidden
+          className={cn(
+            "flex size-14 shrink-0 items-center justify-center rounded-2xl font-heading text-lg font-semibold tabular-nums",
+            result.passed ? "bg-success text-white" : "bg-destructive text-white",
+          )}
+        >
+          {result.percent}%
+        </span>
+        <p className="text-sm leading-relaxed sm:text-base">
+          You scored {result.correct} of {result.total} ({result.percent}%).{" "}
+          {outcome(result)}
+        </p>
+      </div>
+      <p className="flex flex-wrap gap-2">
+        {!result.passed && (
+          <>
+            <Button asChild>
+              <a href={`/stacks/${stackId}/lessons/${result.lesson_id}/quiz`}>
+                <RotateCcw aria-hidden />
+                Take a fresh Lesson Quiz
+              </a>
+            </Button>{" "}
+          </>
+        )}
+        <Button asChild variant="outline">
+          <Link href={`/stacks/${stackId}`}>
+            <ArrowLeft aria-hidden />
+            Back to the Week map
+          </Link>
+        </Button>
+      </p>
+    </div>
   );
 }
 

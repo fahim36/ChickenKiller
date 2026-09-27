@@ -1,5 +1,6 @@
 "use client";
 
+import { Textarea } from "@/components/ui/textarea";
 import type { QuizQuestion } from "@/lib/api";
 
 /** The text box a written Question is answered in, in a Lesson Quiz or a Retake. */
@@ -18,19 +19,23 @@ export function WrittenAnswer({
 }) {
   const id = `${idPrefix}-${question.id}`;
   return (
-    <>
-      <label htmlFor={id} className="muted">
+    <div className="space-y-2">
+      <label htmlFor={id} className="text-sm font-medium text-muted-foreground">
         Your answer
       </label>
-      <textarea
+      <Textarea
         id={id}
         name={question.id}
-        className="written-answer"
         rows={5}
         maxLength={maxLength}
         value={value}
         onChange={(event) => onChange(event.target.value)}
+        className="min-h-32 resize-y bg-background text-base leading-relaxed"
+        placeholder="Explain it the way you would in an interview…"
       />
-    </>
+      <p aria-hidden className="text-right text-xs text-muted-foreground tabular-nums">
+        {value.length} / {maxLength}
+      </p>
+    </div>
   );
 }

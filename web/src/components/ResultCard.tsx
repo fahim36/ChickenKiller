@@ -1,6 +1,8 @@
 "use client";
 
+import { Check, Copy } from "lucide-react";
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
 
 /**
  * A finished Daily Challenge's Result Card, the text the API made ("Agentic AI Engineer #1 · 27
@@ -16,22 +18,28 @@ export function ResultCard({ text }: { text: string }) {
   }
 
   return (
-    <div className="result-card">
-      <p>
-        <output className="result-card-text">{text}</output>
+    <div className="space-y-4 rounded-2xl border bg-linear-to-br from-primary/10 via-card to-streak/10 p-5 shadow-xs sm:p-6">
+      <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+        Result Card
       </p>
-      <p className="small muted">✅ correct · ❌ wrong · ⬜ ungraded: couldn&apos;t be graded, no point</p>
       <p>
-        <button type="button" onClick={copy}>
+        <output className="block rounded-xl bg-card px-4 py-3 font-mono text-base font-semibold shadow-xs ring-1 ring-border select-all sm:text-lg">
+          {text}
+        </output>
+      </p>
+      <p className="text-xs text-muted-foreground">✅ correct · ❌ wrong · ⬜ ungraded: couldn&apos;t be graded, no point</p>
+      <p className="flex flex-wrap items-center gap-3">
+        <Button type="button" onClick={copy} variant="outline">
+          {copied ? <Check aria-hidden /> : <Copy aria-hidden />}
           Copy Result Card
-        </button>{" "}
+        </Button>
         {copied === true && (
-          <span role="status" className="small">
+          <span role="status" className="text-sm font-medium text-success-foreground">
             Copied
           </span>
         )}
         {copied === false && (
-          <span role="alert" className="small">
+          <span role="alert" className="text-sm text-destructive">
             Couldn&apos;t copy it: select the text above and copy it yourself.
           </span>
         )}

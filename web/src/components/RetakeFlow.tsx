@@ -1,9 +1,12 @@
 "use client";
 
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { type FormEvent, useState } from "react";
-import { Inline } from "@/components/Inline";
 import { AnsweredQuestionDetail } from "@/components/MissedQuestions";
+import { Notice } from "@/components/Notice";
+import { AnswerChoices, Mark, QuestionCard, Spinner } from "@/components/QuestionCard";
+import { Button } from "@/components/ui/button";
 import { WrittenAnswer } from "@/components/WrittenAnswer";
 import type {
   AnsweredQuestion,
@@ -72,27 +75,34 @@ export function RetakeFlow({
 
   if (completed) {
     return (
-      <div role="status" className="notice">
+      <Notice tone="success" role="status" className="mt-8 text-base">
         <p>Every Retake is correct: this Lesson is Completed and the next one is Unlocked.</p>
         <p>
-          <Link href={`/stacks/${stackId}`}>Back to the Week map</Link>
+          <Button asChild variant="outline" className="no-underline!">
+            <Link href={`/stacks/${stackId}`}>
+              <ArrowLeft aria-hidden />
+              Back to the Week map
+            </Link>
+          </Button>
         </p>
-      </div>
+      </Notice>
     );
   }
 
   return (
-    <section className="retakes">
-      <h2>Retakes</h2>
-      <p className="muted">
+    <section className="mt-10 space-y-4">
+      <h2 className="font-heading text-lg font-semibold tracking-tight">Retakes</h2>
+      <p className="text-sm text-muted-foreground">
         Answer a sibling Question on the same Concept for each Missed Question. The Lesson is
         Completed once every Retake is correct.
       </p>
-      <ol className="quiz">
+      <ol className="space-y-5">
         {states.map((s) => (
           <li key={s.id}>
             {s.done ? (
-              <p className="mark mark-correct">Correct</p>
+              <Mark correct className="rounded-2xl border border-success/30 bg-success/8 px-5 py-4 text-base">
+                Correct
+              </Mark>
             ) : (
               <RetakeForm
                 key={s.tries}
@@ -143,17 +153,16 @@ function RetakeForm({
   }
 
   return (
-    <form onSubmit={submit}>
+    <form onSubmit={submit} className="space-y-4">
       {state.explained && (
-        <div className="retake-explained">
-          <p className="mark mark-missed">Not quite. Read the Explanation, then try this one.</p>
+        <div className="space-y-3">
+          <Mark correct={false} className="rounded-xl bg-destructive/10 px-4 py-3">
+            Not quite. Read the Explanation, then try this one.
+          </Mark>
           <AnsweredQuestionDetail question={state.explained} />
         </div>
       )}
-      <fieldset>
-        <legend>
-          <Inline text={q.prompt} />
-        </legend>
+      <QuestionCard prompt={q.prompt}>
         {q.type === "written" ? (
           <WrittenAnswer
             question={q}
@@ -163,33 +172,28 @@ function RetakeForm({
             idPrefix={`retake-${state.id}`}
           />
         ) : (
-          q.choices.map((c) => (
-            <label key={c.id} className="choice">
-              <input
-                type="radio"
-                name={`retake-${state.id}`}
-                value={c.id}
-                checked={answer === c.id}
-                onChange={() => setAnswer(c.id)}
-              />{" "}
-              <Inline text={c.text} />
-            </label>
-          ))
+          <AnswerChoices
+            name={`retake-${state.id}`}
+            choices={q.choices}
+            value={answer}
+            onChange={setAnswer}
+          />
         )}
-      </fieldset>
+      </QuestionCard>
       {failed && (
-        <p role="alert" className="notice notice-error">
+        <Notice tone="error" role="alert">
           Couldn&apos;t submit your Retake. Try again.
-        </p>
+        </Notice>
       )}
       {gradingFailed && (
-        <p role="alert" className="notice notice-error">
+        <Notice tone="error" role="alert">
           {gradingFailed}
-        </p>
+        </Notice>
       )}
-      <button type="submit" disabled={submitting}>
+      <Button type="submit" size="lg" className="px-4" disabled={submitting}>
+        {submitting && <Spinner />}
         {submitting ? "Grading…" : gradingFailed ? "Submit again" : "Submit Retake"}
-      </button>
+      </Button>
     </form>
   );
 }

@@ -1,6 +1,9 @@
 "use client";
 
+import { Briefcase, Check, Hammer } from "lucide-react";
 import { useState } from "react";
+import { Inline } from "@/components/Inline";
+import { Notice } from "@/components/Notice";
 import type { Milestone, MilestoneTick } from "@/lib/api";
 
 /**
@@ -37,27 +40,40 @@ export function MilestoneChecklist({
 
   return (
     <>
-      <ul className="milestones" aria-label="Milestones">
-        {milestones.map((m) => (
-          <li key={m.id}>
-            <label>
-              <input
-                type="checkbox"
-                checked={ticked.get(m.id) ?? false}
-                onChange={(event) => toggle(m, event.target.checked)}
-              />
-              <span className={`tag tag-${m.kind}`}>
-                {m.kind === "build" ? "Build" : "Job hunt"}
-              </span>{" "}
-              {m.title}
-            </label>
-          </li>
-        ))}
+      <ul className="grid gap-2" aria-label="Milestones">
+        {milestones.map((m) => {
+          const KindIcon = m.kind === "build" ? Hammer : Briefcase;
+          return (
+            <li key={m.id}>
+              <label className="relative flex cursor-pointer items-start gap-3 rounded-xl border bg-background px-3 py-2.5 text-sm transition-colors hover:bg-muted/60 has-checked:border-success/30 has-checked:bg-success/5 has-focus-visible:ring-3 has-focus-visible:ring-ring/40">
+                <input
+                  type="checkbox"
+                  checked={ticked.get(m.id) ?? false}
+                  onChange={(event) => toggle(m, event.target.checked)}
+                  className="peer sr-only"
+                />
+                <span
+                  aria-hidden
+                  className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-md border bg-card text-transparent transition-colors peer-checked:border-success peer-checked:bg-success peer-checked:text-white"
+                >
+                  <Check className="size-3.5" strokeWidth={3} />
+                </span>
+                <span className="min-w-0 flex-1 peer-checked:text-muted-foreground peer-checked:line-through">
+                  <span className="mr-2 inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 align-middle text-xs font-medium text-muted-foreground no-underline">
+                    <KindIcon aria-hidden className="size-3" />
+                    {m.kind === "build" ? "Build" : "Job hunt"}
+                  </span>{" "}
+                  <Inline text={m.title} />
+                </span>
+              </label>
+            </li>
+          );
+        })}
       </ul>
       {failed && (
-        <p role="alert" className="notice notice-error">
+        <Notice tone="error" role="alert" className="mt-3">
           Couldn&apos;t save “{failed.title}”. Try again.
-        </p>
+        </Notice>
       )}
     </>
   );

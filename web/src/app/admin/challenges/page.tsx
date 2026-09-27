@@ -1,7 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
+import { CalendarDays } from "lucide-react";
+import { Notice } from "@/components/Notice";
+import { PageHeader } from "@/components/PageHeader";
 import { api, type ChallengesAhead, type Me } from "@/lib/api";
+import { cn } from "@/lib/utils";
 
 const dateFormat = new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeZone: "UTC" });
 
@@ -20,27 +24,45 @@ export default async function ChallengesPage() {
   const stacks = (await api<ChallengesAhead[]>("/admin/challenges")) ?? [];
 
   return (
-    <main>
-      <p className="crumbs">
-        <Link href="/settings">Settings</Link> · <Link href="/admin/invitations">Invitations</Link>
-      </p>
-      <h1 id="challenges-heading">Upcoming Challenges</h1>
-      <p className="muted">
-        How far ahead each Stack&apos;s Daily Challenges are written, counting from today (UTC). A
-        Day with no Challenge written has no Challenge.
-      </p>
+    <main className="mx-auto max-w-3xl">
+      <PageHeader
+        crumbs={
+          <>
+            <Link href="/settings">Settings</Link> ·{" "}
+            <Link href="/admin/invitations">Invitations</Link>
+          </>
+        }
+        title={<span id="challenges-heading">Upcoming Challenges</span>}
+        description={
+          <p>
+            How far ahead each Stack&apos;s Daily Challenges are written, counting from today
+            (UTC). A Day with no Challenge written has no Challenge.
+          </p>
+        }
+      />
       {stacks.length === 0 ? (
-        <p className="muted">No Stacks are imported yet.</p>
+        <Notice>No Stacks are imported yet.</Notice>
       ) : (
-        <ul className="invitations" aria-labelledby="challenges-heading">
+        <ul className="grid gap-3" aria-labelledby="challenges-heading">
           {stacks.map((s) => (
-            <li key={s.stack_id}>
-              {s.stack_name}: {aheadLine(s)}
+            <li
+              key={s.stack_id}
+              className={cn(
+                "space-y-3 rounded-2xl border bg-card p-5 shadow-xs",
+                s.warning && "border-destructive/40",
+              )}
+            >
+              <p className="flex items-start gap-3">
+                <CalendarDays aria-hidden className="mt-0.5 size-5 shrink-0 text-primary" />
+                <span>
+                  <strong className="font-semibold">{s.stack_name}</strong>: {aheadLine(s)}
+                </span>
+              </p>
               {s.warning && (
-                <p className="notice notice-error">
+                <Notice tone="error">
                   Fewer than three Days are left. Write more with{" "}
                   <code>/write-challenges {s.stack_id} 7</code> in Claude Code.
-                </p>
+                </Notice>
               )}
             </li>
           ))}

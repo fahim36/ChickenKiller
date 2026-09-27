@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { ArchiveLine } from "@/components/ArchiveLine";
+import { Notice } from "@/components/Notice";
+import { PageHeader } from "@/components/PageHeader";
 import { type Archive, api } from "@/lib/api";
 
 /**
@@ -17,21 +19,21 @@ export default async function ArchivePage({ params }: PageProps<"/stacks/[stackI
   if (!archive) notFound();
 
   return (
-    <main>
-      <p className="crumbs">
-        <Link href="/">Your Stacks</Link>
-      </p>
-      <h1>{archive.stack_name}: Archive</h1>
-      <p className="muted">
-        Every Daily Challenge so far. A first play of a past one is scored, but only today&apos;s
-        Challenge, played today, counts toward your Streak.
-      </p>
+    <main className="mx-auto max-w-3xl">
+      <PageHeader
+        crumbs={<Link href="/">Your Stacks</Link>}
+        title={`${archive.stack_name}: Archive`}
+        description={
+          <p>
+            Every Daily Challenge so far. A first play of a past one is scored, but only
+            today&apos;s Challenge, played today, counts toward your Streak.
+          </p>
+        }
+      />
       {archive.challenges.length === 0 ? (
-        <p role="status" className="notice">
-          No Challenges released yet.
-        </p>
+        <Notice role="status">No Challenges released yet.</Notice>
       ) : (
-        <ul className="archive">
+        <ul className="grid gap-2">
           {archive.challenges.map((c) => (
             <li key={c.number}>
               <ArchiveLine stackId={stackId} challenge={c} />

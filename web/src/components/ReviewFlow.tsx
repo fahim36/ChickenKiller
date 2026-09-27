@@ -1,8 +1,17 @@
 "use client";
 
+import { ArrowRight, PartyPopper, SkipForward } from "lucide-react";
 import { type FormEvent, useState } from "react";
-import { Inline } from "@/components/Inline";
 import { AnsweredQuestionDetail } from "@/components/MissedQuestions";
+import { Notice } from "@/components/Notice";
+import {
+  AnswerChoices,
+  Mark,
+  QuestionCard,
+  Spinner,
+  StepProgress,
+} from "@/components/QuestionCard";
+import { Button } from "@/components/ui/button";
 import { WrittenAnswer } from "@/components/WrittenAnswer";
 import type { GradingFailed, ReviewAnswerResult, ReviewQuestion, ReviewSet } from "@/lib/api";
 
@@ -48,38 +57,54 @@ export function ReviewFlow({
 
   if (!question) {
     return (
-      <div role="status" className="notice">
-        <p>
+      <div
+        role="status"
+        className="flex flex-col items-center gap-4 rounded-2xl border bg-card px-6 py-10 text-center shadow-xs"
+      >
+        <span className="flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+          <PartyPopper aria-hidden className="size-7" />
+        </span>
+        <p className="font-heading text-xl font-semibold">
           Set done: {right} of {answered} right.
         </p>
         <p>
           {/* A full page load, so the server draws the next set. */}
-          <a className="button" href="/review">
-            Next set
-          </a>
+          <Button asChild size="lg" className="px-4">
+            <a href="/review">
+              Next set
+              <ArrowRight aria-hidden />
+            </a>
+          </Button>
         </p>
       </div>
     );
   }
 
   return (
-    <section className="review">
-      <p className="muted">
-        {question.stack_name} · Question {position + 1} of {questions.length}
-      </p>
+    <section className="space-y-4">
+      <StepProgress
+        label={`${question.stack_name} · Question ${position + 1} of ${questions.length}`}
+        step={position}
+        total={questions.length}
+      />
       {outcome ? (
-        <div>
+        <div className="space-y-5">
           {outcome.correct ? (
-            <p className="mark mark-correct">Correct</p>
+            <Mark correct className="rounded-xl bg-success/10 px-4 py-3 text-base">
+              Correct
+            </Mark>
           ) : (
             <>
-              <p className="mark mark-missed">Not quite. Read the Explanation before moving on.</p>
+              <Mark correct={false} className="rounded-xl bg-destructive/10 px-4 py-3 text-base">
+                Not quite. Read the Explanation before moving on.
+              </Mark>
               <AnsweredQuestionDetail question={outcome.question} />
             </>
           )}
-          <button type="button" onClick={next}>
+          <Button type="button" size="lg" className="px-4" onClick={next}>
             {isLast ? "Finish" : "Next Question"}
-          </button>
+            <ArrowRight aria-hidden />
+          </Button>
         </div>
       ) : (
         <QuestionForm
@@ -130,11 +155,8 @@ function QuestionForm({
   }
 
   return (
-    <form onSubmit={submit}>
-      <fieldset>
-        <legend>
-          <Inline text={q.prompt} />
-        </legend>
+    <form onSubmit={submit} className="space-y-4">
+      <QuestionCard prompt={q.prompt}>
         {q.type === "written" ? (
           <WrittenAnswer
             question={q}
@@ -144,36 +166,34 @@ function QuestionForm({
             idPrefix="review"
           />
         ) : (
-          q.choices.map((c) => (
-            <label key={c.id} className="choice">
-              <input
-                type="radio"
-                name={`review-${q.id}`}
-                value={c.id}
-                checked={answer === c.id}
-                onChange={() => setAnswer(c.id)}
-              />{" "}
-              <Inline text={c.text} />
-            </label>
-          ))
+          <AnswerChoices
+            name={`review-${q.id}`}
+            choices={q.choices}
+            value={answer}
+            onChange={setAnswer}
+          />
         )}
-      </fieldset>
+      </QuestionCard>
       {failed && (
-        <p role="alert" className="notice notice-error">
+        <Notice tone="error" role="alert">
           Couldn&apos;t submit your answer. Try again, or skip this Question.
-        </p>
+        </Notice>
       )}
       {gradingFailed && (
-        <p role="alert" className="notice notice-error">
+        <Notice tone="error" role="alert">
           {gradingFailed}
-        </p>
+        </Notice>
       )}
-      <button type="submit" disabled={submitting}>
-        {submitting ? "Grading…" : gradingFailed ? "Submit again" : "Submit answer"}
-      </button>{" "}
-      <button type="button" className="secondary" onClick={onSkip} disabled={submitting}>
-        Skip
-      </button>
+      <div className="flex flex-wrap gap-2">
+        <Button type="submit" size="lg" className="px-4" disabled={submitting}>
+          {submitting && <Spinner />}
+          {submitting ? "Grading…" : gradingFailed ? "Submit again" : "Submit answer"}
+        </Button>{" "}
+        <Button type="button" variant="ghost" size="lg" onClick={onSkip} disabled={submitting}>
+          <SkipForward aria-hidden />
+          Skip
+        </Button>
+      </div>
     </form>
   );
 }

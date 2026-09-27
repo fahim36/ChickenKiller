@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { connection } from "next/server";
+import { Notice } from "@/components/Notice";
+import { PageHeader } from "@/components/PageHeader";
 import { ReviewFlow } from "@/components/ReviewFlow";
 import { api, type ReviewSet } from "@/lib/api";
 import { answerReviewQuestion } from "./actions";
@@ -16,24 +18,27 @@ export default async function ReviewPage() {
   const questions = reviewSet?.questions ?? [];
 
   return (
-    <main>
-      <p className="crumbs">
-        <Link href="/">Your Stacks</Link>
-      </p>
-      <h1>Review</h1>
+    <main className="mx-auto max-w-3xl">
+      <PageHeader
+        crumbs={<Link href="/">Your Stacks</Link>}
+        title="Review"
+        description={
+          reviewSet &&
+          questions.length > 0 && (
+            <p>
+              Optional: practise whenever you like. Missed Questions come first, then Questions
+              from your Completed Lessons.
+            </p>
+          )
+        }
+      />
       {reviewSet && questions.length > 0 ? (
-        <>
-          <p className="muted">
-            Optional: practise whenever you like. Missed Questions come first, then Questions
-            from your Completed Lessons.
-          </p>
-          <ReviewFlow reviewSet={reviewSet} answerAction={answerReviewQuestion} />
-        </>
+        <ReviewFlow reviewSet={reviewSet} answerAction={answerReviewQuestion} />
       ) : (
-        <p role="status" className="notice">
+        <Notice role="status">
           Nothing to review right now. Missed Questions and Questions from your Completed Lessons
           come back here.
-        </p>
+        </Notice>
       )}
     </main>
   );

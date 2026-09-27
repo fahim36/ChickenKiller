@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { DailyChallengeFlow } from "@/components/DailyChallengeFlow";
+import { PageHeader } from "@/components/PageHeader";
 import { api, type StackChallenge } from "@/lib/api";
 import { answerChallengeQuestion } from "../../challenge/actions";
 
@@ -25,17 +26,22 @@ export default async function ArchivedChallengePage({
   const past = challenge.day !== found.day;
 
   return (
-    <main>
-      <p className="crumbs">
-        <Link href="/">Your Stacks</Link> ·{" "}
-        <Link href={`/stacks/${encodeURIComponent(stackId)}/archive`}>Archive</Link>
-      </p>
-      <h1>{challenge.label}</h1>
-      {past && challenge.status !== "finished" && (
-        <p className="small muted">
-          From the Archive: scored as usual, but it doesn&apos;t count toward your Streak.
-        </p>
-      )}
+    <main className="mx-auto max-w-3xl">
+      <PageHeader
+        crumbs={
+          <>
+            <Link href="/">Your Stacks</Link> ·{" "}
+            <Link href={`/stacks/${encodeURIComponent(stackId)}/archive`}>Archive</Link>
+          </>
+        }
+        title={challenge.label}
+        description={
+          past &&
+          challenge.status !== "finished" && (
+            <p>From the Archive: scored as usual, but it doesn&apos;t count toward your Streak.</p>
+          )
+        }
+      />
       <DailyChallengeFlow
         key={challenge.number}
         stackId={stackId}

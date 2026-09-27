@@ -1,8 +1,12 @@
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { LessonQuiz } from "@/components/LessonQuiz";
+import { Notice } from "@/components/Notice";
+import { PageHeader } from "@/components/PageHeader";
 import { RetakeFlow } from "@/components/RetakeFlow";
+import { Button } from "@/components/ui/button";
 import { api, ApiError, apiPost, type LessonQuiz as Quiz, type Retakes } from "@/lib/api";
 import { answerRetake, submitLessonQuiz } from "./actions";
 
@@ -19,9 +23,9 @@ export default async function LessonQuizPage({
   const { stackId, lessonId } = await params;
   const lessonUrl = `/stacks/${encodeURIComponent(stackId)}/lessons/${encodeURIComponent(lessonId)}`;
   const crumbs = (
-    <p className="crumbs">
+    <>
       <Link href={`/stacks/${stackId}`}>Syllabus</Link> / <Link href={lessonUrl}>Lesson</Link>
-    </p>
+    </>
   );
 
   let quiz: Quiz;
@@ -37,12 +41,12 @@ export default async function LessonQuizPage({
       : null;
     if (pending && pending.retakes.length > 0) {
       return (
-        <main>
-          {crumbs}
-          <h1>Retakes</h1>
-          <p className="muted">
-            You passed this Lesson&apos;s quiz. Retake each Missed Question to complete it.
-          </p>
+        <main className="mx-auto max-w-3xl">
+          <PageHeader
+            crumbs={crumbs}
+            title="Retakes"
+            description="You passed this Lesson's quiz. Retake each Missed Question to complete it."
+          />
           <RetakeFlow
             retakes={pending.retakes}
             stackId={stackId}
@@ -53,28 +57,37 @@ export default async function LessonQuizPage({
       );
     }
     return (
-      <main>
-        <h1>Lesson Quiz</h1>
-        <p role="alert" className="notice notice-error">
+      <main className="mx-auto max-w-3xl space-y-6">
+        <PageHeader crumbs={crumbs} title="Lesson Quiz" className="mb-0" />
+        <Notice tone={pending?.lesson_completed ? "success" : "error"} role="alert">
           {pending?.lesson_completed
             ? "You've already completed this Lesson."
             : refusalMessage(error.detail)}
-        </p>
+        </Notice>
         <p>
-          <Link href={lessonUrl}>Back to the Lesson</Link>
+          <Button asChild variant="outline">
+            <Link href={lessonUrl}>
+              <ArrowLeft aria-hidden />
+              Back to the Lesson
+            </Link>
+          </Button>
         </p>
       </main>
     );
   }
 
   return (
-    <main>
-      {crumbs}
-      <h1>Lesson Quiz</h1>
-      <p className="muted">
-        {quiz.questions.length} Questions. The Pass Mark is {quiz.pass_mark}%; an unanswered
-        Question counts as missed.
-      </p>
+    <main className="mx-auto max-w-3xl">
+      <PageHeader
+        crumbs={crumbs}
+        title="Lesson Quiz"
+        description={
+          <>
+            {quiz.questions.length} Questions. The Pass Mark is {quiz.pass_mark}%; an unanswered
+            Question counts as missed.
+          </>
+        }
+      />
       <LessonQuiz
         quiz={quiz}
         stackId={stackId}

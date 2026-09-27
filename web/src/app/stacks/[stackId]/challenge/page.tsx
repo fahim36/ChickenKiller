@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { DailyChallengeFlow } from "@/components/DailyChallengeFlow";
+import { Notice } from "@/components/Notice";
+import { PageHeader } from "@/components/PageHeader";
 import { api, type TodaysChallenge } from "@/lib/api";
 import { answerChallengeQuestion } from "./actions";
 
@@ -21,11 +23,11 @@ export default async function ChallengePage({ params }: PageProps<"/stacks/[stac
   const challenge = today.challenge;
 
   return (
-    <main>
-      <p className="crumbs">
-        <Link href="/">Your Stacks</Link>
-      </p>
-      <h1>{challenge ? challenge.label : `${today.stack_name}: Daily Challenge`}</h1>
+    <main className="mx-auto max-w-3xl">
+      <PageHeader
+        crumbs={<Link href="/">Your Stacks</Link>}
+        title={challenge ? challenge.label : `${today.stack_name}: Daily Challenge`}
+      />
       {challenge ? (
         <DailyChallengeFlow
           stackId={stackId}
@@ -33,9 +35,7 @@ export default async function ChallengePage({ params }: PageProps<"/stacks/[stac
           answerAction={answerChallengeQuestion.bind(null, stackId, challenge.number)}
         />
       ) : (
-        <p role="status" className="notice">
-          No Challenge today. The next one is released at 00:00 UTC.
-        </p>
+        <Notice role="status">No Challenge today. The next one is released at 00:00 UTC.</Notice>
       )}
     </main>
   );

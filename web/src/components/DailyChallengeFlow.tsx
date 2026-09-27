@@ -1,10 +1,20 @@
 "use client";
 
+import { ArrowRight, CircleCheck, CircleMinus, CircleX, RotateCcw, Trophy } from "lucide-react";
 import Link from "next/link";
 import { type FormEvent, useState } from "react";
 import { Inline } from "@/components/Inline";
 import { AnsweredQuestionDetail } from "@/components/MissedQuestions";
+import { Notice } from "@/components/Notice";
+import {
+  AnswerChoices,
+  Mark as MarkLine,
+  QuestionCard,
+  Spinner,
+  StepProgress,
+} from "@/components/QuestionCard";
 import { ResultCard } from "@/components/ResultCard";
+import { Button } from "@/components/ui/button";
 import { WrittenAnswer } from "@/components/WrittenAnswer";
 import type {
   ChallengeAnswerResult,
@@ -14,6 +24,7 @@ import type {
   GradingFailed,
   QuizQuestion,
 } from "@/lib/api";
+import { cn } from "@/lib/utils";
 
 export type AnswerChallengeAction = (
   questionId: string,
@@ -24,6 +35,14 @@ const OUTCOME_LABELS: Record<ChallengeOutcome, string> = {
   correct: "Correct",
   wrong: "Wrong",
   ungraded: "Ungraded: no point",
+};
+
+const OUTCOME_ICONS = { correct: CircleCheck, wrong: CircleX, ungraded: CircleMinus };
+
+const OUTCOME_STYLES: Record<ChallengeOutcome, string> = {
+  correct: "text-success-foreground",
+  wrong: "text-destructive",
+  ungraded: "text-muted-foreground",
 };
 
 /**
@@ -64,30 +83,33 @@ export function DailyChallengeFlow({
 
   if (shown) {
     return (
-      <section className="challenge">
+      <section className="space-y-5">
         <Result
           result={shown}
           maxAnswerChars={challenge.max_answer_chars}
           answerAction={answerAction}
         />
-        <button type="button" onClick={() => setShown(null)}>
+        <Button type="button" size="lg" className="px-4" onClick={() => setShown(null)}>
           {pending ? "Next Question" : "See your score"}
-        </button>
+          <ArrowRight aria-hidden />
+        </Button>
       </section>
     );
   }
 
   if (pending) {
     return (
-      <section className="challenge">
+      <section className="space-y-4">
         {challenge.status === "not_started" && (
-          <p className="muted">
+          <p className="text-sm text-muted-foreground">
             {questions.length} Questions. Only your first answer to each Question counts.
           </p>
         )}
-        <p className="muted">
-          Question {questions.indexOf(pending) + 1} of {questions.length}
-        </p>
+        <StepProgress
+          label={`Question ${questions.indexOf(pending) + 1} of ${questions.length}`}
+          step={questions.indexOf(pending)}
+          total={questions.length}
+        />
         <QuestionForm
           key={pending.id}
           question={pending}
@@ -128,28 +150,34 @@ function Summary({
   onReplay: () => void;
 }) {
   return (
-    <section className="challenge" aria-label="Your score">
+    <section className="space-y-6" aria-label="Your score">
       {challenge.status === "finished" && (
-        <p className="mark">
-          Played: {challenge.score}/{challenge.out_of}
-        </p>
+        <div className="flex items-center gap-4 rounded-2xl border bg-card p-5 shadow-xs">
+          <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-streak/15 text-streak">
+            <Trophy aria-hidden className="size-6" />
+          </span>
+          <div>
+            <p className="font-heading text-2xl font-semibold tabular-nums">
+              Played: {challenge.score}/{challenge.out_of}
+            </p>
+            <p className="text-sm text-muted-foreground">Only your first try counts.</p>
+          </div>
+        </div>
       )}
       {challenge.result_card && <ResultCard text={challenge.result_card} />}
-      <ol className="challenge-summary">
-        {challenge.questions.map((q) => (
-          <li key={q.id}>
+      <ol className="space-y-4">
+        {challenge.questions.map((q, i) => (
+          <li key={q.id} className="space-y-3">
             {q.outcome === null ? (
-              <>
-                <p>
+              <div className="space-y-2 rounded-2xl border border-dashed bg-card/50 p-5">
+                <p className="font-medium">
                   <Inline text={q.prompt} />
                 </p>
                 {q.retired && <Retired question={q} stackId={stackId} />}
-              </>
+              </div>
             ) : (
               <>
-                <p>
-                  <strong>{OUTCOME_LABELS[q.outcome]}</strong>
-                </p>
+                <OutcomeHeading outcome={q.outcome} number={i + 1} />
                 {q.retired && <Retired question={q} stackId={stackId} />}
                 {q.answered && <AnsweredQuestionDetail question={q.answered} />}
                 {q.outcome === "ungraded" && q.answered && (
@@ -165,15 +193,28 @@ function Summary({
           </li>
         ))}
       </ol>
-      <p>
-        <button type="button" onClick={onReplay}>
+      <div className="flex flex-wrap items-center gap-3 rounded-2xl border bg-muted/40 p-4">
+        <Button type="button" variant="outline" onClick={onReplay}>
+          <RotateCcw aria-hidden />
           Replay
-        </button>{" "}
-        <span className="small muted">
+        </Button>{" "}
+        <span className="text-sm text-muted-foreground">
           For learning: it changes nothing about your score, Streak or Missed Questions.
         </span>
-      </p>
+      </div>
     </section>
+  );
+}
+
+/** "Question 1" and how its first try went, above that Question in the summary. */
+function OutcomeHeading({ outcome, number }: { outcome: ChallengeOutcome; number: number }) {
+  const Icon = OUTCOME_ICONS[outcome];
+  return (
+    <p className={cn("flex items-center gap-2 text-sm font-semibold", OUTCOME_STYLES[outcome])}>
+      <Icon aria-hidden className="size-4" />
+      <span className="sr-only">Question {number}: </span>
+      <strong>{OUTCOME_LABELS[outcome]}</strong>
+    </p>
   );
 }
 
@@ -184,7 +225,7 @@ function Summary({
 function Retired({ question, stackId }: { question: ChallengeQuestion; stackId: string }) {
   const replacement = question.replaced_by;
   return (
-    <p className="small muted">
+    <p className="rounded-xl bg-muted px-3 py-2 text-sm text-muted-foreground">
       Retired{question.retired_reason ? `: ${question.retired_reason}` : "."} It can&apos;t be
       answered and isn&apos;t scored.
       {replacement &&
@@ -193,6 +234,7 @@ function Retired({ question, stackId }: { question: ChallengeQuestion; stackId: 
             {" "}
             Its replacement is in{" "}
             <Link
+              className="font-medium text-foreground underline underline-offset-4 hover:text-primary"
               href={`/stacks/${encodeURIComponent(stackId)}/archive/${replacement.challenge_number}`}
             >
               {replacement.challenge_label}
@@ -225,15 +267,19 @@ function Replay({
 
   if (!question) return null;
   return (
-    <section className="challenge">
-      <p className="muted">
-        Replay · Question {position + 1} of {questions.length}
-      </p>
+    <section className="space-y-4">
+      <StepProgress
+        label={`Replay · Question ${position + 1} of ${questions.length}`}
+        step={position}
+        total={questions.length}
+      />
       {shown ? (
-        <>
+        <div className="space-y-5">
           <Result result={shown} maxAnswerChars={maxAnswerChars} answerAction={answerAction} />
-          <button
+          <Button
             type="button"
+            size="lg"
+            className="px-4"
             onClick={() => {
               setShown(null);
               if (isLast) onDone();
@@ -241,8 +287,9 @@ function Replay({
             }}
           >
             {isLast ? "Finish replay" : "Next Question"}
-          </button>
-        </>
+            <ArrowRight aria-hidden />
+          </Button>
+        </div>
       ) : (
         <QuestionForm
           key={`replay-${question.id}`}
@@ -270,17 +317,17 @@ function Result({
   const { question } = result;
   const ungraded = result.counted && result.outcome === "ungraded";
   return (
-    <div>
+    <div className="space-y-4">
       {ungraded ? (
-        <p role="alert" className="notice notice-error">
+        <Notice tone="error" role="alert">
           Your answer couldn&apos;t be graded, so it earns no point toward your score. You can
           resubmit it for feedback.
-        </p>
+        </Notice>
       ) : (
         <Mark outcome={result.outcome} />
       )}
       {!result.counted && (
-        <p className="small muted">
+        <p className="text-sm text-muted-foreground">
           A replay changes no score, Streak or Missed Question: only your first answer counts.
         </p>
       )}
@@ -298,11 +345,25 @@ function Result({
 }
 
 function Mark({ outcome }: { outcome: ChallengeOutcome }) {
-  if (outcome === "correct") return <p className="mark mark-correct">Correct</p>;
-  if (outcome === "wrong") {
-    return <p className="mark mark-missed">Not quite. Read the Explanation.</p>;
+  if (outcome === "correct") {
+    return (
+      <MarkLine correct className="rounded-xl bg-success/10 px-4 py-3 text-base">
+        Correct
+      </MarkLine>
+    );
   }
-  return <p className="mark mark-missed">Couldn&apos;t be graded.</p>;
+  if (outcome === "wrong") {
+    return (
+      <MarkLine correct={false} className="rounded-xl bg-destructive/10 px-4 py-3 text-base">
+        Not quite. Read the Explanation.
+      </MarkLine>
+    );
+  }
+  return (
+    <MarkLine correct={false} className="rounded-xl bg-destructive/10 px-4 py-3 text-base">
+      Couldn&apos;t be graded.
+    </MarkLine>
+  );
 }
 
 /**
@@ -342,15 +403,15 @@ function Resubmit({
 
   if (graded) {
     return (
-      <div className="resubmitted">
+      <div className="space-y-2 rounded-2xl border bg-card p-5">
         <Mark outcome={graded.outcome} />
-        {graded.question.feedback && <p className="feedback">{graded.question.feedback}</p>}
-        <p className="small muted">Feedback only: this answer earns no point.</p>
+        {graded.question.feedback && <p className="text-sm">{graded.question.feedback}</p>}
+        <p className="text-sm text-muted-foreground">Feedback only: this answer earns no point.</p>
       </div>
     );
   }
   return (
-    <form onSubmit={submit}>
+    <form onSubmit={submit} className="space-y-3 rounded-2xl border bg-card p-5">
       <WrittenAnswer
         question={question}
         value={answer}
@@ -359,13 +420,14 @@ function Resubmit({
         idPrefix="resubmit"
       />
       {message && (
-        <p role="alert" className="notice notice-error">
+        <Notice tone="error" role="alert">
           {message}
-        </p>
+        </Notice>
       )}
-      <button type="submit" disabled={submitting || answer.trim() === ""}>
+      <Button type="submit" disabled={submitting || answer.trim() === ""}>
+        {submitting && <Spinner />}
         {submitting ? "Grading…" : "Resubmit for feedback"}
-      </button>
+      </Button>
     </form>
   );
 }
@@ -406,11 +468,8 @@ function QuestionForm({
   }
 
   return (
-    <form onSubmit={submit}>
-      <fieldset>
-        <legend>
-          <Inline text={q.prompt} />
-        </legend>
+    <form onSubmit={submit} className="space-y-4">
+      <QuestionCard prompt={q.prompt}>
         {written ? (
           <WrittenAnswer
             question={q}
@@ -420,36 +479,38 @@ function QuestionForm({
             idPrefix={idPrefix}
           />
         ) : (
-          q.choices.map((c) => (
-            <label key={c.id} className="choice">
-              <input
-                type="radio"
-                name={`${idPrefix}-${q.id}`}
-                value={c.id}
-                checked={answer === c.id}
-                onChange={() => setAnswer(c.id)}
-              />{" "}
-              <Inline text={c.text} />
-            </label>
-          ))
+          <AnswerChoices
+            name={`${idPrefix}-${q.id}`}
+            choices={q.choices}
+            value={answer}
+            onChange={setAnswer}
+          />
         )}
-      </fieldset>
+      </QuestionCard>
       {failed && (
-        <p role="alert" className="notice notice-error">
+        <Notice tone="error" role="alert">
           Couldn&apos;t send your answer. Try again.
-        </p>
+        </Notice>
       )}
       {gradingFailed && (
-        <p role="alert" className="notice notice-error">
+        <Notice tone="error" role="alert">
           {gradingFailed}
-        </p>
+        </Notice>
       )}
-      <button type="submit" disabled={submitting || answer.trim() === ""}>
-        {submitting ? (written ? "Grading…" : "Checking…") : "Submit answer"}
-      </button>
-      {submitting && written && (
-        <span className="small muted"> Grading takes about ten seconds.</span>
-      )}
+      <div className="flex flex-wrap items-center gap-3">
+        <Button
+          type="submit"
+          size="lg"
+          className="px-4"
+          disabled={submitting || answer.trim() === ""}
+        >
+          {submitting && <Spinner />}
+          {submitting ? (written ? "Grading…" : "Checking…") : "Submit answer"}
+        </Button>
+        {submitting && written && (
+          <span className="text-sm text-muted-foreground"> Grading takes about ten seconds.</span>
+        )}
+      </div>
     </form>
   );
 }
