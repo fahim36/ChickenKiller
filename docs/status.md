@@ -1,10 +1,10 @@
 # Version 1 status
 
-Where the build of version 1 stands, what is still missing, and what to do next. Written 2026-09-27 on branch `scaffold-v1`. The design is the Daily Challenge redesign ([docs/implementation-order.md](implementation-order.md), ADRs [0003](adr/0003-daily-challenge-is-the-core-loop.md)–[0006](adr/0006-grading-runs-the-claude-code-cli.md)); terms follow [CONTEXT.md](../CONTEXT.md).
+Where the build of version 1 stands, what is still missing, and what to do next. Written 2026-09-27 on branch `scaffold-v1`, which is now merged into `main`. The design is the Daily Challenge redesign ([docs/implementation-order.md](implementation-order.md), ADRs [0003](adr/0003-daily-challenge-is-the-core-loop.md)–[0006](adr/0006-grading-runs-the-claude-code-cli.md)); terms follow [CONTEXT.md](../CONTEXT.md).
 
 ## Progress
 
-Every open ticket is built on `scaffold-v1`. #10 and #11 were closed as not planned. At the last merge (`a4a0b35`) all of these pass: 527 API tests, 146 web tests, ruff, mypy, eslint, the web build, `content-schema --check` and `content-check`.
+Every ticket is built and merged into `main`. The finished issues are closed. Three stay open, labelled `ready-for-human`: #1 (no public URL yet), and #12 and #16 (the headless `claude -p` run is untried). #10 and #11 were closed as not planned. At the last merge (`a4a0b35`) all of these pass: 527 API tests, 146 web tests, ruff, mypy, eslint, the web build, `content-schema --check` and `content-check`.
 
 | Ticket | What is built |
 |---|---|
@@ -85,9 +85,12 @@ Found by the code review of `scaffold-v1` against `main` on 2026-09-27.
 
 - [ ] Fix the review gaps above, starting with the clock reads, the UTC date, the build-plan wording, the error-versus-"No Challenge today" display and the direct-push check.
 - [ ] Add Playwright tests for the milestone demos and the grader eval set.
-- [ ] **Local use.** A local mode that skips sign-in and treats the owner as the Admin, and one command that starts the database, imports content and runs both servers.
+- [x] **One command to run locally.** `run-app.cmd` rebuilds the Docker images, starts Postgres and the web app in Docker, migrates and imports, and runs the API on the host (README).
+- [x] **Clear sign-in errors.** A 401 from the API goes to `/sign-in-failed` and a sign-in 503 goes to `/sign-in-unavailable`, not a generic server error.
+- [ ] **Local mode without sign-in.** Skip Clerk and treat the owner as the Admin.
 - [ ] Run `/write-challenges agentic-ai-engineer <days>` before 2026-10-01, when fewer than three Days are left.
-- [ ] Open a PR from `scaffold-v1` to `main`, then close the finished issues.
+- [x] Merge `scaffold-v1` into `main` and close the finished issues.
+- [ ] Try the headless runs of `/update-syllabus` and `/write-challenges`, then close #12 and #16.
 
 ### Content decisions for the owner
 
