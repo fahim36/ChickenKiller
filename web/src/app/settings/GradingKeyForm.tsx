@@ -68,7 +68,7 @@ export function GradingKeyForm({
               type="password"
               autoComplete="off"
               spellCheck={false}
-              placeholder="AIza…"
+              placeholder="Paste your Gemini API key"
               className="h-10 bg-background font-mono"
             />
           </div>

@@ -3,9 +3,9 @@ export type Theme = "system" | "light" | "dark";
 
 export const THEME_COOKIE = "theme";
 
-/** The Theme a cookie value names; anything else follows the system setting. */
+/** The Theme a cookie value names. Without one (a first visit), the app is Light. */
 export function parseTheme(value: string | undefined): Theme {
-  return value === "light" || value === "dark" ? value : "system";
+  return value === "dark" || value === "system" ? value : "light";
 }
 
 /** Applies a Theme at once and remembers it in a cookie, so the server renders it next time. */

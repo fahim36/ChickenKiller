@@ -34,7 +34,7 @@ You can change them any time from **Stacks** in the top bar. A Stack you untick 
 Written answers are graded by an AI model, which compares your answer with a Model Answer's key points. Set your own free Google Gemini API key so they're graded on your own account. Until you do, the app's key grades them. If grading fails altogether, nothing is counted and you can submit again.
 
 1. Sign in to [Google AI Studio](https://aistudio.google.com/app/apikey) with your Google account and choose **Create API key**.
-2. In the app, open **Settings**, paste the key (it starts with `AIza`) under **Grading**, and choose **Save key**. The **Model** field is already filled in with `gemini-3.1-flash-lite`; leave it as it is.
+2. In the app, open **Settings**, paste the key under **Grading**, and choose **Save key**. The **Model** field is already filled in with `gemini-3.1-flash-lite`; leave it as it is.
 
 The key is stored encrypted and is only used to grade your answers. The app never shows it again, only its last four characters. You can replace or remove it at any time.
 

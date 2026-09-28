@@ -97,12 +97,17 @@ export default async function SettingsPage() {
           <ol className="list-decimal space-y-1 pl-5">
             <li>
               Sign in to{" "}
-              <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer">
+              <a
+                href="https://aistudio.google.com/app/apikey"
+                target="_blank"
+                rel="noreferrer"
+                className="font-medium text-primary underline underline-offset-4 hover:text-primary/80"
+              >
                 Google AI Studio
               </a>{" "}
               with your Google account and choose <strong>Create API key</strong>.
             </li>
-            <li>Copy the key (it starts with AIza) and paste it below, then save it.</li>
+            <li>Copy the key, paste it below and save it.</li>
           </ol>
           <p>
             Your key is stored encrypted, is only used to grade your answers
