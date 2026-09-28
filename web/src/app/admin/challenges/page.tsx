@@ -35,8 +35,8 @@ export default async function ChallengesPage() {
         title={<span id="challenges-heading">Upcoming Challenges</span>}
         description={
           <p>
-            How far ahead each Stack&apos;s Daily Challenges are written, counting from today
-            (UTC). A Day with no Challenge written has no Challenge.
+            How far ahead each Stack&apos;s Daily Challenges are written, counting from today.
+            A Day with no Challenge written has no Challenge.
           </p>
         }
       />

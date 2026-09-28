@@ -35,7 +35,7 @@ export default async function ChallengePage({ params }: PageProps<"/stacks/[stac
           answerAction={answerChallengeQuestion.bind(null, stackId, challenge.number)}
         />
       ) : (
-        <Notice role="status">No Challenge today. The next one is released at 00:00 UTC.</Notice>
+        <Notice role="status">No Challenge today. Check back tomorrow.</Notice>
       )}
     </main>
   );

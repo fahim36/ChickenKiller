@@ -69,7 +69,7 @@ it("says so when no Challenge is written for today", async () => {
   await renderPage({ ...TODAY, challenge: null });
 
   expect(screen.getByRole("status").textContent).toBe(
-    "No Challenge today. The next one is released at 00:00 UTC.",
+    "No Challenge today. Check back tomorrow.",
   );
   expect(screen.queryByRole("group")).toBeNull();
 });

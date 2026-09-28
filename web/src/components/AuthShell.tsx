@@ -2,7 +2,7 @@ import { Brain, CalendarCheck, Flame, Repeat } from "lucide-react";
 import type { ReactNode } from "react";
 
 const POINTS = [
-  { icon: CalendarCheck, text: "A new Daily Challenge every day at 00:00 UTC: three Questions, the same for everyone." },
+  { icon: CalendarCheck, text: "A new Daily Challenge every day: three Questions, the same for everyone." },
   { icon: Flame, text: "Keep your Streak going and share a Result Card of how you did." },
   { icon: Brain, text: "A researched Syllabus of Weekly Lessons, each ending with a quiz." },
   { icon: Repeat, text: "Review brings Missed Questions back until they stick." },

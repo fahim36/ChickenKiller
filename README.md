@@ -34,10 +34,10 @@ Below the cards are **Review**, for practising the Questions you missed, and **C
 
 ## 3. Play the Daily Challenge
 
-Each Stack releases one numbered Daily Challenge a day at 00:00 UTC: three Questions, two multiple choice and one written. Everyone gets the same one. Choose **Play** on the home screen.
+Each Stack releases one numbered Daily Challenge a day: three Questions, two multiple choice and one written. Everyone gets the same one. Choose **Play** on the home screen.
 
 - **Only your first answer to each Question counts.** After you answer, you see the Explanation and the Sources.
-- **Play today's Challenge on its Day to keep your Streak going.** Days follow UTC, so the new Challenge might arrive in your morning, your evening or at night.
+- **Play today's Challenge on its Day to keep your Streak going.**
 - **Share how you did.** When you finish, you get a Result Card. It shows your score on each Question but not the Questions or your answers, so it's safe to share.
 
 ![A Daily Challenge Question](docs/images/06-daily-challenge.jpg)
@@ -109,7 +109,6 @@ With the connector from step 7, ask your Claude to build it. Claude researches t
 
 ## Good to know
 
-- **Every Day starts at 00:00 UTC**, for Daily Challenges and Streaks alike.
 - **Replays are for learning only.** Playing a Challenge again changes nothing: not your score, your Streak or your missed Questions.
 - **Every Question has Sources** you can check, and an Explanation shown after you answer.
 - **Light or dark:** switch it under **Settings → Appearance**.

@@ -36,7 +36,7 @@ export default async function Home() {
     <main>
       <PageHeader
         title="Your Stacks"
-        description="Today's Daily Challenge for each Stack you study: three Questions, the same for everyone, released at 00:00 UTC."
+        description="Today's Daily Challenge for each Stack you study: three Questions, the same for everyone."
         actions={
           <Button asChild variant="outline" size="lg">
             <Link href="/stacks">
