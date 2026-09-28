@@ -47,7 +47,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           }}
         >
           <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-md supports-backdrop-filter:bg-background/65">
-            <div className="mx-auto flex h-14 max-w-5xl items-center justify-between gap-4 px-4">
+            <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-4 px-4">
               <Link
                 href="/"
                 className="flex items-center gap-2 font-heading text-base font-semibold tracking-tight"
@@ -67,7 +67,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
               </Show>
             </div>
           </header>
-          <div className="mx-auto w-full max-w-5xl px-4 pt-8 pb-20 sm:pt-10">
+          <div className="mx-auto w-full max-w-7xl px-4 pt-8 pb-20 sm:pt-10">
             {children}
           </div>
         </ClerkProvider>

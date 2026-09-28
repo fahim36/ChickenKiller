@@ -48,7 +48,7 @@ export default async function WeekMapPage({
     lessons.length === 0 ? 0 : Math.round((done / lessons.length) * 100);
 
   return (
-    <main className="mx-auto max-w-3xl">
+    <main>
       <div className="mb-8 space-y-5 rounded-3xl border bg-linear-to-br from-primary/12 via-card to-card p-6 shadow-xs sm:p-8">
         <Crumbs>
           <Link href="/">Your Stacks</Link>
@@ -57,7 +57,7 @@ export default async function WeekMapPage({
           <h1 className="font-heading text-2xl font-semibold tracking-tight sm:text-3xl">
             {syllabus.name}
           </h1>
-          <p className="text-muted-foreground">
+          <p className="max-w-3xl text-muted-foreground">
             {syllabus.summary} ·{" "}
             <span className="font-mono text-xs">
               Syllabus {syllabus.version}
