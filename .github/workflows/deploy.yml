@@ -1,0 +1,76 @@
+name: Deploy
+
+# Deploys main to the VPS (deploy/vps/README.md) once CI has passed on it. Run it by hand from
+# the Actions tab to redeploy main's current commit without waiting for a push.
+#
+# The runner streams the commit's archive over SSH to the VPS, where the deploy key's forced
+# command (deploy/vps/ic-deploy.sh) unpacks it, rebuilds the containers and waits until they
+# are healthy. The key is the VPS_DEPLOY_KEY secret; it can run nothing but that script.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One deploy at a time, in order; a newer commit waits for the one being deployed.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  VPS_HOST: 146.235.21.90
+  VPS_USER: ubuntu
+  # The VPS's SSH host key, so the runner never trusts an unknown host.
+  VPS_HOST_KEY: 146.235.21.90 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAID0KSo7we+/0RwMO0dyVZk5cWfWOWqXBF4aNpI/hHtDS
+  APP_URL: https://prep.chickenkiller.com
+
+jobs:
+  deploy:
+    # Only main: a CI run for a push to it that passed, or a run by hand on it.
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: production
+      url: ${{ env.APP_URL }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Set up SSH
+        env:
+          DEPLOY_KEY: ${{ secrets.VPS_DEPLOY_KEY }}
+        run: |
+          if [ -z "$DEPLOY_KEY" ]; then
+            echo "::error::Set the VPS_DEPLOY_KEY repository secret (deploy/vps/README.md)."
+            exit 1
+          fi
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$VPS_HOST_KEY" > ~/.ssh/known_hosts
+
+      - name: Deploy
+        run: |
+          sha=$(git rev-parse HEAD)
+          git archive --format=tar.gz "$sha" |
+            ssh -i ~/.ssh/deploy_key -o BatchMode=yes -o StrictHostKeyChecking=yes \
+              -o ServerAliveInterval=30 "$VPS_USER@$VPS_HOST" "deploy $sha"
+
+      - name: Check the site answers
+        run: |
+          for i in $(seq 1 12); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$APP_URL/") || code=000
+            echo "$APP_URL/ answered $code"
+            if [ "$code" -ge 200 ] && [ "$code" -lt 400 ]; then exit 0; fi
+            sleep 10
+          done
+          exit 1

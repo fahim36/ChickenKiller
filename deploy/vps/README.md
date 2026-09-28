@@ -28,15 +28,31 @@ grades),
 
 ## Updating
 
-Copy the new code to `/opt/interview-cracker` with LF line endings (a Windows checkout has CRLF,
-which breaks `release.sh`), then rebuild:
+Every push to `main` deploys itself. [`CI`](../../.github/workflows/ci.yml) runs the API,
+content and web checks. When it passes on a push to `main`,
+[`Deploy`](../../.github/workflows/deploy.yml) streams that commit's `git archive` over SSH
+to the VPS. To redeploy `main` without a push, run **Deploy** by hand from the Actions tab.
 
-```bash
-cd /opt/interview-cracker
-sudo docker compose -f deploy/vps/docker-compose.yml --env-file deploy/vps/.env up -d --build
+On the VPS, the deploy key can run only [`ic-deploy.sh`](ic-deploy.sh), installed as
+`/usr/local/bin/ic-deploy`. It unpacks the archive over `/opt/interview-cracker`, which keeps
+`deploy/vps/.env`. Then it rebuilds, waits for healthy containers and writes the commit to
+`DEPLOYED_COMMIT`. Each deploy reinstalls the script from the commit it deploys. The key's line
+in `~ubuntu/.ssh/authorized_keys` is:
+
+```
+restrict,command="/usr/local/bin/ic-deploy" ssh-ed25519 AAAA… github-actions-deploy@interview-cracker
 ```
 
+The private key is the repository secret `VPS_DEPLOY_KEY`. To replace the key, generate a
+new pair, swap that line, and update the secret.
+
 New content under `content/` is imported when the API restarts.
+
+To deploy by hand from a checkout, with an SSH key that is allowed a shell:
+
+```bash
+git archive --format=tar.gz HEAD | ssh ubuntu@146.235.21.90 "SSH_ORIGINAL_COMMAND='deploy $(git rev-parse HEAD)' ic-deploy"
+```
 
 ## Useful commands
 
