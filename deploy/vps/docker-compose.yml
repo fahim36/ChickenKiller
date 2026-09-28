@@ -1,0 +1,74 @@
+# The whole app on one VPS: Postgres, the API (with the Claude Code CLI, so written answers are
+# graded) and the web app. Setup and updates are in deploy/vps/README.md.
+#
+# Run from the repo root on the VPS:
+#   docker compose -f deploy/vps/docker-compose.yml --env-file deploy/vps/.env up -d --build
+#
+# Nothing is published to the internet directly: the web app and the API listen on loopback,
+# and nginx (deploy/vps/nginx.conf) serves them at https://$PUBLIC_HOST.
+name: interview-cracker
+
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: learning
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/vps/.env}
+      POSTGRES_DB: learning
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U learning -d learning"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  api:
+    build:
+      context: ../..
+      dockerfile: deploy/vps/api.Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg://learning:${POSTGRES_PASSWORD}@db:5432/learning
+      CLERK_ISSUER: ${CLERK_ISSUER:?}
+      CLERK_AUTHORIZED_PARTIES: https://${PUBLIC_HOST:?}
+      ADMIN_EMAILS: ${ADMIN_EMAILS:?}
+      # true: anyone who signs up becomes a Learner, with no invitation.
+      OPEN_SIGNUP: ${OPEN_SIGNUP:-false}
+      # true: each Learner's written answers are graded only with their own saved key.
+      OWN_GRADING_KEY_REQUIRED: ${OWN_GRADING_KEY_REQUIRED:-false}
+      LLM_KEY_SECRET: ${LLM_KEY_SECRET:-}
+      # Signs in the Claude Code CLI that grades written answers (docs/adr/0006).
+      CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN:-}
+    ports:
+      - "127.0.0.1:${API_HOST_PORT:-8100}:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+
+  web:
+    build:
+      context: ../../web
+      args:
+        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:?}
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      API_URL: http://api:8000
+      MCP_PUBLIC_URL: https://${PUBLIC_HOST}/mcp/
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:?}
+    ports:
+      - "127.0.0.1:${WEB_HOST_PORT:-3100}:3000"
+
+volumes:
+  db-data:
