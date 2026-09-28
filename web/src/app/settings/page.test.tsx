@@ -5,6 +5,7 @@ import { NEW_LEARNER, ONBOARDED, stubApi } from "@/test/stubApi";
 import SettingsPage from "./page";
 
 vi.mock("next/server", () => ({ connection: async () => {} }));
+vi.mock("next/headers", () => ({ cookies: async () => ({ get: () => undefined }) }));
 vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
 vi.mock("@clerk/nextjs/server", () => ({
   auth: async () => ({ getToken: async () => "session-token" }),

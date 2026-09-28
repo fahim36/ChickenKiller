@@ -4,7 +4,7 @@ from datetime import date, datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel as _BaseModel
-from pydantic import ConfigDict, field_validator
+from pydantic import ConfigDict, Field, field_validator
 
 from app.unlocking import LessonState
 
@@ -553,7 +553,7 @@ class AccessTokenIn(BaseModel):
 class DraftOut(BaseModel):
     id: int
     stack_id: str
-    kind: Literal["questions", "challenge"]
+    kind: Literal["questions", "challenge", "stack", "syllabus"]
     status: Literal["pending", "accepted", "rejected", "exported"]
     author_email: str
     note: str
@@ -564,3 +564,40 @@ class DraftOut(BaseModel):
 
 class DraftDecisionIn(BaseModel):
     status: Literal["accepted", "rejected"]
+
+
+class StackRequestIn(BaseModel):
+    """A request for a new Stack (app/stack_builder.py)."""
+
+    id: str = Field(max_length=80)
+    name: str = Field(max_length=120)
+    summary: str = Field(max_length=500)
+    audience: str = Field("", max_length=500)
+    weeks: int = 12
+    notes: str = Field("", max_length=2000)
+
+
+class LessonProgressOut(BaseModel):
+    id: str
+    title: str
+    multiple_choice: int
+    written: int
+    ready: bool
+
+
+class StackPlanOut(BaseModel):
+    """Where a requested Stack stands: `plan` (no weekly plan yet), `questions` (its Lessons
+    still need Questions) or `review` (the Admin accepts and exports the drafts)."""
+
+    stack_id: str
+    name: str
+    requested_by: str
+    request_status: Literal["pending", "accepted", "rejected", "exported"]
+    weeks_wanted: int | None
+    step: Literal["plan", "questions", "review"]
+    next_step: str
+    syllabus_draft: int | None
+    syllabus_status: Literal["pending", "accepted", "rejected", "exported"] | None
+    lessons: list[LessonProgressOut]
+    lessons_ready: int
+    thin_concepts: list[str]

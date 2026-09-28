@@ -40,9 +40,12 @@ export default async function DraftsPage() {
         title="Drafts"
         description={
           <p>
-            Questions and Daily Challenges proposed through the Claude connector, each by its
-            author. Accepting changes nothing yet: run <code>content-export-drafts</code>, then
-            merge the files with /update-syllabus or /write-challenges and commit.
+            Questions and Daily Challenges proposed through the Claude connector, and new Stacks
+            being built, each by its author. Accepting changes nothing yet: run{" "}
+            <code>content-export-drafts</code>, then merge the files with /update-syllabus or
+            /write-challenges and commit. A new Stack&apos;s accepted weekly plan and Questions
+            are written as its first version: run <code>content-check</code> and{" "}
+            <code>content-import</code>.
           </p>
         }
       />
@@ -56,9 +59,7 @@ export default async function DraftsPage() {
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="space-y-1">
                   <p className="font-heading font-semibold">
-                    {d.kind === "questions"
-                      ? `${d.payload.questions?.length ?? 0} Questions`
-                      : `Daily Challenge for ${d.payload.day}`}{" "}
+                    {draftTitle(d)}{" "}
                     · {d.stack_id}
                   </p>
                   <p className="text-xs text-muted-foreground">
@@ -95,4 +96,19 @@ export default async function DraftsPage() {
       )}
     </main>
   );
+}
+
+function draftTitle(d: Draft): string {
+  switch (d.kind) {
+    case "questions":
+      return `${d.payload.questions?.length ?? 0} Questions`;
+    case "challenge":
+      return `Daily Challenge for ${d.payload.day}`;
+    case "stack":
+      return `New Stack request: ${d.payload.name}`;
+    case "syllabus": {
+      const weeks = Array.isArray(d.payload.weeks) ? d.payload.weeks.length : 0;
+      return `Weekly plan ${d.payload.version}, ${weeks} ${weeks === 1 ? "Week" : "Weeks"}`;
+    }
+  }
 }

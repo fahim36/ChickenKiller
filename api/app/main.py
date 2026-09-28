@@ -27,6 +27,7 @@ from app import (
     review,
     reviews,
     schemas,
+    stack_builder,
     updated_lessons,
 )
 from app.auth import TokenVerifier
@@ -956,6 +957,59 @@ def decide_draft(
     session.commit()
     author = session.get(Learner, draft.learner_id)
     return _draft_out(draft, author.email if author else "")
+
+
+@router.get("/stack-requests")
+def list_stack_requests(_: CurrentLearner, session: SessionDep) -> list[schemas.StackPlanOut]:
+    """Stacks requested but not live yet, newest first, with how far each is built."""
+    return [
+        schemas.StackPlanOut.model_validate(p.summary())
+        for p in stack_builder.requested_stacks(session)
+    ]
+
+
+@router.post("/stack-requests", status_code=201)
+def request_stack(
+    body: schemas.StackRequestIn, learner: CurrentLearner, session: SessionDep, now: Now
+) -> schemas.StackPlanOut:
+    """Ask for a new Stack. Claude then builds it through the MCP connector: the weekly plan
+    first, then the quiz setup."""
+    try:
+        draft = stack_builder.request_stack(
+            session,
+            learner,
+            stack_id=body.id,
+            name=body.name,
+            summary=body.summary,
+            audience=body.audience,
+            weeks=body.weeks,
+            notes=body.notes,
+            now=now,
+        )
+    except stack_builder.RequestRefused as error:
+        raise HTTPException(422, str(error)) from error
+    found = stack_builder.plan(session, draft.stack_id)
+    assert found is not None
+    return schemas.StackPlanOut.model_validate(found.summary())
+
+
+@router.delete("/stack-requests/{stack_id}", status_code=204)
+def delete_stack_request(
+    stack_id: str, learner: CurrentLearner, session: SessionDep, verifier: VerifierDep
+) -> Response:
+    """Delete a Stack being built, with all its drafts. Its requester or the Admin only."""
+    try:
+        stack_builder.delete_request(
+            session,
+            learner,
+            stack_id,
+            is_admin=learners.is_admin(learner, verifier.settings.admin_emails),
+        )
+    except stack_builder.RequestNotFound as error:
+        raise HTTPException(404, "Stack request not found") from error
+    except stack_builder.RequestRefused as error:
+        raise HTTPException(409, str(error)) from error
+    return Response(status_code=204)
 
 
 def create_app(

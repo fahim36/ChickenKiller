@@ -33,7 +33,7 @@ from pydantic import TypeAdapter, ValidationError
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app import access_tokens
+from app import access_tokens, stack_builder
 from app.content import format as fmt
 from app.models import (
     Concept,
@@ -58,6 +58,34 @@ MAX_NOTE_CHARS = 2000
 
 _QUESTION: TypeAdapter[Any] = TypeAdapter(fmt.Question)
 _CONCEPT = TypeAdapter(fmt.Concept)
+_SYLLABUS: TypeAdapter[Any] = TypeAdapter(fmt.Syllabus)
+
+BUILD_STACK_PROMPT = """\
+Build the new Stack "{name}" (id: {stack_id}) for {audience}, through this connector. Work in
+three steps and check `get_stack_plan("{stack_id}")` between them.
+
+1. Request it. If `get_stack_plan` says nobody requested it, call `request_stack` with the id,
+   the name, a one-line summary, the audience and the number of Weeks.
+
+2. The weekly plan. Research what the role needs today from high-trust primary sources
+   (official docs, standards, well-known books and courses, job postings). Then call
+   `submit_syllabus` with the whole first Syllabus: schema_version 1, a version named for
+   today's UTC date (vYYYY-MM-DD), the stack, every Material (id, title, https url, type,
+   subject), and each Week with its number, title, goal, deliverable, interview_checks,
+   Lessons (id like w01-l01, title, topics, exercise, minutes, materials) and Milestones
+   (id like w01-m01, title, kind build or job-hunt, minutes, materials). Ids are lower-case
+   words joined by hyphens and never reused.
+
+3. The quiz setup. For every Lesson of the plan, call `submit_questions` (up to 50 per call)
+   until `get_stack_plan` shows each Lesson ready: at least 8 Questions per Lesson, at least
+   4 multiple choice and 2 written, and every Concept with at least 2 Questions (so a Retake
+   has a sibling). Declare new Concepts in `concepts`. Each Question has an id like
+   w01-l01-q01, its lesson and concept, a clear prompt, an explanation, materials, and one
+   or more sources (url, title, publisher, accessed = today, claim) that you actually fetched
+   and that support the answer. Multiple choice: 4 choices, one right, the right one not
+   clearly the longest. Written: a model_answer with a summary and 2 or more key_points.
+
+Everything is a draft under your name until the Admin accepts it. Don't invent Sources."""
 
 
 @dataclass(frozen=True)
@@ -95,7 +123,9 @@ def build_server(
             "Read the Stacks' Syllabuses and propose new Questions and Daily Challenges. "
             "Proposals are drafts, recorded under your name, for the Admin to accept; they "
             "change nothing until then. Questions follow the Question Bank format "
-            "(content/schema): every Question needs Sources you fetched."
+            "(content/schema): every Question needs Sources you fetched. To build a new Stack, "
+            "use the build_stack prompt: request_stack, then its weekly plan (submit_syllabus), "
+            "then its Questions (submit_questions)."
         ),
     )
 
@@ -230,15 +260,30 @@ def build_server(
         if len(set(ids)) != len(ids):
             raise ToolRefused("Two of the Questions have the same id.")
         with session_scope() as session:
-            _stack(session, stack_id)
-            taken = session.scalars(
-                select(Question.id).where(Question.stack_id == stack_id, Question.id.in_(ids))
-            ).all()
+            lessons = _lessons_of(session, stack_id)
+            drafted_questions, drafted_concepts = stack_builder.drafted_ids(session, stack_id)
+            taken = sorted(
+                set(
+                    session.scalars(
+                        select(Question.id).where(
+                            Question.stack_id == stack_id, Question.id.in_(ids)
+                        )
+                    )
+                )
+                | (set(ids) & drafted_questions)
+            )
             if taken:
-                raise ToolRefused(f"These ids are already in the bank: {', '.join(taken)}.")
-            known = set(session.scalars(select(Concept.id).where(Concept.stack_id == stack_id))) | {
-                c.id for c in parsed_concepts
-            }
+                raise ToolRefused(
+                    f"These ids are already in the bank or a draft: {', '.join(taken)}."
+                )
+            untagged = sorted({q.lesson for q in parsed_questions if q.lesson} - set(lessons))
+            if untagged:
+                raise ToolRefused(f"No such Lessons in this Stack: {', '.join(untagged)}.")
+            known = (
+                set(session.scalars(select(Concept.id).where(Concept.stack_id == stack_id)))
+                | drafted_concepts
+                | {c.id for c in parsed_concepts}
+            )
             unknown = sorted({q.concept for q in parsed_questions} - known)
             if unknown:
                 raise ToolRefused(
@@ -291,6 +336,111 @@ def build_server(
             return _save_draft(session, caller, stack_id, "challenge", payload, note, now())
 
     @server.tool()
+    def request_stack(
+        stack_id: str,
+        name: str,
+        summary: str,
+        audience: str = "",
+        weeks: int = 12,
+        notes: str = "",
+    ) -> dict[str, Any]:
+        """Start a new Stack: step 1 of 3. Records a request (id such as data-engineer, name,
+        one-line summary, who it is for, how many Weeks). Then submit its weekly plan with
+        submit_syllabus, then its Questions with submit_questions. `get_stack_plan` says where
+        it stands. Use the `build_stack` prompt for the whole procedure."""
+        caller = _me()
+        with session_scope() as session:
+            try:
+                stack_builder.request_stack(
+                    session,
+                    caller.learner_id,
+                    stack_id=stack_id,
+                    name=name,
+                    summary=summary,
+                    audience=audience,
+                    weeks=weeks,
+                    notes=notes,
+                    now=now(),
+                )
+            except stack_builder.RequestRefused as error:
+                raise ToolRefused(str(error)) from error
+            found = stack_builder.plan(session, stack_id.strip().lower())
+            assert found is not None
+            return found.summary()
+
+    @server.tool()
+    def get_stack_plan(stack_id: str) -> dict[str, Any]:
+        """Where a requested Stack stands: the request, its weekly plan, how many Questions
+        each Lesson has drafted, and the next step."""
+        with session_scope() as session:
+            found = stack_builder.plan(session, stack_id)
+            if found is None:
+                raise ToolRefused(f"Nobody requested a Stack {stack_id!r}: use request_stack.")
+            summary = found.summary()
+            if found.syllabus is not None:
+                summary["syllabus"] = found.syllabus.payload
+            return summary
+
+    @server.tool()
+    def list_requested_stacks() -> list[dict[str, Any]]:
+        """Stacks requested but not live yet, newest first, with their progress."""
+        with session_scope() as session:
+            return [p.summary() for p in stack_builder.requested_stacks(session)]
+
+    @server.tool()
+    def delete_stack_request(stack_id: str) -> dict[str, Any]:
+        """Delete a requested Stack that isn't live yet, with all its drafts (weekly plans and
+        Questions). Only whoever requested it, or the Admin."""
+        caller = _me()
+        with session_scope() as session:
+            learner = session.get(Learner, caller.learner_id)
+            assert learner is not None
+            try:
+                gone = stack_builder.delete_request(
+                    session, learner, stack_id, is_admin=caller.is_admin
+                )
+            except stack_builder.RequestNotFound as error:
+                raise ToolRefused(f"No request for {stack_id!r} that you may delete.") from error
+            except stack_builder.RequestRefused as error:
+                raise ToolRefused(str(error)) from error
+        return {"stack_id": stack_id, "drafts_deleted": gone}
+
+    @server.tool()
+    def submit_syllabus(stack_id: str, syllabus: dict[str, Any], note: str = "") -> dict[str, Any]:
+        """Step 2 of 3 for a requested Stack: its weekly plan, the whole first Syllabus in the
+        Syllabus format (schema_version 1, version vYYYY-MM-DD, stack {id, name, summary},
+        materials, and weeks with lessons and milestones). A new submission replaces the
+        previous plan; Questions already drafted must still match its Lesson ids."""
+        caller = _me()
+        parsed = _parse(_SYLLABUS, syllabus, "syllabus")
+        if parsed.stack.id != stack_id:
+            raise ToolRefused(f"syllabus.stack.id is {parsed.stack.id!r}, not {stack_id!r}.")
+        materials = {m.id for m in parsed.materials}
+        refs = {
+            ref
+            for week in parsed.weeks
+            for item in [*week.lessons, *week.milestones]
+            for ref in item.materials
+        }
+        if refs - materials:
+            missing = ", ".join(sorted(refs - materials))
+            raise ToolRefused(f"Materials not in `materials`: {missing}.")
+        ids = [w.id for w in parsed.weeks] + [
+            x.id for w in parsed.weeks for x in [*w.lessons, *w.milestones]
+        ]
+        if len(ids) != len(set(ids)):
+            raise ToolRefused("Every Week, Lesson and Milestone needs its own id.")
+        with session_scope() as session:
+            if session.get(Stack, stack_id) is not None:
+                raise ToolRefused(
+                    "This Stack is live already: change it with /update-syllabus instead."
+                )
+            if stack_builder.find_request(session, stack_id) is None:
+                raise ToolRefused(f"Request the Stack first with request_stack({stack_id!r}, ...).")
+            payload = parsed.model_dump(mode="json", exclude_none=False)
+            return _save_draft(session, caller, stack_id, "syllabus", payload, note, now())
+
+    @server.tool()
     def list_my_drafts() -> list[dict[str, Any]]:
         """Your drafts, newest first, with their status (pending, accepted, rejected or
         exported)."""
@@ -304,7 +454,36 @@ def build_server(
             ).all()
             return [_draft_out(d) for d in drafts]
 
+    @server.prompt()
+    def build_stack(stack_id: str, name: str = "", audience: str = "") -> str:
+        """Build a new Stack from scratch: the weekly plan first, then the quiz setup."""
+        return BUILD_STACK_PROMPT.format(
+            stack_id=stack_id,
+            name=name or stack_id,
+            audience=audience or "the Learners who will study it",
+        )
+
     return server
+
+
+def _lessons_of(session: Session, stack_id: str) -> list[str]:
+    """The Lesson ids Questions may be tagged to: a live Stack's current Syllabus, or a
+    requested Stack's weekly-plan draft."""
+    stack = session.get(Stack, stack_id)
+    if stack is not None and stack.current_syllabus_pk is not None:
+        return list(
+            session.scalars(
+                select(Lesson.id)
+                .where(Lesson.syllabus_pk == stack.current_syllabus_pk)
+                .order_by(Lesson.position)
+            )
+        )
+    if stack_builder.find_request(session, stack_id) is None:
+        raise ToolRefused(f"No Stack {stack_id!r}. `list_stacks` lists them.")
+    syllabus = stack_builder.current_syllabus(session, stack_id)
+    if syllabus is None:
+        raise ToolRefused("Submit the weekly plan with submit_syllabus before its Questions.")
+    return list(stack_builder.drafted_lessons(syllabus))
 
 
 def _stack(session: Session, stack_id: str) -> Stack:

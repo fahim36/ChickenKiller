@@ -427,11 +427,14 @@ export interface NewAccessToken extends AccessToken {
   token: string;
 }
 
-/** New Questions or a Daily Challenge proposed through the MCP connector (Admin only). */
+/**
+ * New Questions or a Daily Challenge proposed through the MCP connector, or a new Stack being
+ * built: its request and its weekly plan (Admin only).
+ */
 export interface Draft {
   id: number;
   stack_id: string;
-  kind: "questions" | "challenge";
+  kind: "questions" | "challenge" | "stack" | "syllabus";
   status: "pending" | "accepted" | "rejected" | "exported";
   author_email: string;
   note: string;
@@ -439,9 +442,53 @@ export interface Draft {
     questions?: ({ id: string; type: string; prompt: string; lesson?: string | null } | string)[];
     concepts?: { id: string; name: string }[];
     day?: string;
+    /** A `stack` request. */
+    name?: string;
+    summary?: string;
+    weeks?: number | { id: string; title: string }[];
+    /** A `syllabus` weekly plan. */
+    version?: string;
   };
   created_at: string;
   decided_at: string | null;
+}
+
+/** A request for a new Stack (POST /stack-requests). */
+export interface StackRequestIn {
+  id: string;
+  name: string;
+  summary: string;
+  audience: string;
+  weeks: number;
+  notes: string;
+}
+
+/** A Lesson of a Stack being built, and how many Questions it has drafted. */
+export interface LessonProgress {
+  id: string;
+  title: string;
+  multiple_choice: number;
+  written: number;
+  ready: boolean;
+}
+
+/**
+ * Where a requested Stack stands: `plan` (waiting for its weekly plan), `questions` (its
+ * Lessons still need Questions) or `review` (the Admin accepts and exports the drafts).
+ */
+export interface StackPlan {
+  stack_id: string;
+  name: string;
+  requested_by: string;
+  request_status: "pending" | "accepted" | "rejected" | "exported";
+  weeks_wanted: number | null;
+  step: "plan" | "questions" | "review";
+  next_step: string;
+  syllabus_draft: number | null;
+  syllabus_status: "pending" | "accepted" | "rejected" | "exported" | null;
+  lessons: LessonProgress[];
+  lessons_ready: number;
+  thin_concepts: string[];
 }
 
 export interface Invitation {

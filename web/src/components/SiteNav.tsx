@@ -19,12 +19,14 @@ export function SiteNav() {
     <nav aria-label="Main" className="flex items-center gap-1">
       {LINKS.map(({ href, label, icon: Icon }) => {
         // A Stack's own pages (its Week map, Challenge, Archive) belong to Home; the Stacks
-        // screen is only /stacks itself.
+        // screen is /stacks itself and its Add a Stack screen.
         const current =
           href === "/"
-            ? pathname === "/" || pathname.startsWith("/stacks/") || pathname === "/catch-up"
+            ? pathname === "/" ||
+              (pathname.startsWith("/stacks/") && pathname !== "/stacks/new") ||
+              pathname === "/catch-up"
             : href === "/stacks"
-              ? pathname === "/stacks"
+              ? pathname === "/stacks" || pathname === "/stacks/new"
               : href === "/settings"
                 ? pathname.startsWith("/settings") || pathname.startsWith("/admin")
                 : pathname.startsWith(href);

@@ -655,13 +655,16 @@ class AccessToken(Base):
 
 class ContentDraft(Base):
     """New Questions or a Daily Challenge proposed through the MCP connector (app/mcp_server.py),
-    waiting for the Admin. Content lives in git (ADR-0004), so a draft changes nothing by
-    itself: `content-export-drafts` writes accepted drafts out for /update-syllabus and
-    /write-challenges to merge and check."""
+    or a new Stack being built (app/stack_builder.py: its `stack` request, then its `syllabus`
+    weekly plan), waiting for the Admin. Content lives in git (ADR-0004), so a draft changes
+    nothing by itself: `content-export-drafts` writes accepted drafts out for /update-syllabus
+    and /write-challenges to merge and check."""
 
     __tablename__ = "content_drafts"
     __table_args__ = (
-        CheckConstraint("kind IN ('questions', 'challenge')", name="draft_kind"),
+        CheckConstraint(
+            "kind IN ('questions', 'challenge', 'stack', 'syllabus')", name="draft_kind"
+        ),
         CheckConstraint(
             "status IN ('pending', 'accepted', 'rejected', 'exported')", name="draft_status"
         ),

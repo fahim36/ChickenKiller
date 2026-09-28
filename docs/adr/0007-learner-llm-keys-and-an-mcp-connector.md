@@ -12,3 +12,13 @@ This amends ADR-0006 and extends ADR-0001.
 - Graders fall back in order: the Learner's key, the Admin's key, the CLI. NVIDIA's free endpoint usually answers in about a second but can queue a request for a minute, so a provider call has a 30 s timeout and the next grader takes over. Nemotron's thinking is turned off (`chat_template_kwargs.enable_thinking: false`): with it on, a grading took up to a minute and often ran out of tokens before answering.
 - Access tokens (`ica_…`) are stored only as SHA-256 hashes, shown once, and revocable; a revoked token is refused at once. The connector has no cookies, so its DNS-rebinding Host check is off.
 - Anyone signed in may propose drafts; reading the Question Bank is the Admin's only, since it includes Upcoming Challenges' Questions. No tool returns an answer or a Model Answer.
+
+## Addendum: building a new Stack through drafts
+
+Any Learner may request a new Stack, from the Add a Stack button on the Stacks screen (`POST /stack-requests`) or the connector's `request_stack` tool. Claude then builds it through the connector in order, and `get_stack_plan` (or the Stacks screen) says which step it is at:
+
+1. **Weekly plan**: `submit_syllabus` takes the Stack's whole first Syllabus as a `syllabus` draft. The newest one not rejected is the plan.
+2. **Quiz setup**: `submit_questions` then takes Questions tagged to that plan's Lessons, until every Lesson has at least 8 (4 multiple choice, 2 written) and every Concept 2.
+3. **Review**: the Admin accepts the drafts. Because there is no live content to merge into, `content-export-drafts` writes them as content straight away: `content/<stack>/<version>/syllabus.json` (a first version, so no changelog) and `content/<stack>/question-bank/draft-<id>.json`. `content-check` and `content-import` then make the Stack live, as for any content.
+
+The `build_stack` MCP prompt gives Claude the whole procedure. Content still enters only through git; a Stack request is a draft of kind `stack` and changes nothing by itself. `new` is not a valid Stack id, since `/stacks/new` is the Add a Stack screen.

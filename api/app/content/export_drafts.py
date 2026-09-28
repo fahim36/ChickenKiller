@@ -11,6 +11,14 @@ A draft file is not content: nothing reads `drafts/`. /update-syllabus merges a 
 into the Question Bank and /write-challenges a Challenge draft into the Challenges, and
 `content-check` checks the result as usual (Sources, siblings, the append-only baseline). Then
 delete the draft file in the same commit. Prints each file written.
+
+A new Stack (app/stack_builder.py) is different: nothing live to merge into, so its drafts are
+content straight away. Its accepted weekly plan is written as the first version,
+`content/<stack-id>/<version>/syllabus.json` (a first version has no changelog), and its
+accepted Questions as `content/<stack-id>/question-bank/draft-<id>.json`, a Question Bank file.
+The request itself writes nothing and is only marked exported. Then `content-check` and
+`content-import` make the Stack live. A plan whose version folder exists already is left
+accepted and reported.
 """
 
 import argparse
@@ -23,8 +31,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import CONTENT_DIR
+from app.content.loader import QUESTION_BANK_DIR
 from app.db import SessionLocal
-from app.models import ContentDraft, Learner
+from app.models import ContentDraft, Learner, Stack
 
 
 def export_drafts(session: Session, content_dir: Path, now: datetime) -> list[Path]:
@@ -37,6 +46,17 @@ def export_drafts(session: Session, content_dir: Path, now: datetime) -> list[Pa
     ).all()
     written = []
     for draft, email in rows:
+        new_stack = session.get(Stack, draft.stack_id) is None
+        if draft.kind == "stack":
+            draft.status, draft.decided_at = "exported", now
+            continue
+        if new_stack and draft.kind in ("syllabus", "questions"):
+            path = _new_stack_file(content_dir, draft)
+            if path is None:
+                continue
+            written.append(path)
+            draft.status, draft.decided_at = "exported", now
+            continue
         folder = content_dir / draft.stack_id / "drafts"
         folder.mkdir(parents=True, exist_ok=True)
         path = folder / f"{draft.id}-{draft.kind}.json"
@@ -54,6 +74,25 @@ def export_drafts(session: Session, content_dir: Path, now: datetime) -> list[Pa
         written.append(path)
     session.commit()
     return written
+
+
+def _new_stack_file(content_dir: Path, draft: ContentDraft) -> Path | None:
+    """Write a new Stack's weekly plan or Questions as content. None if the file exists."""
+    stack_dir = content_dir / draft.stack_id
+    if draft.kind == "syllabus":
+        folder = stack_dir / str(draft.payload["version"])
+        path = folder / "syllabus.json"
+        doc = draft.payload
+    else:
+        folder = stack_dir / QUESTION_BANK_DIR
+        path = folder / f"draft-{draft.id}.json"
+        doc = {"schema_version": 2, **draft.payload}
+    if path.exists():
+        print(f"Skipped draft {draft.id}: {path} exists.", file=sys.stderr)
+        return None
+    folder.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(doc, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    return path
 
 
 def main(argv: list[str] | None = None) -> int:

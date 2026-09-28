@@ -1,21 +1,19 @@
 import { CalendarClock, FileStack, Mail } from "lucide-react";
+import { cookies } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { PageHeader, Section } from "@/components/PageHeader";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { api, mcpUrl, type AccessToken, type Grading, type Me } from "@/lib/api";
+import { parseTheme, THEME_COOKIE } from "@/lib/theme";
 import { AccessTokens } from "./AccessTokens";
-import {
-  createAccessToken,
-  removeGradingKey,
-  revokeAccessToken,
-  saveGradingKey,
-} from "./actions";
+import { createAccessToken, removeGradingKey, revokeAccessToken, saveGradingKey } from "./actions";
 import { GradingKeyForm } from "./GradingKeyForm";
 
 /**
- * Settings: the LLM key that grades the Learner's written answers, and personal access tokens
+ * Settings: the colour theme, the LLM key that grades the Learner's written answers, and personal access tokens
  * for the MCP connector; for the Admin, links to the Admin screens. Active Stacks are changed
  * on the Stacks screen.
  */
@@ -27,6 +25,7 @@ export default async function SettingsPage() {
     api<AccessToken[]>("/me/access-tokens"),
   ]);
   if (!me || me.needs_onboarding) redirect("/onboarding");
+  const theme = parseTheme((await cookies()).get(THEME_COOKIE)?.value);
 
   return (
     <main className="mx-auto max-w-3xl">
@@ -35,8 +34,8 @@ export default async function SettingsPage() {
         title="Settings"
         description={
           <p>
-            How your written answers are graded, and how your Claude connects to the app. To
-            change what you study, go to <Link href="/stacks">your Active Stacks</Link>.
+            How your written answers are graded, and how your Claude connects to the app. To change
+            what you study, go to <Link href="/stacks">your Active Stacks</Link>.
           </p>
         }
       />
@@ -67,6 +66,13 @@ export default async function SettingsPage() {
         </div>
       )}
 
+      <Section title="Appearance" id="appearance-heading">
+        <p className="mb-4 text-sm leading-relaxed text-muted-foreground">
+          Light or Dark, or follow your device&apos;s setting. Saved in this browser.
+        </p>
+        <ThemeToggle initial={theme} />
+      </Section>
+
       <Section title="Grading" id="grading-heading">
         <div className="mb-4 space-y-2 text-sm leading-relaxed text-muted-foreground">
           <p>
@@ -90,8 +96,8 @@ export default async function SettingsPage() {
           </ol>
           <p>
             Your key is stored encrypted, is only used to grade your answers
-            {me.is_admin ? " (and those of Learners without a key)" : ""}, and is never shown
-            again: only its last four characters.
+            {me.is_admin ? " (and those of Learners without a key)" : ""}, and is never shown again:
+            only its last four characters.
           </p>
         </div>
         {grading && (
@@ -107,24 +113,12 @@ export default async function SettingsPage() {
         <div className="mb-4 space-y-2 text-sm leading-relaxed text-muted-foreground">
           <p>
             Connect Claude to the app to read the Syllabuses and propose new Questions and Daily
-            Challenges. Everything it proposes is a draft, under your name, until the Admin
-            accepts it.
+            Challenges. Everything it proposes is a draft, under your name, until the Admin accepts
+            it.
           </p>
-          <ol className="list-decimal space-y-1 pl-5">
-            <li>Create a token below and copy it.</li>
-            <li>
-              Add a custom connector in your Claude client with the URL <code>{mcpUrl()}</code>{" "}
-              and the header <code>Authorization: Bearer &lt;your token&gt;</code>. In Claude
-              Code:
-              <pre className="mt-1 overflow-x-auto rounded-lg bg-muted p-2 text-xs">
-                claude mcp add --transport http interview-cracker {mcpUrl()} --header
-                &quot;Authorization: Bearer &lt;your token&gt;&quot;
-              </pre>
-            </li>
-            <li>Revoke a token here as soon as you no longer need it.</li>
-          </ol>
         </div>
         <AccessTokens
+          mcpUrl={mcpUrl()}
           tokens={tokens ?? []}
           createAction={createAccessToken}
           revokeAction={revokeAccessToken}

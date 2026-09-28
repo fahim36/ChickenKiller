@@ -2,8 +2,23 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-/* Dark mode follows the system setting, as it always has: there is no toggle. */
-@custom-variant dark (@media (prefers-color-scheme: dark));
+/*
+ * Dark mode follows the system setting unless the Learner picked Light or Dark in Settings, which
+ * sets data-theme on <html> (lib/theme.ts).
+ */
+@custom-variant dark {
+  &:where([data-theme="dark"], [data-theme="dark"] *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:where(
+      :root:not([data-theme="light"]),
+      :root:not([data-theme="light"]) *
+    ) {
+      @slot;
+    }
+  }
+}
 
 @theme inline {
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
@@ -70,8 +85,42 @@
   --ring: oklch(0.51 0.23 277);
 }
 
+:root {
+  color-scheme: light dark;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --background: oklch(0.16 0.012 270);
+  --foreground: oklch(0.96 0.005 270);
+  --card: oklch(0.205 0.015 270);
+  --card-foreground: oklch(0.96 0.005 270);
+  --popover: oklch(0.205 0.015 270);
+  --popover-foreground: oklch(0.96 0.005 270);
+  --primary: oklch(0.68 0.17 277);
+  --primary-foreground: oklch(0.16 0.02 277);
+  --secondary: oklch(0.27 0.03 277);
+  --secondary-foreground: oklch(0.9 0.04 277);
+  --muted: oklch(0.25 0.012 270);
+  --muted-foreground: oklch(0.7 0.015 270);
+  --accent: oklch(0.28 0.04 277);
+  --accent-foreground: oklch(0.9 0.06 277);
+  --destructive: oklch(0.7 0.19 22);
+  --success: oklch(0.72 0.15 155);
+  --success-foreground: oklch(0.82 0.12 155);
+  --warning: oklch(0.8 0.14 75);
+  --warning-foreground: oklch(0.86 0.11 80);
+  --streak: oklch(0.75 0.18 50);
+  --border: oklch(1 0 0 / 9%);
+  --input: oklch(1 0 0 / 14%);
+  --ring: oklch(0.68 0.17 277);
+}
+
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --background: oklch(0.16 0.012 270);
     --foreground: oklch(0.96 0.005 270);
     --card: oklch(0.205 0.015 270);
