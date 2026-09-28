@@ -1,0 +1,1304 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "kotlin-nullability-platform-types",
+      "name": "Smart casts, `!!` and platform types from Java"
+    },
+    {
+      "id": "kotlin-generic-variance-projections",
+      "name": "Declaration-site variance, use-site and star projections"
+    },
+    {
+      "id": "kotlin-inline-reified-lambdas",
+      "name": "`inline`, `reified`, `crossinline` and `noinline`"
+    },
+    {
+      "id": "kotlin-nothing-bottom-type",
+      "name": "`Nothing` as the bottom type (vs `Unit` and `Any`)"
+    },
+    {
+      "id": "kotlin-sealed-state-exhaustive-when",
+      "name": "Sealed hierarchies for state and exhaustive `when`"
+    },
+    {
+      "id": "kotlin-data-class-generated-members",
+      "name": "What data classes generate, and their pitfalls"
+    },
+    {
+      "id": "kotlin-value-class-boxing",
+      "name": "Value (inline) classes and when they are boxed"
+    },
+    {
+      "id": "kotlin-property-and-class-delegation",
+      "name": "`by lazy` modes, observable delegates and class delegation"
+    },
+    {
+      "id": "kotlin-scope-function-choice",
+      "name": "Choosing between `let`, `run`, `with`, `apply` and `also`"
+    },
+    {
+      "id": "kotlin-lambda-closures-sam-conversion",
+      "name": "Lambda closures, allocation and SAM conversions"
+    },
+    {
+      "id": "kotlin-sequence-lazy-evaluation",
+      "name": "Collections vs sequences: eager vs lazy evaluation"
+    },
+    {
+      "id": "kotlin-k2-compiler-changes",
+      "name": "What the K2 compiler changed (smart casts, speed, FIR)"
+    },
+    {
+      "id": "kotlin-extension-static-dispatch",
+      "name": "Extensions are resolved statically"
+    },
+    {
+      "id": "kotlin-default-args-jvmoverloads",
+      "name": "Default and named arguments, and `@JvmOverloads`"
+    },
+    {
+      "id": "kotlin-dsl-lambda-with-receiver",
+      "name": "Type-safe builders, lambdas with receiver and `@DslMarker`"
+    },
+    {
+      "id": "kotlin-jvm-interop-annotations",
+      "name": "`@JvmStatic`, `@JvmField`, `@Throws` and Java-facing APIs"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w01-l01-q01",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w01-l01",
+      "prompt": "In a class, `var user: User? = null` is a public property. Inside a member function you write `if (user != null) { user.name }`. Why does this not compile, when the same check on a local `val` does?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The compiler cannot smart-cast a `var` property, because other code could modify it between the check and the use"
+        },
+        {
+          "id": "b",
+          "text": "Smart casts only work on types from Java, not on Kotlin classes"
+        },
+        {
+          "id": "c",
+          "text": "Smart casts need `user!!` first, to tell the compiler the value is not null"
+        },
+        {
+          "id": "d",
+          "text": "The property is public; making it `internal` would allow the smart cast even though it is a `var`"
+        }
+      ],
+      "concept": "kotlin-nullability-platform-types",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/typecasts.html",
+          "claim": "Smart-cast prerequisites: `val` properties only if private, internal or checked in the same module (and not open or with a custom getter); `var` properties never, because they can be modified at any time by other code.",
+          "title": "Type checks and casts | Kotlin Documentation",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "kotlin-docs",
+        "kotlin-in-action-2"
+      ],
+      "explanation": "Smart casts need a guarantee that the value cannot change between the check and the use. For `var` properties the docs say this is never the case, because other code can modify them at any time. The tempting choice d applies to `val` properties only: a `val` can be smart-cast when it is `private`, `internal` or checked in the same module. A `var` property never can. The usual fixes are to copy the value into a local `val`, or to write `user?.let { ... }`."
+    },
+    {
+      "id": "w01-l01-q02",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w01-l01",
+      "prompt": "Given `fun fail(msg: String): Nothing = throw IllegalStateException(msg)`, why does `val name: String = user.name ?: fail(\"no name\")` compile, when `user.name` is `String?`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`fail` actually returns `Unit` under the hood, and the compiler silently converts that `Unit` into an empty `String` for the assignment"
+        },
+        {
+          "id": "b",
+          "text": "`Nothing` is a subtype of every type, so the elvis expression has type `String`"
+        },
+        {
+          "id": "c",
+          "text": "The elvis operator's result is always treated as non-null by the compiler, no matter what type appears on its right-hand side"
+        },
+        {
+          "id": "d",
+          "text": "`Nothing` is just a type alias for `Any?`, so assigning it to `String` compiles as an unchecked, unverified platform cast"
+        }
+      ],
+      "concept": "kotlin-nothing-bottom-type",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/exceptions.html",
+          "claim": "`Nothing` is a built-in type that is a subtype of all other types (the bottom type); `throw` is an expression of type `Nothing`, and code after a call to a function returning `Nothing` is unreachable.",
+          "title": "Exceptions | Kotlin Documentation",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        },
+        {
+          "url": "https://kotlinlang.org/docs/null-safety.html",
+          "claim": "The right-hand side of the elvis operator is evaluated only if the left-hand side is null, and it may be a `throw` or `return` expression.",
+          "title": "Null safety | Kotlin Documentation",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "kotlin-docs",
+        "kotlin-in-action-2"
+      ],
+      "explanation": "`Nothing` is the bottom type: a subtype of all types, with no values. So `String? ?: Nothing` has the type `String`, and code after a call that returns `Nothing` is unreachable. That is why `name` is known to be initialised. Choice c is wrong: `a ?: b` takes the common supertype of the non-null left side and the right side, so `x ?: null` is still nullable. It is `Nothing` on the right that keeps the type as `String`. `Unit` is the type of functions that return normally with no useful value, which is a different thing."
+    },
+    {
+      "id": "w01-l01-q03",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w01-l01",
+      "prompt": "You declare `interface Source<out T> { ... }` so that a `Source<String>` can be used where a `Source<Any>` is expected. Which member will the compiler reject?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`fun next(): T`"
+        },
+        {
+          "id": "b",
+          "text": "`val current: T`"
+        },
+        {
+          "id": "c",
+          "text": "`fun push(item: T)`"
+        },
+        {
+          "id": "d",
+          "text": "`fun peekAll(): List<T>`"
+        }
+      ],
+      "concept": "kotlin-generic-variance-projections",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/generics.html",
+          "claim": "When a type parameter `T` of a class `C` is declared `out`, it may occur only in the out-position in the members of `C`, and in return `C<Base>` can safely be a supertype of `C<Derived>`.",
+          "title": "Generics: in, out, where | Kotlin Documentation",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "kotlin-docs",
+        "kotlin-in-action-2"
+      ],
+      "explanation": "Declaring `T` as `out` makes the interface covariant. The price is that `T` may appear only in out-positions: return types and read-only properties. `push(item: T)` consumes a `T`, which is an in-position. If it were allowed, a `Source<Any>` view of a `Source<String>` could accept an `Int`. The rule to remember is \"producer out, consumer in\". `List<T>` is fine as a return type because `List` is itself covariant."
+    },
+    {
+      "id": "w01-l01-q04",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w01-l01",
+      "prompt": "Given the contravariant interface `interface Sink<in T> { fun put(item: T) }`, what is `Sink<*>` equivalent to, and what can you do with it?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`Sink<out Any?>`: since `Any?` is the top type, you can safely call `put` on it with any value at all, the same as on `Sink<Any?>`"
+        },
+        {
+          "id": "b",
+          "text": "`Sink<Any?>`: a star projection of a contravariant interface is exactly a raw Java type, so the compiler stops checking `put` calls"
+        },
+        {
+          "id": "c",
+          "text": "`Sink<in Any?>`: since `in` always widens to accept any supertype, `put` becomes callable with any value regardless of the real type"
+        },
+        {
+          "id": "d",
+          "text": "`Sink<in Nothing>`: `put` is never safe to call, since the real argument is unknown"
+        }
+      ],
+      "concept": "kotlin-generic-variance-projections",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/generics.html",
+          "claim": "For `Foo<in T>`, `Foo<*>` is equivalent to `Foo<in Nothing>`, meaning nothing can be written to it safely; star-projections are like Java raw types, but safe.",
+          "title": "Generics: in, out, where | Kotlin Documentation",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "kotlin-docs",
+        "kotlin-in-action-2"
+      ],
+      "explanation": "For a contravariant `Foo<in T>`, the star projection `Foo<*>` means `Foo<in Nothing>`. You don't know what the `Sink` really accepts, so nothing is safe to write into it. For an `out T : Upper`, `Foo<*>` means `Foo<out Upper>`, so reading is safe. The tempting choice b is wrong: star projections look like Java raw types, but the compiler still checks them."
+    },
+    {
+      "id": "w01-l01-q05",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w01-l01",
+      "prompt": "You write `fun <reified T> Gson.fromJson(json: String): T = fromJson(json, T::class.java)` and the compiler rejects it. Why?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`reified` requires `inline`: the body is copied to the call site, where the real type argument is known despite erasure"
+        },
+        {
+          "id": "b",
+          "text": "`reified` type parameters need an explicit `T : Any` upper bound declared before the compiler will let you call `T::class` at all"
+        },
+        {
+          "id": "c",
+          "text": "Calling `T::class.java` is specifically disallowed inside extension functions, though it works fine inside an ordinary top-level function"
+        },
+        {
+          "id": "d",
+          "text": "`reified` is a modifier for generic classes only; it has no meaning when written on a type parameter of a standalone function"
+        }
+      ],
+      "concept": "kotlin-inline-reified-lambdas",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/inline-functions.html",
+          "claim": "Normal functions (not marked as inline) cannot have reified parameters; the `inline` modifier inlines the function and its lambdas into the call site.",
+          "title": "Inline functions | Kotlin Documentation",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        },
+        {
+          "url": "https://kotlinlang.org/docs/generics.html",
+          "claim": "Generic type information is erased at runtime; the only exception is inline functions with reified type parameters.",
+          "title": "Generics: in, out, where | Kotlin Documentation",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "kotlin-docs",
+        "kotlin-in-action-2"
+      ],
+      "explanation": "On the JVM, generic type arguments are erased at runtime, so a normal function cannot know what `T` is. An `inline` function is copied into each call site, where the compiler knows the concrete type, so it can put `T::class.java` directly into the caller's code. The docs say plainly that functions not marked `inline` cannot have reified type parameters. Choice b is a real rule for some uses of `T::class`, but it does not fix the missing `inline`."
+    },
+    {
+      "id": "w01-l01-q06",
+      "type": "written",
+      "lesson": "w01-l01",
+      "prompt": "An `inline fun runOnWorker(block: () -> Unit)` wraps `block` in `object : Runnable { override fun run() = block() }` and hands it to an executor. It fails to compile. Explain why, and compare `crossinline` and `noinline` as fixes, including their effect on non-local `return` and allocation.",
+      "concept": "kotlin-inline-reified-lambdas",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/inline-functions.html",
+          "claim": "`crossinline` forbids non-local returns in lambdas that are called from another execution context such as a local object; `noinline` lambdas can be stored in fields or passed around; public API inline functions cannot use non-public-API declarations.",
+          "title": "Inline functions | Kotlin Documentation",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "kotlin-docs",
+        "kotlin-in-action-2"
+      ],
+      "explanation": "A senior answer ties the rule to the mechanism: after inlining, a `return` inside the lambda returns from the caller. That breaks if the lambda runs later on another thread. They also know what each choice costs: `crossinline` keeps the performance benefit, and `noinline` gives up inlining for that one parameter. They mention the binary-compatibility rule for public inline functions.",
+      "model_answer": {
+        "summary": "An inlined lambda may contain a non-local `return`, which only makes sense if the lambda runs directly in the caller's frame. Calling it from inside another execution context (a `Runnable`) breaks that, so the compiler requires `crossinline` (still inlined, but no non-local returns) or `noinline` (the lambda becomes a real object that can be stored or passed on).",
+        "key_points": [
+          "`inline` copies both the function and its lambda arguments into the call site, which removes the lambda object and allows non-local `return` from the lambda",
+          "Calling the lambda from a nested object or another execution context would make a non-local `return` meaningless, so the compiler rejects it",
+          "`crossinline` keeps the lambda inlined into the object's code but forbids non-local returns",
+          "`noinline` stops inlining that parameter: it becomes a normal function object that can be stored in fields or passed around, at the cost of an allocation",
+          "Public inline functions cannot use private or internal declarations in their bodies (unless marked `@PublishedApi`), because the body is copied into client code"
+        ]
+      }
+    },
+    {
+      "id": "w01-l01-q07",
+      "type": "written",
+      "lesson": "w01-l01",
+      "prompt": "Explain where `Nothing`, `Unit` and `Any` sit in Kotlin's type hierarchy, and give two practical uses of `Nothing` in Android code (for example in a `Result` wrapper or a UI-state type). What does a Java caller see for `List<Nothing>`?",
+      "concept": "kotlin-nothing-bottom-type",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/exceptions.html",
+          "claim": "`Nothing` is the bottom type used for functions or expressions that never complete successfully, while `Unit` is for functions that return successfully without a meaningful value.",
+          "title": "Exceptions | Kotlin Documentation",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        },
+        {
+          "url": "https://kotlinlang.org/docs/java-to-kotlin-interop.html",
+          "claim": "`Nothing` cannot be accurately represented in Java, so Kotlin generates a raw type where an argument of type `Nothing` is used, e.g. `List<Nothing>` becomes `List`.",
+          "title": "Calling Kotlin from Java | Kotlin Documentation",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "kotlin-docs",
+        "kotlin-in-action-2"
+      ],
+      "explanation": "Seniors connect `Nothing` to variance. An error or loading case with no payload can be one object that is a subtype of every parameterised state. They also know the Java raw-type edge case, which matters for SDKs that Java apps use.",
+      "model_answer": {
+        "summary": "`Any` is the root of non-null types, `Unit` is a normal type with one value for functions that return nothing useful, and `Nothing` is the bottom type with no values, a subtype of every type. It marks code that never completes normally, and it lets a generic type with no data fit any type argument.",
+        "key_points": [
+          "`Nothing` is a subtype of all types and has no values; `throw` expressions have type `Nothing`",
+          "A function returning `Nothing` (like `TODO()` or a `fail()` helper) never returns, so the compiler treats following code as unreachable and allows it on the right of `?:`",
+          "`Unit` means the function returned normally without a meaningful value, like Java's `void`; it is not the same as `Nothing`",
+          "Because of covariance, `Result<Nothing>` or `Error : UiState<Nothing>` fits any `UiState<T>` when the state carries no data",
+          "Java has no equivalent of `Nothing`, so the compiler emits a raw type: `List<Nothing>` becomes a raw `List` for Java callers"
+        ]
+      }
+    },
+    {
+      "id": "w01-l01-q08",
+      "type": "written",
+      "lesson": "w01-l01",
+      "prompt": "Crash reports show a `NullPointerException` in pure Kotlin code at `val token: String = authSdk.getToken()`, where `authSdk` is a Java library with no nullability annotations. Explain why the compiler allowed this line, where exactly it throws, and how you would harden the boundary.",
+      "concept": "kotlin-nullability-platform-types",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/java-interop.html",
+          "claim": "Platform types (`T!`) have relaxed null checks; when a platform value is assigned to a non-nullable Kotlin variable the compiler emits an assertion upon assignment, which may fail at runtime; JSpecify-annotated types are treated as regular nullable/non-null types.",
+          "title": "Calling Java from Kotlin | Kotlin Documentation",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        },
+        {
+          "url": "https://kotlinlang.org/docs/null-safety.html",
+          "claim": "The not-null assertion operator `!!` converts any value to a non-nullable type and throws a `NullPointerException` if the value is null.",
+          "title": "Null safety | Kotlin Documentation",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "kotlin-docs",
+        "kotlin-in-action-2"
+      ],
+      "explanation": "A senior answer explains why the crash happens where it does (the generated assertion). They treat the Java SDK as an untrusted boundary: wrap it once, give the wrapper nullable types, and prefer annotated libraries, rather than scattering `!!` through the code.",
+      "model_answer": {
+        "summary": "Unannotated Java types are platform types (`String!`), so the compiler does not enforce null checks. When a platform value is assigned to a non-null Kotlin type, the compiler inserts an assertion there. It throws at the assignment, which stops the null from spreading further.",
+        "key_points": [
+          "Types from unannotated Java code are platform types (`T!`): nullability unknown, so Kotlin relaxes compile-time null checks",
+          "Assigning a platform value to a non-null type compiles, but the compiler emits an assertion that fails at runtime right at the assignment",
+          "The fix at the boundary is to declare the result as nullable (`String?`) and handle null with `?.`, `?:` or an explicit error, not `!!`",
+          "Nullability annotations (JSpecify, JetBrains, AndroidX and others) make Java types normal nullable or non-null types; JSpecify annotations are reported as errors by default",
+          "`!!` only moves the NPE; it is for cases the compiler cannot prove but you can"
+        ]
+      }
+    },
+    {
+      "id": "w01-l02-q01",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w01-l02",
+      "prompt": "A screen's state is Loading, Content(items) or Error(message, retryable). Why is a sealed interface a better fit than an `enum class` here?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "An `enum class` always forces a `when` expression over it to add an `else` branch, unlike a sealed interface"
+        },
+        {
+          "id": "b",
+          "text": "Sealed interfaces compile faster at runtime, because the compiler represents every subtype as a plain integer ordinal internally"
+        },
+        {
+          "id": "c",
+          "text": "Sealed subtypes can be classes with their own data and many instances, unlike an enum constant, which is one fixed instance"
+        },
+        {
+          "id": "d",
+          "text": "An `enum class` cannot implement an interface at all, so it has no way to carry a per-state contract the UI layer could reference"
+        }
+      ],
+      "concept": "kotlin-sealed-state-exhaustive-when",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/sealed-classes.html",
+          "claim": "Each enum constant exists only as a single instance, whereas subclasses of a sealed class may have multiple instances, each with its own state; `when` over a sealed type is checked exhaustively without an `else` clause.",
+          "title": "Sealed classes and interfaces | Kotlin Documentation",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "kotlin-docs",
+        "kotlin-in-action-2"
+      ],
+      "explanation": "The docs point to the key difference: each enum constant exists as a single instance, while subclasses of a sealed type can have many instances, each with its own state. `Content(items)` and `Error(message, retryable)` carry data, so they need to be classes. A `when` over a sealed type is still exhaustive, so you need no `else`. Choice a is false: a `when` over an enum can also be exhaustive."
+    },
+    {
+      "id": "w01-l02-q02",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w01-l02",
+      "prompt": "Given `data class Person(val name: String) { var age: Int = 0 }`, and two instances both named \"Ana\" with ages 30 and 40, what does `p1 == p2` return?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`false`, because `age` differs"
+        },
+        {
+          "id": "b",
+          "text": "`true`, because the generated `equals` only uses properties declared in the primary constructor"
+        },
+        {
+          "id": "c",
+          "text": "It does not compile: data classes cannot declare properties in the body"
+        },
+        {
+          "id": "d",
+          "text": "`false`, because a data class only overrides `equals` for classes with no body at all, so this one still falls back to reference comparison"
+        }
+      ],
+      "concept": "kotlin-data-class-generated-members",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/data-classes.html",
+          "claim": "The compiler only uses the properties defined inside the primary constructor for the automatically generated functions; two `Person` objects with the same name but different body-declared `age` are equal.",
+          "title": "Data classes | Kotlin Documentation",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "kotlin-docs",
+        "kotlin-in-action-2"
+      ],
+      "explanation": "The generated `equals`, `hashCode`, `toString`, `componentN` and `copy` use only the properties in the primary constructor. `age` is declared in the body, so it is ignored, and the two objects are equal. This bug is easy to miss when a body property holds real state. Choice a is what most people expect, which is why the rule matters."
+    },
+    {
+      "id": "w01-l02-q03",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w01-l02",
+      "prompt": "Given `@JvmInline value class UserId(val raw: String)`, in which of these uses is a `UserId` boxed (stored as a wrapper object instead of a bare `String`)?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`fun load(id: UserId)`"
+        },
+        {
+          "id": "b",
+          "text": "`val id: UserId = UserId(\"42\")` as a local variable"
+        },
+        {
+          "id": "c",
+          "text": "`fun rename(id: UserId, name: String)`"
+        },
+        {
+          "id": "d",
+          "text": "`fun find(id: UserId?)`"
+        }
+      ],
+      "concept": "kotlin-value-class-boxing",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/inline-classes.html",
+          "claim": "Inline classes are boxed when used as another type: as a generic type, as an interface type, or as a nullable type (`fun asNullable(i: Foo?)` is boxed), and unboxed when used as themselves.",
+          "title": "Inline value classes | Kotlin Documentation",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "kotlin-docs",
+        "kotlin-in-action-2"
+      ],
+      "explanation": "The compiler uses the underlying type wherever it can. It boxes the value when it is used as a nullable type, as a generic type argument, or as an interface or supertype. `UserId?` is one of those cases. The other choices use `UserId` as itself, so it is stored as a plain `String`. The same rule means a `List<UserId>` holds boxed values, which is worth knowing before you use value classes in hot collections."
+    },
+    {
+      "id": "w01-l02-q04",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w01-l02",
+      "prompt": "Which statement about Kotlin property delegates is correct?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`by lazy { }` defaults to `LazyThreadSafetyMode.NONE`, which is why reading it concurrently from two background threads is never safe"
+        },
+        {
+          "id": "b",
+          "text": "`lateinit` works on any property type at all, including primitives like `Int`, making it the cheaper, allocation-free alternative to `lazy`"
+        },
+        {
+          "id": "c",
+          "text": "`LazyThreadSafetyMode.PUBLICATION` guarantees the lazy initializer block itself runs exactly once, even under concurrent first access"
+        },
+        {
+          "id": "d",
+          "text": "`Delegates.observable`'s handler runs after assignment; `Delegates.vetoable` runs before it and can reject the change"
+        }
+      ],
+      "concept": "kotlin-property-and-class-delegation",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/delegated-properties.html",
+          "claim": "By default lazy evaluation is synchronized; PUBLICATION allows multiple threads to run the initializer; the observable handler is called after the assignment, while the vetoable handler is called before it.",
+          "title": "Delegated properties | Kotlin Documentation",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        },
+        {
+          "url": "https://kotlinlang.org/docs/properties.html",
+          "claim": "A `lateinit` property must be a non-nullable, non-primitive `var`; accessing it before initialization throws `UninitializedPropertyAccessException`.",
+          "title": "Properties | Kotlin Documentation",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "kotlin-docs",
+        "kotlin-in-action-2"
+      ],
+      "explanation": "The docs say the `observable` handler is called after the assignment, and the `vetoable` handler is called before it, so it can veto the change. The others are wrong. `lazy` is synchronized by default: the value is computed in one thread and every thread sees it. `PUBLICATION` lets several threads run the initializer at the same time. `lateinit` requires a non-null, non-primitive `var`, and throws `UninitializedPropertyAccessException` if you read it too early."
+    },
+    {
+      "id": "w01-l02-q05",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w01-l02",
+      "prompt": "```kotlin\ninterface Base { val message: String; fun print() }\nclass BaseImpl(x: Int) : Base {\n  override val message = \"BaseImpl: x = $x\"\n  override fun print() { println(message) }\n}\nclass Derived(b: Base) : Base by b {\n  override val message = \"Message of Derived\"\n}\n```\nWhat does `Derived(BaseImpl(10)).print()` print?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`Message of Derived`, because the override replaces `message` everywhere"
+        },
+        {
+          "id": "b",
+          "text": "`BaseImpl: x = 10`, because the delegate only sees its own implementation of `message`"
+        },
+        {
+          "id": "c",
+          "text": "It does not compile, because overriding a property that came from a delegated interface redeclares an abstract member with no matching body"
+        },
+        {
+          "id": "d",
+          "text": "It prints both messages, one after the other"
+        }
+      ],
+      "concept": "kotlin-property-and-class-delegation",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/delegation.html",
+          "claim": "Members overridden in the delegating class do not get called from the members of the delegate object, which can only access its own implementations of the interface members (the example prints `BaseImpl: x = 10`).",
+          "title": "Delegation | Kotlin Documentation",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "kotlin-docs",
+        "kotlin-in-action-2"
+      ],
+      "explanation": "With class delegation, `Derived` forwards `print()` to `b`. Inside `BaseImpl.print()`, `message` means `BaseImpl`'s own property. Delegation is not inheritance, so the delegate never sees overrides made in the class that delegates to it. Choice a is how inheritance with virtual dispatch would behave, and assuming delegation works the same way is a common source of bugs."
+    },
+    {
+      "id": "w01-l02-q06",
+      "type": "written",
+      "lesson": "w01-l02",
+      "prompt": "Design the UI state for a checkout screen (loading, form with validation errors, submitting, success with an order id, failure that may be retryable) using a sealed interface. Explain how exhaustive `when` protects you when a teammate adds a new state later, and what constraints Kotlin puts on where the subtypes live.",
+      "concept": "kotlin-sealed-state-exhaustive-when",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/sealed-classes.html",
+          "claim": "Direct subclasses of sealed classes and interfaces must be declared in the same package and module; `when` over a sealed type is checked exhaustively, so no `else` clause is needed; sealed constructors are protected or private.",
+          "title": "Sealed classes and interfaces | Kotlin Documentation",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "kotlin-docs",
+        "kotlin-in-action-2"
+      ],
+      "explanation": "The senior insight is that you should not add an `else` branch. It turns the compiler's exhaustiveness check back into a runtime bug. Seniors also say why the closed hierarchy exists (same package and module), and use objects for the states that carry no data.",
+      "model_answer": {
+        "summary": "Model each state as a sealed-interface subtype: objects for states with no data, classes for states with data. Render it with a `when` expression with no `else`, so adding a state becomes a compile error at every place that renders it, instead of a silent fallthrough.",
+        "key_points": [
+          "Use `data object`/`object` for stateless cases (Loading, Submitting) and classes for cases that carry data (Form(errors), Success(orderId), Failure(message, retryable))",
+          "A `when` over a sealed type is checked for exhaustiveness, so no `else` is needed; leaving out `else` means a new subtype fails the build wherever states are rendered",
+          "Direct subtypes must be in the same module and the same package (in multiplatform code, the same source set), so the set of states is closed and known at compile time",
+          "Unlike enum constants, sealed subtypes can have many instances with different data",
+          "Sealed class constructors are `protected` by default, or `private`; public constructors are not allowed"
+        ]
+      }
+    },
+    {
+      "id": "w01-l02-q07",
+      "type": "written",
+      "lesson": "w01-l02",
+      "prompt": "A reviewer flags `data class Cart(val id: String, val items: MutableList<Item>)` used as UI state and as a `HashMap` key. Explain the risks, including what `copy()` actually does, and propose a safer design.",
+      "concept": "kotlin-data-class-generated-members",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/data-classes.html",
+          "claim": "The `copy()` function creates a shallow copy of the instance and doesn't copy components recursively; in the `Employee(name, roles: MutableList)` example, adding a role to the duplicate also changes the original.",
+          "title": "Data classes | Kotlin Documentation",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "kotlin-docs",
+        "kotlin-in-action-2"
+      ],
+      "explanation": "A senior sees three bugs from one cause, mutability: shallow copies that share state, broken UI change detection, and hash keys that become impossible to find. They fix it with immutability, not with a custom deep copy.",
+      "model_answer": {
+        "summary": "Data classes derive `equals`/`hashCode`/`copy` from the primary-constructor properties. A mutable list inside means `copy()` shares the same list (the copy is shallow), and mutating it changes both the \"old\" and \"new\" state and the hash code of a map key. Use read-only `List` and build a new list for each change.",
+        "key_points": [
+          "`copy()` is shallow: the copy and the original share the same `MutableList`, so changing one changes the other",
+          "UI state that is changed in place defeats \"new object = new state\" change detection, because old and new are the same object",
+          "`hashCode` is derived from the properties, so mutating `items` after putting the object into a `HashMap`/`HashSet` makes it impossible to find",
+          "Only primary-constructor properties take part in `equals`/`hashCode`/`toString`/`copy`; body properties are ignored",
+          "Safer design: `val items: List<Item>` (read-only) and create new lists with `copy(items = items + item)`"
+        ]
+      }
+    },
+    {
+      "id": "w01-l02-q08",
+      "type": "written",
+      "lesson": "w01-l02",
+      "prompt": "You want to replace raw `String` ids with `@JvmInline value class UserId(val raw: String)` across a large app that also has Java modules. Explain what you gain, when the wrapper is actually allocated, and what Java callers will see.",
+      "concept": "kotlin-value-class-boxing",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/inline-classes.html",
+          "claim": "Value classes must have a single property; they are boxed when used as a generic, interface or nullable type; functions using them are name-mangled and `@JvmName` disables mangling for Java; referential equality is prohibited; unlike type aliases they are not assignment-compatible with the underlying type.",
+          "title": "Inline value classes | Kotlin Documentation",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "kotlin-docs",
+        "kotlin-in-action-2"
+      ],
+      "explanation": "The senior insight is that \"zero-cost\" only holds sometimes. Ids that sit mostly in `List`s, `Map`s or nullable fields are boxed anyway. Seniors also plan for name mangling before exposing the type to Java modules.",
+      "model_answer": {
+        "summary": "A value class gives you a distinct type at compile time, and in most uses it compiles down to the underlying `String` with no wrapper object. It is boxed when it is used as a nullable type, a generic type argument or an interface type. Functions that take it get mangled names, so Java callers need `@JvmName`.",
+        "key_points": [
+          "A value class must have exactly one property initialized in the primary constructor; on the JVM it needs `@JvmInline`",
+          "It is a new type: `UserId` and `String` cannot be passed for each other, unlike a `typealias`",
+          "It is boxed when used as a nullable type (`UserId?`), a generic type argument (`List<UserId>`) or an interface/supertype, so collections and nullable fields allocate",
+          "Functions taking value classes get mangled names (e.g. `compute-<hash>`), so Java cannot call them easily; `@JvmName` gives a stable name",
+          "Identity (`===`) checks are not allowed on value classes"
+        ]
+      }
+    },
+    {
+      "id": "w01-l03-q01",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w01-l03",
+      "prompt": "You build a `Paint` object, set several of its properties, and want the expression to evaluate to the configured `Paint`. Which scope function is designed for this?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`let`"
+        },
+        {
+          "id": "b",
+          "text": "`run`"
+        },
+        {
+          "id": "c",
+          "text": "`with`"
+        },
+        {
+          "id": "d",
+          "text": "`apply`"
+        }
+      ],
+      "concept": "kotlin-scope-function-choice",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/scope-functions.html",
+          "claim": "`apply` uses `this` as the context object and returns the context object, and its recommended use is object configuration; `run`, `with` and `let` return the lambda result.",
+          "title": "Scope functions | Kotlin Documentation",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "kotlin-docs"
+      ],
+      "explanation": "`apply` gives the object as the receiver (`this`), so you can set properties without a prefix, and it returns the object itself. That is the documented object-configuration case. `run` also uses `this`, but it returns the lambda's result, so the expression would evaluate to whatever the last line returns. That mistake is easy to miss when the last line happens to be an assignment."
+    },
+    {
+      "id": "w01-l03-q02",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w01-l03",
+      "prompt": "What is the value of `r` after `val r = mutableListOf(1, 2).also { it.add(3) }.let { it.size * 10 }`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`30`, because `also` returns the list and `let` returns its lambda's result"
+        },
+        {
+          "id": "b",
+          "text": "`true`, because `also` returns the result of `add`"
+        },
+        {
+          "id": "c",
+          "text": "`3`, because `let` returns the list's size"
+        },
+        {
+          "id": "d",
+          "text": "The list `[1, 2, 3]`, because both functions return the context object"
+        }
+      ],
+      "concept": "kotlin-scope-function-choice",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/scope-functions.html",
+          "claim": "`also` refers to the object as `it` and returns the context object; `let` refers to it as `it` and returns the lambda result.",
+          "title": "Scope functions | Kotlin Documentation",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "kotlin-docs"
+      ],
+      "explanation": "`also` refers to the object as `it` and returns the object itself, so the chain continues with the list `[1, 2, 3]`. `let` refers to the object as `it` and returns the lambda's result, `3 * 10 = 30`. Choice b is the usual mix-up between the functions that return the context object (`apply`, `also`) and those that return the lambda result (`let`, `run`, `with`)."
+    },
+    {
+      "id": "w01-l03-q03",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w01-l03",
+      "prompt": "`words.asSequence().filter { it.length > 3 }.map { it.length }.take(4).toList()` runs on a list of 9 words. How does this differ from the same chain on the `List` directly?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The sequence still runs `filter` across all 9 words first, then `map` across every match, then `take`, exactly like the list, but allocates one fewer intermediate list along the way"
+        },
+        {
+          "id": "b",
+          "text": "The sequence runs every step per element and stops once 4 results are found; the list filters and maps everything first"
+        },
+        {
+          "id": "c",
+          "text": "Sequences dispatch `filter`, `map` and `take` onto separate coroutine workers so the three steps execute concurrently on different threads"
+        },
+        {
+          "id": "d",
+          "text": "There is no real difference here, because calling `take(4)` anywhere in a chain makes the Kotlin `List` implementation switch to lazy evaluation too"
+        }
+      ],
+      "concept": "kotlin-sequence-lazy-evaluation",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/sequences.html",
+          "claim": "Sequences perform all the processing steps one-by-one for every single element, while iterables complete each step for the whole collection; in the words example the list filters all words and maps all matches before `take(4)`; lazy evaluation adds overhead for small collections or simple computations.",
+          "title": "Sequences | Kotlin Documentation",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "kotlin-docs"
+      ],
+      "explanation": "Iterable operations are eager: each step finishes for the whole collection and builds an intermediate list before the next step starts. A sequence is lazy. Nothing runs until the terminal `toList()`, and then each element goes through the whole chain, so `take(4)` can stop early. Choice a describes the list's step-by-step order. Sequences also cost something: for small collections or cheap operations, their overhead can outweigh the benefit."
+    },
+    {
+      "id": "w01-l03-q04",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w01-l03",
+      "prompt": "```kotlin\nfun pet(animal: Any) {\n  val isCat = animal is Cat\n  if (isCat) animal.purr()\n}\n```\nHow do Kotlin 1.9 and Kotlin 2.0 (the K2 compiler) treat this code?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Both compilers reject this code, because a smart cast is only ever recognized when the type check appears directly inline in the `if` condition"
+        },
+        {
+          "id": "b",
+          "text": "Both compilers accept and compile this code identically, since a `Boolean` local storing a type-check result was never a special case for either frontend"
+        },
+        {
+          "id": "c",
+          "text": "1.9 rejects it; K2 accepts it, carrying the stored check into the `if`"
+        },
+        {
+          "id": "d",
+          "text": "1.9 accepts this code fine, but K2 rejects it, because the rewritten frontend made smart casts stricter about local variables holding type checks"
+        }
+      ],
+      "concept": "kotlin-k2-compiler-changes",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/k2-compiler-migration-guide.html",
+          "claim": "In Kotlin 2.0.0, if a type check is stored in a local variable (`val isCat = animal is Cat`), the compiler smart-casts `animal` to `Cat` inside `if (isCat)`, which failed in 1.9.20.",
+          "title": "K2 compiler migration guide | Kotlin Documentation",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "kotlin-docs",
+        "kotlin-k2-migration"
+      ],
+      "explanation": "K2 does smart casts in many more places. One example is a type check stored in a local variable and used later. K2 also smart-casts `||` checks to their common supertype, variables used inside inline lambdas, and nullable function-type properties. In 1.9 this code needed an explicit cast. Choice d gets the direction backwards: K2 extended smart casts rather than restricting them."
+    },
+    {
+      "id": "w01-l03-q05",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w01-l03",
+      "prompt": "Which of these can be created from a Kotlin lambda by SAM conversion?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A Java abstract class with exactly one abstract method"
+        },
+        {
+          "id": "b",
+          "text": "A Kotlin interface with one abstract method that is not declared `fun interface`"
+        },
+        {
+          "id": "c",
+          "text": "A Java interface with a single non-default abstract method, or a Kotlin `fun interface`"
+        },
+        {
+          "id": "d",
+          "text": "Any class whose constructor takes a function type"
+        }
+      ],
+      "concept": "kotlin-lambda-closures-sam-conversion",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/java-interop.html",
+          "claim": "Kotlin function literals can be converted to Java interfaces with a single non-default method; SAM conversions only work for interfaces, not for abstract classes, even if those have just a single abstract method.",
+          "title": "Calling Java from Kotlin | Kotlin Documentation",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        },
+        {
+          "url": "https://kotlinlang.org/docs/fun-interfaces.html",
+          "claim": "An interface with only one abstract member function declared with the `fun` modifier is a functional interface, and a lambda whose signature matches can be SAM-converted to it.",
+          "title": "Functional (SAM) interfaces | Kotlin Documentation",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "kotlin-docs"
+      ],
+      "explanation": "SAM conversion works for Java interfaces with one non-default abstract method, and for Kotlin interfaces declared with `fun interface`. The docs are explicit that it does not work for abstract classes, even ones with a single abstract method, which is the tempting choice a. A plain Kotlin interface without the `fun` modifier needs an `object :` expression."
+    },
+    {
+      "id": "w01-l03-q06",
+      "type": "written",
+      "lesson": "w01-l03",
+      "prompt": "A teammate converts every `list.filter { }.map { }` in the codebase to `asSequence()` \"for performance\". When do sequences actually win, when do they lose, and what should you check before converting a chain?",
+      "concept": "kotlin-sequence-lazy-evaluation",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/sequences.html",
+          "claim": "With sequences, computation happens only when the result of the whole chain is requested, avoiding intermediate results; laziness adds overhead that may be significant for smaller collections or simpler computations; stateful operations require state proportional to the number of elements.",
+          "title": "Sequences | Kotlin Documentation",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "kotlin-docs"
+      ],
+      "explanation": "Seniors frame this as a trade-off to measure. They know the benefit comes from skipping intermediate collections and stopping early, not from some general speed-up. They also mention that forgetting the terminal operation silently does no work.",
+      "model_answer": {
+        "summary": "Sequences win on long chains over large inputs, especially with short-circuiting terminal operations (`take`, `first`, `any`), because they avoid intermediate lists and stop early. They lose on small collections and cheap operations because of their per-element overhead, and some operations like `sorted` must see every element anyway.",
+        "key_points": [
+          "Collection operations are eager and build an intermediate list after each step; sequences are lazy and run nothing until a terminal operation",
+          "Sequences process element by element through the whole chain, so `take(n)`/`first()` can stop early and skip the remaining work",
+          "For small collections or simple computations the overhead of laziness can make sequences slower",
+          "Stateful operations such as `sorted` or `distinct` need state proportional to the input, which removes much of the benefit",
+          "Measure (benchmark) rather than convert everything; only intermediate operations are lazy, so a chain without a terminal operation does nothing"
+        ]
+      }
+    },
+    {
+      "id": "w01-l03-q07",
+      "type": "written",
+      "lesson": "w01-l03",
+      "prompt": "In a hot path (for example `onDraw` or a scroll listener) someone passes a capturing lambda to a non-inline higher-order function on every call. Explain what this costs at runtime, how capture works, and what your options are to reduce the cost.",
+      "concept": "kotlin-lambda-closures-sam-conversion",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/inline-functions.html",
+          "claim": "Inlining removes the runtime overhead of function objects and closures; the `inline` modifier inlines both the function and the lambdas passed to it into the call site.",
+          "title": "Inline functions | Kotlin Documentation",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        },
+        {
+          "url": "https://kotlinlang.org/docs/lambdas.html",
+          "claim": "A lambda expression can access its closure, which includes the variables declared in the outer scope, and the variables captured in the closure can be modified in the lambda.",
+          "title": "Higher-order functions and lambdas | Kotlin Documentation",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "kotlin-docs",
+        "kotlin-in-action-2"
+      ],
+      "explanation": "A senior answer names the mechanism: a function object plus a captured closure. It knows that `inline` is the language's tool for this, and it sticks to targeted fixes in hot paths instead of banning lambdas everywhere.",
+      "model_answer": {
+        "summary": "A lambda passed to a non-inline function becomes a function object, and if it captures variables, it holds its closure, so each call can allocate. Marking the higher-order function `inline` copies the lambda body into the call site and removes that object. Where inlining is not possible, avoid capturing, or create the listener or callback once and reuse it.",
+        "key_points": [
+          "A lambda is compiled to a function object; one that captures variables carries its closure, and that allocation plus a virtual call is the runtime overhead",
+          "Lambdas can read and also modify captured `var`s from the enclosing scope",
+          "`inline` higher-order functions copy the lambda into the call site, removing the function object and the closure allocation",
+          "SAM conversion of a lambda to a Java or `fun interface` creates an instance of the interface implementation",
+          "For listeners in hot paths, create the instance once (a field) instead of on every call, and measure allocations with a profiler"
+        ]
+      }
+    },
+    {
+      "id": "w01-l03-q08",
+      "type": "written",
+      "lesson": "w01-l03",
+      "prompt": "Your team is still on Kotlin 1.9 with `languageVersion = 1.9` pinned. Make the case for moving to K2: what changed in the compiler, what developers will notice day to day, and what the migration risk and rollback options are.",
+      "concept": "kotlin-k2-compiler-changes",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/k2-compiler-migration-guide.html",
+          "claim": "K2 has a rewritten frontend with a unified data structure; it is enabled by default from Kotlin 2.0.0; Anki-Android's clean build dropped from 57.7s (1.9.23) to 29.7s (2.0.0); rollback via languageVersion 1.9 works in 2.0.0-2.3.21 but not from 2.4.0.",
+          "title": "K2 compiler migration guide | Kotlin Documentation",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "kotlin-docs",
+        "kotlin-k2-migration"
+      ],
+      "explanation": "Senior candidates quote concrete build-time evidence, and they know about the time-limited escape hatch. They also mention the IDE side: K2 mode in Android Studio uses the same frontend.",
+      "model_answer": {
+        "summary": "K2 is a rewritten compiler frontend with one unified data structure (FIR) for semantic analysis, call resolution and type inference. It is the default from Kotlin 2.0.0, compiles much faster (JetBrains measured large gains on Anki-Android), and does smart casts in more places. Rollback via `languageVersion = 1.9` works only until 2.4.0.",
+        "key_points": [
+          "K2 rewrote the frontend around a unified data structure (FIR) that handles semantic analysis, call resolution and type inference",
+          "K2 is the default from Kotlin 2.0.0",
+          "Compilation is faster: for example, the Anki-Android clean build went from 57.7 s on 1.9.23 to 29.7 s on 2.0.0",
+          "Smart casts work in more cases: type checks stored in local variables, `||` checks to a common supertype, variables inside inline lambdas, nullable function-type properties, and after `try`/`catch`",
+          "Rollback by setting `languageVersion = \"1.9\"` is possible only up to Kotlin 2.3.x; from Kotlin 2.4.0 it is no longer possible, so plan the migration rather than rely on rollback"
+        ]
+      }
+    },
+    {
+      "id": "w01-l04-q01",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w01-l04",
+      "prompt": "```kotlin\nopen class Shape\nclass Rectangle : Shape()\nfun Shape.getName() = \"Shape\"\nfun Rectangle.getName() = \"Rectangle\"\nfun printName(s: Shape) = println(s.getName())\n```\nWhat does `printName(Rectangle())` print?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`Rectangle`, because `getName()` dispatches virtually like a member function, using the object's actual runtime type to pick the extension"
+        },
+        {
+          "id": "b",
+          "text": "It does not compile at all: declaring two extension functions with the same name on related receiver types is a signature clash the compiler rejects"
+        },
+        {
+          "id": "c",
+          "text": "It compiles but throws an `AmbiguousMethodException` at runtime, because the JVM cannot decide between the two extension functions"
+        },
+        {
+          "id": "d",
+          "text": "`Shape`, since extensions resolve statically from the parameter's declared type"
+        }
+      ],
+      "concept": "kotlin-extension-static-dispatch",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/extensions.html",
+          "claim": "Extension functions are dispatched statically; in the `Shape`/`Rectangle` example `printClassName(Rectangle())` prints `Shape` because the parameter's declared type is `Shape`.",
+          "title": "Extensions | Kotlin Documentation",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "kotlin-docs",
+        "kotlin-in-action-2"
+      ],
+      "explanation": "Extensions do not change the class. They are static functions that take the receiver as a parameter. The compiler picks one from the static type of the expression, and inside `printName` that type is `Shape`. So `Shape.getName()` runs, whatever the runtime type is. Choice a is how a member function overridden in a subclass would behave."
+    },
+    {
+      "id": "w01-l04-q02",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w01-l04",
+      "prompt": "A library class gains a member `fun format(): String` in a new version, and your app already defines `fun LibType.format(): String` with the same signature. What happens after the upgrade?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Your extension still wins over the new member, because the compiler prefers whichever declaration is lexically closest to the call site"
+        },
+        {
+          "id": "b",
+          "text": "Calls to `x.format()` now silently resolve to the new member instead, since a member always beats a matching extension"
+        },
+        {
+          "id": "c",
+          "text": "The build now fails everywhere `x.format()` is called, reporting an unresolved ambiguity between the member and your extension"
+        },
+        {
+          "id": "d",
+          "text": "The extension keeps winning, but only inside source files that still have an explicit `import` for it; unimported files call the member"
+        }
+      ],
+      "concept": "kotlin-extension-static-dispatch",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/extensions.html",
+          "claim": "If a class has a member function and an extension function with the same receiver type, the same name and applicable arguments, the member always wins; extensions can overload members with different signatures.",
+          "title": "Extensions | Kotlin Documentation",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "kotlin-docs"
+      ],
+      "explanation": "When a class has a member and an extension with the same receiver type, name and compatible arguments, the member always wins. After the upgrade your extension goes unused (the compiler warns that it is shadowed), and your code starts calling the library's behaviour. This is one reason to be careful when extending types you don't own. An extension may overload a member with a different signature, which is also why choice c does not happen."
+    },
+    {
+      "id": "w01-l04-q03",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w01-l04",
+      "prompt": "`@JvmOverloads fun connect(host: String, port: Int = 443, secure: Boolean = true)`. Which overloads can a Java caller use?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`connect(host, port, secure)`, `connect(host, port)` and `connect(host)`"
+        },
+        {
+          "id": "b",
+          "text": "Every combination, including `connect(host, secure)`"
+        },
+        {
+          "id": "c",
+          "text": "Only `connect(host, port, secure)`, because Java cannot see default values"
+        },
+        {
+          "id": "d",
+          "text": "`connect()` with no arguments as well, because all parameters get defaults"
+        }
+      ],
+      "concept": "kotlin-default-args-jvmoverloads",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/java-to-kotlin-interop.html",
+          "claim": "`@JvmOverloads` makes the compiler generate overloads for each parameter with a default value, removing parameters from the end of the list; for `Circle(centerX, centerY, radius = 1.0)` it generates `(int, int, double)` and `(int, int)`.",
+          "title": "Calling Kotlin from Java | Kotlin Documentation",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "kotlin-docs"
+      ],
+      "explanation": "`@JvmOverloads` generates overloads by dropping parameters with defaults from the end, one at a time. Java therefore gets `(host, port, secure)`, `(host, port)` and `(host)`, but no `(host, secure)` that skips over `port`. Without the annotation, Java sees only the full signature (choice c). `host` has no default, so a no-argument overload is never generated."
+    },
+    {
+      "id": "w01-l04-q04",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w01-l04",
+      "prompt": "In a request-builder DSL, `request { headers { url(\"...\") } }` compiles, even though `url` belongs to the outer `RequestBuilder`, not to `HeadersBuilder`. What does annotating both builder classes with the same `@DslMarker` annotation do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It makes the DSL run faster, because the annotation forces the compiler to inline every lambda with receiver passed to the builder functions"
+        },
+        {
+          "id": "b",
+          "text": "It generates a matching set of Java-friendly builder methods so the same DSL block also compiles when called from a Java source file"
+        },
+        {
+          "id": "c",
+          "text": "It blocks an outer receiver's members from being called implicitly inside an inner lambda unless qualified, e.g. `this@request.url(...)`"
+        },
+        {
+          "id": "d",
+          "text": "It makes every property on the annotated builder classes read-only after construction, turning them into effectively immutable data holders"
+        }
+      ],
+      "concept": "kotlin-dsl-lambda-with-receiver",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/type-safe-builders.html",
+          "claim": "Annotating all DSL receiver types with the same `@DslMarker` annotation makes the compiler restrict implicit access to outer receivers; outer receivers can still be called when specified explicitly, e.g. `this@html.head { }`.",
+          "title": "Type-safe builders | Kotlin Documentation",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "kotlin-docs",
+        "kotlin-in-action-2"
+      ],
+      "explanation": "Inside nested lambdas with receivers, every outer receiver is also available as an implicit receiver. That lets you write confusing code like calling `url` inside `headers`. When all receiver types carry the same `@DslMarker` annotation, only the nearest receiver can be used implicitly. You can still reach an outer one explicitly with a labelled `this@...`."
+    },
+    {
+      "id": "w01-l04-q05",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w01-l04",
+      "prompt": "`class Analytics { companion object { @JvmStatic fun init(ctx: Context) {} } }`. What does `@JvmStatic` generate for Java callers?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It relocates `init` out of the companion object entirely, so the old `Analytics.Companion.init(ctx)` call site stops compiling in Java"
+        },
+        {
+          "id": "b",
+          "text": "A static method on `Analytics`, plus the companion's own instance method, so both call forms work from Java"
+        },
+        {
+          "id": "c",
+          "text": "A public static field literally named `init`, mirroring how `@JvmField` exposes a property, rather than generating any callable method at all"
+        },
+        {
+          "id": "d",
+          "text": "Nothing changes in the generated bytecode, since companion object members already compile down to plain static methods on the outer class"
+        }
+      ],
+      "concept": "kotlin-jvm-interop-annotations",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/java-to-kotlin-interop.html",
+          "claim": "If you use `@JvmStatic` on a function in a companion object, the compiler generates both a static method in the enclosing class and an instance method in the companion object; both `C.callStatic()` and `C.Companion.callStatic()` work from Java.",
+          "title": "Calling Kotlin from Java | Kotlin Documentation",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "kotlin-docs"
+      ],
+      "explanation": "Without the annotation, Java has to write `Analytics.Companion.init(ctx)`. With `@JvmStatic`, the compiler generates a static method in the enclosing class and keeps the instance method on the companion, so both forms work. Choice d is the common misconception: companion members compile to instance methods on a singleton `Companion` object, not to static methods."
+    },
+    {
+      "id": "w01-l04-q06",
+      "type": "written",
+      "lesson": "w01-l04",
+      "prompt": "You are designing `fun open(url: String, timeout: Duration = 10.seconds, retries: Int = 3, cache: Boolean = true)` for an SDK used from both Kotlin and Java. Explain how Kotlin callers and Java callers experience it, the rules for defaults on overridden methods, and how you would shape the API.",
+      "concept": "kotlin-default-args-jvmoverloads",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/functions.html",
+          "claim": "Parameters with default values reduce the need for overloads; overriding methods always use the base method's default parameter values; after the first skipped argument all subsequent arguments must be named; named arguments can't be used when calling Java functions.",
+          "title": "Functions | Kotlin Documentation",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        },
+        {
+          "url": "https://kotlinlang.org/docs/java-to-kotlin-interop.html",
+          "claim": "`@JvmOverloads` generates overloads for each default parameter, removing parameters from the end of the parameter list.",
+          "title": "Calling Kotlin from Java | Kotlin Documentation",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "kotlin-docs",
+        "kotlin-in-action-2"
+      ],
+      "explanation": "A senior answer orders parameters for Java callers, since only trailing parameters can be dropped. Seniors know about the override-default rule, which surprises people in class hierarchies. For large option sets they may suggest an options or builder object instead of many defaulted parameters.",
+      "model_answer": {
+        "summary": "Kotlin callers get optional parameters and named arguments, so one function replaces many overloads. Java sees only the full signature unless you add `@JvmOverloads`, which generates overloads by dropping trailing defaults. Named arguments cannot be used when calling Java functions, and overrides always take the base method's defaults.",
+        "key_points": [
+          "Default values reduce the number of overloads, and they can refer to earlier parameters",
+          "Named arguments let callers skip middle parameters; after the first skipped argument, all later arguments must be named",
+          "Java callers see only the full signature unless you add `@JvmOverloads`, which generates overloads by removing defaulted parameters from the end, so the most commonly changed parameters should come first",
+          "Overriding methods always use the base method's defaults and must not declare their own",
+          "Named-argument syntax cannot be used when calling Java functions from Kotlin, because Java bytecode does not always keep parameter names"
+        ]
+      }
+    },
+    {
+      "id": "w01-l04-q07",
+      "type": "written",
+      "lesson": "w01-l04",
+      "prompt": "Design a type-safe builder DSL for an HTTP request (`request { url = ...; headers { ... }; body { ... } }`). Explain the language features that make it work, how you stop callers from writing nonsense nesting, and how nested scopes can still reach an outer builder deliberately.",
+      "concept": "kotlin-dsl-lambda-with-receiver",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/type-safe-builders.html",
+          "claim": "`fun html(init: HTML.() -> Unit)` creates an `HTML` receiver and calls `html.init()`; without scope control you can call methods of every available implicit receiver; `@DslMarker` on all receiver types restricts this, while `this@html` still allows explicit access.",
+          "title": "Type-safe builders | Kotlin Documentation",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        },
+        {
+          "url": "https://kotlinlang.org/docs/lambdas.html",
+          "claim": "The function type `A.(B) -> C` can be called on a receiver object of `A`, and inside a function literal with receiver the receiver becomes an implicit `this`.",
+          "title": "Higher-order functions and lambdas | Kotlin Documentation",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "kotlin-docs",
+        "kotlin-in-action-2"
+      ],
+      "explanation": "Seniors explain the mechanism (receivers) as well as the syntax, see that the danger is the outer receivers leaking into inner blocks, and use `@DslMarker` to close that gap. Good answers also check that `build()` validates required fields.",
+      "model_answer": {
+        "summary": "The entry point takes a lambda with receiver (`RequestBuilder.() -> Unit`), creates the builder, calls the lambda on it and returns the result. Nested blocks are member functions that take their own receiver lambdas. A shared `@DslMarker` annotation on all builder types limits implicit access to the nearest receiver, and a labelled `this@request` still reaches outer ones.",
+        "key_points": [
+          "A function type with receiver `A.() -> Unit` lets the lambda call `A`'s members implicitly through `this`",
+          "The entry function creates the builder, invokes the lambda on it (`builder.init()`), then builds and returns the result",
+          "Without scope control, members of all outer implicit receivers can be called inside nested lambdas, which lets callers build invalid structures",
+          "Annotating every receiver type with the same `@DslMarker` annotation restricts implicit calls to the nearest receiver",
+          "Outer receivers can still be used explicitly with a labelled `this` (e.g. `this@request`)"
+        ]
+      }
+    },
+    {
+      "id": "w01-l04-q08",
+      "type": "written",
+      "lesson": "w01-l04",
+      "prompt": "A Kotlin module is about to be called from a large Java codebase. Review it for Java callers: constants and fields, companion functions, top-level functions, checked exceptions and null-safety. What annotations or changes would you apply and why?",
+      "concept": "kotlin-jvm-interop-annotations",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/java-to-kotlin-interop.html",
+          "claim": "`@JvmField` exposes a property as a field (not private/open/override/const/delegated); `const` properties become static fields; top-level functions compile to a `Kt` facade class renamed with `@file:JvmName`; `@Throws` declares checked exceptions for Java; Kotlin generates runtime checks for all public functions that expect non-nulls.",
+          "title": "Calling Kotlin from Java | Kotlin Documentation",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        },
+        {
+          "url": "https://kotlinlang.org/docs/java-interop.html",
+          "claim": "In Kotlin, all exceptions are unchecked, so the compiler does not force you to catch any of them.",
+          "title": "Calling Java from Kotlin | Kotlin Documentation",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "kotlin-docs"
+      ],
+      "explanation": "A senior treats the Java-facing API as a product. They name the specific annotations and why each one is needed, and they point out that `@Throws` matters because Java will not compile a `catch` for a checked exception the method does not declare.",
+      "model_answer": {
+        "summary": "Make the Kotlin API feel natural in Java. Use `const val`/`@JvmField` for fields, `@JvmStatic` for companion functions, `@file:JvmName` for top-level functions, and `@Throws` for exceptions Java should catch. Rely on the generated runtime null checks and use nullable types so Java callers see accurate contracts.",
+        "key_points": [
+          "`const val` becomes a static field; `@JvmField` exposes a property as a public field (it needs a backing field and cannot be private, open, override, const or delegated)",
+          "`@JvmStatic` on companion functions generates a static method in the enclosing class, so Java does not need `.Companion`",
+          "Top-level functions compile to static methods of a `<File>Kt` class; `@file:JvmName(\"...\")` gives it a stable name, and `@JvmName` resolves signature clashes",
+          "Kotlin has no checked exceptions, so Java cannot catch a checked exception the signature does not declare; add `@Throws(IOException::class)` where Java callers must handle it",
+          "Kotlin inserts runtime null checks on public functions with non-null parameters, so a Java caller passing null fails immediately with an NPE"
+        ]
+      }
+    }
+  ]
+}

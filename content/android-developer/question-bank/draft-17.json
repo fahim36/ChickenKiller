@@ -1,0 +1,1312 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "fakes-over-mocks-test-doubles",
+      "name": "Fakes, stubs and mocks: choosing test doubles"
+    },
+    {
+      "id": "testable-design-injected-dependencies",
+      "name": "Designing for testability: injected dependencies and dispatchers"
+    },
+    {
+      "id": "mockk-strict-vs-relaxed-mocks",
+      "name": "MockK strict vs relaxed mocks and coroutine stubbing"
+    },
+    {
+      "id": "android-test-pyramid-scope",
+      "name": "The Android test pyramid and what to test"
+    },
+    {
+      "id": "stateflow-test-assert-value",
+      "name": "Testing StateFlow: conflation and stateIn collectors"
+    },
+    {
+      "id": "test-dispatcher-shared-scheduler",
+      "name": "Test dispatchers and a shared TestCoroutineScheduler"
+    },
+    {
+      "id": "turbine-flow-assertions",
+      "name": "Turbine flow assertions"
+    },
+    {
+      "id": "room-in-memory-database-testing",
+      "name": "Testing Room with an in-memory database"
+    },
+    {
+      "id": "compose-merged-semantics-tree",
+      "name": "Compose test finders and the merged semantics tree"
+    },
+    {
+      "id": "compose-test-clock-synchronization",
+      "name": "Compose test synchronization and the virtual clock"
+    },
+    {
+      "id": "robolectric-fidelity-tradeoffs",
+      "name": "Robolectric speed vs fidelity"
+    },
+    {
+      "id": "screenshot-test-reference-environment",
+      "name": "Screenshot tests: reference images and scope"
+    },
+    {
+      "id": "gradle-managed-devices-ci",
+      "name": "Running instrumented tests in CI with Gradle Managed Devices"
+    },
+    {
+      "id": "flaky-ui-test-root-causes",
+      "name": "Causes and fixes of flaky UI tests"
+    },
+    {
+      "id": "code-coverage-as-signal",
+      "name": "Code coverage as a signal, not a target"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w10-l01-q01",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w10-l01",
+      "prompt": "In Android's testing guidance, which description matches a **fake**?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A test double you program to return canned answers, with no expectations about how it is called"
+        },
+        {
+          "id": "b",
+          "text": "A test double with a working but test-only implementation, such as an in-memory database"
+        },
+        {
+          "id": "c",
+          "text": "A test double that fails the test if its calls don't match the expected interactions"
+        },
+        {
+          "id": "d",
+          "text": "A wrapper around a real object that records calls made to it"
+        }
+      ],
+      "concept": "fakes-over-mocks-test-doubles",
+      "sources": [
+        {
+          "url": "https://developer.android.com/training/testing/fundamentals/test-doubles",
+          "claim": "A fake has a working implementation unsuitable for production (e.g. an in-memory database); a mock has expectations about interactions; a stub has none; a spy wraps a real object. Fakes are lightweight and preferred.",
+          "title": "Use test doubles in Android",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        }
+      ],
+      "materials": [
+        "android-test-doubles"
+      ],
+      "explanation": "A fake is a working implementation that is fine for tests but not for production, such as an in-memory repository. Canned answers with no interaction checks describe a stub; failing on unexpected interactions is a mock; wrapping a real object is a spy. The guide prefers fakes because they need no mocking framework and stay lightweight."
+    },
+    {
+      "id": "w10-l01-q02",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w10-l01",
+      "prompt": "A ViewModel builds its own `Retrofit` client and calls `withContext(Dispatchers.IO)` directly. Local tests are slow and flaky. Which change most improves testability?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Move the logic into the Activity so it can be exercised end to end with an Espresso instrumented test running on a real device"
+        },
+        {
+          "id": "b",
+          "text": "Wrap every test in `Thread.sleep(500)` so the background IO work has time to finish before the assertions run"
+        },
+        {
+          "id": "c",
+          "text": "Mock the `Dispatchers.IO` object itself with `mockkStatic` so it executes on the calling test thread instead of a background one"
+        },
+        {
+          "id": "d",
+          "text": "Inject the repository through an interface and inject the dispatcher, so tests pass a fake and a `TestDispatcher`"
+        }
+      ],
+      "concept": "testable-design-injected-dependencies",
+      "sources": [
+        {
+          "url": "https://developer.android.com/training/testing/fundamentals",
+          "claim": "Avoid adding logic to activities and fragments, avoid framework dependencies in business logic, and make dependencies easy to replace, for example with interfaces instead of concrete implementations.",
+          "title": "Fundamentals of testing Android apps",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        },
+        {
+          "url": "https://developer.android.com/kotlin/coroutines/test",
+          "claim": "Inject dispatchers so tests can replace them with TestDispatchers that share runTest's scheduler.",
+          "title": "Testing Kotlin coroutines on Android",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        }
+      ],
+      "materials": [
+        "android-testing-fundamentals",
+        "android-coroutines"
+      ],
+      "explanation": "The guide recommends replaceable dependencies (interfaces rather than concrete classes, injected) and injecting dispatchers so tests can use a `TestDispatcher` sharing the test scheduler. That makes tests fast and deterministic. Moving logic into Activities goes against the guidance, sleeps cause flakiness, and static-mocking dispatchers is fragile."
+    },
+    {
+      "id": "w10-l01-q03",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w10-l01",
+      "prompt": "A test creates `val repo = mockk<UserRepository>()` and the code under test calls `repo.lastSync()`, which the test never stubbed. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The call throws, because MockK mocks are strict by default and need behaviour stubbed for every call that is made on them"
+        },
+        {
+          "id": "b",
+          "text": "The call quietly returns `null`, because MockK mocks return sensible default values for any function nobody bothered to stub"
+        },
+        {
+          "id": "c",
+          "text": "The call transparently falls through and runs the real `UserRepository.lastSync()` implementation on the actual backing class"
+        },
+        {
+          "id": "d",
+          "text": "The call is simply recorded, and the test still passes as long as nobody later calls `confirmVerified(repo)` on that mock"
+        }
+      ],
+      "concept": "mockk-strict-vs-relaxed-mocks",
+      "sources": [
+        {
+          "url": "https://mockk.io/",
+          "claim": "By default mocks are strict, so you need to provide some behaviour; a relaxed mock (relaxed = true) returns simple values for all functions; spyk mixes mocks and real objects.",
+          "title": "MockK",
+          "accessed": "2026-09-27",
+          "publisher": "MockK"
+        }
+      ],
+      "materials": [
+        "mockk"
+      ],
+      "explanation": "MockK mocks are strict by default: calling an unstubbed function fails. Returning simple defaults requires `mockk(relaxed = true)`, and calling real code requires `spyk`. Strictness catches unexpected interactions, but it also ties tests to implementation details."
+    },
+    {
+      "id": "w10-l01-q04",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w10-l01",
+      "prompt": "You need to stub a `suspend fun fetchUser(id: String): User` on a MockK mock and later check that it was called once. Which pair is correct?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`every { api.fetchUser(\"1\") } returns user` and `verify(exactly = 1) { api.fetchUser(\"1\") }`"
+        },
+        {
+          "id": "b",
+          "text": "`whenever(api.fetchUser(\"1\")).thenReturn(user)` and `verify(api).fetchUser(\"1\")`"
+        },
+        {
+          "id": "c",
+          "text": "`coEvery { api.fetchUser(\"1\") } returns user` and `coVerify(exactly = 1) { api.fetchUser(\"1\") }`"
+        },
+        {
+          "id": "d",
+          "text": "`spyk(api)` and `confirmVerified(api)`"
+        }
+      ],
+      "concept": "mockk-strict-vs-relaxed-mocks",
+      "sources": [
+        {
+          "url": "https://mockk.io/",
+          "claim": "MockK provides coEvery and coVerify for suspend functions, verify(exactly = n) for call counts, and confirmVerified to ensure all recorded calls were verified.",
+          "title": "MockK",
+          "accessed": "2026-09-27",
+          "publisher": "MockK"
+        }
+      ],
+      "materials": [
+        "mockk"
+      ],
+      "explanation": "Suspend functions are stubbed and verified with the coroutine variants `coEvery` and `coVerify`; `exactly = 1` sets the call count. Plain `every`/`verify` are for regular functions, `whenever`/`thenReturn` is Mockito-Kotlin syntax, and `confirmVerified` only checks that every recorded call was verified."
+    },
+    {
+      "id": "w10-l01-q05",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w10-l01",
+      "prompt": "According to Android's testing strategy guidance, how should tests be distributed, and why?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Mostly end-to-end tests running on real devices, because only a full device test reflects what a real user actually experiences"
+        },
+        {
+          "id": "b",
+          "text": "Roughly equal numbers of unit, integration and end-to-end tests, so the suite gives balanced coverage across every layer of the app"
+        },
+        {
+          "id": "c",
+          "text": "Only instrumented tests, because local JVM tests are unable to exercise any genuine Android framework API at all"
+        },
+        {
+          "id": "d",
+          "text": "Many small tests and few big ones, since small tests are fast and cheap while big tests are slower and costlier"
+        }
+      ],
+      "concept": "android-test-pyramid-scope",
+      "sources": [
+        {
+          "url": "https://developer.android.com/training/testing/fundamentals/strategies",
+          "claim": "Most apps should have many small tests and relatively few big tests, forming a pyramid; a bug caught by a unit test is typically fixed in minutes, while an end-to-end test could take days to discover it.",
+          "title": "Testing strategies",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        }
+      ],
+      "materials": [
+        "android-testing-fundamentals"
+      ],
+      "explanation": "The guidance describes a pyramid: many small tests at the base and relatively few big tests at the top. A bug caught by a unit test is usually fixed in minutes, while an end-to-end test might take days to find the same bug. Big tests have higher fidelity but are slower and more prone to flakiness, so they're used for critical journeys."
+    },
+    {
+      "id": "w10-l01-q06",
+      "type": "written",
+      "lesson": "w10-l01",
+      "prompt": "A repository test uses MockK to stub five DAO and API calls and then verifies the exact order of calls. Every refactor breaks it, even when behaviour is unchanged. Explain why, and rewrite the approach using fakes. When is a mock still the right choice?",
+      "concept": "fakes-over-mocks-test-doubles",
+      "sources": [
+        {
+          "url": "https://developer.android.com/training/testing/fundamentals/test-doubles",
+          "claim": "Mocks have expectations about interactions and fail tests if they don't match; fakes have working implementations, don't require a mocking framework, are lightweight and are preferred.",
+          "title": "Use test doubles in Android",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        },
+        {
+          "url": "https://mockk.io/",
+          "claim": "MockK mocks are strict by default and support verify(exactly = n) and ordering checks, which enforce specific interactions.",
+          "title": "MockK",
+          "accessed": "2026-09-27",
+          "publisher": "MockK"
+        }
+      ],
+      "materials": [
+        "android-test-doubles",
+        "mockk"
+      ],
+      "explanation": "The senior answer is not 'mocks bad', it is choosing the double by what is being asserted. Android's guidance prefers fakes, and a good candidate explains the maintenance cost of over-specified mocks.",
+      "model_answer": {
+        "summary": "Interaction-heavy mocks tie tests to implementation details (which calls, in what order), so refactors break them. Fakes, such as an in-memory DAO and a fake API, let the test assert on observable outcomes. Keep mocks for verifying interactions that are the behaviour itself, such as 'analytics event sent once'.",
+        "key_points": [
+          "Mocks with strict expectations encode how the code works, not what it does, so behaviour-preserving refactors fail tests",
+          "A fake is a working lightweight implementation (in-memory DAO, fake network source) that needs no mocking framework",
+          "With fakes, arrange state, run the operation, and assert on results or emitted data (for example cache-then-network), not on the call sequence",
+          "Fakes can be shared across tests and modules, for example in a test module, so they get maintained once",
+          "Mocks still fit when the interaction is the contract: a side effect with no observable state, such as sending an event exactly once"
+        ]
+      }
+    },
+    {
+      "id": "w10-l01-q07",
+      "type": "written",
+      "lesson": "w10-l01",
+      "prompt": "You inherit a feature where a Fragment calls Retrofit, writes to Room, and uses `GlobalScope.launch(Dispatchers.IO)`. Describe the refactor that makes it testable, and which tests you would write at each layer afterwards.",
+      "concept": "testable-design-injected-dependencies",
+      "sources": [
+        {
+          "url": "https://developer.android.com/training/testing/fundamentals",
+          "claim": "Split the app into layers, avoid logic in activities and fragments, avoid framework dependencies in business logic, and use dependency injection with interfaces; untestable architecture gives bigger, slower, more flaky tests.",
+          "title": "Fundamentals of testing Android apps",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        },
+        {
+          "url": "https://developer.android.com/kotlin/coroutines/test",
+          "claim": "Replace real dispatchers with injected TestDispatchers for deterministic tests.",
+          "title": "Testing Kotlin coroutines on Android",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        }
+      ],
+      "materials": [
+        "android-testing-fundamentals",
+        "android-coroutines"
+      ],
+      "explanation": "Senior candidates tie each refactor step to what it enables in tests and follow the guidance: no logic in framework classes, replaceable dependencies, controllable dispatchers.",
+      "model_answer": {
+        "summary": "Move logic out of the Fragment into a ViewModel and a repository behind interfaces, inject dependencies (DI) and dispatchers, and use structured scopes. Then write local unit tests for the ViewModel with fakes and `runTest`, repository tests with fakes or an in-memory Room, and a few UI tests.",
+        "key_points": [
+          "Split into layers: UI (Fragment/Compose) only renders state; a ViewModel holds presentation logic; a repository owns data access",
+          "Put interfaces at the boundaries (API, DAO, repository) and inject them, so tests can substitute fakes",
+          "Inject the `CoroutineDispatcher` and replace `GlobalScope` with `viewModelScope` or an injected scope, so tests control scheduling with a `TestDispatcher`",
+          "Remove Android framework types (Context) from business logic so it runs in fast local JVM tests",
+          "Then test: ViewModel state tests (local), repository tests with fakes or an in-memory database, and a small number of UI tests for critical flows"
+        ]
+      }
+    },
+    {
+      "id": "w10-l01-q08",
+      "type": "written",
+      "lesson": "w10-l01",
+      "prompt": "You have a one-day take-home (fetch, list, detail, offline). How do you decide what to test with the time you have, and what do you write in the README about testing?",
+      "concept": "android-test-pyramid-scope",
+      "sources": [
+        {
+          "url": "https://blog.blundellapps.co.uk/android-job-interview-take-home-test-cheat-sheet/",
+          "claim": "Repository tests should cover online/offline and with/without cached data; ViewModel tests can be noted where time is short; add a README that pastes the rubric and marks each item done.",
+          "title": "Android job interview take-home test cheat sheet",
+          "accessed": "2026-09-27",
+          "publisher": "Blundell Apps"
+        },
+        {
+          "url": "https://developer.android.com/training/testing/fundamentals/strategies",
+          "claim": "Start with small tests early; many small tests and relatively few big tests.",
+          "title": "Testing strategies",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        }
+      ],
+      "materials": [
+        "android-testing-fundamentals",
+        "android-test-doubles"
+      ],
+      "explanation": "Reviewers look for judgment: tests at the right layer with the right doubles, and an honest account of gaps. Covering everything shallowly scores lower than covering the risky data logic well.",
+      "model_answer": {
+        "summary": "Put tests where the logic and risk are: repository tests for online, offline and cached scenarios, and ViewModel state tests, with fakes at the boundaries. Add one UI test for the main flow if time allows. Use the README to map the rubric, explain trade-offs, and list the tests you would add next.",
+        "key_points": [
+          "Prioritize repository tests: online/offline and with/without cached data, since the offline logic is what reviewers check",
+          "ViewModel tests for loading, success and error states using fakes and a test dispatcher",
+          "A small number of UI tests (or one Compose test) for the main list-to-detail flow, following the pyramid",
+          "README: paste the rubric, mark each item done, and explain testing choices and what you would add with more time",
+          "Tests should be deterministic and fast, with no real network calls or sleeps"
+        ]
+      }
+    },
+    {
+      "id": "w10-l02-q01",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w10-l02",
+      "prompt": "A ViewModel's `uiState: StateFlow<UiState>` moves quickly through `Loading` to `Success`. A test that collects every emission and expects `[Loading, Success]` sometimes gets only `[Success]`. What is the recommended fix?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Add an artificial `delay(100)` between the `Loading` and `Success` emissions inside the ViewModel so the test has time to observe both"
+        },
+        {
+          "id": "b",
+          "text": "Collect the flow with `.buffer(Channel.UNLIMITED)` applied downstream, so that every intermediate value is queued and none is dropped"
+        },
+        {
+          "id": "c",
+          "text": "Treat the `StateFlow` as a state holder: drive the fake step by step and assert on `uiState.value` at each point"
+        },
+        {
+          "id": "d",
+          "text": "Switch the ViewModel's exposed type to a `SharedFlow` configured with `replay = 0`, so every collector sees every emission in order"
+        }
+      ],
+      "concept": "stateflow-test-assert-value",
+      "sources": [
+        {
+          "url": "https://developer.android.com/kotlin/flow/test",
+          "claim": "StateFlow is conflated, so collectors are not guaranteed to receive all intermediate values; we generally recommend treating StateFlow as a data holder and asserting on its value property.",
+          "title": "Testing Kotlin flows on Android",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        }
+      ],
+      "materials": [
+        "android-coroutines",
+        "turbine"
+      ],
+      "explanation": "`StateFlow` is conflated, so collectors aren't guaranteed to see intermediate values, only the latest. The guidance recommends asserting on `value` after each controlled step. Buffering downstream can't recover values the conflated flow never delivered, and changing production code or adding delays to suit a test is the wrong direction."
+    },
+    {
+      "id": "w10-l02-q02",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w10-l02",
+      "prompt": "The ViewModel exposes `repo.scores().map { ... }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)`. The test emits from a fake repository and asserts on `viewModel.score.value`, but it always stays `0`. Why?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "With `WhileSubscribed`, upstream isn't collected until there's a subscriber; start one in `backgroundScope` with `UnconfinedTestDispatcher`"
+        },
+        {
+          "id": "b",
+          "text": "`stateIn` with `WhileSubscribed(5_000)` always needs an explicit `advanceTimeBy(5_000)` call before its very first value becomes available"
+        },
+        {
+          "id": "c",
+          "text": "The `.value` property is simply never updated at all for any `StateFlow` that was created through the `stateIn` operator"
+        },
+        {
+          "id": "d",
+          "text": "The fake repository's `scores()` function must itself return a `StateFlow` rather than a plain `Flow` for `stateIn` to work correctly"
+        }
+      ],
+      "concept": "stateflow-test-assert-value",
+      "sources": [
+        {
+          "url": "https://developer.android.com/kotlin/flow/test",
+          "claim": "When testing a StateFlow created with stateIn and WhileSubscribed, there must be at least one collector; create an empty collector in backgroundScope with UnconfinedTestDispatcher(testScheduler).",
+          "title": "Testing Kotlin flows on Android",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        }
+      ],
+      "materials": [
+        "android-coroutines"
+      ],
+      "explanation": "`WhileSubscribed` starts sharing only while there's at least one subscriber, and reading `.value` doesn't subscribe. The documented pattern launches an empty collector in `backgroundScope` using `UnconfinedTestDispatcher(testScheduler)`. The 5-second value is the stop timeout, not a start delay."
+    },
+    {
+      "id": "w10-l02-q03",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w10-l02",
+      "prompt": "A test class creates `private val dispatcher = StandardTestDispatcher()` as a field and passes it to the repository, then the test body uses `runTest { ... advanceUntilIdle() ... }`. Work launched on the repository's dispatcher never runs. Why?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`StandardTestDispatcher` runs every coroutine eagerly and immediately, so any later call to `advanceUntilIdle()` has nothing left to do"
+        },
+        {
+          "id": "b",
+          "text": "The field's dispatcher has its own separate scheduler; advancing `runTest`'s doesn't run it, so all dispatchers must share one"
+        },
+        {
+          "id": "c",
+          "text": "`advanceUntilIdle()` only drains work scheduled specifically on `Dispatchers.Main`, never on any other injected dispatcher"
+        },
+        {
+          "id": "d",
+          "text": "`runTest` automatically cancels any coroutine that was launched on a dispatcher injected from outside the test body itself"
+        }
+      ],
+      "concept": "test-dispatcher-shared-scheduler",
+      "sources": [
+        {
+          "url": "https://developer.android.com/kotlin/coroutines/test",
+          "claim": "There must be only one TestCoroutineScheduler shared between all TestDispatchers in a test; creating a dispatcher with StandardTestDispatcher(testScheduler) shares runTest's scheduler; TestDispatchers created after Dispatchers.setMain use Main's scheduler.",
+          "title": "Testing Kotlin coroutines on Android",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        }
+      ],
+      "materials": [
+        "android-coroutines"
+      ],
+      "explanation": "Each `TestDispatcher` created without a scheduler gets a new one unless `Dispatchers.Main` was set to a test dispatcher first. Coroutines on a different scheduler aren't advanced by `runTest`'s `advanceUntilIdle()`. Fix it by creating the dispatcher inside the test with `StandardTestDispatcher(testScheduler)`, or set Main first (for example with a `MainDispatcherRule`). `StandardTestDispatcher` queues work; it is `Unconfined` that runs eagerly."
+    },
+    {
+      "id": "w10-l02-q04",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w10-l02",
+      "prompt": "You want fast, hermetic tests of your Room DAOs. Which approach matches the current Room testing guidance?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Build with `Room.inMemoryDatabaseBuilder(...)`, close it in `@After`, and run on device or the JVM with `BundledSQLiteDriver`"
+        },
+        {
+          "id": "b",
+          "text": "Mock each DAO interface with MockK and assert that the expected query methods were called with the expected arguments"
+        },
+        {
+          "id": "c",
+          "text": "Use the real on-disk production database file for every test class, so results match production and tests can share seeded data"
+        },
+        {
+          "id": "d",
+          "text": "Run DAO tests as Robolectric local tests, which the current Room documentation names as its recommended approach for DAOs"
+        }
+      ],
+      "concept": "room-in-memory-database-testing",
+      "sources": [
+        {
+          "url": "https://developer.android.com/training/data-storage/room/testing-db",
+          "claim": "Create an in-memory database with Room.inMemoryDatabaseBuilder for hermetic tests and close it in @After; BundledSQLiteDriver uses the same SQLite version across host and devices; Robolectric local tests are not recommended.",
+          "title": "Test and debug your database",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        }
+      ],
+      "materials": [
+        "android-room"
+      ],
+      "explanation": "An in-memory database disappears when the process ends, which keeps tests hermetic, and it must be closed in `@After`. The guidance recommends device tests, or host JVM tests with `BundledSQLiteDriver` for a consistent SQLite version, and explicitly does not recommend Robolectric for this. Mocking the DAO tests nothing about your SQL, and a shared on-disk file leaks state between tests."
+    },
+    {
+      "id": "w10-l02-q05",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w10-l02",
+      "prompt": "In a Turbine `flow.test { ... }` block, you assert on the first item and the block ends while the flow has already emitted a second item. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The test passes silently; Turbine drops any event nobody explicitly asserted on once the `test { }` block finishes"
+        },
+        {
+          "id": "b",
+          "text": "The test hangs and only fails once `runTest`'s own default 60-second coroutine timeout is finally reached"
+        },
+        {
+          "id": "c",
+          "text": "Turbine automatically calls `awaitComplete()` on the flow's behalf before the block exits, consuming whatever is left"
+        },
+        {
+          "id": "d",
+          "text": "The test fails with an 'Unconsumed events found' error; call `cancelAndIgnoreRemainingEvents()` to opt out on purpose"
+        }
+      ],
+      "concept": "turbine-flow-assertions",
+      "sources": [
+        {
+          "url": "https://github.com/cashapp/turbine",
+          "claim": "test launches a coroutine that collects the flow, then cancels it and calls ensureAllEventsConsumed(); unconsumed events fail with 'Unconsumed events found'; cancelAndIgnoreRemainingEvents() skips that check; default timeout is 3 seconds of wall-clock time.",
+          "title": "Turbine",
+          "accessed": "2026-09-27",
+          "publisher": "Cash App (GitHub)"
+        }
+      ],
+      "materials": [
+        "turbine"
+      ],
+      "explanation": "At the end of `test`, Turbine cancels collection and calls `ensureAllEventsConsumed()`, so leftover items fail the test. That catches unexpected emissions. `cancelAndIgnoreRemainingEvents()` opts out on purpose. Turbine's own wait timeout is 3 seconds of wall-clock time, not virtual time."
+    },
+    {
+      "id": "w10-l02-q06",
+      "type": "written",
+      "lesson": "w10-l02",
+      "prompt": "Explain how you set up local unit tests for a ViewModel that launches work in `viewModelScope` and calls a repository that switches to an injected IO dispatcher. Compare `StandardTestDispatcher` and `UnconfinedTestDispatcher` and say when you use each.",
+      "concept": "test-dispatcher-shared-scheduler",
+      "sources": [
+        {
+          "url": "https://developer.android.com/kotlin/coroutines/test",
+          "claim": "runTest skips delays and has a 60-second default timeout; StandardTestDispatcher queues coroutines and needs advanceUntilIdle or runCurrent; UnconfinedTestDispatcher runs eagerly; use a MainDispatcherRule with setMain/resetMain; share a single scheduler.",
+          "title": "Testing Kotlin coroutines on Android",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        }
+      ],
+      "materials": [
+        "android-coroutines",
+        "turbine"
+      ],
+      "explanation": "The trap seniors avoid is multiple schedulers. A strong answer also explains that `StandardTestDispatcher` is what lets you observe `Loading` before `Success`.",
+      "model_answer": {
+        "summary": "Replace `Dispatchers.Main` with a test dispatcher through a `MainDispatcherRule`, inject a test dispatcher into the repository that shares the same scheduler, and write the test in `runTest`. `StandardTestDispatcher` queues coroutines and needs `advanceUntilIdle()` or `runCurrent()`, giving control over ordering; `UnconfinedTestDispatcher` runs eagerly, which is simpler but less like production.",
+        "key_points": [
+          "`viewModelScope` uses `Dispatchers.Main`, which isn't available in local tests, so use `Dispatchers.setMain`/`resetMain`, usually in a `MainDispatcherRule`",
+          "Inject the repository's dispatcher and use a `TestDispatcher` that shares one `TestCoroutineScheduler` with `runTest`",
+          "`runTest` skips `delay` with virtual time and waits for coroutines on test dispatchers; its default timeout is 60 seconds",
+          "`StandardTestDispatcher` queues new coroutines until the test yields (`advanceUntilIdle`, `runCurrent`, `advanceTimeBy`), so intermediate states like Loading can be asserted",
+          "`UnconfinedTestDispatcher` starts coroutines eagerly; it's convenient for collectors in `backgroundScope` but hides ordering and concurrency issues"
+        ]
+      }
+    },
+    {
+      "id": "w10-l02-q07",
+      "type": "written",
+      "lesson": "w10-l02",
+      "prompt": "Write out (in words or pseudo-code) a Turbine-based test plan for a repository flow `observeArticles()` that emits the cached list, then the refreshed network list, and reports an error if the network fails. What pitfalls do you watch for?",
+      "concept": "turbine-flow-assertions",
+      "sources": [
+        {
+          "url": "https://github.com/cashapp/turbine",
+          "claim": "awaitItem, awaitComplete and awaitError assert emissions; unconsumed events fail the test; expectMostRecentItem returns the latest item; the default timeout is 3 seconds wall-clock.",
+          "title": "Turbine",
+          "accessed": "2026-09-27",
+          "publisher": "Cash App (GitHub)"
+        },
+        {
+          "url": "https://developer.android.com/kotlin/flow/test",
+          "claim": "Use fake repositories that emit flows; Turbine offers a convenient API for testing flows inside runTest.",
+          "title": "Testing Kotlin flows on Android",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        }
+      ],
+      "materials": [
+        "turbine",
+        "android-coroutines"
+      ],
+      "explanation": "Strong answers show why Turbine helps: it makes the order of emissions explicit and fails on unexpected extra events. They also know where it doesn't fit, such as conflated state.",
+      "model_answer": {
+        "summary": "Use a fake data source you control, run `observeArticles().test { }` inside `runTest`, and assert with `awaitItem()` for the cached then refreshed lists, `awaitError()` or an error state for failure, and `awaitComplete()` if the flow ends. Mind the unconsumed-events check, StateFlow conflation, and Turbine's wall-clock timeout.",
+        "key_points": [
+          "Arrange a fake local and network source; start collecting with `flow.test { }` inside `runTest`",
+          "Success: `awaitItem()` equals the cached list, then trigger or emit the network result, and `awaitItem()` equals the refreshed list",
+          "Failure: the fake throws and you assert `awaitError()` (or an error item if errors are modelled as values)",
+          "Every event must be consumed or the block fails; use `cancelAndIgnoreRemainingEvents()` only on purpose for infinite flows",
+          "Turbine's 3-second timeout is wall-clock time; for conflated `StateFlow`s prefer asserting on `value` or `expectMostRecentItem()`"
+        ]
+      }
+    },
+    {
+      "id": "w10-l02-q08",
+      "type": "written",
+      "lesson": "w10-l02",
+      "prompt": "Your offline-first repository reads from Room and refreshes from the network. Describe how you test the DAO queries and the repository's cache behaviour, including where each test runs and why.",
+      "concept": "room-in-memory-database-testing",
+      "sources": [
+        {
+          "url": "https://developer.android.com/training/data-storage/room/testing-db",
+          "claim": "Use an in-memory database for hermetic tests and close it in @After; Room KMP supports host JVM tests with BundledSQLiteDriver, which uses the same SQLite version everywhere; Robolectric is not recommended; see Testing Migrations for migrations.",
+          "title": "Test and debug your database",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        }
+      ],
+      "materials": [
+        "android-room",
+        "android-coroutines"
+      ],
+      "explanation": "A senior answer puts each test at the right fidelity: real SQL for DAOs and fakes at the network boundary. Mentioning the SQLite-version issue that `BundledSQLiteDriver` solves shows current knowledge.",
+      "model_answer": {
+        "summary": "Test DAOs against a real in-memory Room database (on device, or on the JVM with `BundledSQLiteDriver`), because that exercises your actual SQL. Test the repository's cache and refresh policy with that database or a fake DAO plus a fake network source, asserting on the emitted data in `runTest`.",
+        "key_points": [
+          "DAO tests use `Room.inMemoryDatabaseBuilder` so data is discarded with the process and tests are hermetic; close the database in `@After`",
+          "Run them as instrumented tests or as host JVM tests with `BundledSQLiteDriver` so the SQLite version matches; Robolectric isn't recommended for Room",
+          "Don't mock DAOs to test queries, since that tests nothing about the SQL or the Flow invalidation",
+          "Repository tests: fake network source for success, failure and offline; assert the flow emits cached data first, then updated data after refresh",
+          "Test migrations separately with exported schemas"
+        ]
+      }
+    },
+    {
+      "id": "w10-l03-q01",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w10-l03",
+      "prompt": "A `Button` contains `Row { Icon(...); Text(\"Pay\"); Text(\"$20\") }`. The test `onNodeWithText(\"$20\").assertIsDisplayed()` finds the button node, but `onNodeWithText(\"$20\").assertTextEquals(\"$20\")` fails. Why?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "By default finders search the merged tree, where the Button's children merge into one node with both strings; use `useUnmergedTree = true`"
+        },
+        {
+          "id": "b",
+          "text": "`onNodeWithText` only ever matches a node's `contentDescription` property, and never matches the literal text drawn by a `Text` composable in the tree"
+        },
+        {
+          "id": "c",
+          "text": "The `Icon` composable placed before the two `Text` nodes blocks semantics reporting for every one of its sibling composables"
+        },
+        {
+          "id": "d",
+          "text": "Text rendered inside a `Button` composable isn't merged into the semantics tree that Compose test finders search at all"
+        }
+      ],
+      "concept": "compose-merged-semantics-tree",
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/testing/apis",
+          "claim": "By default semantics information is merged; a Button with Text children merges into a single node; set useUnmergedTree = true to access unmerged children.",
+          "title": "Testing APIs (Compose)",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        },
+        {
+          "url": "https://developer.android.com/develop/ui/compose/testing",
+          "claim": "Tests find elements through the semantics tree with finders such as onNodeWithText and onNodeWithTag.",
+          "title": "Testing your Compose layout",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        }
+      ],
+      "materials": [
+        "compose-testing"
+      ],
+      "explanation": "Compose test finders use the merged tree by default, so a Button and its text children form one node that holds all the text values. Matching on '$20' finds the button, but its text is not exactly '$20'. `useUnmergedTree = true` reaches the child `Text` nodes."
+    },
+    {
+      "id": "w10-l03-q02",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w10-l03",
+      "prompt": "An off-screen item in a `LazyColumn` has been composed but scrolled out of view. Which assertion is true for it?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`assertIsDisplayed()` passes for this off-screen node simply because Compose has already composed it once during the initial layout pass and cached the result"
+        },
+        {
+          "id": "b",
+          "text": "`assertExists()` can pass since the node is in the semantics tree, while `assertIsDisplayed()` fails since it isn't visible in bounds"
+        },
+        {
+          "id": "c",
+          "text": "Both `assertExists()` and `assertIsDisplayed()` fail on it, because Compose eagerly removes every off-screen node from the tree"
+        },
+        {
+          "id": "d",
+          "text": "`assertDoesNotExist()` passes on this node, because that assertion actually checks on-screen visibility rather than tree presence"
+        }
+      ],
+      "concept": "compose-merged-semantics-tree",
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/testing/apis",
+          "claim": "assertExists only confirms the node exists in the semantics tree; assertIsDisplayed confirms it exists and is visible within bounds; performScrollToNode scrolls to a node.",
+          "title": "Testing APIs (Compose)",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        }
+      ],
+      "materials": [
+        "compose-testing"
+      ],
+      "explanation": "`assertExists()` only checks that the node is in the semantics tree; `assertIsDisplayed()` also requires it to be visible on screen within bounds. `assertDoesNotExist()` checks presence in the tree, not visibility. To check an item that is not composed yet, scroll with `performScrollToNode` first."
+    },
+    {
+      "id": "w10-l03-q03",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w10-l03",
+      "prompt": "You want to assert the midpoint of a 300 ms Compose animation. By default the assertion always sees the end state. What do you do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Add a plain `Thread.sleep(150)` call on the test thread right before running the assertion against the animated composable"
+        },
+        {
+          "id": "b",
+          "text": "Wrap the assertion in `runBlocking { delay(150) }` so real wall-clock time passes before the check against the animated node runs"
+        },
+        {
+          "id": "c",
+          "text": "Register a custom `IdlingResource` that simply reports itself as busy for a fixed 150 ms window around the animation"
+        },
+        {
+          "id": "d",
+          "text": "Set `composeTestRule.mainClock.autoAdvance = false`, trigger it, then `mainClock.advanceTimeBy(150)` before asserting"
+        }
+      ],
+      "concept": "compose-test-clock-synchronization",
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/testing/synchronization",
+          "claim": "Compose tests are synchronized by default and use a virtual clock; set composeTestRule.mainClock.autoAdvance = false and advance with advanceTimeByFrame or advanceTimeBy; register idling resources for background work unknown to Compose.",
+          "title": "Synchronize your tests (Compose)",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        }
+      ],
+      "materials": [
+        "compose-testing"
+      ],
+      "explanation": "Compose tests are synchronized with the UI and use a virtual clock that advances until idle before assertions, so animations finish first. Turning off `autoAdvance` and advancing the clock by hand lets you observe intermediate frames. Real-time sleeps and delays don't drive the virtual clock and make tests flaky, and idling resources are for background work Compose doesn't know about."
+    },
+    {
+      "id": "w10-l03-q04",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w10-l03",
+      "prompt": "Which test is the poorest fit for Robolectric according to Android's guidance?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A Compose test that clicks a button and checks that an on-screen counter's displayed text is updated to the expected new value"
+        },
+        {
+          "id": "b",
+          "text": "A test that checks a screen's state handling and recomposition after a sequence of simulated text-field input changes"
+        },
+        {
+          "id": "c",
+          "text": "A test of edge-to-edge insets and picture-in-picture behaviour, or a screen that relies on `WebView`"
+        },
+        {
+          "id": "d",
+          "text": "A quick screenshot test of an isolated component, taken where pixel-perfect rendering accuracy isn't considered critical"
+        }
+      ],
+      "concept": "robolectric-fidelity-tradeoffs",
+      "sources": [
+        {
+          "url": "https://developer.android.com/training/testing/local-tests/robolectric",
+          "claim": "Robolectric doesn't support all features and APIs; use it for isolated UI behavior and screenshots where pixel accuracy isn't critical; use device tests for system UI features like edge-to-edge and picture-in-picture and unsupported features like WebView.",
+          "title": "Robolectric strategies",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        }
+      ],
+      "materials": [
+        "compose-testing",
+        "android-testing-fundamentals"
+      ],
+      "explanation": "Robolectric simulates Android on the JVM and is fast, but it has no real screen and only partial support for some APIs. The guide recommends device tests for system UI features such as edge-to-edge and picture-in-picture and for unsupported features like `WebView`. Isolated UI behaviour and approximate screenshots are good Robolectric uses."
+    },
+    {
+      "id": "w10-l03-q05",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w10-l03",
+      "prompt": "Your team records screenshot reference images on their Macs, and the Linux CI job keeps failing with tiny text and shadow differences. What is the recommended remedy?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Generate and update reference images in one consistent environment such as CI, and configure a tolerance for small pixel differences"
+        },
+        {
+          "id": "b",
+          "text": "Delete the screenshot tests entirely, since rendering differs so much between operating systems that they can never be made to work reliably across a team"
+        },
+        {
+          "id": "c",
+          "text": "Record all reference images at a much lower resolution than the real device, so subtle text and shadow differences disappear"
+        },
+        {
+          "id": "d",
+          "text": "Run screenshot tests only on developers' own Mac machines and skip running or validating them at all inside Linux CI jobs"
+        }
+      ],
+      "concept": "screenshot-test-reference-environment",
+      "sources": [
+        {
+          "url": "https://developer.android.com/training/testing/ui-tests/screenshot",
+          "claim": "If you develop on a Mac and save new screenshots locally, you might see broken tests on a Linux CI machine; tolerate small changes with thresholds or take screenshots on a server.",
+          "title": "Screenshot testing",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        }
+      ],
+      "materials": [
+        "compose-testing"
+      ],
+      "explanation": "Screenshot tests depend on low-level platform drawing (text, shadows) that differs between operating systems and hardware, so references from a Mac can fail on Linux CI. The guidance is to tolerate small differences with a threshold or smart differ, and to take the screenshots on a server in consistent conditions."
+    },
+    {
+      "id": "w10-l03-q06",
+      "type": "written",
+      "lesson": "w10-l03",
+      "prompt": "A Compose UI test for a list screen passes locally but fails intermittently in CI: the list loads from a repository on a background dispatcher, and the test asserts the first item right after launch. Explain why this happens and how to fix it properly.",
+      "concept": "compose-test-clock-synchronization",
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/testing/synchronization",
+          "claim": "Compose tests synchronize with the UI and a virtual clock; use waitUntil or waitUntilAtLeastOneExists for conditions, and register idling resources for background work unknown to Compose.",
+          "title": "Synchronize your tests (Compose)",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        },
+        {
+          "url": "https://developer.android.com/training/testing/instrumented-tests/stability",
+          "claim": "Avoid sleeps, which make tests slow or flaky; use idling resources in small UI tests and wait-until APIs in bigger ones; replace modules with test versions such as TestDispatcher.",
+          "title": "Big test stability",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        }
+      ],
+      "materials": [
+        "compose-testing"
+      ],
+      "explanation": "Senior answers explain what Compose's automatic synchronization covers and what it doesn't, then choose determinism (fakes) first and conditional waits second.",
+      "model_answer": {
+        "summary": "Compose synchronizes with its own recomposition and virtual clock, but not with background work it can't see, so the assertion can run before data arrives. Fix it by injecting a fake repository or a test dispatcher so loading is deterministic, or by waiting on a condition with `waitUntil`-style APIs or an idling resource, never with sleeps.",
+        "key_points": [
+          "Compose test rules wait for the UI to be idle, but background loading on other dispatchers is invisible to them",
+          "Best fix: test the screen in isolation with fake state or a fake repository, so no real async work happens",
+          "Otherwise wait on a condition: `waitUntilAtLeastOneExists(hasText(...))` or `waitUntil { ... }` with a timeout",
+          "Or register an `IdlingResource` that tracks the background work, or use a `TestDispatcher`",
+          "Never use `Thread.sleep`, which is slow and still flaky across environments"
+        ]
+      }
+    },
+    {
+      "id": "w10-l03-q07",
+      "type": "written",
+      "lesson": "w10-l03",
+      "prompt": "Your team wants to move most Compose UI tests from emulators to Robolectric to speed up CI. Give your recommendation, including what you would keep on devices and why.",
+      "concept": "robolectric-fidelity-tradeoffs",
+      "sources": [
+        {
+          "url": "https://developer.android.com/training/testing/local-tests/robolectric",
+          "claim": "Robolectric runs tests in a simulated Android environment inside a JVM without emulator overhead and flakiness; it doesn't support all APIs; any UI test in the test source set runs with Robolectric.",
+          "title": "Robolectric strategies",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        },
+        {
+          "url": "https://developer.android.com/training/testing/fundamentals",
+          "claim": "Big local tests can use simulators like Robolectric to test larger portions of the app on the host.",
+          "title": "Fundamentals of testing Android apps",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        }
+      ],
+      "materials": [
+        "compose-testing",
+        "android-testing-fundamentals"
+      ],
+      "explanation": "The balanced senior answer uses Robolectric to widen the fast layer of the pyramid without pretending it replaces device coverage.",
+      "model_answer": {
+        "summary": "Move isolated component and screen behaviour tests to Robolectric (the `test` source set) for speed and stability, but keep a smaller set of device tests for system integration, real rendering and APIs Robolectric doesn't fully support. Think in terms of fidelity versus speed.",
+        "key_points": [
+          "Robolectric runs a simulated Android on the JVM: fast and without emulator flakiness, and UI tests in the `test` source set run on it",
+          "It is not a full emulator: no real screen and partial API support, so fidelity is lower",
+          "Good fits: state and click behaviour of screens and components, and screenshots where pixel accuracy isn't critical",
+          "Keep on devices: edge-to-edge and insets, picture-in-picture, `WebView`, and critical end-to-end journeys",
+          "Enable `isIncludeAndroidResources` and keep composables testable in isolation"
+        ]
+      }
+    },
+    {
+      "id": "w10-l03-q08",
+      "type": "written",
+      "lesson": "w10-l03",
+      "prompt": "You are adding screenshot tests to protect your design system components. Describe how you would set them up, how you choose what to screenshot, and how you keep them from becoming noisy.",
+      "concept": "screenshot-test-reference-environment",
+      "sources": [
+        {
+          "url": "https://developer.android.com/studio/preview/compose-screenshot-testing",
+          "claim": "Previews marked @PreviewTest in the screenshotTest source set; updateScreenshotTest generates reference images and validateScreenshotTest compares, producing an HTML report on mismatch; tests run host-side.",
+          "title": "Compose Preview Screenshot Testing",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        },
+        {
+          "url": "https://developer.android.com/training/testing/ui-tests/screenshot",
+          "claim": "Minimize the number of screenshot tests while maximizing feedback; avoid combinations of all scenarios; platform differences mean tolerating small changes or generating screenshots on a server.",
+          "title": "Screenshot testing",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        }
+      ],
+      "materials": [
+        "compose-testing"
+      ],
+      "explanation": "Senior answers treat screenshot tests as a cost-benefit decision: high coverage per test, but maintenance and noise grow with the number of combinations, so they curate.",
+      "model_answer": {
+        "summary": "Use host-side screenshot tests (such as Compose Preview Screenshot Testing with `@PreviewTest` previews in the `screenshotTest` source set) for components. Generate references in CI, choose previews that each give unique feedback rather than every combination, and use tolerances and the diff report to triage.",
+        "key_points": [
+          "Screenshot tests compare against reference images and check colours, margins, sizes and fonts in one test, which suits design system components",
+          "Compose Preview Screenshot Testing: `@PreviewTest` previews in `src/screenshotTest`, `updateDebugScreenshotTest` records references and `validateDebugScreenshotTest` compares them, producing an HTML diff report",
+          "Pick previews that give unique feedback (for example light/dark, or one large font scale) instead of every combination",
+          "Generate references in one consistent environment (CI) and allow small tolerances, since rendering differs across operating systems",
+          "Review reference updates in PRs like code, so intentional visual changes are approved"
+        ]
+      }
+    },
+    {
+      "id": "w10-l04-q01",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w10-l04",
+      "prompt": "You want CI to run instrumented tests on a consistent emulator without scripting emulator start-up. With Gradle Managed Devices, what does that look like?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Devices are declared in `testOptions.managedDevices` and run with a task like `pixel2api30DebugAndroidTest`; AGP owns the lifecycle"
+        },
+        {
+          "id": "b",
+          "text": "You must still start an emulator by hand from Android Studio or the command line, then run `connectedAndroidTest` against it"
+        },
+        {
+          "id": "c",
+          "text": "Gradle Managed Devices only work with physical hardware devices connected to the CI machine over a USB cable"
+        },
+        {
+          "id": "d",
+          "text": "Gradle Managed Devices actually run the instrumented tests on the JVM through Robolectric rather than a real or virtual device"
+        }
+      ],
+      "concept": "gradle-managed-devices-ci",
+      "sources": [
+        {
+          "url": "https://developer.android.com/studio/test/gradle-managed-devices",
+          "claim": "Build-managed devices are configured in Gradle, and AGP manages their lifecycle; tasks follow <device><variant>AndroidTest; ATD images remove pre-installed apps and disable hardware rendering; use -Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect on headless CI.",
+          "title": "Scale your tests with build-managed devices",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        }
+      ],
+      "materials": [
+        "github-actions",
+        "android-testing-fundamentals"
+      ],
+      "explanation": "Build-managed devices are declared in Gradle; AGP handles create, run and teardown, uses snapshots for fast, clean devices, and exposes tasks named `<device><variant>AndroidTest`. Automated Test Device images remove preinstalled apps and disable hardware rendering for CI, and headless CI can use `swiftshader_indirect`. They are real emulators, not Robolectric."
+    },
+    {
+      "id": "w10-l04-q02",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w10-l04",
+      "prompt": "An Espresso test sometimes fails because it checks a result that loads from a database in the background. A teammate adds `Thread.sleep(2000)`. Why is this the wrong fix, and what should be used instead?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It is fine as written, since two full seconds is long enough to cover the database read time on essentially every real device"
+        },
+        {
+          "id": "b",
+          "text": "Sleeps are slow and still flaky since timing varies by environment; use Idling Resources, or wait-until conditions in bigger tests"
+        },
+        {
+          "id": "c",
+          "text": "Sleeps are only wrong because `Thread.sleep` blocks the main thread; replacing it with a coroutine `delay(2000)` call fixes it"
+        },
+        {
+          "id": "d",
+          "text": "The correct fix is to configure the test runner to retry this test up to three times and simply accept the remaining flakiness"
+        }
+      ],
+      "concept": "flaky-ui-test-root-causes",
+      "sources": [
+        {
+          "url": "https://developer.android.com/training/testing/instrumented-tests/stability",
+          "claim": "Avoid pausing tests for an arbitrary period (sleep), which makes tests slow or flaky; use Idling Resources in small UI tests and wait-until APIs in bigger tests; replace modules with test versions such as TestDispatcher.",
+          "title": "Big test stability",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        }
+      ],
+      "materials": [
+        "android-testing-fundamentals"
+      ],
+      "explanation": "Background work the test framework doesn't know about causes races. Fixed sleeps make tests slower and still fail when an environment needs more time. The guidance is Idling Resources for small UI tests and wait-until APIs for bigger ones, plus test replacements such as `TestDispatcher`. Retries help with infrastructure noise but don't fix the race."
+    },
+    {
+      "id": "w10-l04-q03",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w10-l04",
+      "prompt": "Instrumented tests pass alone but fail when the full suite runs, because earlier tests leave data in shared preferences and one crashing test aborts the run. Which tool addresses both problems?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Android Test Orchestrator with `clearPackageData`: each test gets its own `Instrumentation`, isolating crashes and clearing app data"
+        },
+        {
+          "id": "b",
+          "text": "Adding `@FlakyTest` annotations to the affected tests, which tells the runner to silently skip them whenever they fail"
+        },
+        {
+          "id": "c",
+          "text": "Running the whole instrumented suite on Robolectric instead, since its simulated environment never leaks state between test classes"
+        },
+        {
+          "id": "d",
+          "text": "Increasing the emulator's allocated RAM and CPU cores in the CI configuration so the whole suite finishes running faster"
+        }
+      ],
+      "concept": "flaky-ui-test-root-causes",
+      "sources": [
+        {
+          "url": "https://developer.android.com/training/testing/instrumented-tests/androidx-test-libraries/runner",
+          "claim": "Android Test Orchestrator runs each test in its own Instrumentation invocation, isolating crashes; clearPackageData removes all shared state; execution time may increase; enable with execution = ANDROIDX_TEST_ORCHESTRATOR.",
+          "title": "AndroidJUnitRunner",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        }
+      ],
+      "materials": [
+        "android-testing-fundamentals"
+      ],
+      "explanation": "The Orchestrator runs each test in its own `Instrumentation`, so a crash takes down only that test, and `clearPackageData` runs `pm clear` after each one to remove shared state. The trade-off is longer runs because the app restarts per test. The other options don't address shared state or crash isolation."
+    },
+    {
+      "id": "w10-l04-q04",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w10-l04",
+      "prompt": "Management wants a hard 95% line-coverage gate on the whole Android codebase. What is the strongest argument against it?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Coverage instrumentation tools are fundamentally unable to measure Kotlin code correctly and only report accurate numbers for Java"
+        },
+        {
+          "id": "b",
+          "text": "A high number doesn't show the tests are good; a hard target encourages gaming, such as tests with no real assertions"
+        },
+        {
+          "id": "c",
+          "text": "Any coverage target set above roughly 50% always slows the build so much that it becomes impractical for a large codebase"
+        },
+        {
+          "id": "d",
+          "text": "A 95% gate is set far too low to be meaningful; only a strict, unconditional 100% line-coverage target is worth enforcing"
+        }
+      ],
+      "concept": "code-coverage-as-signal",
+      "sources": [
+        {
+          "url": "https://martinfowler.com/bliki/TestCoverage.html",
+          "claim": "Test coverage is a useful tool for finding untested parts of a codebase, but of little use as a numeric statement of how good your tests are; mandated targets lead to gaming such as tests without assertions.",
+          "title": "TestCoverage",
+          "accessed": "2026-09-27",
+          "publisher": "martinfowler.com"
+        },
+        {
+          "url": "https://testing.googleblog.com/2020/08/code-coverage-best-practices.html",
+          "claim": "High coverage doesn't guarantee quality; suggested guidelines are 60% acceptable, 75% commendable, 90% exemplary; prioritize coverage of changed code and avoid targets that encourage gaming.",
+          "title": "Code Coverage Best Practices",
+          "accessed": "2026-09-27",
+          "publisher": "Google Testing Blog"
+        }
+      ],
+      "materials": [
+        "android-testing-fundamentals"
+      ],
+      "explanation": "Coverage is useful for finding untested code but says little about test quality: lines can run without their behaviour being checked. Mandated numbers invite gaming. Google's guidance treats about 60% as acceptable, 75% as commendable and 90% as exemplary, and recommends focusing on coverage of changed code rather than a single global gate."
+    },
+    {
+      "id": "w10-l04-q05",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w10-l04",
+      "prompt": "A function has 100% line coverage, yet a bug in one branch of `isSquare(s) || (isBlue(s) && !isCircle(s))` reaches production. What does this show?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The coverage tool must have been misconfigured, since a genuine 100% line-coverage result always means every logical path was tested"
+        },
+        {
+          "id": "b",
+          "text": "The bug must actually live in a third-party library dependency, since a line of application code that ran under test can't itself contain a bug"
+        },
+        {
+          "id": "c",
+          "text": "Branch coverage on this same function would necessarily also report 100%, since it is derived directly from the line-coverage figure"
+        },
+        {
+          "id": "d",
+          "text": "Line coverage counts executed lines, not conditions, so a line can be covered while some logical branches are never checked"
+        }
+      ],
+      "concept": "code-coverage-as-signal",
+      "sources": [
+        {
+          "url": "https://testing.googleblog.com/2020/08/code-coverage-best-practices.html",
+          "claim": "A boolean expression such as isSquare(shape) || (isBlue(shape) && !isCircle(shape)) can show full line coverage while only one condition's path was tested; mutation testing helps find such gaps.",
+          "title": "Code Coverage Best Practices",
+          "accessed": "2026-09-27",
+          "publisher": "Google Testing Blog"
+        }
+      ],
+      "materials": [
+        "android-testing-fundamentals"
+      ],
+      "explanation": "Running a line once counts it as covered even if only one side of a compound condition was ever evaluated. That is why coverage is a signal of untested code, not proof of good tests. Branch or condition coverage and mutation testing find more of these gaps."
+    },
+    {
+      "id": "w10-l04-q06",
+      "type": "written",
+      "lesson": "w10-l04",
+      "prompt": "Design the test stages of a GitHub Actions pipeline for an Android app so every pull request gets fast feedback, but all test types still run. Say what runs when and how you keep instrumented tests reliable.",
+      "concept": "gradle-managed-devices-ci",
+      "sources": [
+        {
+          "url": "https://developer.android.com/training/testing/fundamentals/strategies",
+          "claim": "Unit and component tests run on every commit, feature tests pre-merge, application tests post-merge, and release candidate tests on minified builds pre-release.",
+          "title": "Testing strategies",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        },
+        {
+          "url": "https://developer.android.com/studio/test/gradle-managed-devices",
+          "claim": "Gradle Managed Devices use snapshots to restore a clean state, support sharding via numManagedDeviceShards, and offer ATD images optimized for CI.",
+          "title": "Scale your tests with build-managed devices",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        }
+      ],
+      "materials": [
+        "github-actions",
+        "android-testing-fundamentals"
+      ],
+      "explanation": "Senior pipelines follow the test pyramid in time as well as count: the cheapest, most frequent checks run first. They separate infrastructure flakiness (retry) from test flakiness (fix).",
+      "model_answer": {
+        "summary": "Run cheap checks first and fail fast: lint and local unit tests (including Robolectric and screenshot validation), then instrumented tests on Gradle Managed Devices (ATD images, sharded) before merge, with bigger app-level and release-candidate suites after merge or before release. Upload reports as artifacts.",
+        "key_points": [
+          "Stage 1 (every PR, fail fast): build, lint and `./gradlew test` for unit, ViewModel, Robolectric and screenshot validation",
+          "Stage 2 (pre-merge): instrumented tests on Gradle Managed Devices with ATD images and `swiftshader_indirect` on headless runners, sharded for speed",
+          "Post-merge or pre-release: application-level and minified release-candidate tests across multiple devices",
+          "Reliability: device snapshots give clean state, retries only for infrastructure failures, and Orchestrator where shared state matters",
+          "Publish test reports and screenshot diffs as artifacts so failures are actionable"
+        ]
+      }
+    },
+    {
+      "id": "w10-l04-q07",
+      "type": "written",
+      "lesson": "w10-l04",
+      "prompt": "Your CI has a 7% flaky failure rate on UI tests and developers have started re-running jobs without looking. How do you tackle this as the senior engineer?",
+      "concept": "flaky-ui-test-root-causes",
+      "sources": [
+        {
+          "url": "https://developer.android.com/training/testing/instrumented-tests/stability",
+          "claim": "Flakiness comes from asynchronous operations unknown to the test and from sleeps; fix with idling resources, wait-until APIs and test replacements such as TestDispatcher; add retries at the JUnit, CI or device level, such as Gradle Managed Devices.",
+          "title": "Big test stability",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        },
+        {
+          "url": "https://developer.android.com/training/testing/instrumented-tests/androidx-test-libraries/runner",
+          "claim": "Orchestrator runs each test in its own Instrumentation; clearPackageData removes shared state between tests.",
+          "title": "AndroidJUnitRunner",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        }
+      ],
+      "materials": [
+        "android-testing-fundamentals",
+        "github-actions"
+      ],
+      "explanation": "What separates a senior answer is treating flakiness as a trust and culture problem as well as a technical one: restore the signal (quarantine, metrics) while fixing the root causes.",
+      "model_answer": {
+        "summary": "Measure and quarantine first: track flaky tests, then fix root causes, most often synchronization (sleeps, untracked background work, animations), shared state between tests, and real network or backend dependencies. Use hermetic fakes, idling or wait-until APIs, Orchestrator isolation, and managed devices with infrastructure-level retries.",
+        "key_points": [
+          "Track flakiness per test (re-run history) and quarantine the worst offenders so the signal is trusted again, with owners and deadlines",
+          "Fix synchronization: remove sleeps, use Idling Resources or `waitUntil` APIs, and `TestDispatcher`s for coroutines",
+          "Remove shared state with Orchestrator and `clearPackageData`, and keep tests independent of order",
+          "Make tests hermetic: fake the network and backend instead of calling real services",
+          "Keep retries for infrastructure (emulator disconnects), for example with Gradle Managed Devices, not to hide test bugs"
+        ]
+      }
+    },
+    {
+      "id": "w10-l04-q08",
+      "type": "written",
+      "lesson": "w10-l04",
+      "prompt": "A reviewer of your take-home says: 'Coverage is 92%, yet the offline case is broken.' Walk through how you would respond and how you would present your testing in a take-home.",
+      "concept": "code-coverage-as-signal",
+      "sources": [
+        {
+          "url": "https://martinfowler.com/bliki/TestCoverage.html",
+          "claim": "Coverage is useful for finding untested parts of a codebase but of little use as a numeric statement of how good your tests are.",
+          "title": "TestCoverage",
+          "accessed": "2026-09-27",
+          "publisher": "martinfowler.com"
+        },
+        {
+          "url": "https://blog.blundellapps.co.uk/android-job-interview-take-home-test-cheat-sheet/",
+          "claim": "Repository tests should cover online/offline and with/without cached data; add a README that pastes the rubric and marks each item done, and discusses incomplete items.",
+          "title": "Android job interview take-home test cheat sheet",
+          "accessed": "2026-09-27",
+          "publisher": "Blundell Apps"
+        }
+      ],
+      "materials": [
+        "android-testing-fundamentals",
+        "android-test-doubles"
+      ],
+      "explanation": "Reviewers reward candidates who talk about behaviours and risk rather than percentages. Knowing why coverage misleads, and fixing the gap without getting defensive, is the senior signal.",
+      "model_answer": {
+        "summary": "Accept that coverage measured which lines ran, not whether the risky behaviours were checked. Present testing by behaviour: which scenarios from the rubric are tested (offline, cached, error, retry), at which layer, with which doubles, and what is left out. Use coverage only to find untested areas.",
+        "key_points": [
+          "High coverage doesn't show that edge cases such as offline-with-cache were checked; lines can run without meaningful assertions",
+          "Use coverage to find untested code, not as proof of quality; focus on the changed and risky code",
+          "Organize tests by rubric scenarios: online, offline with and without cache, errors, retry, and config changes",
+          "Add the missing repository test for the offline path using fakes, then explain it in the README",
+          "In the README, map rubric items to tests and state trade-offs and next steps"
+        ]
+      }
+    }
+  ]
+}

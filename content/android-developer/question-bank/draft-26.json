@@ -1,0 +1,1283 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "material3-theming-and-dynamic-color",
+      "name": "Material 3 color schemes, dynamic color and theme extension"
+    },
+    {
+      "id": "compose-slot-api-components",
+      "name": "Designing reusable components with slot APIs"
+    },
+    {
+      "id": "compositionlocal-static-vs-dynamic",
+      "name": "CompositionLocal: compositionLocalOf vs staticCompositionLocalOf, and when not to use it"
+    },
+    {
+      "id": "compose-multipreview-component-catalog",
+      "name": "Previews, multipreview annotations and preview-friendly components"
+    },
+    {
+      "id": "navigation3-owned-back-stack",
+      "name": "Navigation 3: an app-owned back stack of serializable keys"
+    },
+    {
+      "id": "navigation3-scene-strategy-list-detail",
+      "name": "Navigation 3 scenes and list-detail from one back stack"
+    },
+    {
+      "id": "large-screen-window-size-adaptation",
+      "name": "Window size classes and the Android 16/17 rule that ignores orientation and resizability locks on large screens"
+    },
+    {
+      "id": "compose-window-insets-consumption",
+      "name": "Edge-to-edge and consuming window insets in Compose"
+    },
+    {
+      "id": "predictive-back-ahead-of-time-callbacks",
+      "name": "Predictive back: ahead-of-time callbacks, BackHandler and PredictiveBackHandler"
+    },
+    {
+      "id": "compose-semantics-merging-and-labels",
+      "name": "Semantics merging, content descriptions and actions for TalkBack"
+    },
+    {
+      "id": "compose-a11y-touch-targets-and-checks",
+      "name": "Minimum touch targets and automated accessibility checks"
+    },
+    {
+      "id": "compose-view-interop-lifecycles",
+      "name": "ComposeView and AndroidView interop and their lifecycles"
+    },
+    {
+      "id": "views-to-compose-migration-plan",
+      "name": "Planning an incremental Views-to-Compose migration"
+    },
+    {
+      "id": "views-maintenance-mode-planning",
+      "name": "Views in maintenance mode: what Compose-first means for planning"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w06-l01-q01",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w06-l01",
+      "prompt": "Your theme calls `dynamicLightColorScheme(LocalContext.current)` unconditionally. `minSdk` is 26. What is the correct implementation?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Keep it exactly as written: the Material 3 library backports dynamic color all the way down to your declared `minSdk` of 26"
+        },
+        {
+          "id": "b",
+          "text": "Only when SDK_INT >= S (Android 12); fall back to your own `lightColorScheme`/`darkColorScheme` otherwise"
+        },
+        {
+          "id": "c",
+          "text": "Replace the whole call with `isSystemInDarkTheme()`, which on supported devices directly returns the current wallpaper's extracted colors"
+        },
+        {
+          "id": "d",
+          "text": "Call `dynamicLightColorScheme` once inside `onCreate` and cache its result in a `CompanionObject` shared across all activities"
+        }
+      ],
+      "concept": "material3-theming-and-dynamic-color",
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/designsystems/material3",
+          "claim": "Dynamic color uses `Build.VERSION.SDK_INT >= Build.VERSION_CODES.S` to choose `dynamicDarkColorScheme`/`dynamicLightColorScheme`, otherwise falling back to `DarkColorScheme` or `LightColorScheme`.",
+          "title": "Material Design 3 in Compose",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "compose-material3"
+      ],
+      "explanation": "Dynamic color comes from the platform (Material You) and is available from Android 12 (API 31). The documented pattern checks the SDK level and falls back to the app's static light and dark schemes. `isSystemInDarkTheme()` only reports the dark-mode setting."
+    },
+    {
+      "id": "w06-l01-q02",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w06-l01",
+      "prompt": "Several feature teams need an `AppCard` with a title area that sometimes holds plain text, sometimes text with a badge, and sometimes an avatar. Which API design scales best?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`AppCard(titleText: String, titleColor: Color, showBadge: Boolean, badgeCount: Int, avatarUrl: String?, ...)`"
+        },
+        {
+          "id": "b",
+          "text": "A sealed `AppCardTitle` config class with one subtype per variant, rendered by `AppCard`"
+        },
+        {
+          "id": "c",
+          "text": "`AppCard(title: @Composable () -> Unit, actions: @Composable RowScope.() -> Unit = {}, content: @Composable () -> Unit)`"
+        },
+        {
+          "id": "d",
+          "text": "Read the title content from a `CompositionLocal` provided by each screen"
+        }
+      ],
+      "concept": "compose-slot-api-components",
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/layouts/basics",
+          "claim": "Material components make heavy use of slot APIs: components accept a child element that configures itself rather than exposing every configuration parameter; `TopAppBar` has `title`, `navigationIcon` and `actions` slots.",
+          "title": "Compose layout basics",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "compose-material3",
+        "now-in-android"
+      ],
+      "explanation": "Slot APIs accept composable lambdas for specific regions, so callers fill the space with whatever they need and the component does not have to expose every configuration of its children. Material components such as `TopAppBar` (`title`, `navigationIcon`, `actions`) and `Scaffold` are built this way. Parameter lists and sealed configs grow with every new variant."
+    },
+    {
+      "id": "w06-l01-q03",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w06-l01",
+      "prompt": "A design system provides `LocalSpacing` at the root; its value never changes at runtime. Which factory should you use, and why?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`staticCompositionLocalOf`: untracked reads, cheaper; a change would recompose all provided content, which never happens here"
+        },
+        {
+          "id": "b",
+          "text": "`compositionLocalOf`, since it is documented to always be strictly faster in every scenario because only its readers ever recompose"
+        },
+        {
+          "id": "c",
+          "text": "`staticCompositionLocalOf`, because once provided its value can never change again, so Compose simply rejects any later attempt to provide a new one"
+        },
+        {
+          "id": "d",
+          "text": "Neither factory applies here: values that are documented to never change at runtime must instead be passed down explicitly as plain composable parameters"
+        }
+      ],
+      "concept": "compositionlocal-static-vs-dynamic",
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/compositionlocal",
+          "claim": "Reads of a `staticCompositionLocalOf` are not tracked; changing the value recomposes the entire content lambda where it is provided; use it for values highly unlikely to change; `compositionLocalOf` invalidates only content that reads the current value.",
+          "title": "Locally scoped data with CompositionLocal",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "compose-material3"
+      ],
+      "explanation": "`staticCompositionLocalOf` reads are not tracked; a change recomposes the whole content lambda where it is provided. For values that are very unlikely to change, that trade gives a performance benefit. `compositionLocalOf` tracks reads so a change invalidates only readers, which suits values that do change, such as theme colors. A static local can still receive a new value; it is just more expensive when it does."
+    },
+    {
+      "id": "w06-l01-q04",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w06-l01",
+      "prompt": "A component catalog preview fails to render because `ProfileScreen()` calls `hiltViewModel()` inside. What is the documented way to make it previewable?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Wrap the whole preview function body in an `if (LocalInspectionMode.current)` check so the ViewModel gets constructed with fake, preview-only dependencies instead"
+        },
+        {
+          "id": "b",
+          "text": "Construct a mock `ViewModel` instance by hand inside the preview function and pass it directly into `ProfileScreen` as a parameter"
+        },
+        {
+          "id": "c",
+          "text": "Annotate the preview function with `@PreviewDynamicColors` so tooling skips constructing the `ViewModel` before rendering"
+        },
+        {
+          "id": "d",
+          "text": "Split it: thin `ProfileScreen` reads the ViewModel, calls stateless `ProfileContent(state, onEvent)`, previewed with sample data"
+        }
+      ],
+      "concept": "compose-multipreview-component-catalog",
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/tooling/previews",
+          "claim": "Previews are limited when using `ViewModel` within a composable; you shouldn't pass `ViewModel` instances down; create a composable that takes plain parameters and preview that; `LocalInspectionMode` lets you detect a preview.",
+          "title": "Preview your UI with composable previews",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "compose-material3"
+      ],
+      "explanation": "Previews are limited with `ViewModel`s, and the docs say not to pass `ViewModel` instances down to other composables. Keeping a stateless content composable that takes plain state makes previews, the catalog and tests easy. `LocalInspectionMode` only tells code it is in a preview; it does not create a ViewModel."
+    },
+    {
+      "id": "w06-l01-q05",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w06-l01",
+      "prompt": "A catalog preview function is annotated with both `@PreviewLightDark` and `@PreviewFontScale`. What does Android Studio render?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Every possible combination: it renders each declared font scale rendered separately in both the light and the dark theme variant"
+        },
+        {
+          "id": "b",
+          "text": "Only the variants declared by whichever annotation is written first in source order; the second annotation is silently ignored entirely"
+        },
+        {
+          "id": "c",
+          "text": "Light/dark variants, and separately the font-scale variants; each renders only its own set, not the cross product"
+        },
+        {
+          "id": "d",
+          "text": "A hard compile error is reported, because Compose tooling does not allow two multipreview annotations to be applied to one function"
+        }
+      ],
+      "concept": "compose-multipreview-component-catalog",
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/tooling/previews",
+          "claim": "Combining multipreview annotations doesn't mean all the different combinations are shown; each multipreview annotation acts independently and renders only its own variants; built-ins include `@PreviewLightDark`, `@PreviewFontScale`, `@PreviewScreenSizes` and `@PreviewDynamicColors`.",
+          "title": "Preview your UI with composable previews",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "compose-material3"
+      ],
+      "explanation": "Multipreview annotations act independently. Combining them does not produce all combinations. To get a cross product, write a custom multipreview annotation class that declares each `@Preview` variant you want."
+    },
+    {
+      "id": "w06-l01-q06",
+      "type": "written",
+      "lesson": "w06-l01",
+      "prompt": "Design the theme layer for an app built by several feature teams: Material 3 as the base, brand colors, dynamic color where available, and extra brand tokens that Material does not have (for example a `caution` color). How do components read the tokens?",
+      "concept": "material3-theming-and-dynamic-color",
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/designsystems/material3",
+          "claim": "`MaterialTheme` takes `colorScheme`, `typography` and `shapes`; `lightColorScheme`/`darkColorScheme` build schemes; theme colors are read via `MaterialTheme.colorScheme`; use on-primary on top of primary for contrast.",
+          "title": "Material Design 3 in Compose",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/develop/ui/compose/designsystems/custom",
+          "claim": "Extend `MaterialTheme` with an `@Immutable` `ExtendedColors` class provided through `staticCompositionLocalOf` and `CompositionLocalProvider`, exposed through an `ExtendedTheme` object; Material components can be wrapped to apply custom values.",
+          "title": "Custom design systems in Compose",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "compose-material3",
+        "now-in-android"
+      ],
+      "explanation": "A senior answer mirrors how Material itself is built (public APIs and CompositionLocals), keeps the token set semantic, and explains why the extension uses an immutable class and a static local.",
+      "model_answer": {
+        "summary": "Wrap `MaterialTheme(colorScheme, typography, shapes)` in an app theme that picks dynamic or static light/dark schemes, and add brand tokens through an `@Immutable` data class provided with a `staticCompositionLocalOf` and exposed through an object accessor. Components read semantic tokens, never hard-coded colors.",
+        "key_points": [
+          "`MaterialTheme` takes `colorScheme`, `typography` and `shapes`; define `lightColorScheme`/`darkColorScheme` from brand colors and use dynamic schemes on Android 12+",
+          "Extra tokens: an `@Immutable data class ExtendedColors(...)`, a `staticCompositionLocalOf` default, a theme composable that uses `CompositionLocalProvider` around `MaterialTheme`, and an `object AppTheme { val colors @Composable get() = LocalExtendedColors.current }`",
+          "Components read `MaterialTheme.colorScheme.primary`, `MaterialTheme.typography.titleLarge` or the extended accessor, and pair on-colors correctly (`onPrimary` on `primary`) for contrast",
+          "Wrap Material components (e.g. an `AppButton` built on `Button` with `ButtonDefaults.buttonColors`) so teams use design-system components, not raw Material with custom colors",
+          "Preview components in light, dark and dynamic-color variants"
+        ]
+      }
+    },
+    {
+      "id": "w06-l01-q07",
+      "type": "written",
+      "lesson": "w06-l01",
+      "prompt": "You are designing the shared `AppTopBar` and `AppButton` components for a design-system module used by many teams. Explain when you would use slot parameters versus plain parameters, and how you keep the components consistent with the theme.",
+      "concept": "compose-slot-api-components",
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/layouts/basics",
+          "claim": "Slot APIs expose multiple `content` parameters for specific uses, such as `TopAppBar`'s `title`, `navigationIcon` and `actions`; slots leave an empty space in the UI for the developer to fill.",
+          "title": "Compose layout basics",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/develop/ui/compose/designsystems/custom",
+          "claim": "A custom `CustomButton` wraps Material's `Button` with colors from `ButtonDefaults.buttonColors` and wraps content in `ProvideTextStyle` with the theme's typography.",
+          "title": "Custom design systems in Compose",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "compose-material3",
+        "now-in-android"
+      ],
+      "explanation": "The strong answer balances flexibility against consistency: too many slots lets teams break the design, too many parameters makes the API explode. Citing how `TopAppBar` and `Scaffold` expose slots shows familiarity with the Material API style.",
+      "model_answer": {
+        "summary": "Use slots (composable lambdas) for regions whose content varies, plain typed parameters for behaviour and a small set of variants, and build on Material components with theme tokens so every team gets the same look.",
+        "key_points": [
+          "Slot APIs (`title: @Composable () -> Unit`, `actions: @Composable RowScope.() -> Unit`, `content`) let callers provide content without the component exposing every child configuration",
+          "Plain parameters for behaviour and constraints: `onClick`, `enabled`, a `modifier` parameter, and a small enum of variants",
+          "Use scoped slot receivers (`RowScope`, `ColumnScope`) so slot content can use layout modifiers correctly",
+          "Build on Material components (`TopAppBar`, `Button`) with colors and typography from the theme, e.g. `ProvideTextStyle` for slot text",
+          "Keep components stateless and previewable; publish them in a catalog with previews"
+        ]
+      }
+    },
+    {
+      "id": "w06-l01-q08",
+      "type": "written",
+      "lesson": "w06-l01",
+      "prompt": "A teammate proposes a `LocalProfileViewModel` so every composable on the profile screen can reach the ViewModel without passing parameters. Evaluate this, and explain when a design system should use `CompositionLocal` and which factory to choose.",
+      "concept": "compositionlocal-static-vs-dynamic",
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/compositionlocal",
+          "claim": "A CompositionLocal holding a screen's ViewModel is a bad practice; a CompositionLocal should have a good default and be tree-scoped; it creates implicit dependencies that make behaviour harder to reason about; alternatives are passing explicit parameters and inversion of control; `compositionLocalOf` vs `staticCompositionLocalOf` recomposition differences.",
+          "title": "Locally scoped data with CompositionLocal",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "compose-material3"
+      ],
+      "explanation": "A senior answer names the testability and debuggability cost of implicit dependencies, not just 'it is bad practice', and chooses the factory from how often the value changes.",
+      "model_answer": {
+        "summary": "Reject it: CompositionLocal is for tree-scoped values with good defaults, like theme tokens, not for screen dependencies. Pass only what each composable needs, or hoist logic to the parent with callbacks. Choose `compositionLocalOf` for values that change and `staticCompositionLocalOf` for values that almost never change.",
+        "key_points": [
+          "Holding a screen's ViewModel in a CompositionLocal is a documented bad practice: not every descendant needs it and it creates hidden dependencies that are hard to test and debug",
+          "Good uses are tree-scoped concepts any descendant might use, with a sensible default: colors, typography, spacing, elevation",
+          "Alternatives: pass only the data each composable needs, or use inversion of control (the parent owns logic and passes callbacks or content lambdas)",
+          "`compositionLocalOf` tracks reads, so a change recomposes only readers; `staticCompositionLocalOf` is untracked, so a change recomposes the whole provided content, which suits values that rarely or never change"
+        ]
+      }
+    },
+    {
+      "id": "w06-l02-q01",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w06-l02",
+      "prompt": "In Navigation 3, how do you navigate from the product list to a product detail screen and back?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`navController.navigate(\"product/ABC\")` forward, then `navController.popBackStack()` to go back to the list, exactly as in Navigation 2"
+        },
+        {
+          "id": "b",
+          "text": "Start a completely new `Activity` for each destination; `NavDisplay` only animates the transition between the two separate activities"
+        },
+        {
+          "id": "c",
+          "text": "Call the static method `NavDisplay.push(ProductDetail(\"ABC\"))`; the library keeps and manages the entire back stack internally for you"
+        },
+        {
+          "id": "d",
+          "text": "`backStack.add(ProductDetail(id = \"ABC\"))`; `NavDisplay(onBack = { backStack.removeLastOrNull() })` removes the last key"
+        }
+      ],
+      "concept": "navigation3-owned-back-stack",
+      "sources": [
+        {
+          "url": "https://developer.android.com/guide/navigation/navigation-3/basics",
+          "claim": "The back stack is a `SnapshotStateList` you own: navigate forward with `backStack.add(ProductDetail(id = \"ABC\"))` and back with `backStack.removeLastOrNull()`; `NavDisplay` takes `backStack`, `onBack` and `entryProvider`.",
+          "title": "Navigation 3: understand and implement the basics",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "navigation-3"
+      ],
+      "explanation": "Navigation 3 gives you the back stack: it is a `SnapshotStateList` of keys that you add to and remove from. `NavDisplay` observes it and renders the matching entries. There is no `NavController` with string routes; that is the Navigation 2 model."
+    },
+    {
+      "id": "w06-l02-q02",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w06-l02",
+      "prompt": "A foldable, unfolded, gives your app a window 673dp wide, but the same device folded gives 380dp, and in split screen on a tablet you get 400dp. Which approach picks the layout correctly?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Check a resource-driven `isTablet` boolean together with the device's current orientation flag from `Configuration`"
+        },
+        {
+          "id": "b",
+          "text": "Read `currentWindowAdaptiveInfo().windowSizeClass`, branch on width (compact/medium/expanded)"
+        },
+        {
+          "id": "c",
+          "text": "Use the physical screen size reported by `DisplayMetrics`, since that stays perfectly stable across multi-window and folding"
+        },
+        {
+          "id": "d",
+          "text": "Lock the activity's requested orientation to portrait in the manifest so the effective width is always compact"
+        }
+      ],
+      "concept": "large-screen-window-size-adaptation",
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/layouts/adaptive/get-started-with-adaptive-apps",
+          "claim": "Window size classes categorize the app window as compact, medium or expanded (breakpoints 600dp and 840dp), read with `currentWindowAdaptiveInfo().windowSizeClass`; adaptive apps consider only the app window, which can differ from the device screen in multi-window mode or on foldables.",
+          "title": "Get started with adaptive apps",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "compose-adaptive"
+      ],
+      "explanation": "The app window can differ from the device screen (foldables, multi-window), so adaptive apps decide on window size only. Window size classes give standard breakpoints; 673dp is medium. Device type, orientation and physical size give the wrong answer in split screen, and orientation locks are ignored on large screens when targeting Android 16."
+    },
+    {
+      "id": "w06-l02-q03",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w06-l02",
+      "prompt": "With Navigation 3 you want a list and its detail side by side on a tablet and one pane on a phone. How is this built?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A `SceneStrategy` combines the list and detail entries of one back stack into a two-pane `Scene` when wide enough"
+        },
+        {
+          "id": "b",
+          "text": "Keep two entirely separate back stacks, one dedicated to each pane, and render two independent `NavDisplay` composables side by side on tablets"
+        },
+        {
+          "id": "c",
+          "text": "Put the list and detail composables together into a single combined destination and switch which one shows by reading `LocalConfiguration.orientation`"
+        },
+        {
+          "id": "d",
+          "text": "Navigation 3 fundamentally cannot show two destinations on screen at once, so fall back to a legacy `ViewPager` wrapped with `AndroidView` for this screen"
+        }
+      ],
+      "concept": "navigation3-scene-strategy-list-detail",
+      "sources": [
+        {
+          "url": "https://developer.android.com/guide/navigation/navigation-3/custom-layouts",
+          "claim": "A `SceneStrategy` returns a `ListDetailScene` if the window is wide enough, the last back stack item is a detail and a list appears before it; entries are marked with `ListDetailSceneStrategy.listPane()`/`detailPane()`; the adaptive-navigation3 artifact provides `rememberListDetailSceneStrategy`.",
+          "title": "Navigation 3: create custom layouts using Scenes",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "navigation-3",
+        "compose-adaptive"
+      ],
+      "explanation": "A `Scene` renders one or more `NavEntry`s. `NavDisplay` passes the entries to its scene strategies, and a list-detail strategy returns a two-pane scene when the window is wide and the back stack ends in a detail preceded by a list. On a narrow window the same back stack produces a single-pane scene, so navigation state is shared across sizes."
+    },
+    {
+      "id": "w06-l02-q04",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w06-l02",
+      "prompt": "Why must Navigation 3 keys used with `rememberNavBackStack()` be `@Serializable`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "So that `NavDisplay` is able to compare two keys for equality using a generated `equals()` implementation at runtime"
+        },
+        {
+          "id": "b",
+          "text": "Because every key object gets uploaded to Google Play's servers for automated deep-link verification before each release"
+        },
+        {
+          "id": "c",
+          "text": "Serializable keys let the saved back stack survive configuration changes and process death"
+        },
+        {
+          "id": "d",
+          "text": "So that arguments can be passed inside keys as arbitrarily large objects with absolutely no serialized size limits at all"
+        }
+      ],
+      "concept": "navigation3-owned-back-stack",
+      "sources": [
+        {
+          "url": "https://developer.android.com/guide/navigation/navigation-3/basics",
+          "claim": "The back stack contains references to content, known as keys; as long as the keys are serializable, the back stack can be saved to persistent storage, allowing it to survive configuration changes and process death.",
+          "title": "Navigation 3: understand and implement the basics",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "navigation-3"
+      ],
+      "explanation": "The back stack contains keys, not content. As long as keys are serializable, the back stack can be saved and restored after configuration changes and process death. Arguments are properties of the key (e.g. `ProductDetail(val id: String)`), so pass ids rather than large objects."
+    },
+    {
+      "id": "w06-l02-q05",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w06-l02",
+      "prompt": "An app declares `android:screenOrientation=\"portrait\"` and `android:resizableActivity=\"false\"` and targets API 36. What happens on a tablet with smallest width 600dp or more, and what changes when it targets API 37?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Nothing changes at all on any device; manifest orientation and resizability locks are always fully honoured by the platform regardless of target SDK"
+        },
+        {
+          "id": "b",
+          "text": "The app is always letterboxed inside a fixed portrait-sized window on tablets, on every single API level the app could possibly target"
+        },
+        {
+          "id": "c",
+          "text": "Ignored; app fills the window. `PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY` opts out temporarily, gone at API 37"
+        },
+        {
+          "id": "d",
+          "text": "The app is automatically removed from the Play Store on large screens until it ships proper support for landscape orientation"
+        }
+      ],
+      "concept": "large-screen-window-size-adaptation",
+      "sources": [
+        {
+          "url": "https://developer.android.com/about/versions/16/behavior-changes-16",
+          "claim": "For apps targeting Android 16 on displays with smallest width >= 600dp, `screenOrientation`, `resizableActivity`, `minAspectRatio` and `maxAspectRatio` are ignored; a temporary opt-out `PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY` exists and won't apply for API level 37+.",
+          "title": "Behavior changes: Apps targeting Android 16 or higher",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/about/versions/17/behavior-changes-17",
+          "claim": "The opt-out from ignoring orientation, aspect ratio and resizability restrictions on large screens is no longer available for apps that target Android 17 (API level 37) or higher.",
+          "title": "Behavior changes: Apps targeting Android 17 or higher",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "compose-adaptive",
+        "android-16-behavior-changes",
+        "android-17-behavior-changes"
+      ],
+      "explanation": "For apps targeting Android 16 on displays with smallest width 600dp or more, orientation, resizability and aspect ratio attributes and `setRequestedOrientation()` are ignored (games and smaller screens are exempt). The opt-out property is temporary; Android 17 removes it for apps targeting API 37."
+    },
+    {
+      "id": "w06-l02-q06",
+      "type": "written",
+      "lesson": "w06-l02",
+      "prompt": "An interviewer asks: \"What changed with Navigation 3, and who owns the back stack?\" Answer, and explain the consequences for state saving, ViewModel scoping and deep links.",
+      "concept": "navigation3-owned-back-stack",
+      "sources": [
+        {
+          "url": "https://developer.android.com/guide/navigation/navigation-3",
+          "claim": "With Navigation 3 you have full control over your back stack and navigate by adding and removing items from a list; `rememberNavBackStack()` persists state; entry decorators enable ViewModel scoping; deep links are supported.",
+          "title": "Navigation 3",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/guide/navigation/navigation-3/naventrydecorators",
+          "claim": "`rememberSaveableStateHolderNavEntryDecorator` enables `rememberSaveable` in entries across configuration changes and process death; `rememberViewModelStoreNavEntryDecorator` scopes a `ViewModelStore` to each `NavEntry` and clears it when the entry is removed.",
+          "title": "Navigation 3: NavEntryDecorators",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "navigation-3"
+      ],
+      "explanation": "A senior answer explains the trade-off: more control and testability (the back stack is just state) in exchange for owning things that `NavController` used to do implicitly, such as ViewModel scoping and deep-link stacks.",
+      "model_answer": {
+        "summary": "In Navigation 3 the app owns the back stack: a `SnapshotStateList` of serializable keys that you push and pop, which `NavDisplay` observes and renders. This moves state saving, per-entry scoping and deep-link back-stack building into explicit, app-controlled code.",
+        "key_points": [
+          "The back stack is an observable list of keys owned by the app; navigation is adding and removing keys; there is no `NavController`",
+          "`NavDisplay` renders the stack via an `entryProvider` that maps keys to `NavEntry` content; `onBack` usually removes the last key",
+          "Keys are `@Serializable`; `rememberNavBackStack()` saves the stack across configuration changes and process death; arguments are key properties",
+          "Entry decorators: `rememberSaveableStateHolderNavEntryDecorator` keeps `rememberSaveable` state per entry, and `rememberViewModelStoreNavEntryDecorator` scopes a `ViewModelStore` to each entry and clears it when the entry is popped",
+          "Deep links: the app declares intent filters, matches the `Intent` with `DeepLinkMatcher`s into keys, and builds the back stack (for example a synthetic `[Home, Detail]`) itself"
+        ]
+      }
+    },
+    {
+      "id": "w06-l02-q07",
+      "type": "written",
+      "lesson": "w06-l02",
+      "prompt": "Implement a mail app's list-detail screen with Navigation 3 so tablets show two panes and phones show one, sharing the same back stack. Explain what happens when the window is resized, and how back behaves in each layout.",
+      "concept": "navigation3-scene-strategy-list-detail",
+      "sources": [
+        {
+          "url": "https://developer.android.com/guide/navigation/navigation-3/custom-layouts",
+          "claim": "`NavDisplay` passes the current list of `NavEntry`s to the configured scene strategies in order; a list-detail strategy returns a two-pane scene when the window is wide enough and a detail follows a list; `listPane(detailPlaceholder = ...)` and `detailPane()` metadata mark entries.",
+          "title": "Navigation 3: create custom layouts using Scenes",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "navigation-3",
+        "compose-adaptive"
+      ],
+      "explanation": "The insight a senior candidate should show is that layout is a function of back stack plus window size, not separate navigation graphs per device class.",
+      "model_answer": {
+        "summary": "Mark the list and detail entries with list-detail metadata and give `NavDisplay` a list-detail scene strategy. The same back stack produces a two-pane scene on wide windows and a single-pane scene on narrow ones, so resizing just recalculates the scene and back always pops the last key.",
+        "key_points": [
+          "Entries declare their roles through metadata (`listPane()`, `detailPane()`, optional `extraPane()`), and `NavDisplay(sceneStrategies = listOf(rememberListDetailSceneStrategy()))` is configured",
+          "A scene strategy looks at the entries: if the window is wide enough and the stack ends in a detail preceded by a list, it returns one scene showing both",
+          "On narrow windows the strategy does not apply and the default shows only the top entry; the back stack is identical in both cases",
+          "Resizing or unfolding only recomputes the scene from the same back stack, so there is no navigation state to migrate",
+          "Back pops the detail key: on a phone you return to the list; on a tablet the detail pane shows its placeholder while the list stays"
+        ]
+      }
+    },
+    {
+      "id": "w06-l02-q08",
+      "type": "written",
+      "lesson": "w06-l02",
+      "prompt": "Your phone-first app locks portrait and is not resizable. Product wants to raise `targetSdk` to 36 and then 37 next year. What happens on tablets and foldables, and what is your plan?",
+      "concept": "large-screen-window-size-adaptation",
+      "sources": [
+        {
+          "url": "https://developer.android.com/about/versions/16/behavior-changes-16",
+          "claim": "Apps targeting Android 16 on sw600dp+ displays have orientation, resizability and aspect ratio restrictions ignored (games exempt); `PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY` is a temporary opt-out that won't apply for API 37+.",
+          "title": "Behavior changes: Apps targeting Android 16 or higher",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/develop/ui/compose/layouts/adaptive/get-started-with-adaptive-apps",
+          "claim": "Use window size classes and canonical layouts (`ListDetailPaneScaffold`, `SupportingPaneScaffold`, `NavigationSuiteScaffold`); adaptive apps retain continuity during configuration changes by saving state in `onSaveInstanceState()` or a `ViewModel`.",
+          "title": "Get started with adaptive apps",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "compose-adaptive",
+        "android-16-behavior-changes",
+        "android-17-behavior-changes"
+      ],
+      "explanation": "A strong answer treats the opt-out as buying time only, and turns the mandate into a concrete plan with testing, rather than just adding landscape layouts.",
+      "model_answer": {
+        "summary": "When targeting 36, orientation, resizability and aspect-ratio restrictions are ignored on screens of 600dp smallest width or more, so the app fills the window. The opt-out is temporary and disappears at 37, so the plan must be real adaptive support: window size classes, canonical layouts and state that survives resizing.",
+        "key_points": [
+          "Targeting API 36: on sw600dp+ displays `screenOrientation`, `resizableActivity`, `min/maxAspectRatio` and `setRequestedOrientation()` are ignored; games and smaller screens are exempt",
+          "`PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY` is only a temporary opt-out and is not available for apps targeting API 37",
+          "Decide layouts from window size classes, not device type or orientation, and use canonical layouts such as list-detail (`ListDetailPaneScaffold`) and `NavigationSuiteScaffold`",
+          "Preserve state across configuration changes (resize, fold/unfold, multi-window) with `ViewModel` and saved state instead of relying on the activity never being recreated",
+          "Test on resizable emulators, foldables and in multi-window before raising the target"
+        ]
+      }
+    },
+    {
+      "id": "w06-l03-q01",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w06-l03",
+      "prompt": "`LazyColumn(Modifier.imePadding()) { ...; item { Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.systemBars)) } }`. What happens to the `Spacer` when the keyboard opens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It keeps its full system bar height unchanged, so once the keyboard opens the content ends up with visibly doubled bottom padding"
+        },
+        {
+          "id": "b",
+          "text": "It shrinks, since `imePadding()` consumes bottom insets; can reach zero once the IME exceeds the system bar height"
+        },
+        {
+          "id": "c",
+          "text": "It grows to match the full keyboard height, because size modifiers always sum together every inset type they are given"
+        },
+        {
+          "id": "d",
+          "text": "It is silently removed from the layout entirely, because window insets in Compose are only ever read once during initial composition"
+        }
+      ],
+      "concept": "compose-window-insets-consumption",
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/system/insets-ui",
+          "claim": "In the `LazyColumn(Modifier.imePadding())` example, when the IME opens `imePadding()` consumes the bottom insets and the `windowInsetsBottomHeight(WindowInsets.systemBars)` Spacer shrinks, becoming zero when IME padding exceeds the system bar height; padding modifiers consume insets, size modifiers only respect consumed insets.",
+          "title": "Set up window insets",
+          "accessed": "2026-09-28",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "compose-insets"
+      ],
+      "explanation": "Inset padding modifiers consume the insets they apply, and nested inset modifiers reduce their size accordingly. Inset size modifiers do not consume insets themselves but respect those already consumed. With the keyboard open, `imePadding()` consumes the bottom inset, so the `Spacer` shrinks, down to zero if the IME is taller than the navigation bar."
+    },
+    {
+      "id": "w06-l03-q02",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w06-l03",
+      "prompt": "The root composable has `BackHandler(enabled = true) { if (drawerOpen) closeDrawer() else activity.finish() }`. Users on Android 15 never see the predictive back-to-home animation. Why, and what is the fix?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Predictive back gestures and their system animations only ever function correctly inside apps built entirely with the legacy View system"
+        },
+        {
+          "id": "b",
+          "text": "Calling `activity.finish()` here disables all system animations; call `moveTaskToBack` in its place instead"
+        },
+        {
+          "id": "c",
+          "text": "Getting the animation to appear requires explicitly setting `android:enableOnBackInvokedCallback=\"false\"` in the manifest"
+        },
+        {
+          "id": "d",
+          "text": "An always-enabled callback blocks the system animation; use `BackHandler(enabled = drawerOpen) { closeDrawer() }` instead"
+        }
+      ],
+      "concept": "predictive-back-ahead-of-time-callbacks",
+      "sources": [
+        {
+          "url": "https://developer.android.com/guide/navigation/custom-back/predictive-back-gesture",
+          "claim": "If your app enables an `OnBackPressedCallback` or an `OnBackInvokedCallback` with `PRIORITY_DEFAULT` or `PRIORITY_OVERLAY`, the predictive back animations don't run and you must handle the back event; enable or disable callbacks from observable UI state.",
+          "title": "Add support for the predictive back gesture",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "predictive-back"
+      ],
+      "explanation": "Predictive back is ahead-of-time: the system must know before the gesture whether the app will consume it. If an `OnBackPressedCallback` (which `BackHandler` uses) is enabled, predictive animations do not run and the app must handle back. Tie `enabled` to observable UI state. Setting the manifest flag to `false` opts out of predictive back entirely."
+    },
+    {
+      "id": "w06-l03-q03",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w06-l03",
+      "prompt": "`Button(onClick = like) { Icon(Icons.Filled.Favorite, contentDescription = null); Text(\"Like\") }`. How does TalkBack treat this, and which tree does `composeTestRule.onNodeWithText(\"Like\")` search by default?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "As two separately focusable elements, the icon and then the text; tests search the fully unmerged semantics tree by default"
+        },
+        {
+          "id": "b",
+          "text": "One focusable element, \"Like\": `clickable` merges descendants; tests search the merged tree by default"
+        },
+        {
+          "id": "c",
+          "text": "As nothing at all: setting `contentDescription = null` on the inner icon hides the entire button from TalkBack completely"
+        },
+        {
+          "id": "d",
+          "text": "As one focusable element, but the test still fails, because the text node stays hidden one level inside a merged child node"
+        }
+      ],
+      "concept": "compose-semantics-merging-and-labels",
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/accessibility/semantics",
+          "claim": "`Button` and the `clickable` modifier set `mergeDescendants = true`, so descendants merge into one node; the merged tree is used by the testing framework by default; `useUnmergedTree = true` shows every node.",
+          "title": "Semantics in Compose",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "compose-semantics",
+        "compose-accessibility"
+      ],
+      "explanation": "`Button` uses `clickable`, which sets `mergeDescendants = true`, so the icon and text merge into one semantics node read as \"Like\". The null description marks the icon as decorative, not the button. The test framework uses the merged tree by default; pass `useUnmergedTree = true` to see child nodes."
+    },
+    {
+      "id": "w06-l03-q04",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w06-l03",
+      "prompt": "A read-only row shows `Checkbox(checked = item.done, onCheckedChange = null)`, and a custom icon button is `Box(Modifier.size(24.dp).clickable { ... })`. Which statement about touch targets is correct?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Both automatically receive a 48dp minimum touch target here, because the Compose runtime enforces that same minimum unconditionally on every single semantics node in the tree"
+        },
+        {
+          "id": "b",
+          "text": "Neither one of these two touch-target problems can actually be fixed without abandoning Compose entirely and switching this screen back to the legacy View system"
+        },
+        {
+          "id": "c",
+          "text": "The `Checkbox` always keeps its 48dp padding even here, where it is read-only and not interactive at all; the `Box` needs to be rewritten using `IconButton` instead"
+        },
+        {
+          "id": "d",
+          "text": "`Checkbox` adds 48dp only when interactive (none here); custom clickables need `sizeIn(minWidth/minHeight = 48.dp)`"
+        }
+      ],
+      "concept": "compose-a11y-touch-targets-and-checks",
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/accessibility/api-defaults",
+          "claim": "Material components like `Checkbox`, `RadioButton`, `Switch`, `Slider`, `Surface` and `IconButton` enforce a 48dp minimum touch target only when the interaction callback is non-null; for custom clickables use `sizeIn(minWidth = 48.dp, minHeight = 48.dp)`.",
+          "title": "Accessibility API defaults",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "compose-accessibility"
+      ],
+      "explanation": "Material components such as `Checkbox`, `Switch` and `IconButton` enforce a 48dp minimum touch target, but only when their interaction callback is non-null. Custom clickable composables are your responsibility: enforce a 48dp minimum with `sizeIn` or `minimumInteractiveComponentSize`."
+    },
+    {
+      "id": "w06-l03-q05",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w06-l03",
+      "prompt": "You call `composeTestRule.enableAccessibilityChecks()` in a Compose UI test. When do the checks run, and what do they cover?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "On `tryPerformAccessibilityChecks()` or `performClick()`; flags missing labels, low contrast, small targets, bad order"
+        },
+        {
+          "id": "b",
+          "text": "Only once, automatically, right at the very end of the entire test class, and they only ever check color contrast ratios"
+        },
+        {
+          "id": "c",
+          "text": "Continuously, on every single recomposition, and this stays active even inside shipped production release builds of the app"
+        },
+        {
+          "id": "d",
+          "text": "Once enabled, these automated checks fully replace the need for any further manual testing with TalkBack or Switch Access"
+        }
+      ],
+      "concept": "compose-a11y-touch-targets-and-checks",
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/accessibility/testing",
+          "claim": "After `enableAccessibilityChecks()`, checks run on `tryPerformAccessibilityChecks()` or when performing actions like `performClick()`; the Accessibility Test Framework checks labels, contrast, touch target size and traversal order; manual testing with TalkBack remains essential.",
+          "title": "Accessibility testing in Compose",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "compose-accessibility"
+      ],
+      "explanation": "Automated checks (Compose 1.8+, `ui-test-junit4-accessibility`) run on explicit `tryPerformAccessibilityChecks()` calls or when actions are performed after enabling. They use the same framework as Accessibility Scanner. The docs stress that manual testing with TalkBack or Switch Access is still essential."
+    },
+    {
+      "id": "w06-l03-q06",
+      "type": "written",
+      "lesson": "w06-l03",
+      "prompt": "Your app targets SDK 36 and a chat screen now draws under the status bar, and the message field is hidden by the keyboard. Explain how you make it properly edge-to-edge in Compose, including the keyboard and avoiding double padding.",
+      "concept": "compose-window-insets-consumption",
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/system/insets-ui",
+          "claim": "Call `enableEdgeToEdge()` and use `adjustResize`; `safeDrawingPadding()`, `imePadding()` and `windowInsetsPadding()` apply insets as padding and consume them so nested modifiers avoid double spacing; `consumeWindowInsets` consumes insets without applying padding.",
+          "title": "Set up window insets",
+          "accessed": "2026-09-28",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/about/versions/16/behavior-changes-16",
+          "claim": "`android:windowOptOutEdgeToEdgeEnforcement` is deprecated and disabled for apps targeting Android 16 on Android 16 devices.",
+          "title": "Behavior changes: Apps targeting Android 16 or higher",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "compose-insets"
+      ],
+      "explanation": "A senior answer explains consumption, since double padding and missing padding are the usual edge-to-edge bugs, and knows the enforcement timeline.",
+      "model_answer": {
+        "summary": "Edge-to-edge is mandatory once you target 35 on Android 15, and the opt-out is gone for 36 on Android 16. Call `enableEdgeToEdge()`, set `adjustResize`, apply insets with padding modifiers (safe drawing, IME) at the right level, and rely on inset consumption, or `consumeWindowInsets`, so nested modifiers do not pad twice.",
+        "key_points": [
+          "`windowOptOutEdgeToEdgeEnforcement` is disabled for apps targeting Android 16 on Android 16, so the app must handle insets; call `enableEdgeToEdge()` in the activity",
+          "Set `android:windowSoftInputMode=\"adjustResize\"` and apply `Modifier.imePadding()` (or IME insets) to the input area so it moves above the keyboard",
+          "Use `safeDrawingPadding()`/`windowInsetsPadding(WindowInsets.safeDrawing)` for content that must not be obscured; `safeGestures` for interactive content near gesture areas",
+          "Inset padding modifiers consume the insets they apply, so descendants do not reapply them; use `consumeWindowInsets(...)` when spacing comes from elsewhere (e.g. padding values you applied yourself)",
+          "Material 3 `Scaffold` and components handle much of this; backgrounds still draw behind the bars while content is padded"
+        ]
+      }
+    },
+    {
+      "id": "w06-l03-q07",
+      "type": "written",
+      "lesson": "w06-l03",
+      "prompt": "An older app overrides `onBackPressed()` in several activities and intercepts `KEYCODE_BACK`. You are raising `targetSdk` to 36. What breaks, and how do you migrate to predictive back in a Compose app, including a custom back animation?",
+      "concept": "predictive-back-ahead-of-time-callbacks",
+      "sources": [
+        {
+          "url": "https://developer.android.com/about/versions/16/behavior-changes-16",
+          "claim": "For apps targeting Android 16+ on Android 16+, predictive back animations are enabled by default, `onBackPressed()` is not called and `KeyEvent.KEYCODE_BACK` is not dispatched; opt out temporarily with `android:enableOnBackInvokedCallback=\"false\"`.",
+          "title": "Behavior changes: Apps targeting Android 16 or higher",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/guide/navigation/custom-back/predictive-back-gesture",
+          "claim": "`PredictiveBackHandler` collects a `Flow<BackEventCompat>` for progress and catches `CancellationException` when the gesture is cancelled; enable callbacks from observable state; the last added enabled callback handles back.",
+          "title": "Add support for the predictive back gesture",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "predictive-back"
+      ],
+      "explanation": "Separating UI back handling from business logic and understanding the ahead-of-time model is what distinguishes a senior answer from 'replace onBackPressed with BackHandler'.",
+      "model_answer": {
+        "summary": "On Android 16, apps targeting 36 get predictive back by default: `onBackPressed()` is not called and `KEYCODE_BACK` is not dispatched. Move logic to `OnBackPressedCallback`/`BackHandler`, enable callbacks only when needed, and use `PredictiveBackHandler` to drive animations from gesture progress.",
+        "key_points": [
+          "Targeting 36 on Android 16: predictive back system animations are on by default, `onBackPressed()` is not called and `KEYCODE_BACK` is not dispatched",
+          "Replace overrides with AndroidX `OnBackPressedCallback` or Compose `BackHandler`; the temporary opt-out is `android:enableOnBackInvokedCallback=\"false\"`",
+          "Enable each callback only while the UI needs it, driven by observable state (`StateFlow`, Compose state); an always-enabled callback disables system animations such as back-to-home",
+          "Callbacks form a stack where the last-added enabled one handles back, so keep them single-responsibility",
+          "`PredictiveBackHandler { progress: Flow<BackEventCompat> -> }` collects gesture progress to animate, runs the back action after the flow completes, and catches `CancellationException` to reset the UI when the gesture is cancelled"
+        ]
+      }
+    },
+    {
+      "id": "w06-l03-q08",
+      "type": "written",
+      "lesson": "w06-l03",
+      "prompt": "A TalkBack audit of a product card list finds: every card needs four swipes (image, title, price, bookmark icon), the bookmark icon is announced as \"unlabelled button\", decorative dividers are announced, and \"double tap to activate\" gives no context. Fix each issue and explain the semantics behind the fixes.",
+      "concept": "compose-semantics-merging-and-labels",
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/accessibility/semantics",
+          "claim": "`clickable` and `Button` set `mergeDescendants = true`; each node in the semantics tree represents a focusable element for accessibility services; `customActions` with `clearAndSetSemantics { }` on children move actions to the parent.",
+          "title": "Semantics in Compose",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/develop/ui/compose/accessibility/api-defaults",
+          "claim": "Use `contentDescription` for meaningful icons and `null` for decorative images; `onClickLabel` makes TalkBack announce \"Double tap to open this article\" instead of the generic \"Double tap to activate\".",
+          "title": "Accessibility API defaults",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "compose-semantics",
+        "compose-accessibility"
+      ],
+      "explanation": "The senior-level point is that the semantics tree, not the visual tree, is what TalkBack sees; each node is roughly one focus stop, so merging and clearing are the main tools for a usable list.",
+      "model_answer": {
+        "summary": "Merge each card into one semantic node, give meaningful descriptions only to meaningful icons, mark decorative images with `contentDescription = null`, add click labels, and expose secondary actions such as bookmark as custom actions on the card.",
+        "key_points": [
+          "Make the card one focusable node: `clickable` (which merges descendants) or `Modifier.semantics(mergeDescendants = true)`",
+          "Give the bookmark icon a meaningful `contentDescription` (e.g. \"Bookmark\"); set `contentDescription = null` for decorative images",
+          "Use `onClickLabel` (e.g. \"Open product\") so TalkBack says \"Double tap to open product\" instead of \"activate\"",
+          "Expose secondary actions as `customActions` on the card and hide the separate child controls with `clearAndSetSemantics { }`",
+          "Verify with TalkBack and Accessibility Scanner, and add automated checks in UI tests"
+        ]
+      }
+    },
+    {
+      "id": "w06-l04-q01",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w06-l04",
+      "prompt": "A Fragment returns a `ComposeView` from `onCreateView`. Which `ViewCompositionStrategy` makes the Composition follow the Fragment's view lifecycle rather than the window?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`DisposeOnDetachedFromWindow`, which is the strategy meant for a `ComposeView` used outside of any Fragment or RecyclerView pool"
+        },
+        {
+          "id": "b",
+          "text": "The library's own default, `DisposeOnDetachedFromWindowOrReleasedFromPool`, which the documentation specifically recommends for Fragments"
+        },
+        {
+          "id": "c",
+          "text": "`DisposeOnViewTreeLifecycleDestroyed`, disposing when the view tree's `LifecycleOwner` is destroyed"
+        },
+        {
+          "id": "d",
+          "text": "There is no such strategy available; every Composition hosted this way is left running and is never disposed automatically at all"
+        }
+      ],
+      "concept": "compose-view-interop-lifecycles",
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/migrate/interoperability-apis/compose-in-views",
+          "claim": "Use `DisposeOnViewTreeLifecycleDestroyed` for a `ComposeView` in a Fragment: the Composition is disposed when the `Lifecycle` of the `ViewTreeLifecycleOwner` is destroyed; the default is `DisposeOnDetachedFromWindowOrReleasedFromPool`.",
+          "title": "Using Compose in Views",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "compose-migrate-views"
+      ],
+      "explanation": "In a Fragment, the view can be detached and reattached (for example on the back stack) while the Fragment's view lifecycle continues, so tie disposal to the view tree lifecycle with `DisposeOnViewTreeLifecycleDestroyed`. The default suits general use and `RecyclerView` pooling; `DisposeOnDetachedFromWindow` suits a `ComposeView` outside a Fragment."
+    },
+    {
+      "id": "w06-l04-q02",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w06-l04",
+      "prompt": "You wrap a legacy chart view with `AndroidView(factory = { ctx -> ChartView(ctx) }, update = { it.data = points })` inside a `LazyColumn` item. Which statement is correct?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`factory` actually reruns on every single recomposition of this item, so you should instead construct the view once with `remember` outside of `AndroidView`"
+        },
+        {
+          "id": "b",
+          "text": "`update` only ever runs once, right at initial view inflation; any later changes made to `points` afterward are simply ignored forever"
+        },
+        {
+          "id": "c",
+          "text": "`AndroidView` is fundamentally incompatible with lazy lists and must never be placed inside a `LazyColumn` or `LazyRow` item block"
+        },
+        {
+          "id": "d",
+          "text": "`factory` creates the view once; `update` reruns on state change; add `onReset` so the item's view instance can be reused"
+        }
+      ],
+      "concept": "compose-view-interop-lifecycles",
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/migrate/interoperability-apis/views-in-compose",
+          "claim": "`AndroidView` recomposes whenever a State read within the `update` callback changes; the overload with `onReset` lets Compose reuse the View instance when the composition is reused as in Lazy lists; prefer constructing the View in `factory` rather than using `remember`.",
+          "title": "Using Views in Compose",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "compose-migrate-views"
+      ],
+      "explanation": "`AndroidView` calls `factory` to create the view and reruns `update` when state read inside it changes. The overload with `onReset` (and optional `onRelease`) lets Compose reuse the underlying view when lazy list compositions are reused. The docs recommend constructing the view inside `factory` rather than holding it in `remember`."
+    },
+    {
+      "id": "w06-l04-q03",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w06-l04",
+      "prompt": "A 40-screen app uses Fragments and the Navigation component. When should you move to Navigation Compose (or Navigation 3)?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Right at the very start, before writing even a single Compose screen, precisely so that all new screens can immediately be composable destinations"
+        },
+        {
+          "id": "b",
+          "text": "Exactly halfway through the project, the specific moment when precisely half of all the existing Fragments have been converted"
+        },
+        {
+          "id": "c",
+          "text": "Only once every destination is a screen-level composable; until then keep Fragment-based navigation, mixing Views inside"
+        },
+        {
+          "id": "d",
+          "text": "Never at all: Compose screens are required by the framework to stay permanently hosted inside Fragments for their entire lifetime"
+        }
+      ],
+      "concept": "views-to-compose-migration-plan",
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/migrate/strategy",
+          "claim": "Screen-level composables can contain a mix of Compose and View content, but all navigation destinations must be composables to enable Navigation Compose migration; until then continue using Fragment-based Navigation component.",
+          "title": "Migration strategy",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "compose-migrate-views"
+      ],
+      "explanation": "The documented order is: new features in Compose, a shared component library, replace screens one at a time, and only then remove Fragments and the Navigation component. Compose navigation requires all destinations to be composables. Screen-level composables can still contain some Views through interop."
+    },
+    {
+      "id": "w06-l04-q04",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w06-l04",
+      "prompt": "Google's May 2026 \"Compose first\" announcement put Views in maintenance mode. What does that mean for an existing Views app?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Critical fixes, no new features; build new features in Compose, convert existing ones when touched"
+        },
+        {
+          "id": "b",
+          "text": "Views are now formally deprecated and are scheduled to be entirely removed starting with the very next major Android platform release"
+        },
+        {
+          "id": "c",
+          "text": "`RecyclerView` itself keeps receiving genuinely new features and capabilities going forward; only the base `android.widget` package is actually frozen"
+        },
+        {
+          "id": "d",
+          "text": "Nothing meaningfully changes at all going forward; Views and Compose continue to receive exactly equal engineering investment from Google"
+        }
+      ],
+      "concept": "views-maintenance-mode-planning",
+      "sources": [
+        {
+          "url": "https://android-developers.googleblog.com/2026/05/android-ui-development-is-compose-first.html",
+          "claim": "View components in `android.widget` and View-based Jetpack libraries (Fragments, RecyclerView, ViewPager) enter maintenance mode with critical bug fixes and no new features; no plans to deprecate or remove them; build all new features with Compose and convert existing features when you touch them.",
+          "title": "Android UI development is Compose first",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers Blog"
+        }
+      ],
+      "materials": [
+        "compose-migrate-views"
+      ],
+      "explanation": "Maintenance mode means critical bug fixes and no new features; Google says it has no plans to deprecate or remove Views. New Studio UI tooling targets Compose only. The recommendation is incremental: new features in Compose, convert existing features as you touch them."
+    },
+    {
+      "id": "w06-l04-q05",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w06-l04",
+      "prompt": "Halfway through a migration, your mixed Views and Compose APK is noticeably larger and builds are slower than the Views-only version. Based on Google's Sunflower comparison, what should you expect?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "This is a permanent regression with no way back: apps built partly or fully with Compose are simply always larger than pure View-based apps"
+        },
+        {
+          "id": "b",
+          "text": "No improvement is possible on your side at all until the Compose team ships an update that specifically reduces runtime and tooling overhead"
+        },
+        {
+          "id": "c",
+          "text": "The whole regression is purely an artifact of debug builds; release builds show no measurable size or build-time difference at any migration stage"
+        },
+        {
+          "id": "d",
+          "text": "Temporary while both toolkits ship; drops once View deps are removed post-migration, so measure minified release builds"
+        }
+      ],
+      "concept": "views-to-compose-migration-plan",
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/migrate/compare-metrics",
+          "claim": "Sunflower's APK grew from 2,252 KB (Views) to 3,034 KB (mixed) and dropped to 2,966 KB when Compose-only; mean build time rose from 299 ms to 399 ms then fell to 342 ms; always use the release build when profiling.",
+          "title": "Compare Compose and View metrics",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "compose-migrate-views"
+      ],
+      "explanation": "In the Sunflower comparison, adding Compose increased APK size by 782 KB and build time by about 100 ms, but the Compose-only version was smaller (68 KB less) and faster to build than the mixed one after removing View dependencies. Measure size with minified release builds and runtime with Macrobenchmark on release builds."
+    },
+    {
+      "id": "w06-l04-q06",
+      "type": "written",
+      "lesson": "w06-l04",
+      "prompt": "Write the outline of a migration plan for a 40-screen Views app with Fragments and the Navigation component: ordering, risks, and how you would measure progress and catch regressions.",
+      "concept": "views-to-compose-migration-plan",
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/migrate/strategy",
+          "claim": "Migration steps: build new screens with Compose, build a library of common UI components, replace existing features one screen at a time starting simple and bottom-up, then remove Fragments and the Navigation component; rely on UI testing to avoid regressions.",
+          "title": "Migration strategy",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/develop/ui/compose/migrate/compare-metrics",
+          "claim": "Compare APK size (minified release), build time and runtime performance; mixed Views and Compose increased size and build time, which dropped after full migration.",
+          "title": "Compare Compose and View metrics",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "compose-migrate-views"
+      ],
+      "explanation": "The senior view includes the risks (two theming systems during coexistence, temporary size and build-time costs, interop lifecycle bugs) and defines measurable progress, not just an order of screens.",
+      "model_answer": {
+        "summary": "Migrate incrementally: new features in Compose first, then a shared component library/design system, then existing screens one at a time from simple to complex, and finally remove Fragments and move to Compose navigation. Track progress and guard with UI tests and release-build metrics.",
+        "key_points": [
+          "Step 1: build all new screens in Compose (a `ComposeView` in a Fragment with `DisposeOnViewTreeLifecycleDestroyed`), or add Compose to parts of existing screens",
+          "Step 2: build a shared library of common components/design system in Compose as a single source of truth",
+          "Step 3: replace existing screens one at a time, simple ones first (welcome, settings), mixed screens bottom-up until the whole screen is Compose",
+          "Step 4: only when all destinations are composables, remove Fragments and the Navigation component and move to Compose navigation",
+          "Measure: screens migrated, UI tests to catch regressions, and release-build APK size, build time and Macrobenchmark startup/jank against the Views baseline, expecting a temporary size/build-time increase while both toolkits coexist"
+        ]
+      }
+    },
+    {
+      "id": "w06-l04-q07",
+      "type": "written",
+      "lesson": "w06-l04",
+      "prompt": "Your engineering manager asks whether Views being in maintenance mode means the team must pause features for a full Compose rewrite. How do you respond, and how does it change your roadmap?",
+      "concept": "views-maintenance-mode-planning",
+      "sources": [
+        {
+          "url": "https://android-developers.googleblog.com/2026/05/android-ui-development-is-compose-first.html",
+          "claim": "All Android UI should be built with Compose; Views, Fragments, RecyclerView and ViewPager get critical bug fixes but no new features, with no plans to deprecate or remove; new Studio UI tools target Compose only; build new features with Compose and convert existing ones when you touch them.",
+          "title": "Android UI development is Compose first",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers Blog"
+        }
+      ],
+      "materials": [
+        "compose-migrate-views"
+      ],
+      "explanation": "The senior answer avoids both extremes (panic rewrite or ignoring it) and turns the announcement into a policy the team can follow.",
+      "model_answer": {
+        "summary": "No full rewrite is needed: Views still get critical fixes and are not being removed, and interop is supported. But all investment (new APIs, tools, guidance) now goes to Compose, so new features should be Compose-only and existing screens converted when touched, with the plan prioritising high-change areas.",
+        "key_points": [
+          "Maintenance mode: `android.widget` Views and View-based libraries (Fragments, RecyclerView, ViewPager) get critical bug fixes, no new features; no plans to deprecate or remove",
+          "New Android Studio UI tools target Compose only; the Layout Editor and Navigation Editor are in maintenance mode",
+          "Policy: build all new features in Compose and convert existing features when you touch them, using interop (`ComposeView`, `AndroidView`) meanwhile",
+          "Prioritise screens that change often or need new platform capabilities; leave stable, rarely touched screens for later",
+          "Hiring and skills: the team needs Compose depth (state, stability, performance) because future platform features will be Compose-first"
+        ]
+      }
+    },
+    {
+      "id": "w06-l04-q08",
+      "type": "written",
+      "lesson": "w06-l04",
+      "prompt": "During migration a screen mixes both directions of interop: a Fragment hosts two `ComposeView`s, and one composable embeds a legacy `MapView` via `AndroidView`. List the lifecycle and state pitfalls you would check and how to avoid each.",
+      "concept": "compose-view-interop-lifecycles",
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/migrate/interoperability-apis/compose-in-views",
+          "claim": "Use `DisposeOnViewTreeLifecycleDestroyed` in Fragments; if there are multiple `ComposeView` elements in the same layout, each must have a unique ID for `savedInstanceState` to work.",
+          "title": "Using Compose in Views",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/develop/ui/compose/migrate/interoperability-apis/views-in-compose",
+          "claim": "`AndroidView`'s `update` reruns when read State changes; the `onReset`/`onRelease` overload enables View reuse in Lazy lists; prefer constructing the View in `factory`; use `AndroidFragment` only during incremental migration.",
+          "title": "Using Views in Compose",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "compose-migrate-views"
+      ],
+      "explanation": "These are the interop bugs that show up in production (leaks, lost state after rotation, stale views in lists). A senior answer knows the specific APIs that prevent them.",
+      "model_answer": {
+        "summary": "Choose the right `ViewCompositionStrategy` for the Fragment, give every `ComposeView` a unique id so saved state works, create embedded views inside `AndroidView`'s `factory` and update them in `update`, and handle reuse and release with `onReset`/`onRelease`.",
+        "key_points": [
+          "Set `ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed` on `ComposeView`s in a Fragment so the Composition follows the Fragment's view lifecycle",
+          "Multiple `ComposeView`s in one layout each need a unique id (e.g. from `ids.xml`) for `savedInstanceState` to work",
+          "Construct the embedded view inside `AndroidView`'s `factory`, not in `remember` outside it; push state into it in `update`, which reruns when read state changes",
+          "In lazy containers use the `onReset` overload so the view instance can be reused, and `onRelease` to free resources",
+          "Wrap existing Fragments in Compose with `AndroidFragment` only during migration; Compose-only apps should not use Fragments"
+        ]
+      }
+    }
+  ]
+}

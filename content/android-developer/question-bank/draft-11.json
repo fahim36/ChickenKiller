@@ -1,0 +1,1371 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "cold-flow-per-collector-execution",
+      "name": "Cold flows re-run the producer for every collector"
+    },
+    {
+      "id": "stateflow-equality-conflation",
+      "name": "StateFlow equality-based conflation and initial value"
+    },
+    {
+      "id": "sharedflow-replay-buffer-overflow",
+      "name": "SharedFlow replay, extra buffer and overflow policy"
+    },
+    {
+      "id": "whilesubscribed-stop-timeout",
+      "name": "stateIn/shareIn with SharingStarted.WhileSubscribed timeouts"
+    },
+    {
+      "id": "flatmap-latest-concat-merge",
+      "name": "Choosing flatMapLatest, flatMapConcat or flatMapMerge"
+    },
+    {
+      "id": "flow-combine-vs-zip-emission",
+      "name": "When combine and zip emit and complete"
+    },
+    {
+      "id": "flow-slow-collector-backpressure",
+      "name": "buffer, conflate and collectLatest for slow collectors"
+    },
+    {
+      "id": "flow-exception-transparency-catch",
+      "name": "Exception transparency, catch placement and retry"
+    },
+    {
+      "id": "callbackflow-awaitclose-cleanup",
+      "name": "Wrapping callback APIs with callbackFlow and awaitClose"
+    },
+    {
+      "id": "flowon-upstream-context",
+      "name": "flowOn changes only the upstream context"
+    },
+    {
+      "id": "lifecycle-aware-flow-collection",
+      "name": "repeatOnLifecycle and collectAsStateWithLifecycle"
+    },
+    {
+      "id": "one-off-ui-events-as-state",
+      "name": "Modelling one-off ViewModel events as UI state"
+    },
+    {
+      "id": "turbine-flow-event-assertions",
+      "name": "Asserting Flow events with Turbine"
+    },
+    {
+      "id": "viewmodel-stateflow-testing",
+      "name": "Testing StateFlow and stateIn in a ViewModel"
+    },
+    {
+      "id": "rxjava-flow-interop-mapping",
+      "name": "RxJava to Flow interop and concept mapping"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w03-l01-q01",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w03-l01",
+      "prompt": "A repository exposes `val quotes: Flow<Quote> = flow { val socket = api.openSocket(); for (msg in socket) emit(msg.toQuote()) }`. Two screens collect `quotes` at the same time. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The second collector attaches to the first collector's socket and receives only new quotes"
+        },
+        {
+          "id": "b",
+          "text": "The second `collect` call throws because a `flow {}` supports a single collector"
+        },
+        {
+          "id": "c",
+          "text": "Each collector runs the `flow {}` block independently, so two sockets are opened"
+        },
+        {
+          "id": "d",
+          "text": "The flow is started once when `quotes` is declared, and both collectors share that execution"
+        }
+      ],
+      "concept": "cold-flow-per-collector-execution",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/coroutines-flow.html",
+          "claim": "Cold flows are lazy; each new collector triggers a new, independent execution of the flow.",
+          "title": "Flows | Kotlin Documentation",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        },
+        {
+          "url": "https://developer.android.com/kotlin/flow",
+          "claim": "Flows are cold and lazy: the producer code is executed each time a terminal operator is called on the flow.",
+          "title": "Kotlin flows on Android | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "kotlin-flow-docs",
+        "android-flow"
+      ],
+      "explanation": "A `flow {}` is cold: nothing runs when it is declared, and every terminal operator starts a new, independent execution of the producer block. Two collectors therefore open two sockets. The tempting answer (sharing one execution) describes a hot flow; to get it you must convert with `shareIn`/`stateIn` in a scope that outlives the consumers."
+    },
+    {
+      "id": "w03-l01-q02",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w03-l01",
+      "prompt": "A ViewModel holds `private val _items = MutableStateFlow(mutableListOf<Item>())`. To add an item it runs `val list = _items.value; list.add(item); _items.value = list`. The UI collecting `_items` never updates. Why?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It's the same list instance mutated in place; `equals()` sees no change, so StateFlow drops the emission"
+        },
+        {
+          "id": "b",
+          "text": "StateFlow only flushes updates made from `Dispatchers.Main`; a `.value` write from `Dispatchers.IO` or `Default` is queued until the next main-thread frame"
+        },
+        {
+          "id": "c",
+          "text": "`MutableStateFlow.value` only queues a pending write; the update is not visible to collectors until a suspending `emit()` call flushes it"
+        },
+        {
+          "id": "d",
+          "text": "StateFlow only replays its value to collectors that subscribe after the write; collectors already active must re-read `.value` themselves to see it"
+        }
+      ],
+      "concept": "stateflow-equality-conflation",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/-state-flow/",
+          "claim": "Values in a state flow are conflated using Any.equals() comparison, suppressing emission when the new value equals the previously emitted one.",
+          "title": "StateFlow | kotlinx.coroutines API reference",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "android-stateflow-sharedflow",
+        "kotlin-flow-docs"
+      ],
+      "explanation": "StateFlow conflates updates with `Any.equals()`, like `distinctUntilChanged()`: a new value equal to the previous one is not emitted. Assigning the same, mutated list instance compares equal to itself, so collectors see nothing. Assigning `.value` is the normal way to update a MutableStateFlow; the fix is to publish a new immutable list (for example `_items.update { it + item }`)."
+    },
+    {
+      "id": "w03-l01-q03",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w03-l01",
+      "prompt": "You declare `MutableSharedFlow<Event>(replay = 0, extraBufferCapacity = 0, onBufferOverflow = BufferOverflow.DROP_OLDEST)` so that emitters never suspend. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It works: with `replay = 0` and `extraBufferCapacity = 0`, `DROP_OLDEST` still applies because the overflow policy governs the channel's internal send buffer, not just the extra capacity"
+        },
+        {
+          "id": "b",
+          "text": "It works, but the framework silently substitutes `BufferOverflow.SUSPEND` for `DROP_OLDEST` whenever both `replay` and `extraBufferCapacity` are zero"
+        },
+        {
+          "id": "c",
+          "text": "It works, and because `replay` defaults to 0, `DROP_OLDEST` instead replays the single most recent value to any late subscriber"
+        },
+        {
+          "id": "d",
+          "text": "It throws `IllegalArgumentException`: a non-`SUSPEND` policy needs `replay` or `extraBufferCapacity` above zero"
+        }
+      ],
+      "concept": "sharedflow-replay-buffer-overflow",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/-mutable-shared-flow.html",
+          "claim": "Non-SUSPEND onBufferOverflow modes are supported only when replay > 0 or extraBufferCapacity > 0; otherwise the constructor throws IllegalArgumentException.",
+          "title": "MutableSharedFlow | kotlinx.coroutines API reference",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        },
+        {
+          "url": "https://developer.android.com/kotlin/flow/stateflow-and-sharedflow",
+          "claim": "onBufferOverflow sets the policy when the buffer is full; the default is BufferOverflow.SUSPEND, other options are DROP_LATEST and DROP_OLDEST.",
+          "title": "StateFlow and SharedFlow | Kotlin | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-stateflow-sharedflow",
+        "kotlin-flow-docs"
+      ],
+      "explanation": "Buffer overflow strategies other than `SUSPEND` only make sense when there is a buffer to overflow, so `MutableSharedFlow` requires `replay` or `extraBufferCapacity` to be positive for them and throws otherwise. The fix is e.g. `extraBufferCapacity = 64, onBufferOverflow = DROP_OLDEST`. The tempting answer assumes the policy works on a zero-size buffer."
+    },
+    {
+      "id": "w03-l01-q04",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w03-l01",
+      "prompt": "A ViewModel exposes `repo.observe().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), UiState.Loading)`, and the screen collects it inside `repeatOnLifecycle(Lifecycle.State.STARTED)`. The user rotates the device (recreation takes well under a second). What happens to the upstream `repo.observe()` flow?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It is cancelled when the old activity stops and restarted when the new one starts, so the UI briefly shows `Loading`"
+        },
+        {
+          "id": "b",
+          "text": "It keeps running: the last subscriber disappears, but a new one arrives before the 5-second stop timeout, so sharing never stops"
+        },
+        {
+          "id": "c",
+          "text": "It keeps running only because `viewModelScope` is cancelled and recreated with the activity"
+        },
+        {
+          "id": "d",
+          "text": "It is restarted, but the cached value is kept, so the UI never shows `Loading`"
+        }
+      ],
+      "concept": "whilesubscribed-stop-timeout",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/-sharing-started/-companion/-while-subscribed.html",
+          "claim": "stopTimeoutMillis configures the delay between the disappearance of the last subscriber and the stopping of the sharing coroutine; it defaults to 0 (stop immediately).",
+          "title": "WhileSubscribed | kotlinx.coroutines API reference",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        },
+        {
+          "url": "https://developer.android.com/kotlin/flow/stateflow-and-sharedflow",
+          "claim": "SharingStarted.WhileSubscribed() keeps the upstream producer active while there are active subscribers.",
+          "title": "StateFlow and SharedFlow | Kotlin | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-stateflow-sharedflow",
+        "android-flow"
+      ],
+      "explanation": "`stopTimeoutMillis` (5,000 here) is the delay between the last subscriber disappearing and the sharing coroutine stopping. A rotation unsubscribes and resubscribes within that window, so the upstream is never cancelled. The ViewModel (and `viewModelScope`) survives configuration changes; it is not recreated. With `WhileSubscribed()` (timeout 0) the upstream would restart on every rotation."
+    },
+    {
+      "id": "w03-l01-q05",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w03-l01",
+      "prompt": "Same `stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), UiState.Loading)` setup. The user presses Home, waits ten minutes (the ViewModel is still alive), then returns. What does the new collector see first?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The last state produced before the upstream stopped, while the upstream restarts and later emits fresh data"
+        },
+        {
+          "id": "b",
+          "text": "`UiState.Loading`, because stopping the upstream always resets a `stateIn` flow to its initial value"
+        },
+        {
+          "id": "c",
+          "text": "Nothing until the upstream emits again, because the replay cache was cleared after five seconds"
+        },
+        {
+          "id": "d",
+          "text": "An exception, because a stopped `stateIn` flow cannot be restarted"
+        }
+      ],
+      "concept": "whilesubscribed-stop-timeout",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/-sharing-started/-companion/-while-subscribed.html",
+          "claim": "replayExpirationMillis delays resetting the replay cache after sharing stops; for stateIn a reset returns the value to initialValue, and the default Long.MAX_VALUE keeps the cache forever.",
+          "title": "WhileSubscribed | kotlinx.coroutines API reference",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "android-stateflow-sharedflow",
+        "kotlin-flow-docs"
+      ],
+      "explanation": "After 5 seconds without subscribers the sharing coroutine stops, but `replayExpirationMillis` defaults to `Long.MAX_VALUE`, so the cached state is kept. The returning collector immediately gets that last value and the upstream is started again. Resetting to `initialValue` only happens if you pass a finite `replayExpirationMillis` such as `0`."
+    },
+    {
+      "id": "w03-l01-q06",
+      "type": "written",
+      "lesson": "w03-l01",
+      "prompt": "A repository exposes a cold `flow {}` that opens a WebSocket, and three ViewModels on different screens collect it. The backend team reports three connections per user. Diagnose the problem and describe how you would fix it, including where the shared flow should live.",
+      "concept": "cold-flow-per-collector-execution",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/coroutines-flow.html",
+          "claim": "Each new collector of a cold flow triggers a new, independent execution of the flow.",
+          "title": "Flows | Kotlin Documentation",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        },
+        {
+          "url": "https://developer.android.com/kotlin/flow/stateflow-and-sharedflow",
+          "claim": "shareIn turns a cold flow hot and needs a CoroutineScope that lives longer than the consumers, a replay count and a start policy.",
+          "title": "StateFlow and SharedFlow | Kotlin | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-stateflow-sharedflow",
+        "kotlin-flow-docs"
+      ],
+      "explanation": "A senior answer names the cold/hot distinction as the root cause, not the socket library, and thinks about ownership: sharing in one ViewModel's `viewModelScope` would tie the socket to that screen. It also picks a start policy consciously rather than defaulting to `Eagerly`.",
+      "model_answer": {
+        "summary": "A cold flow runs its producer once per collector, so three collectors open three sockets. Share one upstream with `shareIn` (or `stateIn`) in a scope that outlives the individual screens, with a suitable replay and `SharingStarted` policy.",
+        "key_points": [
+          "Cold flows execute the producer block anew for each terminal operator, so each collector opens its own socket",
+          "Convert to a hot flow with `shareIn`/`stateIn` so one upstream execution is multicast to all collectors",
+          "The sharing scope must outlive the consumers (e.g. an application-level scope in the data layer), not a single ViewModel's scope",
+          "Choose `replay` (e.g. 1 so late collectors get the latest message) and `SharingStarted.WhileSubscribed` so the socket closes when nobody listens"
+        ]
+      }
+    },
+    {
+      "id": "w03-l01-q07",
+      "type": "written",
+      "lesson": "w03-l01",
+      "prompt": "Compare `StateFlow` with `LiveData` and with a `MutableSharedFlow(replay = 1)`. What guarantees does StateFlow give, and what surprises it causes in UI code?",
+      "concept": "stateflow-equality-conflation",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/-state-flow/",
+          "claim": "StateFlow never completes; updates are conflated so a slow collector skips fast updates; MutableStateFlow behaves like a replay-1 DROP_OLDEST SharedFlow with distinctUntilChanged.",
+          "title": "StateFlow | kotlinx.coroutines API reference",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        },
+        {
+          "url": "https://developer.android.com/kotlin/flow/stateflow-and-sharedflow",
+          "claim": "StateFlow requires an initial state while LiveData does not, and collecting a StateFlow does not stop automatically when the view is STOPPED.",
+          "title": "StateFlow and SharedFlow | Kotlin | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-stateflow-sharedflow",
+        "kotlin-flow-docs"
+      ],
+      "explanation": "What separates a senior answer is knowing the consequences: in-place mutation or equal re-sends produce no emission, StateFlow is unsuitable for events that must each be seen, and `collect` on it never returns.",
+      "model_answer": {
+        "summary": "StateFlow is a hot, always-initialised state holder that replays the latest value, conflates with `equals()`, and never completes. Unlike LiveData it is not lifecycle-aware, and it behaves like a replay-1 SharedFlow with `DROP_OLDEST` plus `distinctUntilChanged`.",
+        "key_points": [
+          "StateFlow needs an initial value; LiveData does not",
+          "Updates are conflated with `Any.equals()`: equal values are not re-emitted and a slow collector skips intermediate values but always gets the latest",
+          "It is equivalent to `MutableSharedFlow(replay = 1, onBufferOverflow = DROP_OLDEST)` plus `distinctUntilChanged()`, and it never completes",
+          "It is not lifecycle-aware: collection does not stop when the view is stopped, so collect it with `repeatOnLifecycle`/`collectAsStateWithLifecycle`"
+        ]
+      }
+    },
+    {
+      "id": "w03-l01-q08",
+      "type": "written",
+      "lesson": "w03-l01",
+      "prompt": "You need a `MutableSharedFlow` for analytics events that UI code emits with `tryEmit` from click handlers, and a single collector uploads them. Explain how you would set `replay`, `extraBufferCapacity` and `onBufferOverflow`, and what happens to events emitted while nobody is collecting.",
+      "concept": "sharedflow-replay-buffer-overflow",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/-mutable-shared-flow.html",
+          "claim": "replay and extraBufferCapacity default to 0 and onBufferOverflow to SUSPEND; with no subscribers only the most recent replay values are stored.",
+          "title": "MutableSharedFlow | kotlinx.coroutines API reference",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        },
+        {
+          "url": "https://developer.android.com/kotlin/flow/stateflow-and-sharedflow",
+          "claim": "replay resends previously emitted values to new subscribers, and onBufferOverflow sets the policy when the buffer is full.",
+          "title": "StateFlow and SharedFlow | Kotlin | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-stateflow-sharedflow",
+        "kotlin-flow-docs"
+      ],
+      "explanation": "A senior answer ties each parameter to a failure mode (suspension in a click handler, IllegalArgumentException on a zero-size buffer, silently lost events) and recognises that SharedFlow is not a durable queue.",
+      "model_answer": {
+        "summary": "Use `replay = 0` (new collectors should not get old events), a positive `extraBufferCapacity` so `tryEmit` succeeds while the collector is busy, and an overflow policy such as `DROP_OLDEST`. With no subscribers and no replay, emitted values are simply lost.",
+        "key_points": [
+          "`replay` resends past values to new subscribers; for events that must not be re-delivered use `replay = 0`",
+          "`extraBufferCapacity` adds buffer beyond replay so emitters do not suspend while a subscriber is slow",
+          "The default overflow policy is `SUSPEND`; `DROP_OLDEST`/`DROP_LATEST` need `replay` or `extraBufferCapacity` > 0",
+          "With no subscribers only the replay cache is kept, so with `replay = 0` events emitted before collection starts are dropped; durable analytics need persistence instead"
+        ]
+      }
+    },
+    {
+      "id": "w03-l02-q01",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w03-l02",
+      "prompt": "What does this print?\n\n```kotlin\nflow { emit(\"a\"); delay(100); emit(\"b\") }\n  .flatMapLatest { v -> flow { emit(v); delay(200); emit(v + \"_last\") } }\n  .collect { print(\"$it \") }\n```",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`a a_last b b_last`"
+        },
+        {
+          "id": "b",
+          "text": "`a b a_last b_last`"
+        },
+        {
+          "id": "c",
+          "text": "`a b b_last`"
+        },
+        {
+          "id": "d",
+          "text": "`b b_last`"
+        }
+      ],
+      "concept": "flatmap-latest-concat-merge",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/flat-map-latest.html",
+          "claim": "When the original flow emits a new value, the previous flow produced by transform is cancelled; the documented example prints a b b_last.",
+          "title": "flatMapLatest | kotlinx.coroutines API reference",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "kotlin-flow-docs",
+        "kotlin-coroutines-deep-dive"
+      ],
+      "explanation": "`flatMapLatest` cancels the previous inner flow when the upstream emits a new value. `a` is emitted immediately; 100 ms later `b` arrives and cancels the inner flow for `a` before it can emit `a_last`. `a b a_last b_last` would be `flatMapMerge`, and `a a_last b b_last` would be `flatMapConcat`."
+    },
+    {
+      "id": "w03-l02-q02",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w03-l02",
+      "prompt": "`val f1 = flowOf(1, 2).onEach { delay(10) }` and `val f2 = flowOf(\"a\", \"b\", \"c\").onEach { delay(15) }`. What does `f1.combine(f2) { i, s -> \"$i$s\" }` emit?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`1a 2b`"
+        },
+        {
+          "id": "b",
+          "text": "`1a 2b 2c`"
+        },
+        {
+          "id": "c",
+          "text": "`1a 1b 2b 2c`"
+        },
+        {
+          "id": "d",
+          "text": "`1a 2a 2b 2c`"
+        }
+      ],
+      "concept": "flow-combine-vs-zip-emission",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/combine.html",
+          "claim": "combine emits by combining the most recently emitted values of each flow; the documented example prints 1a 2a 2b 2c.",
+          "title": "combine | kotlinx.coroutines API reference",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "kotlin-flow-docs",
+        "kotlin-coroutines-deep-dive"
+      ],
+      "explanation": "`combine` emits whenever any source emits, using the latest value from each once both have emitted. Timeline: `a` at 15 ms (latest 1) gives `1a`, `2` at 20 ms gives `2a`, `b` at 30 ms gives `2b`, `c` at 45 ms gives `2c`. `1a 2b` is what `zip` would produce, pairing values one to one."
+    },
+    {
+      "id": "w03-l02-q03",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w03-l02",
+      "prompt": "`flowOf(1, 2, 3).onEach { delay(10) }.zip(flowOf(\"a\", \"b\", \"c\", \"d\").onEach { delay(15) }) { i, s -> \"$i$s\" }` is collected. What is emitted, and what happens to `\"d\"`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`1a 2b 3c`; zip completes once the shorter flow completes and cancels the other, so `d` is unused"
+        },
+        {
+          "id": "b",
+          "text": "`1a 2b 3c 3d`; once the faster flow's three values are paired, zip reuses its last value (`3`) to pair with the fourth string from the slower flow"
+        },
+        {
+          "id": "c",
+          "text": "`1a 2a 2b 3b 3c 3d`; like `combine`, zip re-pairs the latest value from each flow every time either one emits, not just once per pair"
+        },
+        {
+          "id": "d",
+          "text": "`1a 2b 3c`, then the collector suspends forever because zip keeps the second flow open waiting for a fourth number that never arrives"
+        }
+      ],
+      "concept": "flow-combine-vs-zip-emission",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/zip.html",
+          "claim": "zip completes as soon as one of the flows completes and cancel is called on the remaining flow; the documented example prints 1a 2b 3c.",
+          "title": "zip | kotlinx.coroutines API reference",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        },
+        {
+          "url": "https://kotlinlang.org/docs/coroutines-flow.html",
+          "claim": "zip emits when both flows have emitted the next value; combine emits whenever either flow emits.",
+          "title": "Flows | Kotlin Documentation",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "kotlin-flow-docs",
+        "kotlin-coroutines-deep-dive"
+      ],
+      "explanation": "`zip` pairs elements one to one and completes as soon as one of the flows completes, cancelling the other. Reusing the latest value from a flow is `combine`'s behaviour, not `zip`'s. That makes `zip` right for strictly paired streams and wrong for 'latest of each' UI state, where `combine` fits."
+    },
+    {
+      "id": "w03-l02-q04",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w03-l02",
+      "prompt": "A sensor flow emits every 10 ms and the collector's work takes 100 ms. You want each collector run to finish uninterrupted, and when it finishes, to process only the newest value, skipping the ones in between. Which operator fits?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`buffer()`"
+        },
+        {
+          "id": "b",
+          "text": "`conflate()`"
+        },
+        {
+          "id": "c",
+          "text": "`collectLatest { }`"
+        },
+        {
+          "id": "d",
+          "text": "`debounce(100)`"
+        }
+      ],
+      "concept": "flow-slow-collector-backpressure",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/coroutines-flow.html",
+          "claim": "conflate() keeps only the latest value and drops intermediate ones for a slow collector; collectLatest cancels the previous action when a new value arrives; buffer() lets the producer run ahead up to a capacity.",
+          "title": "Flows | Kotlin Documentation",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "kotlin-flow-docs",
+        "kotlin-coroutines-deep-dive"
+      ],
+      "explanation": "`conflate()` keeps only the latest value while the collector is busy, so intermediate values are dropped but the collector itself is never cancelled. `collectLatest` is the tempting choice, but it cancels the in-progress action when a new value arrives, so the 100 ms work would never finish at this emission rate. `buffer()` keeps every value and lets lag grow; `debounce` would emit nothing while values keep arriving faster than the timeout."
+    },
+    {
+      "id": "w03-l02-q05",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w03-l02",
+      "prompt": "Given:\n\n```kotlin\nrepo.results()\n  .catch { e -> emit(Result.Error(e)) }\n  .collect { r -> render(r) }\n```\n\n`render` sometimes throws `IllegalStateException`. What happens, and how do you make `catch` handle it?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`catch` handles it because operators installed anywhere in the chain, including terminal `collect`, are wrapped in the same implicit try/catch block"
+        },
+        {
+          "id": "b",
+          "text": "`catch` handles it only if `render` runs on `Dispatchers.Main`; on any other dispatcher the exception bypasses `catch` and crashes the app"
+        },
+        {
+          "id": "c",
+          "text": "The exception is swallowed silently: once a flow has emitted at least one value, later exceptions from the collector are logged, not rethrown"
+        },
+        {
+          "id": "d",
+          "text": "`catch` only sees upstream exceptions; move `render` into `onEach {}` before `catch` so it can recover, then call a no-op `collect()`"
+        }
+      ],
+      "concept": "flow-exception-transparency-catch",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/coroutines-flow.html",
+          "claim": "The catch operator only handles upstream exceptions, not exceptions from the collect lambda; placing the logic in onEach before catch makes those exceptions catchable.",
+          "title": "Flows | Kotlin Documentation",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        },
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/catch.html",
+          "claim": "catch is transparent to exceptions in downstream flow and does not catch exceptions thrown to cancel the flow.",
+          "title": "catch | kotlinx.coroutines API reference",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "kotlin-flow-docs",
+        "kotlin-coroutines-deep-dive"
+      ],
+      "explanation": "Exception transparency means `catch` only handles exceptions thrown upstream of it; exceptions thrown in the collector (downstream) are not caught. The documented fix is the declarative style `onEach { render(it) }.catch { ... }.collect()`, which puts the work upstream of `catch`. The tempting answer assumes `catch` works like a `try` around the whole chain."
+    },
+    {
+      "id": "w03-l02-q06",
+      "type": "written",
+      "lesson": "w03-l02",
+      "prompt": "Design the state pipeline for a search-as-you-type screen from a `StateFlow<String>` query to a `StateFlow<SearchUiState>`. Name each operator, say why you chose `flatMapLatest` over `flatMapConcat` and `flatMapMerge`, and describe what happens when the user types quickly.",
+      "concept": "flatmap-latest-concat-merge",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/debounce.html",
+          "claim": "debounce filters out values followed by newer values within the timeout; the latest value is always emitted.",
+          "title": "debounce | kotlinx.coroutines API reference",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        },
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/flat-map-merge.html",
+          "claim": "flatMapMerge collects at most `concurrency` inner flows at once (DEFAULT_CONCURRENCY is 16), results are not ordered, and concurrency = 1 is equivalent to flatMapConcat.",
+          "title": "flatMapMerge | kotlinx.coroutines API reference",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "kotlin-flow-docs",
+        "kotlin-coroutines-deep-dive"
+      ],
+      "explanation": "The senior signal is reasoning about ordering and cancellation: out-of-order responses with `flatMapMerge` are a real production bug, and cancelling in-flight requests saves bandwidth. Mentioning where errors are caught shows the pipeline has been thought through end to end.",
+      "model_answer": {
+        "summary": "`query.debounce(300).distinctUntilChanged().flatMapLatest { q -> searchFlow(q) }.stateIn(...)`: debounce waits for typing to pause, distinctUntilChanged skips repeated queries, and flatMapLatest cancels the stale request when a new query arrives.",
+        "key_points": [
+          "`debounce(timeout)` drops values followed by a newer value within the timeout, so only the paused-on query goes to the network (the latest value is always emitted)",
+          "`distinctUntilChanged()` skips a query equal to the previous one (e.g. after typing and deleting a character)",
+          "`flatMapLatest` cancels the previous inner flow on a new query, so stale responses cannot overwrite fresh ones",
+          "`flatMapConcat` would queue every query sequentially (slow, stale results) and `flatMapMerge` runs them concurrently (default concurrency 16) with results in any order",
+          "Finish with `stateIn` to expose UI state, and handle errors inside the inner flow so one failure does not end the pipeline"
+        ]
+      }
+    },
+    {
+      "id": "w03-l02-q07",
+      "type": "written",
+      "lesson": "w03-l02",
+      "prompt": "A producer emits faster than the collector can process. Compare `buffer()`, `conflate()` and `collectLatest` for this situation: what each does, what it costs, and a real Android case for each.",
+      "concept": "flow-slow-collector-backpressure",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/coroutines-flow.html",
+          "claim": "buffer buffers values up to a capacity and the producer suspends when full; conflate keeps only the latest value; collectLatest cancels the previous action and starts a new one when a new value arrives.",
+          "title": "Flows | Kotlin Documentation",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "kotlin-flow-docs",
+        "kotlin-coroutines-deep-dive"
+      ],
+      "explanation": "Seniors connect the choice to data semantics (must every value be processed? can work be interrupted?) instead of treating the operators as interchangeable performance knobs. Knowing that `collectLatest` can starve under fast emissions is a strong signal.",
+      "model_answer": {
+        "summary": "`buffer` decouples producer and collector and keeps every value up to a capacity; `conflate` keeps only the latest value while the collector is busy; `collectLatest` cancels the in-progress action when a new value arrives and restarts with the new one.",
+        "key_points": [
+          "`buffer(capacity)` runs the producer concurrently and keeps values; when full the producer suspends. Use it when every value matters, e.g. writing log records",
+          "`conflate()` drops intermediate values but never interrupts the collector. Use it for 'latest wins' data like progress or sensor readings",
+          "`collectLatest` cancels the running action for the previous value. Use it when stale work is worthless, e.g. rendering or computing a preview for the latest input",
+          "Without any of these, a flow is sequential: the producer suspends on `emit` until the collector finishes each value"
+        ]
+      }
+    },
+    {
+      "id": "w03-l02-q08",
+      "type": "written",
+      "lesson": "w03-l02",
+      "prompt": "After a single network error, your search screen stops reacting to new queries until the screen is reopened. The pipeline is `query.debounce(300).flatMapLatest { repo.search(it) }.catch { emit(SearchUiState.Error) }.stateIn(...)`. Diagnose the bug and fix it, covering `catch`, `retry` and exception transparency.",
+      "concept": "flow-exception-transparency-catch",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/catch.html",
+          "claim": "catch handles only upstream exceptions, can emit fallback values, and after the exception the flow cannot emit more values.",
+          "title": "catch | kotlinx.coroutines API reference",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        },
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/retry.html",
+          "claim": "retry retries collection of the upstream flow when an exception matching the predicate occurs, is transparent to downstream exceptions and does not retry exceptions that cancel the flow.",
+          "title": "retry | kotlinx.coroutines API reference",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "kotlin-flow-docs",
+        "kotlin-coroutines-deep-dive"
+      ],
+      "explanation": "The senior insight is that where `catch` sits decides what survives an error: at the end of the chain it only turns a crash into a terminal error state. Understanding that `retry` restarts collection (re-running side effects) is also worth mentioning.",
+      "model_answer": {
+        "summary": "The exception from the inner search travels through `flatMapLatest` and ends the outer flow; `catch` emits the error state, but the upstream flow has completed, so later queries are never collected. Catch (and optionally retry) inside the inner flow, per query, so the outer query flow stays alive.",
+        "key_points": [
+          "An exception completes the flow: after `catch` handles it, the flow cannot emit any more values",
+          "Move error handling inside `flatMapLatest`: `repo.search(q).map { Success(it) }.catch { emit(Error(it)) }` so each query recovers independently",
+          "`retry(n) { it is IOException }` re-collects the upstream flow for matching exceptions and does not retry cancellation; put it on the inner flow with a delay/backoff",
+          "Exception transparency: never swallow downstream exceptions inside a `flow {}` builder with `try/catch` around `emit`; rethrow them"
+        ]
+      }
+    },
+    {
+      "id": "w03-l03-q01",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w03-l03",
+      "prompt": "A developer wraps a listener API:\n\n```kotlin\nfun updates() = callbackFlow {\n  val l = Listener { trySend(it) }\n  api.register(l)\n}\n```\n\nWhat happens when this flow is collected?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It works fine; `callbackFlow` inspects the registered listener via reflection and unregisters it automatically once the collecting coroutine is cancelled"
+        },
+        {
+          "id": "b",
+          "text": "The block returns while the channel is open; `callbackFlow` throws `IllegalStateException` unless it ends with `awaitClose { unregister(l) }`"
+        },
+        {
+          "id": "c",
+          "text": "It emits values normally while collected, but leaks the listener after cancellation because `callbackFlow` never calls unregister callbacks on its own"
+        },
+        {
+          "id": "d",
+          "text": "It compiles and runs correctly only if `send` (the suspending variant) replaces `trySend`; otherwise the compiler rejects the lambda"
+        }
+      ],
+      "concept": "callbackflow-awaitclose-cleanup",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/callback-flow.html",
+          "claim": "callbackFlow throws IllegalStateException if the block returns but the channel is not closed yet; awaitClose keeps the flow running and its argument is called on cancellation to clean up.",
+          "title": "callbackFlow | kotlinx.coroutines API reference",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        },
+        {
+          "url": "https://developer.android.com/kotlin/flow",
+          "claim": "The callback inside awaitClose is executed when the flow is either closed or cancelled.",
+          "title": "Kotlin flows on Android | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-flow",
+        "kotlin-flow-docs"
+      ],
+      "explanation": "`callbackFlow` requires the block to suspend until the channel is closed. If it returns with the channel open, it throws `IllegalStateException` to prevent leaks. `awaitClose { }` keeps the flow alive and runs its lambda when the collector cancels or the channel is closed, which is where you unregister. The leak answer is the problem `awaitClose` is designed to prevent."
+    },
+    {
+      "id": "w03-l03-q02",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w03-l03",
+      "prompt": "Collected from `Dispatchers.Main`:\n\n```kotlin\nsource            // A\n  .map { parse(it) }   // B\n  .flowOn(Dispatchers.Default)\n  .map { format(it) }  // C\n  .collect { show(it) } // D\n```\n\nWhich parts run on `Dispatchers.Default`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "All of A, B, C and D"
+        },
+        {
+          "id": "b",
+          "text": "Only C and D"
+        },
+        {
+          "id": "c",
+          "text": "A and B"
+        },
+        {
+          "id": "d",
+          "text": "Only B"
+        }
+      ],
+      "concept": "flowon-upstream-context",
+      "sources": [
+        {
+          "url": "https://developer.android.com/kotlin/flow",
+          "claim": "Upstream of flowOn (producer and operators applied before it) runs on the flowOn dispatcher; downstream operators and the consumer run in the context used to collect.",
+          "title": "Kotlin flows on Android | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://kotlinlang.org/docs/coroutines-flow.html",
+          "claim": "flowOn is context-preserving: it changes only the upstream flow's context, keeping the downstream in the caller's context.",
+          "title": "Flows | Kotlin Documentation",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "android-flow",
+        "kotlin-flow-docs"
+      ],
+      "explanation": "`flowOn` changes the context of everything upstream of it (the producer and the operators applied before it). Downstream operators and the collector keep running in the collector's context (Main here). A common misconception is that `flowOn` works like `withContext` for the rest of the chain."
+    },
+    {
+      "id": "w03-l03-q03",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w03-l03",
+      "prompt": "Inside a `flow { }` builder, someone writes `withContext(Dispatchers.IO) { emit(readFile()) }` to do the I/O off the main thread. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It fails at runtime: emitting from inside `withContext` breaks the builder's context-preservation rule; use `flowOn(Dispatchers.IO)` instead"
+        },
+        {
+          "id": "b",
+          "text": "It works, and the collector also switches to `Dispatchers.IO` for that one value, then hops back to the original dispatcher for the next emission"
+        },
+        {
+          "id": "c",
+          "text": "It works; `emit` hops back to the collector's original dispatcher automatically, because `flow {}` wraps every emission in an implicit `withContext`"
+        },
+        {
+          "id": "d",
+          "text": "It compiles and runs correctly, but only once you add `@OptIn(ExperimentalCoroutinesApi::class)` to silence the compiler's context-switch warning"
+        }
+      ],
+      "concept": "flowon-upstream-context",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/coroutines-flow.html",
+          "claim": "A flow() builder must emit from the same coroutine context; using withContext to change context inside the builder fails with an exception, and flowOn should be used instead.",
+          "title": "Flows | Kotlin Documentation",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        },
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/channel-flow.html",
+          "claim": "channelFlow creates a cold flow whose elements can be emitted from different contexts or concurrently.",
+          "title": "channelFlow | kotlinx.coroutines API reference",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "android-flow",
+        "kotlin-flow-docs"
+      ],
+      "explanation": "The `flow {}` builder enforces context preservation: values must be emitted from the same coroutine context, and emitting from `withContext` throws. `flowOn` is the supported way to move upstream work to another dispatcher. If you really need to emit from several contexts, use `channelFlow`."
+    },
+    {
+      "id": "w03-l03-q04",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w03-l03",
+      "prompt": "In a Fragment with Views, the code is `viewLifecycleOwner.lifecycleScope.launch { vm.uiState.collect { render(it) } }`. What is the problem, and what is the fix?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "No problem: `lifecycleScope` automatically pauses and resumes flow collection to match the Fragment's `STARTED`/`STOPPED` transitions"
+        },
+        {
+          "id": "b",
+          "text": "`StateFlow` cannot be collected from `lifecycleScope` at all; only `viewModelScope` is permitted to collect a `StateFlow` instance"
+        },
+        {
+          "id": "c",
+          "text": "It collects only once: like `LiveData`, a `StateFlow` completes and stops emitting after delivering its first value to a collector"
+        },
+        {
+          "id": "d",
+          "text": "Collection keeps running while the view is stopped, wasting work and risking crashes; wrap it in `repeatOnLifecycle(STARTED)`"
+        }
+      ],
+      "concept": "lifecycle-aware-flow-collection",
+      "sources": [
+        {
+          "url": "https://developer.android.com/kotlin/flow/stateflow-and-sharedflow",
+          "claim": "Never collect a flow from the UI directly from launch or launchIn if the UI needs to be updated; these process events even when the view is not visible, which can lead to crashes. Use repeatOnLifecycle.",
+          "title": "StateFlow and SharedFlow | Kotlin | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/topic/architecture/recommendations",
+          "claim": "Collect UI state from the UI with a lifecycle-aware coroutine builder: collectAsStateWithLifecycle in Compose, repeatOnLifecycle in Views.",
+          "title": "Recommendations for Android architecture | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-flow",
+        "kotlin-flow-docs"
+      ],
+      "explanation": "Unlike `LiveData.observe`, collecting a flow does not stop when the lifecycle reaches STOPPED; the coroutine is only cancelled when the view is destroyed. Android's guidance says never to collect UI-updating flows directly with `launch`/`launchIn`, and to use `repeatOnLifecycle`, which cancels collection below the given state and restarts it when the state is reached again."
+    },
+    {
+      "id": "w03-l03-q05",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w03-l03",
+      "prompt": "A ViewModel must tell the UI to show a 'No connection' snackbar once. Which approach does Android's architecture guidance recommend?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Expose a `Channel<String>` with `receiveAsFlow()`; Google's own architecture guide recommends channels because they guarantee exactly-once delivery even across process death"
+        },
+        {
+          "id": "b",
+          "text": "Put the message in UI state (`userMessage: String?`); the UI shows it and calls back `userMessageShown()` to clear it"
+        },
+        {
+          "id": "c",
+          "text": "Use a `MutableSharedFlow(replay = 1)` so a recreated UI still receives the message; replay keeps working correctly even when the ViewModel outlives the UI"
+        },
+        {
+          "id": "d",
+          "text": "Call the snackbar API from the ViewModel through a stored `View` reference, since the ViewModel already owns the fragment's lifecycle observer"
+        }
+      ],
+      "concept": "one-off-ui-events-as-state",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/architecture/ui-layer/events",
+          "claim": "ViewModel events should always result in a UI state update; Channels or other reactive streams don't guarantee delivery and processing when the ViewModel outlives the UI.",
+          "title": "UI events | App architecture | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/topic/architecture/recommendations",
+          "claim": "Do not send events from the ViewModel to the UI; process the event immediately and update state with the result.",
+          "title": "Recommendations for Android architecture | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-flow",
+        "kotlin-flow-docs"
+      ],
+      "explanation": "The guidance is to reduce ViewModel events to UI state and use a consume-and-notify pattern. Channels and other streams are discouraged because, when the ViewModel outlives the UI, they don't guarantee the event is delivered and processed. A replay-1 SharedFlow re-delivers the event to every new collector (e.g. after rotation), and a ViewModel must not hold View references."
+    },
+    {
+      "id": "w03-l03-q06",
+      "type": "written",
+      "lesson": "w03-l03",
+      "prompt": "Wrap Android's connectivity callback (register/unregister a listener that reports network availability) as a `Flow<Boolean>`. Walk through the code you would write, how you handle cleanup, back-pressure and registration failures, and when `channelFlow` would be the better builder.",
+      "concept": "callbackflow-awaitclose-cleanup",
+      "sources": [
+        {
+          "url": "https://developer.android.com/kotlin/flow",
+          "claim": "callbackFlow lets values be sent from a different context or outside a coroutine with trySend; trySend returns immediately without adding the element if the channel is full; awaitClose runs when the flow is closed or cancelled.",
+          "title": "Kotlin flows on Android | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/channel-flow.html",
+          "claim": "channelFlow completes as soon as the block and all its children complete and does not require awaitClose.",
+          "title": "channelFlow | kotlinx.coroutines API reference",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "android-flow",
+        "kotlin-flow-docs"
+      ],
+      "explanation": "A senior answer treats cleanup and back-pressure as part of the design rather than an afterthought, and knows why `awaitClose` is required (a missing one throws rather than silently leaking).",
+      "model_answer": {
+        "summary": "Use `callbackFlow`: register a callback that calls `trySend`, close the flow with an error if registration fails, and end with `awaitClose { unregister }`. Add `conflate()`/`distinctUntilChanged()` for 'latest state' semantics. `channelFlow` fits when you emit from coroutines you launch yourself and the flow should complete when they finish.",
+        "key_points": [
+          "`callbackFlow`'s ProducerScope is thread-safe, so the callback can call `trySend` from any thread; `trySend` does not suspend and fails when the buffer is full",
+          "`awaitClose { unregister(callback) }` is mandatory: it keeps the flow alive and runs cleanup when the collector cancels",
+          "Call `close(e)` if registration throws, so collectors see the failure instead of hanging",
+          "The default channel is buffered; for state-like signals apply `conflate()` (or `buffer`) and `distinctUntilChanged()`",
+          "`channelFlow` needs no `awaitClose` and completes when its block and children complete, so it suits concurrent producers, not listeners"
+        ]
+      }
+    },
+    {
+      "id": "w03-l03-q07",
+      "type": "written",
+      "lesson": "w03-l03",
+      "prompt": "Explain how you collect a ViewModel's `StateFlow` in Compose and in Views so that nothing runs while the screen is in the background, and how the collection side interacts with `stateIn(..., SharingStarted.WhileSubscribed(5_000), ...)` in the ViewModel.",
+      "concept": "lifecycle-aware-flow-collection",
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/state",
+          "claim": "collectAsStateWithLifecycle collects values from a Flow in a lifecycle-aware manner and is the recommended way to collect flows on Android; collectAsState is for platform-agnostic code.",
+          "title": "State and Jetpack Compose | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/kotlin/flow/stateflow-and-sharedflow",
+          "claim": "LiveData.observe unregisters when the view is STOPPED, whereas flow collection does not stop automatically; use repeatOnLifecycle to get that behavior.",
+          "title": "StateFlow and SharedFlow | Kotlin | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-flow",
+        "kotlin-flow-docs"
+      ],
+      "explanation": "The senior point is that lifecycle-aware collection alone is only half the story: the producer side needs `WhileSubscribed` for background work to actually stop, and the timeout exists to survive configuration changes.",
+      "model_answer": {
+        "summary": "Compose uses `collectAsStateWithLifecycle()`, Views use `repeatOnLifecycle(STARTED)`. Both stop collecting when the UI goes below STARTED, which drops the subscriber count to zero; `WhileSubscribed(5_000)` then stops the upstream after 5 s, but keeps it across quick configuration changes.",
+        "key_points": [
+          "`collectAsStateWithLifecycle` collects in a lifecycle-aware way and is the recommended way on Android; `collectAsState` is not lifecycle-aware and suits platform-agnostic code",
+          "In Views, `repeatOnLifecycle(Lifecycle.State.STARTED)` cancels collection when the lifecycle drops below STARTED and restarts it when STARTED is reached again",
+          "Collecting with plain `launch`/`launchIn` keeps processing while the view is invisible, which can crash or waste resources",
+          "With no subscribers, `WhileSubscribed(5_000)` stops the upstream after the timeout, so background screens stop producing work, and rotations (shorter than 5 s) don't restart it"
+        ]
+      }
+    },
+    {
+      "id": "w03-l03-q08",
+      "type": "written",
+      "lesson": "w03-l03",
+      "prompt": "An interviewer asks: 'How do you send navigation and snackbar events from a ViewModel? Compare `Channel`, `SharedFlow` and UI state.' Give a senior answer with the trade-offs.",
+      "concept": "one-off-ui-events-as-state",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/architecture/ui-layer/events",
+          "claim": "Handle one-off ViewModel events immediately and reduce them to UI state; channels and reactive streams don't guarantee delivery and processing when the producer outlives the consumer.",
+          "title": "UI events | App architecture | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/topic/architecture/recommendations",
+          "claim": "Do not send events from the ViewModel to the UI; process the event immediately in the ViewModel and cause a state update.",
+          "title": "Recommendations for Android architecture | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-flow",
+        "kotlin-flow-docs"
+      ],
+      "explanation": "Seniors can explain the exact failure window (producer outlives consumer) instead of saying 'channels are bad', and they know the official recommendation and why it favours delivery guarantees over convenience.",
+      "model_answer": {
+        "summary": "Prefer modelling events as UI state with consume-and-notify: the ViewModel sets state, the UI acts and notifies the ViewModel, which clears it. Channels and SharedFlows look simpler, but they can lose or duplicate events when the UI is not collecting.",
+        "key_points": [
+          "`SharedFlow` with `replay = 0` drops events emitted while no UI is collecting (e.g. during rotation or in the background)",
+          "A `Channel` buffers events but still doesn't guarantee delivery and processing if the consumer goes away mid-handling; Google calls this an anti-pattern",
+          "UI state (e.g. `userMessage` or `navigateTo` fields) survives configuration changes, is reproducible and easy to test",
+          "The UI calls back (e.g. `userMessageShown()`) after handling so the ViewModel clears the event, keeping unidirectional data flow",
+          "The ViewModel should process user events immediately and express the result as state, not forward events to the UI"
+        ]
+      }
+    },
+    {
+      "id": "w03-l04-q01",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w03-l04",
+      "prompt": "What is the result of this Turbine test?\n\n```kotlin\n@Test fun t() = runTest {\n  flowOf(\"one\", \"two\").test {\n    assertEquals(\"one\", awaitItem())\n  }\n}\n```",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It passes, because the assertion on the first item succeeded before the test block returned control back to the caller"
+        },
+        {
+          "id": "b",
+          "text": "It passes, but Turbine logs a non-fatal warning to stderr noting that `two` and the completion event were never consumed"
+        },
+        {
+          "id": "c",
+          "text": "It fails with 'Unconsumed events found', listing `Item(two)` and `Complete`"
+        },
+        {
+          "id": "d",
+          "text": "It hangs until `runTest`'s dispatcher-driven timeout elapses, because Turbine awaits the unconsumed `two` event indefinitely"
+        }
+      ],
+      "concept": "turbine-flow-event-assertions",
+      "sources": [
+        {
+          "url": "https://github.com/cashapp/turbine",
+          "claim": "Failing to consume all events before the end of a test block fails the test with 'Unconsumed events found: - Item(two) - Complete'.",
+          "title": "GitHub - cashapp/turbine: A testing library for kotlinx.coroutines Flow",
+          "accessed": "2026-09-27",
+          "publisher": "Cash App (GitHub)"
+        }
+      ],
+      "materials": [
+        "turbine",
+        "kotlin-flow-docs"
+      ],
+      "explanation": "Turbine requires every event to be consumed by the end of the `test` block, and fails the test otherwise, listing what was left. Use `awaitItem()` and `awaitComplete()` for the rest, or `cancelAndIgnoreRemainingEvents()` when you deliberately don't care. This strictness is what catches accidental extra emissions."
+    },
+    {
+      "id": "w03-l04-q02",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w03-l04",
+      "prompt": "Your repository flow should terminate with an `IOException` when the fake API fails. Which Turbine call asserts that?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`awaitError()`, which suspends until the flow completes with a Throwable, then check its type"
+        },
+        {
+          "id": "b",
+          "text": "`awaitComplete()`, which suspends until the flow finishes and returns the exception object if the collection failed with one"
+        },
+        {
+          "id": "c",
+          "text": "`expectMostRecentItem()`, since Turbine treats a terminal failure as just another item and this call returns the latest one seen"
+        },
+        {
+          "id": "d",
+          "text": "`cancelAndIgnoreRemainingEvents()` wrapped in `assertFailsWith<IOException>`, since cancelling surfaces the underlying flow exception to the test"
+        }
+      ],
+      "concept": "turbine-flow-event-assertions",
+      "sources": [
+        {
+          "url": "https://github.com/cashapp/turbine",
+          "claim": "awaitItem suspends for an item, awaitComplete suspends until the flow completes without an exception, and awaitError suspends until it completes with a Throwable.",
+          "title": "GitHub - cashapp/turbine: A testing library for kotlinx.coroutines Flow",
+          "accessed": "2026-09-27",
+          "publisher": "Cash App (GitHub)"
+        }
+      ],
+      "materials": [
+        "turbine",
+        "kotlin-flow-docs"
+      ],
+      "explanation": "`awaitError()` suspends until the flow terminates with an exception and returns it. `awaitComplete()` expects completion without an exception and fails otherwise. `expectMostRecentItem()` is for items, and ignoring events hides exactly the behaviour under test."
+    },
+    {
+      "id": "w03-l04-q03",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w03-l04",
+      "prompt": "A test collects a ViewModel's `StateFlow<Int>` and expects to observe `1, 2, 3`, but on CI it sometimes observes only `1, 3`. The fake repository emits 2 and 3 back to back. What is the recommended fix?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Add `delay(1)` between emissions in the fake repository so the dispatcher has time to schedule each collector wake-up separately"
+        },
+        {
+          "id": "b",
+          "text": "Treat it as a data holder: after each action, assert on `viewModel.state.value` instead of every intermediate emission"
+        },
+        {
+          "id": "c",
+          "text": "Replace the StateFlow with a `Channel`, since channels buffer every emitted element instead of conflating values like StateFlow does"
+        },
+        {
+          "id": "d",
+          "text": "Collect with `collectLatest` instead of `collect`, since it restarts the collector block for each value and so cannot miss one"
+        }
+      ],
+      "concept": "viewmodel-stateflow-testing",
+      "sources": [
+        {
+          "url": "https://developer.android.com/kotlin/flow/test",
+          "claim": "StateFlow values are conflated, so collectors may not receive intermediate values; the guidance recommends asserting on the StateFlow's value property so tests don't depend on conflation.",
+          "title": "Testing Kotlin flows on Android | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "turbine",
+        "kotlin-flow-docs"
+      ],
+      "explanation": "StateFlow is conflated: when values are set rapidly, collectors can miss intermediate ones and only see the latest. Android's testing guidance recommends asserting on `.value` so the test doesn't depend on whether conflation happens. Adding delays only hides the race, and changing production types to suit a test is the wrong trade."
+    },
+    {
+      "id": "w03-l04-q04",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w03-l04",
+      "prompt": "A ViewModel exposes `score = repo.scores.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)`. The test calls `fakeRepo.emit(1)` and then asserts `assertEquals(1, vm.score.value)`, but `value` stays `0`. Why, and what fixes it?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`stateIn` needs the update to happen on `Dispatchers.IO`; inject a test IO dispatcher through the repository constructor before asserting"
+        },
+        {
+          "id": "b",
+          "text": "`.value` always reflects the constructor-time initial value for the rest of the test; only Turbine's `awaitItem()` can observe later updates"
+        },
+        {
+          "id": "c",
+          "text": "The fake must emit its value before the ViewModel is constructed, otherwise `stateIn`'s upstream subscription entirely misses that early emission"
+        },
+        {
+          "id": "d",
+          "text": "`WhileSubscribed` only runs the upstream while a subscriber exists; launch an empty collector in `backgroundScope` with `UnconfinedTestDispatcher`"
+        }
+      ],
+      "concept": "viewmodel-stateflow-testing",
+      "sources": [
+        {
+          "url": "https://developer.android.com/kotlin/flow/test",
+          "claim": "With SharingStarted.WhileSubscribed, at least one collector must be present during the test or the StateFlow never updates; the example launches an empty collector in backgroundScope with UnconfinedTestDispatcher.",
+          "title": "Testing Kotlin flows on Android | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "turbine",
+        "kotlin-flow-docs"
+      ],
+      "explanation": "With `WhileSubscribed`, the upstream only runs while at least one collector is present, so without one the StateFlow never updates. The documented pattern launches an empty collector in `backgroundScope` (cancelled automatically at the end of the test) with `UnconfinedTestDispatcher`, then asserts on `.value`. Reading `.value` does not count as a subscription."
+    },
+    {
+      "id": "w03-l04-q05",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w03-l04",
+      "prompt": "You migrate a repository from RxJava 3 to Flow, but legacy Java callers still expect an `Observable<User>`. With `kotlinx-coroutines-rx3`, how do you expose the new `Flow<User>` to them?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`userFlow.asObservable()`, which converts the flow to a cold `Observable`"
+        },
+        {
+          "id": "b",
+          "text": "`Observable.fromPublisher(userFlow)`, because `Flow` implements `Publisher`"
+        },
+        {
+          "id": "c",
+          "text": "`userFlow.asLiveData()` and let Java callers observe it"
+        },
+        {
+          "id": "d",
+          "text": "`userFlow.shareIn(scope).toObservable()`, because an Observable must be hot"
+        }
+      ],
+      "concept": "rxjava-flow-interop-mapping",
+      "sources": [
+        {
+          "url": "https://github.com/Kotlin/kotlinx.coroutines/blob/master/reactive/kotlinx-coroutines-rx3/README.md",
+          "claim": "Flow.asObservable converts the given flow to a cold Observable; ObservableSource.asFlow converts a cold ObservableSource to a flow.",
+          "title": "Module kotlinx-coroutines-rx3",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (GitHub)"
+        }
+      ],
+      "materials": [
+        "turbine",
+        "kotlin-flow-docs"
+      ],
+      "explanation": "`kotlinx-coroutines-rx3` provides `Flow.asObservable()` (and `asFlowable()`), which produce cold Rx types, plus `ObservableSource.asFlow()` for the other direction. `Flow` does not implement Reactive Streams' `Publisher`, and Observables don't need to be hot, so sharing first would change semantics."
+    },
+    {
+      "id": "w03-l04-q06",
+      "type": "written",
+      "lesson": "w03-l04",
+      "prompt": "Describe how you would test a search pipeline (`debounce` + `flatMapLatest` + error handling that emits an error state) with Turbine. Cover the happy path, the error path, and the pitfalls that make such tests flaky or falsely green.",
+      "concept": "turbine-flow-event-assertions",
+      "sources": [
+        {
+          "url": "https://github.com/cashapp/turbine",
+          "claim": "Turbine's test block fails on unconsumed events, awaitError waits for completion with a Throwable, and the default timeout is three seconds.",
+          "title": "GitHub - cashapp/turbine: A testing library for kotlinx.coroutines Flow",
+          "accessed": "2026-09-27",
+          "publisher": "Cash App (GitHub)"
+        },
+        {
+          "url": "https://developer.android.com/kotlin/flow/test",
+          "claim": "Turbine lets a test emit from a fake data source and await each item from the flow under test.",
+          "title": "Testing Kotlin flows on Android | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "turbine",
+        "kotlin-flow-docs"
+      ],
+      "explanation": "The senior signal is testing the recovery behaviour, not just 'an error shows', and understanding why Turbine's strictness about unconsumed events prevents falsely green tests.",
+      "model_answer": {
+        "summary": "Use `runTest` with fakes, drive the query input, and use `test { }` to `awaitItem()` each expected state, including the error state, while the pipeline stays alive for later queries. Consume or explicitly ignore every event, and rely on virtual time for `debounce`.",
+        "key_points": [
+          "Run inside `runTest` so `debounce` delays use virtual time instead of real waiting; inject the test dispatcher",
+          "Use `test { }` with `awaitItem()` for each state; assert the error state is emitted and that a later query still produces results",
+          "Use `awaitError()` only if the flow should terminate; for a recovering pipeline, assert on an error item instead",
+          "Turbine fails on unconsumed events and times out (default 3 s) waiting for missing ones; use `cancelAndIgnoreRemainingEvents()` only deliberately",
+          "Use fakes (not real network) that can emit, delay or throw on demand"
+        ]
+      }
+    },
+    {
+      "id": "w03-l04-q07",
+      "type": "written",
+      "lesson": "w03-l04",
+      "prompt": "Compare two ways of testing a ViewModel's `StateFlow<UiState>`: asserting on `.value` versus collecting it with Turbine. When is each appropriate, and what extra setup does a `stateIn`-backed StateFlow need?",
+      "concept": "viewmodel-stateflow-testing",
+      "sources": [
+        {
+          "url": "https://developer.android.com/kotlin/flow/test",
+          "claim": "The guidance recommends asserting on a StateFlow's value; StateFlows created with stateIn and WhileSubscribed need at least one collector present during the test.",
+          "title": "Testing Kotlin flows on Android | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "turbine",
+        "kotlin-flow-docs"
+      ],
+      "explanation": "Seniors recognise that flaky StateFlow tests usually come from asserting on emissions of a conflated stream, and that `stateIn` without a subscriber silently stays at its initial value.",
+      "model_answer": {
+        "summary": "Asserting `.value` checks the state at a point in time and is immune to conflation; Turbine suits verifying a sequence of states when every step matters and emissions are separated. A `stateIn(WhileSubscribed)` flow needs an active collector in the test or it never updates.",
+        "key_points": [
+          "StateFlow conflates rapid updates, so tests expecting every intermediate emission can be flaky",
+          "Asserting on `.value` after each action is the recommended default for StateFlow",
+          "Turbine is useful when the sequence matters (e.g. Loading then Success), but collecting a conflated flow can still skip values",
+          "For `stateIn` with `WhileSubscribed`, launch a collector in `backgroundScope` (e.g. with `UnconfinedTestDispatcher(testScheduler)`) so the upstream runs"
+        ]
+      }
+    },
+    {
+      "id": "w03-l04-q08",
+      "type": "written",
+      "lesson": "w03-l04",
+      "prompt": "Your team is migrating a large RxJava codebase to coroutines and Flow. Map the main Rx concepts (Subjects, Schedulers, `subscribeOn`/`observeOn`, Disposables) to their Flow equivalents, and describe how you would migrate incrementally.",
+      "concept": "rxjava-flow-interop-mapping",
+      "sources": [
+        {
+          "url": "https://github.com/Kotlin/kotlinx.coroutines/blob/master/reactive/kotlinx-coroutines-rx3/README.md",
+          "claim": "kotlinx-coroutines-rx3 provides ObservableSource.asFlow, Flow.asObservable, Flow.asFlowable and Scheduler.asCoroutineDispatcher.",
+          "title": "Module kotlinx-coroutines-rx3",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (GitHub)"
+        },
+        {
+          "url": "https://developer.android.com/kotlin/flow/stateflow-and-sharedflow",
+          "claim": "A new StateFlow collector receives the last state and subsequent states; SharedFlow's replay sets how many previous values new subscribers get.",
+          "title": "StateFlow and SharedFlow | Kotlin | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "turbine",
+        "kotlin-flow-docs"
+      ],
+      "explanation": "A senior answer maps semantics rather than names (for example StateFlow conflation vs. BehaviorSubject delivering every value) and plans a boundary-by-boundary migration with interop, not a big-bang rewrite.",
+      "model_answer": {
+        "summary": "BehaviorSubject maps to StateFlow, PublishSubject/ReplaySubject to SharedFlow (replay 0 or n), Schedulers to dispatchers with `flowOn`, and Disposables to Job cancellation through structured concurrency. Migrate layer by layer with interop adapters at the boundaries.",
+        "key_points": [
+          "Hot Subjects: `BehaviorSubject` ≈ `StateFlow` (always has a latest value), `PublishSubject`/`ReplaySubject` ≈ `SharedFlow` with replay 0 or n",
+          "Schedulers: dispatchers; `subscribeOn` ≈ `flowOn` (upstream context), while collection happens in the collector's context (like `observeOn` on the main thread); `Scheduler.asCoroutineDispatcher()` bridges existing schedulers",
+          "Disposables: collection is tied to a coroutine Job in a scope (`viewModelScope`, `lifecycleScope`), so cancellation replaces manual `CompositeDisposable` management",
+          "Incremental migration with `kotlinx-coroutines-rx3`: `ObservableSource.asFlow()` for old producers and `Flow.asObservable()`/`asFlowable()` for old consumers, converting one layer at a time"
+        ]
+      }
+    }
+  ]
+}

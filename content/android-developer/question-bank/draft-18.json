@@ -1,0 +1,1392 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "coroutine-cps-state-machine",
+      "name": "How `suspend` compiles: continuation-passing style and the state machine"
+    },
+    {
+      "id": "coroutine-dispatcher-selection",
+      "name": "Choosing dispatchers: Main.immediate, Default, IO and `limitedParallelism`"
+    },
+    {
+      "id": "withcontext-switch-cost",
+      "name": "What `withContext` costs and main-safe suspend functions"
+    },
+    {
+      "id": "coroutine-context-elements",
+      "name": "`CoroutineContext` elements and how they combine and are inherited"
+    },
+    {
+      "id": "coroutine-job-parent-child",
+      "name": "The Job hierarchy: parents wait for children, and breaking it by passing a Job"
+    },
+    {
+      "id": "coroutinescope-vs-supervisorscope-failure",
+      "name": "How child failure propagates in `coroutineScope` vs `supervisorScope`"
+    },
+    {
+      "id": "android-lifecycle-coroutine-scopes",
+      "name": "`viewModelScope`, `lifecycleScope` and why `GlobalScope` is discouraged"
+    },
+    {
+      "id": "injected-external-coroutine-scope",
+      "name": "Injecting dispatchers and an external scope for work that outlives a screen"
+    },
+    {
+      "id": "cooperative-cancellation-checks",
+      "name": "Cooperative cancellation: `isActive`, `ensureActive`, `yield`"
+    },
+    {
+      "id": "swallowed-cancellationexception",
+      "name": "Not swallowing `CancellationException` in catch blocks and `runCatching`"
+    },
+    {
+      "id": "coroutine-exception-handler-placement",
+      "name": "Where `CoroutineExceptionHandler` works, and `launch` vs `async` exceptions"
+    },
+    {
+      "id": "noncancellable-cleanup-and-timeouts",
+      "name": "`NonCancellable` cleanup, `withTimeout` and `withTimeoutOrNull`"
+    },
+    {
+      "id": "runtest-virtual-time",
+      "name": "`runTest` and virtual time for delays, timeouts and retries"
+    },
+    {
+      "id": "standard-vs-unconfined-test-dispatcher",
+      "name": "`StandardTestDispatcher` vs `UnconfinedTestDispatcher` scheduling"
+    },
+    {
+      "id": "test-dispatcher-injection-setmain",
+      "name": "Injecting TestDispatchers and `Dispatchers.setMain` with one shared scheduler"
+    },
+    {
+      "id": "coroutine-blocking-and-leak-traps",
+      "name": "Traps: blocking calls, `runBlocking` and leaked scopes"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w02-l01-q01",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w02-l01",
+      "prompt": "After compilation, what does the JVM signature of `suspend fun fetchUser(id: String): User` look like, and why?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`fun fetchUser(id: String): Deferred<User>`, because the compiler wraps every suspend function body in an implicit `async` and hands back a `Deferred` for the caller to await"
+        },
+        {
+          "id": "b",
+          "text": "`fun fetchUser(id: String, cont: Continuation<User>): Any?`: it returns the result or `COROUTINE_SUSPENDED`"
+        },
+        {
+          "id": "c",
+          "text": "`fun fetchUser(id: String): User`, spawning a new dedicated OS thread that blocks until the network call finishes and the result object is ready"
+        },
+        {
+          "id": "d",
+          "text": "`fun fetchUser(id: String, callback: (User) -> Unit): Unit`, a plain callback interface with no return value and no `Continuation` parameter at all"
+        }
+      ],
+      "concept": "coroutine-cps-state-machine",
+      "sources": [
+        {
+          "url": "https://github.com/Kotlin/KEEP/blob/master/proposals/coroutines.md",
+          "claim": "Every suspending function has an additional `Continuation` parameter; `suspend fun <T> CompletableFuture<T>.await(): T` becomes `fun <T> CompletableFuture<T>.await(continuation: Continuation<T>): Any?`, returning `COROUTINE_SUSPENDED` when it suspends.",
+          "title": "Kotlin Coroutines design proposal (KEEP)",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (GitHub)"
+        }
+      ],
+      "materials": [
+        "kotlin-coroutines-guide",
+        "kotlinx-coroutines-source",
+        "kotlin-coroutines-deep-dive"
+      ],
+      "explanation": "The compiler applies a continuation-passing-style transform. Every suspend function gets an extra `Continuation` parameter. The return type becomes `Any?`, because the function either returns its result directly or returns `COROUTINE_SUSPENDED` to signal that it suspended and will resume the continuation later. No thread is blocked (choice c), and there is no `Deferred`: that only comes from `async`."
+    },
+    {
+      "id": "w02-l01-q02",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w02-l01",
+      "prompt": "You create `val dbDispatcher = Dispatchers.IO.limitedParallelism(4)` for a database driver. Which statement is true?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It creates and owns a brand-new pool of 4 dedicated threads that you must explicitly shut down yourself when the driver is no longer needed"
+        },
+        {
+          "id": "b",
+          "text": "It guarantees that at most 4 coroutines exist at once, like a `Semaphore(4)` guarding the whole database driver's lifetime"
+        },
+        {
+          "id": "c",
+          "text": "A view reusing `Dispatchers.IO` threads: at most 4 run at once, uncounted against IO's own limit"
+        },
+        {
+          "id": "d",
+          "text": "It shares IO's 64-thread limit, so other IO work is capped at 60 threads while the view is busy running its own coroutines"
+        }
+      ],
+      "concept": "coroutine-dispatcher-selection",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/-coroutine-dispatcher/limited-parallelism.html",
+          "claim": "The view reuses threads from the original dispatcher and does not constitute a resource; Dispatchers.IO is elastic, so views are not restricted by its capacity; pitfall: it limits parallel execution, not how many coroutines execute concurrently.",
+          "title": "limitedParallelism | kotlinx.coroutines API",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        },
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/-dispatchers/-i-o.html",
+          "claim": "Dispatchers.IO defaults to 64 threads or the number of cores (whichever is larger), and its limitedParallelism views are not restricted by the Dispatchers.IO parallelism.",
+          "title": "Dispatchers.IO | kotlinx.coroutines API",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "kotlin-coroutines-guide",
+        "kotlinx-coroutines-source",
+        "kotlin-coroutines-deep-dive"
+      ],
+      "explanation": "`limitedParallelism` returns a view, not a resource. It reuses the original dispatcher's threads and does not need closing. `Dispatchers.IO` is elastic here: the parallelism of its views is not taken out of IO's own limit. So this is the recommended replacement for `newFixedThreadPoolContext(n)`. Choice b is the documented pitfall: the view limits how many coroutines run in parallel, not how many are running concurrently while suspended. For that, use a `Mutex` or `Semaphore`."
+    },
+    {
+      "id": "w02-l01-q03",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w02-l01",
+      "prompt": "A function runs on `Dispatchers.Default` and calls `withContext(Dispatchers.IO) { readFile() }`. What typically happens to the thread?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The coroutine is always moved to a brand-new dedicated IO thread pool, paying the full cost of a real context switch and a thread park/unpark cycle"
+        },
+        {
+          "id": "b",
+          "text": "The call throws `IllegalStateException`, because a coroutine on Default is not allowed to switch to the IO dispatcher"
+        },
+        {
+          "id": "c",
+          "text": "Nothing is dispatched at all: `withContext` here only renames the coroutine in the debugger, without touching any thread"
+        },
+        {
+          "id": "d",
+          "text": "IO shares threads with Default, so it usually stays on the same thread and only the parallelism accounting changes"
+        }
+      ],
+      "concept": "withcontext-switch-cost",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/-dispatchers/-i-o.html",
+          "claim": "Dispatchers.IO and its views share threads with the Default dispatcher, so `withContext(Dispatchers.IO)` when already on Default typically does not lead to an actual switch to another thread.",
+          "title": "Dispatchers.IO | kotlinx.coroutines API",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        },
+        {
+          "url": "https://developer.android.com/kotlin/coroutines/coroutines-adv",
+          "claim": "Kotlin optimizes switching between Dispatchers.Default and Dispatchers.IO to avoid thread switches whenever possible.",
+          "title": "Improve app performance with Kotlin coroutines",
+          "accessed": "2026-09-27",
+          "publisher": "Google (Android Developers)"
+        }
+      ],
+      "materials": [
+        "kotlin-coroutines-guide",
+        "kotlinx-coroutines-source",
+        "kotlin-coroutines-deep-dive"
+      ],
+      "explanation": "`Dispatchers.IO` and its views share threads with `Dispatchers.Default`. Calling `withContext(Dispatchers.IO)` from Default therefore usually does not move to another thread. The Android docs also say that Kotlin optimizes switching between Default and IO to avoid thread switches whenever possible. Switching to a dispatcher that does not share threads, such as `Main`, does cost a real dispatch there and another one back."
+    },
+    {
+      "id": "w02-l01-q04",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w02-l01",
+      "prompt": "Inside `viewModelScope.launch { ... }` a teammate writes `launch(Job()) { upload() }` so that the upload has its own Job. What is the effect?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The new `Job()` overrides the parent Job: the upload is no longer a child, so it outlives `viewModelScope` uncancelled"
+        },
+        {
+          "id": "b",
+          "text": "Nothing changes: a coroutine always becomes a child of whatever scope its `launch` call was written inside, regardless of arguments"
+        },
+        {
+          "id": "c",
+          "text": "The upload becomes a supervisor child, so its failures do not cancel siblings, but it is still cancelled together with the ViewModel"
+        },
+        {
+          "id": "d",
+          "text": "It does not compile, because `Job()` is not a valid `CoroutineContext` element and cannot appear as a `launch` argument"
+        }
+      ],
+      "concept": "coroutine-context-elements",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/coroutine-context-and-dispatchers.html",
+          "claim": "When a different Job object is passed as the context for the new coroutine, it overrides the Job of the parent scope, so the coroutine is not a child; context elements are combined with the `+` operator.",
+          "title": "Coroutine context and dispatchers | Kotlin Documentation",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "kotlin-coroutines-guide",
+        "kotlinx-coroutines-source",
+        "kotlin-coroutines-deep-dive"
+      ],
+      "explanation": "The context passed to `launch` is combined with the scope's context using `+`, and later elements win. Passing an explicit `Job` replaces the parent's Job. The docs call this out as one of the two ways to break the parent-child relationship, the other being a different scope such as `GlobalScope`. The coroutine then outlives the ViewModel. Choice c is the usual misunderstanding: it applies neither to `Job()` nor to `SupervisorJob()` passed this way."
+    },
+    {
+      "id": "w02-l01-q05",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w02-l01",
+      "prompt": "A helper `suspend fun show(text: String) = withContext(Dispatchers.Main.immediate) { label.text = text }` is called from both the main thread and background threads. What does `.immediate` change?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It always runs the block synchronously on whatever thread calls it, main or background, skipping the handler entirely"
+        },
+        {
+          "id": "b",
+          "text": "It skips the re-dispatch when already on the main looper; other threads still dispatch to main as usual"
+        },
+        {
+          "id": "c",
+          "text": "It gives the block a higher priority slot in the main looper's message queue, ahead of pending input and draw messages"
+        },
+        {
+          "id": "d",
+          "text": "It makes the block non-cancellable, so that in-flight UI updates always finish even after the coroutine is cancelled"
+        }
+      ],
+      "concept": "coroutine-dispatcher-selection",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/-main-coroutine-dispatcher/immediate.html",
+          "claim": "Dispatchers.Main.immediate executes coroutines immediately when already in the right context (current looper is the same as the handler's looper) without an additional re-dispatch; it is supported on Android.",
+          "title": "MainCoroutineDispatcher.immediate | kotlinx.coroutines API",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "kotlin-coroutines-guide",
+        "kotlinx-coroutines-source",
+        "kotlin-coroutines-deep-dive"
+      ],
+      "explanation": "`Main.immediate` executes immediately, without an extra dispatch, when the caller is already in the right context (the current looper is the main looper). From other threads it dispatches normally. On main-thread paths this avoids posting a message and waiting a frame. Choice a would be unsafe, since it would touch views off the main thread. It is closer to what `Dispatchers.Unconfined` does."
+    },
+    {
+      "id": "w02-l01-q06",
+      "type": "written",
+      "lesson": "w02-l01",
+      "prompt": "You decompile `suspend fun load() { val user = api.user(); val feed = api.feed(user.id); render(user, feed) }`. Explain the state machine the compiler generated: what the `label` field is, where `user` lives while suspended, how many states there are, and what happens when `api.user()` actually suspends.",
+      "concept": "coroutine-cps-state-machine",
+      "sources": [
+        {
+          "url": "https://github.com/Kotlin/KEEP/blob/master/proposals/coroutines.md",
+          "claim": "The compiler creates only one class per suspending lambda with any number of suspension points; the state machine has a `label` field and stores locals as fields; the number of states is suspension points plus one; a suspending function returns `COROUTINE_SUSPENDED` when it suspends.",
+          "title": "Kotlin Coroutines design proposal (KEEP)",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (GitHub)"
+        }
+      ],
+      "materials": [
+        "kotlin-coroutines-guide",
+        "kotlinx-coroutines-source",
+        "kotlin-coroutines-deep-dive"
+      ],
+      "explanation": "Seniors can explain why suspension does not block a thread: the frame is unwound and its state lives on the heap. They also know that one class per function (not per suspension point) keeps the cost low.",
+      "model_answer": {
+        "summary": "The compiler generates one state-machine continuation class for the function. A `label` field records which suspension point to resume at, and locals such as `user` are saved in fields so they survive suspension. With two suspension points there are three states. When a callee returns `COROUTINE_SUSPENDED`, the function returns that marker up the stack. The continuation's `resumeWith` later re-enters the function, and it jumps to the saved label.",
+        "key_points": [
+          "The CPS transform adds a `Continuation` parameter and changes the return type to `Any?`",
+          "One state-machine class per suspend function or lambda, however many suspension points it has",
+          "`label` records the current state; locals that are needed after a suspension point (like `user`) are stored as fields of the state machine",
+          "Number of states = suspension points + 1, so this function has three states",
+          "When a callee returns `COROUTINE_SUSPENDED`, the function returns it immediately, freeing the thread; resuming the continuation re-enters the function at the saved label"
+        ]
+      }
+    },
+    {
+      "id": "w02-l01-q07",
+      "type": "written",
+      "lesson": "w02-l01",
+      "prompt": "A code review finds `withContext(Dispatchers.IO)` wrapped around nearly every repository call, including in-memory cache reads, and the ViewModel also wraps calls in `withContext(Dispatchers.IO)`. Explain what main-safety means, who should own the dispatcher switch, what `withContext` really costs, and how you would clean this up.",
+      "concept": "withcontext-switch-cost",
+      "sources": [
+        {
+          "url": "https://developer.android.com/kotlin/coroutines/coroutines-best-practices",
+          "claim": "Suspend functions should be main-safe: a class doing long-running blocking operations is in charge of moving execution off the main thread using withContext; don't hardcode Dispatchers, inject them.",
+          "title": "Best practices for coroutines in Android",
+          "accessed": "2026-09-27",
+          "publisher": "Google (Android Developers)"
+        },
+        {
+          "url": "https://developer.android.com/kotlin/coroutines/coroutines-adv",
+          "claim": "withContext() does not add extra overhead compared to an equivalent callback-based implementation, and Kotlin optimizes switching between Default and IO to avoid thread switches whenever possible.",
+          "title": "Improve app performance with Kotlin coroutines",
+          "accessed": "2026-09-27",
+          "publisher": "Google (Android Developers)"
+        }
+      ],
+      "materials": [
+        "android-coroutines",
+        "android-coroutines-best-practices",
+        "kotlin-coroutines-guide"
+      ],
+      "explanation": "The senior view is about ownership, not micro-optimisation. The class that blocks owns the switch, and it happens once. Seniors quote the real cost model rather than assuming each `withContext` is an expensive thread hop.",
+      "model_answer": {
+        "summary": "A suspend function should be main-safe: the class that does blocking work moves it off the main thread itself, so callers never pick dispatchers. `withContext` costs no more than an equivalent callback, and Default-to-IO switches usually avoid a thread change. Switching to a dispatcher that does not share threads still costs a dispatch there and back. So put the switch once, at the blocking boundary, with an injected dispatcher, and remove the redundant wrappers.",
+        "key_points": [
+          "Main-safe means safe to call from the main thread; the class doing long-running blocking work is responsible for moving it off the main thread with `withContext`",
+          "Callers (the ViewModel) should not wrap calls again; wrapping pure in-memory work is unnecessary",
+          "`withContext` adds no extra overhead compared to an equivalent callback-based implementation, and Default/IO switches usually avoid a real thread switch",
+          "Switching to a dispatcher that does not share threads means extra dispatches: the block is scheduled on the new dispatcher and then goes back to the original one",
+          "Inject the dispatcher instead of hardcoding `Dispatchers.IO`, so tests can substitute a TestDispatcher"
+        ]
+      }
+    },
+    {
+      "id": "w02-l01-q08",
+      "type": "written",
+      "lesson": "w02-l01",
+      "prompt": "Explain what a `CoroutineContext` is, name its main elements and what each controls, and describe how a child coroutine's context is built from its parent's when you call `launch(Dispatchers.Default + CoroutineName(\"sync\"))`.",
+      "concept": "coroutine-context-elements",
+      "sources": [
+        {
+          "url": "https://developer.android.com/kotlin/coroutines/coroutines-adv",
+          "claim": "A CoroutineContext defines the behavior of a coroutine using Job (lifecycle), CoroutineDispatcher (threads), CoroutineName (debugging) and CoroutineExceptionHandler (uncaught exceptions).",
+          "title": "Improve app performance with Kotlin coroutines",
+          "accessed": "2026-09-27",
+          "publisher": "Google (Android Developers)"
+        },
+        {
+          "url": "https://kotlinlang.org/docs/coroutine-context-and-dispatchers.html",
+          "claim": "A coroutine launched in the scope of another inherits its context and its Job becomes a child of the parent's job; elements are combined with `+`; GlobalScope or an explicit Job breaks the parent-child relationship.",
+          "title": "Coroutine context and dispatchers | Kotlin Documentation",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "kotlin-coroutines-guide",
+        "android-coroutines"
+      ],
+      "explanation": "A senior answer treats the context as an indexed set in which the right-hand element wins. They know the Job is always new for each child, and they understand that this is how the structure is kept, and how it is accidentally broken.",
+      "model_answer": {
+        "summary": "A `CoroutineContext` is a set of elements that together define how a coroutine behaves: the Job (its lifecycle), the dispatcher (its threads), a CoroutineName (for debugging) and a CoroutineExceptionHandler (for uncaught exceptions). A child takes the parent scope's context, adds the elements passed to `launch` with `+` (they override matching elements), and gets a new Job that is a child of the parent's Job.",
+        "key_points": [
+          "Elements: `Job` controls lifecycle and cancellation, `CoroutineDispatcher` picks the threads, `CoroutineName` names the coroutine for debugging, `CoroutineExceptionHandler` handles uncaught exceptions",
+          "Elements are combined with `+`; an element on the right replaces one of the same key",
+          "A child inherits the scope's context, and its new Job becomes a child of the parent's Job, so cancelling the parent cancels the children recursively",
+          "Passing a different scope (e.g. `GlobalScope`) or an explicit `Job` breaks the parent-child link",
+          "In debug mode the `CoroutineName` shows up in the thread name, which helps when reading logs"
+        ]
+      }
+    },
+    {
+      "id": "w02-l02-q01",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w02-l02",
+      "prompt": "```kotlin\nsuspend fun sync() = coroutineScope {\n  launch { delay(1_000); upload() }\n  println(\"launched\")\n}\n```\nWhen does `sync()` return?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Right after printing `launched`, since `launch` is fire-and-forget and returns to the caller without waiting"
+        },
+        {
+          "id": "b",
+          "text": "Never returns: `coroutineScope` blocks the calling thread forever waiting on the child's `Job.join()`"
+        },
+        {
+          "id": "c",
+          "text": "Only after the child completes: a parent always waits for all of its children"
+        },
+        {
+          "id": "d",
+          "text": "Immediately, with the child left detached and silently cancelled the moment the scope function returns"
+        }
+      ],
+      "concept": "coroutine-job-parent-child",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/coroutine-context-and-dispatchers.html",
+          "claim": "A parent coroutine always waits for the completion of all its children; a parent does not have to explicitly track the children it launches or use Job.join to wait for them.",
+          "title": "Coroutine context and dispatchers | Kotlin Documentation",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "android-coroutines",
+        "android-coroutines-best-practices",
+        "kotlin-coroutines-guide"
+      ],
+      "explanation": "Structured concurrency means a parent coroutine always waits for all its children to complete, without an explicit `join`. `coroutineScope` returns only when its body and all its children are done. Choice a confuses \"launch returns immediately\" with \"the scope returns immediately\". The call to `launch` does return at once, but the scope that contains it does not."
+    },
+    {
+      "id": "w02-l02-q02",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w02-l02",
+      "prompt": "```kotlin\nsuspend fun screen() = coroutineScope {\n  val profile = async { api.profile() }\n  val feed = async { api.feed() }  // throws IOException\n  Screen(profile.await(), feed.await())\n}\n```\nWhat happens when `api.feed()` throws?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`profile` finishes normally and `feed.await()` returns null"
+        },
+        {
+          "id": "b",
+          "text": "The failure cancels the scope: `profile` is cancelled and `screen()` throws the `IOException`"
+        },
+        {
+          "id": "c",
+          "text": "Only `feed.await()` throws; `profile` keeps running and its result is kept"
+        },
+        {
+          "id": "d",
+          "text": "The exception goes to the thread's uncaught exception handler and the app crashes, whatever the caller catches"
+        }
+      ],
+      "concept": "coroutinescope-vs-supervisorscope-failure",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/composing-suspending-functions.html",
+          "claim": "With async inside coroutineScope, if the code throws an exception, all the coroutines launched in its scope are cancelled, and the exception propagates.",
+          "title": "Composing suspending functions | Kotlin Documentation",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        },
+        {
+          "url": "https://kotlinlang.org/docs/exception-handling.html",
+          "claim": "If a coroutine encounters an exception other than CancellationException, it cancels its parent with that exception.",
+          "title": "Coroutine exceptions handling | Kotlin Documentation",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "android-coroutines",
+        "android-coroutines-best-practices",
+        "kotlin-coroutines-guide"
+      ],
+      "explanation": "In `coroutineScope`, a child that fails with a non-cancellation exception cancels its parent scope, which cancels all other children, and the scope rethrows the exception to the caller. This is what you want for all-or-nothing parallel decomposition. Choice c describes `supervisorScope` combined with a `try`/`catch` around `feed.await()`."
+    },
+    {
+      "id": "w02-l02-q03",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w02-l02",
+      "prompt": "Inside `supervisorScope { launch { loadAds() }; launch { loadFeed() } }`, `loadAds()` throws. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Both children are cancelled immediately and `supervisorScope` itself rethrows the exception to its caller"
+        },
+        {
+          "id": "b",
+          "text": "`supervisorScope` catches the failure and automatically retries `loadAds()` once before giving up"
+        },
+        {
+          "id": "c",
+          "text": "The exception is silently dropped, since supervision means no failure ever surfaces anywhere"
+        },
+        {
+          "id": "d",
+          "text": "`loadFeed()` keeps running; the ads exception is handled like a root coroutine's, via a `CoroutineExceptionHandler`"
+        }
+      ],
+      "concept": "coroutinescope-vs-supervisorscope-failure",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/exception-handling.html",
+          "claim": "With supervision, a failure of a child does not propagate to the supervisor or its other children; supervisorScope cancels all its children only if it failed itself; coroutines launched directly inside supervisorScope use the CoroutineExceptionHandler installed in their scope like root coroutines do.",
+          "title": "Coroutine exceptions handling | Kotlin Documentation",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "android-coroutines",
+        "android-coroutines-best-practices",
+        "kotlin-coroutines-guide"
+      ],
+      "explanation": "Supervision is one-directional: a child's failure does not cancel the supervisor or its other children. `supervisorScope` cancels its children only if it fails itself. Each child must therefore handle its own exceptions. A child launched directly in `supervisorScope` uses the scope's `CoroutineExceptionHandler` the way a root coroutine does. Choice c is the dangerous assumption: without a handler the exception still reaches the platform's uncaught handler, which on Android crashes the app."
+    },
+    {
+      "id": "w02-l02-q04",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w02-l02",
+      "prompt": "In a Fragment you collect a Flow with `viewLifecycleOwner.lifecycleScope.launch { viewModel.items.collect { render(it) } }`. What is the gap, and what does the recommended API fix?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It only cancels at Lifecycle destruction; collection keeps running while stopped. `repeatOnLifecycle(STARTED)` starts/cancels it around STARTED/STOPPED"
+        },
+        {
+          "id": "b",
+          "text": "`lifecycleScope` is fully cancelled on every `onPause` call, so you silently miss events; switching the collector to `GlobalScope` restores them"
+        },
+        {
+          "id": "c",
+          "text": "`lifecycleScope` never cancels on its own; you must cancel the job manually yourself inside `onDestroyView`"
+        },
+        {
+          "id": "d",
+          "text": "There is no gap here at all: plain `collect` automatically pauses itself while the lifecycle state is below STARTED"
+        }
+      ],
+      "concept": "android-lifecycle-coroutine-scopes",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/libraries/architecture/views/coroutines-views",
+          "claim": "Any coroutine launched in a LifecycleScope is canceled when the Lifecycle is destroyed; repeatOnLifecycle launches the block in a new coroutine every time the lifecycle is in the STARTED state and cancels it when it's STOPPED.",
+          "title": "Use Kotlin coroutines with lifecycle-aware components (Views)",
+          "accessed": "2026-09-27",
+          "publisher": "Google (Android Developers)"
+        }
+      ],
+      "materials": [
+        "android-coroutines",
+        "android-coroutines-best-practices",
+        "kotlin-coroutines-guide"
+      ],
+      "explanation": "A coroutine in `lifecycleScope` is cancelled only when the Lifecycle is destroyed. For a view, that is well after it has left the screen, so the collector keeps working while stopped. `repeatOnLifecycle(STARTED)` launches the block each time the lifecycle reaches STARTED and cancels it at STOPPED. Choice d mixes this up with the older `launchWhenStarted`-style behaviour. Plain `collect` does not pause by itself."
+    },
+    {
+      "id": "w02-l02-q05",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w02-l02",
+      "prompt": "Bookmarking an article must complete even if the user leaves the screen right after tapping. Which design do the Android coroutine guidelines recommend?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Launch the write in `viewModelScope`, because that scope survives configuration changes like a screen rotation"
+        },
+        {
+          "id": "b",
+          "text": "Use `GlobalScope.launch`, because nothing ever cancels a coroutine started on `GlobalScope`"
+        },
+        {
+          "id": "c",
+          "text": "Inject an external scope owned by a longer-lived object into the repository: `externalScope.launch { dataSource.bookmark(article) }.join()`"
+        },
+        {
+          "id": "d",
+          "text": "Wrap the write in `runBlocking` on the calling thread, so that the write cannot be interrupted or cancelled once it starts"
+        }
+      ],
+      "concept": "injected-external-coroutine-scope",
+      "sources": [
+        {
+          "url": "https://developer.android.com/kotlin/coroutines/coroutines-best-practices",
+          "claim": "For work that should outlive the screen, inject an external CoroutineScope and launch in it (`externalScope.launch { ... }.join()`); externalScope should be created and managed by a class that lives longer than the current screen, such as the Application class.",
+          "title": "Best practices for coroutines in Android",
+          "accessed": "2026-09-27",
+          "publisher": "Google (Android Developers)"
+        }
+      ],
+      "materials": [
+        "android-coroutines",
+        "android-coroutines-best-practices",
+        "kotlin-coroutines-guide"
+      ],
+      "explanation": "Work that must outlive the screen belongs in a scope that lives longer than the screen. The docs recommend injecting an `externalScope` created and managed by a longer-lived class, such as the Application or a ViewModel scoped to a navigation graph. The repository launches in it and `join`s, so the caller still waits while it is present. `viewModelScope` is cancelled when the user leaves. `GlobalScope` hardcodes the scope and cannot be controlled in tests. `runBlocking` would block the calling thread."
+    },
+    {
+      "id": "w02-l02-q06",
+      "type": "written",
+      "lesson": "w02-l02",
+      "prompt": "A legacy codebase uses `GlobalScope.launch` for analytics, token refresh and screen data loading. Explain why `GlobalScope` is discouraged, which of these uses (if any) is acceptable, and what you would replace each one with on Android.",
+      "concept": "android-lifecycle-coroutine-scopes",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/-global-scope/",
+          "claim": "GlobalScope has no Job, so it is impossible to cancel or wait for its coroutines; it has no CoroutineExceptionHandler, so exceptions crash the application on Android; it is a delicate API for top-level coroutines not limited by structured concurrency.",
+          "title": "GlobalScope | kotlinx.coroutines API",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        },
+        {
+          "url": "https://developer.android.com/kotlin/coroutines/coroutines-best-practices",
+          "claim": "Avoid GlobalScope: it promotes hard-coding values, makes testing very hard, and prevents having a common CoroutineContext for all coroutines built into the scope.",
+          "title": "Best practices for coroutines in Android",
+          "accessed": "2026-09-27",
+          "publisher": "Google (Android Developers)"
+        }
+      ],
+      "materials": [
+        "android-coroutines",
+        "android-coroutines-best-practices",
+        "kotlin-coroutines-guide"
+      ],
+      "explanation": "Seniors sort the uses by lifetime and move each one to the right owner, rather than just saying \"never use GlobalScope\". They know the Android-specific crash behaviour and point out that testability is the practical reason teams ban it.",
+      "model_answer": {
+        "summary": "`GlobalScope` has no Job. Nothing can cancel or wait for its coroutines, it has no exception handler, and it hardcodes a scope that tests cannot control. Screen loading belongs in `viewModelScope`. Work that must outlive a screen, like token refresh or analytics, belongs in an injected application-level scope with a `SupervisorJob` and an exception handler. Truly process-long background loops are the only documented `GlobalScope` use, and they require `@OptIn(DelicateCoroutinesApi::class)`.",
+        "key_points": [
+          "GlobalScope has no Job, so you cannot cancel or wait for its coroutines; work continues after the UI that needed it is gone, and suspended coroutines can leak resources",
+          "GlobalScope has no CoroutineExceptionHandler, so failures reach the platform's last-resort handling, which on Android crashes the app",
+          "It hardcodes the scope (and often the dispatcher), which makes testing hard and prevents a common context",
+          "Screen data belongs in `viewModelScope`, which is cancelled when the ViewModel is cleared",
+          "Work that outlives screens goes in an injected application-scoped `CoroutineScope`; `GlobalScope` is a delicate API needing `@OptIn(DelicateCoroutinesApi::class)`, only for long-lived process-wide loops"
+        ]
+      }
+    },
+    {
+      "id": "w02-l02-q07",
+      "type": "written",
+      "lesson": "w02-l02",
+      "prompt": "To stop one failing request from cancelling the others, a teammate changes `viewModelScope.launch { ... }` calls to `viewModelScope.launch(SupervisorJob()) { ... }`. Explain what this actually does to the Job hierarchy, the bugs it introduces, and the correct way to isolate failures.",
+      "concept": "coroutine-job-parent-child",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/coroutine-context-and-dispatchers.html",
+          "claim": "When a different Job object is passed as the context for the new coroutine, it overrides the Job of the parent scope; when the parent coroutine is cancelled, all its children are recursively cancelled.",
+          "title": "Coroutine context and dispatchers | Kotlin Documentation",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        },
+        {
+          "url": "https://kotlinlang.org/docs/exception-handling.html",
+          "claim": "With SupervisorJob and supervisorScope, a failure or cancellation of a child does not propagate to the supervisor or its other children, and every child should handle its exceptions by itself.",
+          "title": "Coroutine exceptions handling | Kotlin Documentation",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "android-coroutines",
+        "android-coroutines-best-practices",
+        "kotlin-coroutines-guide"
+      ],
+      "explanation": "This is a classic senior trap. Candidates who understand context merging explain that `SupervisorJob()` passed to a builder becomes the parent of just that one coroutine, cut off from the scope. It does not turn the scope into a supervisor.",
+      "model_answer": {
+        "summary": "Passing a Job to `launch` replaces the parent Job in the new coroutine's context. The coroutine is no longer a child of `viewModelScope`: it is not cancelled when the ViewModel is cleared, and nothing waits for it, so it leaks. It also does not give supervision to its siblings. To isolate failures, use `supervisorScope { }` inside the coroutine, or catch the exceptions in each child.",
+        "key_points": [
+          "A new coroutine's Job is normally a child of the scope's Job; passing an explicit Job in the context overrides that parent",
+          "The coroutine now outlives the ViewModel: `onCleared` cancelling `viewModelScope` does not reach it, which is a leak and can update stale UI",
+          "The parent no longer waits for it, and its failure no longer reaches the parent, so the structure is broken instead of supervised",
+          "Correct isolation: wrap parallel children in `supervisorScope { }`, where a child's failure does not cancel its siblings, and handle each child's exceptions (try/catch or a handler)",
+          "Or catch expected exceptions (e.g. `IOException`) inside each launched block and turn them into UI state"
+        ]
+      }
+    },
+    {
+      "id": "w02-l02-q08",
+      "type": "written",
+      "lesson": "w02-l02",
+      "prompt": "Design the constructor of an `ArticlesRepository` that loads data in parallel and also performs writes that must finish even if the screen closes. Explain which dependencies you inject and why, and how the design helps unit tests.",
+      "concept": "injected-external-coroutine-scope",
+      "sources": [
+        {
+          "url": "https://developer.android.com/kotlin/coroutines/coroutines-best-practices",
+          "claim": "Inject Dispatchers; the data and business layers expose suspend functions and Flow; use coroutineScope or supervisorScope for work bound to the caller, and an injected externalScope for work that should outlive the screen; inject TestDispatchers in tests.",
+          "title": "Best practices for coroutines in Android",
+          "accessed": "2026-09-27",
+          "publisher": "Google (Android Developers)"
+        },
+        {
+          "url": "https://developer.android.com/kotlin/coroutines/test",
+          "claim": "If your class creates coroutines that don't complete on their own and should be canceled at the end of the test, inject TestScope.backgroundScope instead of the TestScope itself.",
+          "title": "Testing Kotlin coroutines on Android",
+          "accessed": "2026-09-27",
+          "publisher": "Google (Android Developers)"
+        }
+      ],
+      "materials": [
+        "android-coroutines",
+        "android-coroutines-best-practices",
+        "kotlin-coroutines-guide"
+      ],
+      "explanation": "Seniors decide which scope each piece of work lives in based on its lifetime. They inject both the dispatcher and the scope so the class can be tested deterministically, and they know the default-argument trick (`externalScope = GlobalScope` style) is only a stopgap.",
+      "model_answer": {
+        "summary": "Inject the data sources, a `CoroutineDispatcher` (instead of hardcoding `Dispatchers.IO`/`Default`) and an external application-scoped `CoroutineScope`. Parallel reads use `coroutineScope { async ... }`, so they follow the caller's lifecycle. Must-finish writes use `externalScope.launch { }.join()`. In tests you pass a TestDispatcher and a test scope that share one scheduler.",
+        "key_points": [
+          "Inject dispatchers instead of hardcoding them, so tests can replace them with TestDispatchers",
+          "Expose suspend functions for one-shot calls and Flow for streams, so the caller controls lifecycle and cancellation",
+          "Use `coroutineScope`/`supervisorScope` with `async` for parallel work that should be cancelled with the caller",
+          "Inject an external scope created by a longer-lived owner (the Application, or a ViewModel scoped to a navigation graph) for work that must outlive the screen",
+          "In tests, inject a `TestDispatcher` (sharing the test scheduler) and, for coroutines that never finish, `TestScope.backgroundScope`"
+        ]
+      }
+    },
+    {
+      "id": "w02-l03-q01",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w02-l03",
+      "prompt": "`val job = scope.launch(Dispatchers.Default) { for (line in hugeFile) parse(line) }` runs, where `parse` is a plain (non-suspending) function. You call `job.cancel()`. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The loop stops at once: `cancel()` interrupts the underlying thread the same way `Thread.interrupt()` would"
+        },
+        {
+          "id": "b",
+          "text": "The loop keeps running to completion, since cancellation is cooperative and nothing here checks for it; add `ensureActive()`"
+        },
+        {
+          "id": "c",
+          "text": "The loop stops at the very next `parse` call, because every function call made from inside a coroutine checks for cancellation"
+        },
+        {
+          "id": "d",
+          "text": "`cancel()` throws `IllegalStateException` on the caller, because the targeted job is currently busy running work"
+        }
+      ],
+      "concept": "cooperative-cancellation-checks",
+      "sources": [
+        {
+          "url": "https://developer.android.com/kotlin/coroutines/coroutines-best-practices",
+          "claim": "Cancellation in coroutines is cooperative: when a coroutine's Job is cancelled, the coroutine isn't cancelled until it suspends or checks for cancellation; one way to check is to call ensureActive in the loop.",
+          "title": "Best practices for coroutines in Android",
+          "accessed": "2026-09-27",
+          "publisher": "Google (Android Developers)"
+        }
+      ],
+      "materials": [
+        "kotlin-coroutine-exceptions",
+        "kotlin-coroutines-deep-dive",
+        "android-coroutines-best-practices"
+      ],
+      "explanation": "Cancelling a Job only marks it as cancelled. The code stops only when it suspends at a cancellable suspension point or checks for cancellation itself. A CPU loop of plain function calls does neither. Add `ensureActive()`, check `isActive`, or call `yield()` in the loop. Choice a is a Java-thread intuition: coroutines never interrupt threads on `cancel()`."
+    },
+    {
+      "id": "w02-l03-q02",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w02-l03",
+      "prompt": "```kotlin\nviewModelScope.launch {\n  try { _state.value = Content(repo.load()) }\n  catch (e: Exception) { _state.value = Error(e.message) }\n}\n```\nWhat is the subtle bug?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`catch (e: Exception)` also catches `CancellationException`, so a cleared ViewModel shows Error instead of ending cancelled"
+        },
+        {
+          "id": "b",
+          "text": "`try`/`catch` simply does not work inside a launched coroutine body; you are required to install a `CoroutineExceptionHandler` instead"
+        },
+        {
+          "id": "c",
+          "text": "`repo.load()` exceptions are only ever delivered to a matching `await()` call, never to a `try`/`catch` written around a `launch` block like this"
+        },
+        {
+          "id": "d",
+          "text": "Setting `_state.value` from inside a coroutine is not thread-safe and can corrupt the `StateFlow`'s internal state"
+        }
+      ],
+      "concept": "swallowed-cancellationexception",
+      "sources": [
+        {
+          "url": "https://developer.android.com/kotlin/coroutines/coroutines-best-practices",
+          "claim": "To enable coroutine cancellation, don't consume exceptions of type CancellationException (don't catch them, or always rethrow them if caught); prefer catching specific exception types like IOException over Exception or Throwable.",
+          "title": "Best practices for coroutines in Android",
+          "accessed": "2026-09-27",
+          "publisher": "Google (Android Developers)"
+        },
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/-cancellation-exception/",
+          "claim": "CancellationException is thrown by cancellable suspending functions if the Job of the coroutine is cancelled while it is suspending; it indicates normal cancellation of a coroutine.",
+          "title": "CancellationException | kotlinx.coroutines API",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "kotlin-coroutine-exceptions",
+        "kotlin-coroutines-deep-dive",
+        "android-coroutines-best-practices"
+      ],
+      "explanation": "Suspending functions throw `CancellationException` when the coroutine is cancelled while suspended. That is normal cancellation, not an error. A catch-all `Exception` handler catches it too. The coroutine then treats cancellation as a failure and carries on as if it were still active. The Android guidance says: don't consume `CancellationException` (rethrow it if you catch it), and catch specific types like `IOException`. Choice b is false: `try`/`catch` is the normal way to handle errors in a coroutine."
+    },
+    {
+      "id": "w02-l03-q03",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w02-l03",
+      "prompt": "```kotlin\nviewModelScope.launch {\n  launch(CoroutineExceptionHandler { _, e -> log(e) }) { error(\"boom\") }\n}\n```\nWhat happens to the exception?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The handler on the inner `launch` logs it, and nothing else in the coroutine hierarchy is affected at all"
+        },
+        {
+          "id": "b",
+          "text": "The handler logs it, and the outer parent coroutine keeps running normally afterward"
+        },
+        {
+          "id": "c",
+          "text": "The child's handler is never used: it hands off to its parent, cancelling it, handled at the root"
+        },
+        {
+          "id": "d",
+          "text": "The exception is lost entirely, because nested `launch` calls silently swallow any exception thrown inside them"
+        }
+      ],
+      "concept": "coroutine-exception-handler-placement",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/exception-handling.html",
+          "claim": "All children coroutines delegate handling of their exceptions to their parent coroutine, up to the root, so the CoroutineExceptionHandler installed in their context is never used; the handler is invoked only on uncaught exceptions.",
+          "title": "Coroutine exceptions handling | Kotlin Documentation",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "kotlin-coroutine-exceptions",
+        "kotlin-coroutines-deep-dive",
+        "android-coroutines-best-practices"
+      ],
+      "explanation": "`CoroutineExceptionHandler` is used only for uncaught exceptions at the root of the hierarchy, or in the direct children of a supervisor. A regular child delegates its exception to its parent, and so on up to the root, so a handler installed on the child is never used. The failure cancels the parent. This is the classic mistake of putting the handler in the wrong place. Install it on the scope or root coroutine, or use `try`/`catch` inside the child."
+    },
+    {
+      "id": "w02-l03-q04",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w02-l03",
+      "prompt": "What does `withTimeout(1.seconds) { Thread.sleep(10_000); fetch() }` do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It throws `TimeoutCancellationException` after exactly 1 second, because `withTimeout` interrupts the blocked thread the way `Thread.interrupt()` does"
+        },
+        {
+          "id": "b",
+          "text": "It quietly returns `null` after waiting exactly 1 second, without throwing anything at all"
+        },
+        {
+          "id": "c",
+          "text": "It never times out at all, because calling `Thread.sleep` inside the block disables the coroutine's timeout timer"
+        },
+        {
+          "id": "d",
+          "text": "`Thread.sleep` runs the full 10 seconds; timeouts cancel cooperatively at the next cancellable point"
+        }
+      ],
+      "concept": "noncancellable-cleanup-and-timeouts",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/with-timeout.html",
+          "claim": "If the block times out it is cancelled with TimeoutCancellationException; cancellation on timeout is concurrent with the block and may happen even after it finishes; `withTimeout(1.seconds) { Thread.sleep(10_000) }` runs to completion, so use runInterruptible for blocking code; withTimeoutOrNull returns null instead.",
+          "title": "withTimeout | kotlinx.coroutines API",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "kotlin-coroutine-exceptions",
+        "kotlin-coroutines-deep-dive",
+        "android-coroutines-best-practices"
+      ],
+      "explanation": "`withTimeout` cancels the block with `TimeoutCancellationException` when the time runs out, and cancellation is cooperative. Blocking JVM calls like `Thread.sleep` are not interrupted, so the documentation's example runs to completion. For blocking code, use `runInterruptible`. `null` on timeout (choice b) is `withTimeoutOrNull`. The timeout is also asynchronous: it can fire even after the block has finished, before the caller resumes."
+    },
+    {
+      "id": "w02-l03-q05",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w02-l03",
+      "prompt": "A root coroutine is started with `scope.async(handler) { error(\"x\") }`, where `handler` is a `CoroutineExceptionHandler` and nobody calls `await()`. What happens to the exception?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The handler logs it right away, because it is installed directly on this root-level coroutine started by `async`"
+        },
+        {
+          "id": "b",
+          "text": "Stored in the `Deferred`, rethrown only by `await()`; unused by `async`, so it can drop silently"
+        },
+        {
+          "id": "c",
+          "text": "The app crashes immediately through the platform's uncaught-exception handler, ignoring the handler passed to `async`"
+        },
+        {
+          "id": "d",
+          "text": "`async` rethrows the exception synchronously on the calling thread the instant the coroutine starts running"
+        }
+      ],
+      "concept": "coroutine-exception-handler-placement",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/exception-handling.html",
+          "claim": "The async builder always catches all exceptions and represents them in the resulting Deferred object, so its CoroutineExceptionHandler has no effect.",
+          "title": "Coroutine exceptions handling | Kotlin Documentation",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        },
+        {
+          "url": "https://developer.android.com/kotlin/coroutines/coroutines-adv",
+          "claim": "Since async expects an eventual call to await, it holds exceptions and rethrows them as part of the await call; if you use async to start a new coroutine from a regular function, you might silently drop an exception.",
+          "title": "Improve app performance with Kotlin coroutines",
+          "accessed": "2026-09-27",
+          "publisher": "Google (Android Developers)"
+        }
+      ],
+      "materials": [
+        "kotlin-coroutine-exceptions",
+        "kotlin-coroutines-deep-dive",
+        "android-coroutines-best-practices"
+      ],
+      "explanation": "`async` catches every exception and stores it in the resulting `Deferred`. It is rethrown when someone calls `await()`, so a `CoroutineExceptionHandler` on `async` does nothing. The Android docs warn that starting `async` from a regular function can silently drop an exception. This is why `async` belongs inside a suspend function or coroutine that awaits it, and `launch` is used for fire-and-forget work."
+    },
+    {
+      "id": "w02-l03-q06",
+      "type": "written",
+      "lesson": "w02-l03",
+      "prompt": "Users report that cancelling a search stops the network request, but the app keeps parsing the old results for seconds and burns CPU. The parser is a tight loop on `Dispatchers.Default`. Diagnose it and fix it, and explain the difference between `isActive`, `ensureActive()` and `yield()`.",
+      "concept": "cooperative-cancellation-checks",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/ensure-active.html",
+          "claim": "ensureActive throws the CancellationException that was the scope's cancellation cause if the scope is no longer active; it is a drop-in replacement for `if (!job.isActive) throw CancellationException()`.",
+          "title": "ensureActive | kotlinx.coroutines API",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        },
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/yield.html",
+          "claim": "yield suspends the coroutine, gives other coroutines on the same dispatcher a chance to run, and throws CancellationException if the job is cancelled; using yield in a loop to wait for a condition is an antipattern.",
+          "title": "yield | kotlinx.coroutines API",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "kotlin-coroutine-exceptions",
+        "kotlin-coroutines-deep-dive",
+        "android-coroutines-best-practices"
+      ],
+      "explanation": "Seniors explain why one part stops and the other does not (a suspension point versus a pure loop). They pick the right check for the situation and add a test that cancels during parsing.",
+      "model_answer": {
+        "summary": "The network call is a cancellable suspension point, so it stops. The parser is a CPU loop with no suspension points and no cancellation checks, so it keeps running after `cancel()`. The fix is to check for cancellation inside the loop. `ensureActive()` throws the cancellation cause if the job is inactive. `isActive` lets you exit gracefully. `yield()` also checks, and in addition lets other coroutines run on the same dispatcher.",
+        "key_points": [
+          "Cancellation is cooperative: a coroutine stops only when it suspends at a cancellable point or checks for cancellation",
+          "`delay`, `withContext` and other kotlinx.coroutines suspend functions are cancellable; a plain CPU loop is not",
+          "`ensureActive()` throws the CancellationException that cancelled the job; it is the drop-in replacement for `if (!isActive) throw CancellationException()`",
+          "`yield()` checks for cancellation and also gives other coroutines a turn on the thread; don't use it as a busy-wait",
+          "For blocking (not CPU) calls, `runInterruptible` interrupts the thread on cancellation"
+        ]
+      }
+    },
+    {
+      "id": "w02-l03-q07",
+      "type": "written",
+      "lesson": "w02-l03",
+      "prompt": "Your codebase wraps repository calls in `runCatching { repo.load() }` and maps the result to UI state. Explain the cancellation bug this causes, and write (in prose or code) a `suspendRunCatching` helper that is safe. What rule should the team follow for catch blocks in coroutines?",
+      "concept": "swallowed-cancellationexception",
+      "sources": [
+        {
+          "url": "https://developer.android.com/kotlin/coroutines/coroutines-best-practices",
+          "claim": "Don't consume exceptions of type CancellationException (don't catch them, or always rethrow them if caught); prefer catching specific exception types like IOException over Exception or Throwable.",
+          "title": "Best practices for coroutines in Android",
+          "accessed": "2026-09-27",
+          "publisher": "Google (Android Developers)"
+        },
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/-coroutine-exception-handler/",
+          "claim": "For recovery use try/catch inside the coroutine, and if the caught exception is a CancellationException call ensureActive() before handling it.",
+          "title": "CoroutineExceptionHandler | kotlinx.coroutines API",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "kotlin-coroutine-exceptions",
+        "kotlin-coroutines-deep-dive",
+        "android-coroutines-best-practices"
+      ],
+      "explanation": "This is the most common production coroutine bug. A senior can explain why it is subtle: a timeout or a cancellation looks like a failure, and the cancelled work keeps going. They also give a reusable fix instead of fixing each call site by hand.",
+      "model_answer": {
+        "summary": "`runCatching` catches every `Throwable`, including the `CancellationException` that cancellable suspend functions throw when the coroutine is cancelled. The cancelled coroutine then turns into a `Result.failure` and continues as if it were still active. A safe helper catches the throwable, rethrows it if it is a `CancellationException` (or calls `ensureActive()`), and only wraps real failures.",
+        "key_points": [
+          "Cancellable suspend functions throw `CancellationException` when the job is cancelled; this means normal cancellation, not an error",
+          "`runCatching` and `catch (e: Exception)`/`Throwable` catch it, so the coroutine turns cancellation into a failure and keeps running",
+          "A safe wrapper rethrows `CancellationException` (e.g. `catch (e: Throwable) { if (e is CancellationException) throw e; Result.failure(e) }`), or calls `ensureActive()` before treating the error as a failure",
+          "Team rule: don't consume `CancellationException`; catch specific types such as `IOException` instead of `Exception`/`Throwable`",
+          "Note that `TimeoutCancellationException` from `withTimeout` is a `CancellationException` too, so handle timeouts deliberately (e.g. `withTimeoutOrNull`)"
+        ]
+      }
+    },
+    {
+      "id": "w02-l03-q08",
+      "type": "written",
+      "lesson": "w02-l03",
+      "prompt": "An upload coroutine must always tell the server to release a reservation, even when the user cancels. The cleanup call is a suspend function in a `finally` block, but in production it never reaches the server when cancellation happens. Explain why, the correct fix, the misuse to avoid, and what to watch out for with `withTimeout` around this work.",
+      "concept": "noncancellable-cleanup-and-timeouts",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/-non-cancellable/",
+          "claim": "NonCancellable is a non-cancelable job that is always active, designed only for withContext (e.g. cleanup in finally); using it with launch or async breaks the parent-child relationship.",
+          "title": "NonCancellable | kotlinx.coroutines API",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        },
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/with-timeout.html",
+          "claim": "Cancellation on timeout may happen at any time, even after the block finishes executing but before the caller gets resumed with the result, and values returned from withTimeout will typically be lost if the caller is cancelled.",
+          "title": "withTimeout | kotlinx.coroutines API",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "kotlin-coroutine-exceptions",
+        "kotlin-coroutines-deep-dive",
+        "android-coroutines-best-practices"
+      ],
+      "explanation": "Seniors know why `finally` is not enough in a cancelled coroutine. They use `NonCancellable` narrowly and only through `withContext`, and they think through the resource-leak edge case of asynchronous timeouts.",
+      "model_answer": {
+        "summary": "A cancelled coroutine that calls a suspending function in `finally` gets a `CancellationException` straight away, because the job is no longer active. Wrap the cleanup in `withContext(NonCancellable) { }`. Use `NonCancellable` only with `withContext`, never with `launch` or `async`, because that detaches the child from its parent. A `withTimeout` timeout is asynchronous, so a value or resource obtained inside it can be lost unless cleanup is structured the same way.",
+        "key_points": [
+          "After cancellation, calling a cancellable suspend function (in `finally` or anywhere) throws `CancellationException` right away, so the cleanup call never runs",
+          "Fix: `finally { withContext(NonCancellable) { api.release(id) } }`, since NonCancellable is a Job that is always active",
+          "`NonCancellable` is designed only for `withContext`; `launch(NonCancellable)` breaks the parent-child relationship, so the parent neither waits for the child nor is cancelled when it fails",
+          "Keep non-cancellable sections short (ideally bounded by their own timeout), and check `ensureActive()` after leaving them",
+          "`withTimeout` cancels with `TimeoutCancellationException` and may fire even after the block finishes but before the caller resumes, so a value returned from it can be lost; release resources in `finally`, or use `withTimeoutOrNull`"
+        ]
+      }
+    },
+    {
+      "id": "w02-l04-q01",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w02-l04",
+      "prompt": "```kotlin\n@Test fun retry() = runTest {\n  val result = retryWithBackoff(times = 3) { api.call() } // delays 1s, 2s, 4s\n  assertEquals(expected, result)\n}\n```\nThe fake `api` fails twice and then succeeds. How long does the test take in real time, and how can you check the backoff?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "About 3 real seconds, because `runTest` runs `delay` calls in real wall-clock time just like a normal test would"
+        },
+        {
+          "id": "b",
+          "text": "About 7 real seconds total, unless the test is separately marked `@Ignore` to skip the slow delays"
+        },
+        {
+          "id": "c",
+          "text": "Milliseconds: `runTest` skips `delay` virtually; assert elapsed time with `currentTime` (3000 ms)"
+        },
+        {
+          "id": "d",
+          "text": "The test fails to compile or run, because calling `delay` is not permitted anywhere inside a `runTest` block"
+        }
+      ],
+      "concept": "runtest-virtual-time",
+      "sources": [
+        {
+          "url": "https://developer.android.com/kotlin/coroutines/test",
+          "claim": "Wrapping test code in runTest automatically skips any delays in coroutines; TestDispatchers use a TestCoroutineScheduler to control virtual time.",
+          "title": "Testing Kotlin coroutines on Android",
+          "accessed": "2026-09-27",
+          "publisher": "Google (Android Developers)"
+        },
+        {
+          "url": "https://github.com/Kotlin/kotlinx.coroutines/blob/master/kotlinx-coroutines-test/README.md",
+          "claim": "Calls to delay are automatically skipped, preserving the relative execution order of the tasks, and currentTime gets the current virtual time.",
+          "title": "kotlinx-coroutines-test README",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (GitHub)"
+        }
+      ],
+      "materials": [
+        "android-coroutines",
+        "kotlin-coroutines-guide"
+      ],
+      "explanation": "`runTest` runs on a `TestDispatcher`, and its `TestCoroutineScheduler` controls virtual time. Calls to `delay` are skipped, but their relative order is kept. `currentTime` reads the virtual clock, so you can check that the backoff waited 1 s + 2 s before the third, successful attempt. This only works if the delays run on test dispatchers, not on a hardcoded `Dispatchers.IO`."
+    },
+    {
+      "id": "w02-l04-q02",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w02-l04",
+      "prompt": "In `runTest { val repo = Repository(StandardTestDispatcher(testScheduler)); repo.initialize(); assertTrue(repo.ready) }`, `initialize()` launches a coroutine on the injected dispatcher. The assertion fails. Why, and what is the fix?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It queues coroutines on the scheduler, run only when the test thread yields; call `advanceUntilIdle()` first"
+        },
+        {
+          "id": "b",
+          "text": "`StandardTestDispatcher` secretly runs its coroutines on a real background thread pool; add a `Thread.sleep` call before the assertion"
+        },
+        {
+          "id": "c",
+          "text": "`runTest` cancels every coroutine launched inside it immediately, before any of their code gets a chance to run at all"
+        },
+        {
+          "id": "d",
+          "text": "You must call `Dispatchers.setMain` once at process startup, before any `TestDispatcher` instance can be constructed or used"
+        }
+      ],
+      "concept": "standard-vs-unconfined-test-dispatcher",
+      "sources": [
+        {
+          "url": "https://developer.android.com/kotlin/coroutines/test",
+          "claim": "Coroutines started on a StandardTestDispatcher are queued on the underlying scheduler and run whenever the test thread is free; yield with advanceUntilIdle, advanceTimeBy or runCurrent; the example calls advanceUntilIdle after repository.initialize().",
+          "title": "Testing Kotlin coroutines on Android",
+          "accessed": "2026-09-27",
+          "publisher": "Google (Android Developers)"
+        }
+      ],
+      "materials": [
+        "android-coroutines",
+        "kotlin-coroutines-guide"
+      ],
+      "explanation": "Coroutines started on a `StandardTestDispatcher` are queued on the shared scheduler and do not run until the test coroutine yields. You can make it yield with `advanceUntilIdle()`, `advanceTimeBy()`, `runCurrent()` or a suspension. This gives you precise control over the order of execution. `Thread.sleep` (choice b) never helps, because everything runs on the single test thread."
+    },
+    {
+      "id": "w02-l04-q03",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w02-l04",
+      "prompt": "When would you choose `UnconfinedTestDispatcher` over `StandardTestDispatcher`, and what do you give up?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "When the test needs to run coroutines on real background threads instead of the single test thread; you give up virtual time entirely"
+        },
+        {
+          "id": "b",
+          "text": "For eager coroutine start, needing no manual yielding; you give up control over run order"
+        },
+        {
+          "id": "c",
+          "text": "When specifically testing code that hardcodes `Dispatchers.IO`; you give up the automatic skipping of `delay` calls"
+        },
+        {
+          "id": "d",
+          "text": "Never, in practice: `UnconfinedTestDispatcher` has been fully deprecated in favor of `StandardTestDispatcher` for all use cases"
+        }
+      ],
+      "concept": "standard-vs-unconfined-test-dispatcher",
+      "sources": [
+        {
+          "url": "https://developer.android.com/kotlin/coroutines/test",
+          "claim": "UnconfinedTestDispatcher starts new coroutines eagerly on the current thread, without waiting for the builder to return, which simplifies tests; runTest uses StandardTestDispatcher by default.",
+          "title": "Testing Kotlin coroutines on Android",
+          "accessed": "2026-09-27",
+          "publisher": "Google (Android Developers)"
+        },
+        {
+          "url": "https://developer.android.com/kotlin/coroutines/coroutines-best-practices",
+          "claim": "UnconfinedTestDispatcher runs new coroutines eagerly, in a blocking way, which makes writing tests easier but gives you less control over how coroutines are executed during the test.",
+          "title": "Best practices for coroutines in Android",
+          "accessed": "2026-09-27",
+          "publisher": "Google (Android Developers)"
+        }
+      ],
+      "materials": [
+        "android-coroutines",
+        "kotlin-coroutines-guide"
+      ],
+      "explanation": "`UnconfinedTestDispatcher` starts new coroutines eagerly on the current thread, before the builder returns. That makes simple tests (such as collecting a StateFlow into a list) easier to write, but you have less control over how coroutines interleave. It still uses virtual time, so delays are still skipped, which makes choices a and c wrong. `runTest` uses `StandardTestDispatcher` by default."
+    },
+    {
+      "id": "w02-l04-q04",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w02-l04",
+      "prompt": "A ViewModel test for code that uses `viewModelScope` crashes in a local JVM unit test before any assertion runs. What is the standard fix?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Run the test as an instrumented test on a device or emulator instead, because ViewModels cannot be constructed inside a local JVM unit test at all"
+        },
+        {
+          "id": "b",
+          "text": "Replace `viewModelScope` with `GlobalScope` directly inside the ViewModel's production code so the test no longer touches Main"
+        },
+        {
+          "id": "c",
+          "text": "Call `runBlocking` in place of `runTest`, since `runBlocking` does not depend on the Android `Main` dispatcher being present"
+        },
+        {
+          "id": "d",
+          "text": "Call `Dispatchers.setMain(testDispatcher)` before, `resetMain()` after: Main doesn't exist in unit tests"
+        }
+      ],
+      "concept": "test-dispatcher-injection-setmain",
+      "sources": [
+        {
+          "url": "https://developer.android.com/kotlin/coroutines/test",
+          "claim": "In local unit tests the Main dispatcher that wraps the Android UI thread is unavailable, so replace it with Dispatchers.setMain and call Dispatchers.resetMain afterwards; if Main has been replaced with a TestDispatcher, newly created TestDispatchers automatically use its scheduler.",
+          "title": "Testing Kotlin coroutines on Android",
+          "accessed": "2026-09-27",
+          "publisher": "Google (Android Developers)"
+        }
+      ],
+      "materials": [
+        "android-coroutines",
+        "kotlin-coroutines-guide"
+      ],
+      "explanation": "`viewModelScope` uses the Main dispatcher, and the `Main` dispatcher that wraps the Android UI thread is not available in local unit tests. Replace it with a `TestDispatcher` using `Dispatchers.setMain` (often in a JUnit rule), and reset it afterwards. Once Main is a TestDispatcher, any new TestDispatcher automatically uses Main's scheduler, which keeps everything on one virtual clock."
+    },
+    {
+      "id": "w02-l04-q05",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w02-l04",
+      "prompt": "A repository does `withContext(Dispatchers.IO) { delay(5_000); readCache() }`, with `Dispatchers.IO` hardcoded. Its `runTest` test takes 5 real seconds and is sometimes flaky. Why?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`runTest` silently ignores any `withContext` call found inside its body, running everything on the test thread regardless of the dispatcher named"
+        },
+        {
+          "id": "b",
+          "text": "`Dispatchers.IO` runs on real threads outside the scheduler; inject a `TestDispatcher` sharing `testScheduler`"
+        },
+        {
+          "id": "c",
+          "text": "`delay` calls made inside any `withContext` block are always real wall-clock time, even when a test dispatcher is used everywhere else"
+        },
+        {
+          "id": "d",
+          "text": "The test needs `UnconfinedTestDispatcher` instead, which is specifically documented to also take control of the real `Dispatchers.IO` thread pool"
+        }
+      ],
+      "concept": "test-dispatcher-injection-setmain",
+      "sources": [
+        {
+          "url": "https://github.com/Kotlin/kotlinx.coroutines/blob/master/kotlinx-coroutines-test/README.md",
+          "claim": "Code using withContext(Dispatchers.IO) won't benefit from virtual time: delays will not be skipped in them.",
+          "title": "kotlinx-coroutines-test README",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (GitHub)"
+        },
+        {
+          "url": "https://developer.android.com/kotlin/coroutines/test",
+          "claim": "When code is executed on multiple threads in parallel, tests can become flaky; in tests, replace real dispatchers with TestDispatchers so that all code runs on the single test thread, and use only one scheduler shared between all TestDispatchers.",
+          "title": "Testing Kotlin coroutines on Android",
+          "accessed": "2026-09-27",
+          "publisher": "Google (Android Developers)"
+        }
+      ],
+      "materials": [
+        "android-coroutines",
+        "kotlin-coroutines-guide"
+      ],
+      "explanation": "Virtual time only covers coroutines that run on TestDispatchers sharing the test's scheduler. The kotlinx-coroutines-test docs note that delays inside `withContext(Dispatchers.IO)` are not skipped. The Android docs add that running on real background threads makes tests flaky. The fix is the injection best practice: take the dispatcher as a constructor parameter and pass `StandardTestDispatcher(testScheduler)` in tests. Choice d is wrong because no test dispatcher changes `Dispatchers.IO`."
+    },
+    {
+      "id": "w02-l04-q06",
+      "type": "written",
+      "lesson": "w02-l04",
+      "prompt": "Write a test plan for a `fetchWithRetry` function that retries with exponential backoff (1 s, 2 s, 4 s) and gives up after a 10-second `withTimeout`. The whole suite must run in milliseconds. Describe the setup, the assertions and the traps.",
+      "concept": "runtest-virtual-time",
+      "sources": [
+        {
+          "url": "https://github.com/Kotlin/kotlinx.coroutines/blob/master/kotlinx-coroutines-test/README.md",
+          "claim": "Delays are skipped and currentTime reads the virtual time; timeouts are also subject to time control so withTimeout finishes immediately under runTest; tests time out after 60 seconds by default; uncaught exceptions in child coroutines are thrown at the end of the test.",
+          "title": "kotlinx-coroutines-test README",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (GitHub)"
+        },
+        {
+          "url": "https://developer.android.com/kotlin/coroutines/test",
+          "claim": "advanceUntilIdle runs all pending coroutines, advanceTimeBy advances virtual time, runCurrent runs coroutines scheduled at the current virtual time; there should be only one scheduler shared by all TestDispatchers.",
+          "title": "Testing Kotlin coroutines on Android",
+          "accessed": "2026-09-27",
+          "publisher": "Google (Android Developers)"
+        }
+      ],
+      "materials": [
+        "android-coroutines",
+        "kotlin-coroutines-guide"
+      ],
+      "explanation": "Seniors test the timing itself, not just the final result, and they test the cancellation path. A retry loop that catches everything will also \"retry\" cancellation, which is exactly the swallowed-cancellation bug.",
+      "model_answer": {
+        "summary": "Run the test in `runTest` and inject a TestDispatcher that shares `testScheduler`, so the delays and the `withTimeout` both use virtual time. Use fakes that fail a controlled number of times. Assert the result, the number of attempts, and `currentTime` at each attempt, using `advanceTimeBy`/`runCurrent` for step-by-step checks. Test the timeout path by making the fake never succeed and asserting `TimeoutCancellationException` (or `null` with `withTimeoutOrNull`).",
+        "key_points": [
+          "`runTest` skips delays with virtual time; `withTimeout` inside it also runs on virtual time, so a 10 s timeout finishes instantly",
+          "Inject the dispatcher (no hardcoded `Dispatchers.IO`); every TestDispatcher must share the same `testScheduler`",
+          "Assert the backoff with `currentTime` and step through it with `advanceTimeBy`/`runCurrent`, or run to the end with `advanceUntilIdle`",
+          "Also test cancellation: cancel the job mid-backoff and assert that no further attempts happen and that `CancellationException` is not turned into a retry",
+          "`runTest` has its own real-time timeout (60 s by default) and rethrows uncaught child exceptions at the end of the test"
+        ]
+      }
+    },
+    {
+      "id": "w02-l04-q07",
+      "type": "written",
+      "lesson": "w02-l04",
+      "prompt": "In a code review you find `runBlocking { tokenStore.read() }` inside an OkHttp interceptor that is sometimes called on the main thread, and `runBlocking { }` inside a suspend function in the data layer. Explain what goes wrong in each case, and what you would do instead.",
+      "concept": "coroutine-blocking-and-leak-traps",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/run-blocking.html",
+          "claim": "runBlocking blocks the current thread until completion and is intended for main functions, tests and bridging non-suspend callbacks; calling it from a suspend function blocks the thread instead of releasing it, can cause thread starvation, and ignores the caller's context.",
+          "title": "runBlocking | kotlinx.coroutines API",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "android-coroutines",
+        "kotlin-coroutines-guide"
+      ],
+      "explanation": "Seniors know that \"it works in my test\" is not a defence. `runBlocking` is fine where blocking is acceptable and disastrous on the main thread or on a pool with few threads. They name starvation and deadlock as the real failure modes, not just \"it's slow\".",
+      "model_answer": {
+        "summary": "`runBlocking` blocks the thread it runs on until the coroutine completes. On the main thread that means frozen UI and possibly an ANR. Inside a suspend function it blocks a thread instead of suspending, which can starve dispatcher threads and ignores the caller's context. Remove it from suspend code (just call the suspend function), make sure the main thread never reaches that interceptor path, and keep `runBlocking` for `main` functions, tests and unavoidable bridges on background threads.",
+        "key_points": [
+          "`runBlocking` blocks the current thread until its coroutine finishes, so it is a bridge from blocking code to coroutines, not a way to run async work",
+          "On the Android main thread it freezes the UI; long waits there cause ANRs",
+          "Inside a suspend function it blocks the thread instead of releasing it, which can starve a dispatcher's limited threads (even deadlock), and it ignores the caller's coroutine context and cancellation",
+          "In suspend code just call the suspend function; for a blocking API (such as an OkHttp interceptor), make sure it only runs on background threads and keep the bridge short",
+          "Legitimate uses: `main` functions, tests, and callbacks that are not `suspend` but must call suspend code on a background thread"
+        ]
+      }
+    },
+    {
+      "id": "w02-l04-q08",
+      "type": "written",
+      "lesson": "w02-l04",
+      "prompt": "A singleton `LocationTracker` creates `private val scope = CoroutineScope(Dispatchers.IO)` and calls `scope.launch { collectUpdates() }` every time a screen calls `start()`, but nothing ever cancels those jobs. Memory and battery usage grow over a session. Diagnose the leak, fix the design, and explain how you would write a test that would have caught it.",
+      "concept": "coroutine-blocking-and-leak-traps",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/-global-scope/",
+          "claim": "A coroutine that never gets cancelled or resumed can be a resource leak; computations keep running after the entity that needed them is destroyed; use a CoroutineScope tied to an entity's lifecycle and cancel it when the entity is destroyed.",
+          "title": "GlobalScope | kotlinx.coroutines API",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        },
+        {
+          "url": "https://developer.android.com/kotlin/coroutines/test",
+          "claim": "runTest waits for coroutines that are children of the test coroutine; if your class creates coroutines that don't complete on their own and should be canceled at the end of the test, inject TestScope.backgroundScope.",
+          "title": "Testing Kotlin coroutines on Android",
+          "accessed": "2026-09-27",
+          "publisher": "Google (Android Developers)"
+        }
+      ],
+      "materials": [
+        "android-coroutines",
+        "kotlin-coroutines-guide"
+      ],
+      "explanation": "The senior answer finds the ownership problem (who cancels this?) rather than blaming Dispatchers.IO. They fix it by moving control of the lifetime to the consumer, and they add a test that would catch the regression.",
+      "model_answer": {
+        "summary": "Each `start()` adds another never-ending collector to a scope that nothing ever cancels, so coroutines (and whatever they capture) pile up. That is structured concurrency thrown away. Tie the collection to its consumer's lifetime: expose a `Flow` that callers collect in `viewModelScope` or with `repeatOnLifecycle`, or keep a single job that you cancel on `stop()`. Inject the scope and dispatcher. In tests, use `runTest`, which fails on unfinished or crashed children, and use `backgroundScope` for collectors that should be cancelled at the end.",
+        "key_points": [
+          "A scope with no owner that cancels it is effectively `GlobalScope`: coroutines that never complete or get cancelled are resource leaks",
+          "Each `start()` adds another collector; they keep capturing screen references and running on IO long after the screens are gone",
+          "Fix: expose a Flow (or suspend API) and let the caller's lifecycle-aware scope own collection (`viewModelScope`, `repeatOnLifecycle`), or keep one Job and cancel it in `stop()`",
+          "Inject the scope and dispatcher so tests control them; long-running collectors in tests go in `TestScope.backgroundScope`, which is cancelled at the end",
+          "`runTest` waits for child coroutines and reports uncaught exceptions at the end, so leaks and crashes show up in tests instead of production"
+        ]
+      }
+    }
+  ]
+}

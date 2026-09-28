@@ -1,0 +1,1283 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "compose-phase-scoped-state-reads",
+      "name": "Which Compose phase a state read invalidates (composition, layout, draw)"
+    },
+    {
+      "id": "compose-snapshot-isolation-and-apply",
+      "name": "Snapshot isolation, atomic apply and read/apply observers"
+    },
+    {
+      "id": "compose-call-site-positional-memoization",
+      "name": "Call-site identity, positional memoization and key()"
+    },
+    {
+      "id": "compose-stability-inference-rules",
+      "name": "How the Compose compiler infers stable, immutable and unstable types"
+    },
+    {
+      "id": "compose-strong-skipping-equality",
+      "name": "Strong Skipping: instance vs object equality and lambda memoization"
+    },
+    {
+      "id": "compose-compiler-reports-reading",
+      "name": "Reading Compose compiler reports and acting on them"
+    },
+    {
+      "id": "compose-state-hoisting-udf",
+      "name": "State hoisting rules and unidirectional data flow"
+    },
+    {
+      "id": "remember-vs-remembersaveable-savers",
+      "name": "remember vs rememberSaveable, keys and Savers"
+    },
+    {
+      "id": "compose-effect-keys-and-updated-state",
+      "name": "Effect keys, rememberUpdatedState, DisposableEffect and SideEffect"
+    },
+    {
+      "id": "compose-derivedstateof-snapshotflow",
+      "name": "derivedStateOf, snapshotFlow and produceState"
+    },
+    {
+      "id": "lazy-list-keys-and-content-type",
+      "name": "Lazy list item keys, content types and composition reuse"
+    },
+    {
+      "id": "compose-avoid-work-in-composition",
+      "name": "Keeping expensive work out of composition"
+    },
+    {
+      "id": "compose-perf-measurement-workflow",
+      "name": "Measuring Compose performance: release builds, Macrobenchmark, composition tracing"
+    },
+    {
+      "id": "baseline-profiles-for-compose-apps",
+      "name": "Baseline, Startup and Cloud Profiles for Compose apps"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w05-l01-q01",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w05-l01",
+      "prompt": "A composable draws with `Canvas(modifier) { drawRect(color) }`, where `color` is a `mutableStateOf(Color.Red)` read only inside the draw lambda. When `color` changes, which phases does Compose rerun for this node?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Composition, layout and drawing, because every state change restarts the enclosing composable"
+        },
+        {
+          "id": "b",
+          "text": "Layout and drawing, because `Canvas` is a layout node"
+        },
+        {
+          "id": "c",
+          "text": "Only drawing, because the state was read during the drawing phase"
+        },
+        {
+          "id": "d",
+          "text": "None until the next configuration change, because draw lambdas are cached"
+        }
+      ],
+      "concept": "compose-phase-scoped-state-reads",
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/phases",
+          "claim": "State read during drawing (e.g. `drawRect(color)` inside `Canvas`) triggers only the drawing phase; reads in composition trigger recomposition, reads in measure/placement trigger layout and drawing.",
+          "title": "Jetpack Compose phases",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "compose-phases"
+      ],
+      "explanation": "Compose tracks state reads per phase. A read inside a draw lambda is recorded in the drawing phase, so a change invalidates only drawing. The tempting answer (a) describes a read in the composable body, which would trigger recomposition; (b) describes a read in a measure/placement block such as `Modifier.offset { }`."
+    },
+    {
+      "id": "w05-l01-q02",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w05-l01",
+      "prompt": "A parallax header uses `Modifier.offset(with(LocalDensity.current) { (listState.firstVisibleItemScrollOffset / 2).toDp() })`. Layout Inspector shows the header recomposing on every scroll frame. Which change removes those recompositions while keeping the effect?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Wrap the offset value in `remember { derivedStateOf { ... } }` and pass it to `Modifier.offset(dp)`"
+        },
+        {
+          "id": "b",
+          "text": "Mark the header composable `@Stable` so Compose skips it"
+        },
+        {
+          "id": "c",
+          "text": "Move the calculation into a `LaunchedEffect(listState)` that writes to another state"
+        },
+        {
+          "id": "d",
+          "text": "Use the lambda overload: `Modifier.offset { IntOffset(0, listState.firstVisibleItemScrollOffset / 2) }`"
+        }
+      ],
+      "concept": "compose-phase-scoped-state-reads",
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/phases",
+          "claim": "Reading `listState.firstVisibleItemScrollOffset` inside `Modifier.offset { IntOffset(...) }` defers the read to the layout phase, so each scroll triggers only layout and drawing instead of recomposition.",
+          "title": "Jetpack Compose phases",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/develop/ui/compose/performance/bestpractices",
+          "claim": "When passing frequently changing State into modifiers, use the lambda versions of the modifiers whenever possible to defer reads.",
+          "title": "Follow best practices (Compose performance)",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "compose-phases",
+        "compose-performance"
+      ],
+      "explanation": "The lambda overload of `offset` reads the scroll state during placement (layout phase), so a scroll only reruns layout and drawing. `derivedStateOf` does not help here: the derived value changes on every scroll pixel, so it is still read in composition and still recomposes. Writing to another state from an effect just moves the composition read elsewhere and adds a frame of lag."
+    },
+    {
+      "id": "w05-l01-q03",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w05-l01",
+      "prompt": "Code runs `Snapshot.withMutableSnapshot { first.value = 1; second.value = 2 }` where both are `mutableStateOf` objects. When can other code observe the new values?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "After the block returns and the snapshot is applied; both changes then become visible atomically"
+        },
+        {
+          "id": "b",
+          "text": "Immediately after each assignment, one at a time, because `MutableState` writes are global"
+        },
+        {
+          "id": "c",
+          "text": "Only after `Snapshot.sendApplyNotifications()` is called explicitly from the block"
+        },
+        {
+          "id": "d",
+          "text": "Never outside the block: mutable snapshots are discarded when the block ends"
+        }
+      ],
+      "concept": "compose-snapshot-isolation-and-apply",
+      "sources": [
+        {
+          "url": "https://raw.githubusercontent.com/androidx/androidx/androidx-main/compose/runtime/runtime/src/commonMain/kotlin/androidx/compose/runtime/snapshots/Snapshot.kt",
+          "claim": "All changes to state objects inside a mutable snapshot are isolated and not visible to other snapshots or as global state; `withMutableSnapshot` applies the snapshot when the block returns successfully, and after `apply` all changes are atomically visible.",
+          "title": "Snapshot.kt (Compose runtime source)",
+          "accessed": "2026-09-27",
+          "publisher": "Android Open Source Project (androidx)"
+        }
+      ],
+      "materials": [
+        "compose-phases"
+      ],
+      "explanation": "A mutable snapshot isolates its writes: they are not visible to other snapshots or as global state until the snapshot is applied, and apply makes all of its changes visible atomically. `withMutableSnapshot` applies automatically when the block returns successfully. `sendApplyNotifications` is about writes made in the global snapshot, not a nested mutable snapshot."
+    },
+    {
+      "id": "w05-l01-q04",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w05-l01",
+      "prompt": "`Column { for (movie in movies) { MovieOverview(movie) } }` has no `key`. `MovieOverview` starts an image load in a `LaunchedEffect`. A new movie is inserted at the top of the list. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Compose matches each instance to a movie by calling `movie.equals()` against the previous composition, so only the newly inserted item composes"
+        },
+        {
+          "id": "b",
+          "text": "Identified by call site plus order: every item shifts down, recomposes and restarts its effect"
+        },
+        {
+          "id": "c",
+          "text": "Nothing recomposes at all until the entire `Column` leaves and later re-enters the Composition, for example on a configuration change"
+        },
+        {
+          "id": "d",
+          "text": "Compose throws an exception at runtime, because duplicate call sites produced inside a loop always require explicit `key` blocks"
+        }
+      ],
+      "concept": "compose-call-site-positional-memoization",
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/lifecycle",
+          "claim": "When a composable is called multiple times from the same call site, Compose uses execution order to distinguish instances; inserting or reordering items makes affected instances recompose and restart side effects unless `key` provides identity.",
+          "title": "Lifecycle of composables",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "compose-lifecycle",
+        "compose-mental-model"
+      ],
+      "explanation": "Calls from the same call site in a loop are told apart only by execution order (positional memoization). Inserting at the top shifts every position, so each instance sees new inputs and its side effects restart. Wrapping the body in `key(movie.id) { ... }` gives each instance an identity that survives reordering. Compose does not match by `equals` without a key."
+    },
+    {
+      "id": "w05-l01-q05",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w05-l01",
+      "prompt": "An `Image` uses `Modifier.onSizeChanged { imageHeightPx = it.height }` and a following `Text` uses `Modifier.padding(top = imageHeightPx.toDp())`, where `imageHeightPx` is state. What does the user see?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The text is placed with the correct padding in the very first frame, because the layout phase always finishes running before composition begins"
+        },
+        {
+          "id": "b",
+          "text": "An infinite recomposition loop that keeps rerunning forever and freezes the app on the very first frame"
+        },
+        {
+          "id": "c",
+          "text": "Frame 1 draws zero padding; the layout write schedules recomposition, so the text jumps a frame later"
+        },
+        {
+          "id": "d",
+          "text": "The write to `imageHeightPx` is silently ignored, because state writes of any kind are disallowed during the layout phase"
+        }
+      ],
+      "concept": "compose-phase-scoped-state-reads",
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/phases",
+          "claim": "Writing `imageHeightPx` from `onSizeChanged` and reading it for padding in composition causes frame 1 to use 0, recomposition to be scheduled from layout, and frame 2 to show correct padding: an extra frame and a visible jump; use proper layout primitives instead.",
+          "title": "Jetpack Compose phases",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "compose-phases"
+      ],
+      "explanation": "This is a backward write across phases: layout writes state that composition already read. Frame 1 composes with the old value, the write during layout schedules recomposition, and frame 2 has the right padding, so the UI jumps. It does not loop forever because the size stabilises. The fix is a layout primitive or custom layout that measures both children together."
+    },
+    {
+      "id": "w05-l01-q06",
+      "type": "written",
+      "lesson": "w05-l01",
+      "prompt": "A collapsing toolbar reads `scrollState.value` in its composable body to compute its height, alpha and offset, and the screen janks while scrolling. Explain Compose's three phases and how you would restructure this code so scrolling does not recompose the toolbar.",
+      "concept": "compose-phase-scoped-state-reads",
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/phases",
+          "claim": "State reads in composition trigger recomposition, in layout trigger layout and drawing, and in drawing trigger only drawing; lambda modifiers like `Modifier.offset { }` defer reads to layout.",
+          "title": "Jetpack Compose phases",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/develop/ui/compose/performance/bestpractices",
+          "claim": "Pass a lambda such as `scrollProvider` and read it inside `Modifier.offset { IntOffset(x = 0, y = scrollProvider()) }` to defer reads as long as possible.",
+          "title": "Follow best practices (Compose performance)",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "compose-phases",
+        "compose-performance-codelab"
+      ],
+      "explanation": "A senior answer ties the fix to the mechanism (phase-scoped read tracking) rather than listing tricks, and knows that `derivedStateOf` does not fix a value that changes every frame. Mentioning the provider-lambda pattern shows experience with real toolbar code.",
+      "model_answer": {
+        "summary": "Compose runs composition (what), layout (measure and place) and drawing (how), and it tracks each state read against the phase where it happens. Reading scroll state in the body recomposes on every frame; defer the reads into layout and draw lambdas and pass providers instead of values.",
+        "key_points": [
+          "Names the phases (composition, layout, drawing) and states that a state change reruns the phase where it was read, plus the later phases",
+          "Explains that a read in the composable body forces recomposition on every scroll frame, the most expensive option",
+          "Moves reads into lambda modifiers: `Modifier.offset { }`, `graphicsLayer { alpha = ... }`, `drawBehind { }` or a custom `layout { }`",
+          "Passes a provider lambda such as `scrollProvider: () -> Int` down the tree instead of the current value, so the read happens inside the child's layout/draw lambda",
+          "Verifies with Layout Inspector recomposition counts or a composition trace before and after"
+        ]
+      }
+    },
+    {
+      "id": "w05-l01-q07",
+      "type": "written",
+      "lesson": "w05-l01",
+      "prompt": "Explain, at the level of the snapshot system, how a click handler setting `count.value++` on a `mutableStateOf` ends up recomposing only the composables that read `count`.",
+      "concept": "compose-snapshot-isolation-and-apply",
+      "sources": [
+        {
+          "url": "https://raw.githubusercontent.com/androidx/androidx/androidx-main/compose/runtime/runtime/src/commonMain/kotlin/androidx/compose/runtime/snapshots/Snapshot.kt",
+          "claim": "Snapshot read observers are called when a state object is read; apply notifications for state modified outside a snapshot are deferred until `sendApplyNotifications` is called; `registerApplyObserver` is called back when snapshots are applied to the global state.",
+          "title": "Snapshot.kt (Compose runtime source)",
+          "accessed": "2026-09-27",
+          "publisher": "Android Open Source Project (androidx)"
+        },
+        {
+          "url": "https://developer.android.com/develop/ui/compose/state",
+          "claim": "Any changes to `value` of a `MutableState` schedule recomposition of any composable functions that read `value`.",
+          "title": "State and Jetpack Compose",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "compose-phases",
+        "compose-mental-model"
+      ],
+      "explanation": "The distinguishing detail is that Compose does not diff the UI: it knows exactly which scopes to rerun because it recorded reads. A strong answer connects read observers, apply notifications and invalidation, and notes that this is why non-observable mutable objects (a plain `ArrayList`) never trigger recomposition.",
+      "model_answer": {
+        "summary": "State objects live in the snapshot system. Compose records which state objects each scope reads through read observers, the write is published when the snapshot is applied (or when global apply notifications are sent), and apply observers let the runtime invalidate only the scopes that read the changed objects and schedule their recomposition.",
+        "key_points": [
+          "While composing, the runtime observes reads (a read observer) and records which state objects each restartable scope read",
+          "A write to a state object is tracked by the snapshot system (write observer); changes in a mutable snapshot are isolated until applied, and applied changes become visible atomically",
+          "Writes made outside a mutable snapshot, such as in a click handler, have their apply notifications deferred until `Snapshot.sendApplyNotifications()` runs",
+          "Apply observers receive the set of changed objects; scopes that read them are invalidated and recomposed on the next frame, and other scopes are skipped"
+        ]
+      }
+    },
+    {
+      "id": "w05-l01-q08",
+      "type": "written",
+      "lesson": "w05-l01",
+      "prompt": "In a `Column` built with `items.forEach { Row(item) }`, each row keeps an `expanded` flag in `remember`. After the user sorts the list, the expanded state appears on the wrong rows. Diagnose the cause and give the fix.",
+      "concept": "compose-call-site-positional-memoization",
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/lifecycle",
+          "claim": "The call site identifies each composable instance; repeated calls from one call site use execution order; the `key` composable gives instances an explicit identity so they are recognised when order changes.",
+          "title": "Lifecycle of composables",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "compose-lifecycle"
+      ],
+      "explanation": "A senior candidate recognises the symptom as an identity problem, not a state bug, and also knows keys prevent unnecessary effect restarts, not only wrong state.",
+      "model_answer": {
+        "summary": "Compose identifies instances by call site and, inside a loop, by execution order. Remembered state is stored at a position, so sorting moves data but not state. Give each row an identity with `key(item.id)` (or use a Lazy list with `key =`).",
+        "key_points": [
+          "Explains call-site identity: every call site is a distinct instance in the Composition",
+          "Explains positional memoization: repeated calls from one call site are distinguished only by execution order, so `remember` values stay at a position",
+          "Sorting changes which item is at each position, so the remembered `expanded` flag now belongs to a different item and effects restart",
+          "Fix: wrap each row in `key(item.id) { ... }` (or use `LazyColumn` with `key = { it.id }`) so state and effects move with the item"
+        ]
+      }
+    },
+    {
+      "id": "w05-l02-q01",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w05-l02",
+      "prompt": "The classes report shows `unstable class Snack { stable val id: Long; unstable val tags: Set<String> }`. Why is `Snack` unstable?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Because `Set<String>` could be backed by a mutable implementation; Compose treats collection interfaces as unstable"
+        },
+        {
+          "id": "b",
+          "text": "Because `Long` is autoboxed to `java.lang.Long` on the JVM at runtime, and the compiler treats every boxed numeric type as unstable"
+        },
+        {
+          "id": "c",
+          "text": "Because every data class the compiler encounters is unstable by default until it is explicitly annotated with `@Immutable` or `@Stable`"
+        },
+        {
+          "id": "d",
+          "text": "Because `val` properties declared on a class can still be reassigned later at runtime through reflection, defeating the stability contract"
+        }
+      ],
+      "concept": "compose-stability-inference-rules",
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/performance/stability/diagnose",
+          "claim": "The report shows `unstable val tags: Set<String>` making `Snack` unstable because the Compose compiler cannot be sure of immutability as it only sees the declared type.",
+          "title": "Diagnose stability issues",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/develop/ui/compose/performance/stability",
+          "claim": "Compose always considers collection classes unstable, such as `List`, `Set` and `Map`; data classes with only `val` primitive properties are immutable.",
+          "title": "Stability in Compose",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "compose-stability"
+      ],
+      "explanation": "The compiler only sees the declared type. `Set<String>` could be backed by a mutable set, so Compose always considers collection interfaces unstable, which makes the whole class unstable. A data class with only stable `val` properties (like `id: Long`) is inferred stable without any annotation. Fixes include kotlinx immutable collections (`ImmutableSet`) or a stability configuration."
+    },
+    {
+      "id": "w05-l02-q02",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w05-l02",
+      "prompt": "`data class User(val id: String, val name: String)` lives in a pure Kotlin `:core:model` module that does not apply the Compose compiler. In `:feature:profile`, the compiler report marks the `user: User` parameter as unstable. What is going on, and which fix is documented?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Compose infers stability from linked bytecode at link time across all modules in the graph, so this particular report must simply be wrong; ignore it"
+        },
+        {
+          "id": "b",
+          "text": "The class must be rewritten as a regular class, since the compiler always treats data classes declared in other modules as inherently unstable"
+        },
+        {
+          "id": "c",
+          "text": "Only adding `@Immutable` inside `:feature:profile` through a local typealias around `User` can possibly fix this specific unstable-parameter warning"
+        },
+        {
+          "id": "d",
+          "text": "Modules the Compose compiler skips are unstable; apply it to `:core:model`, use a config file, or wrap in a UI model"
+        }
+      ],
+      "concept": "compose-stability-inference-rules",
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/performance/stability",
+          "claim": "Compose always considers classes unstable where they are from modules in which the Compose compiler does not run; wrap them in UI model classes if required.",
+          "title": "Stability in Compose",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/develop/ui/compose/performance/stability/fix",
+          "claim": "For multi-module apps: add classes to the stability configuration file, enable the Compose compiler on data-layer modules with only the Compose runtime dependency, or wrap data classes in UI-specific classes.",
+          "title": "Fix stability issues",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "compose-stability"
+      ],
+      "explanation": "Stability inference only works for types in modules that the Compose compiler processed (or that are explicitly marked). The documented options are a stability configuration file, enabling the Compose compiler on the data module (runtime dependency only, no Compose UI), or wrapping the class in a UI-layer model. Annotations cannot be added from another module."
+    },
+    {
+      "id": "w05-l02-q03",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w05-l02",
+      "prompt": "With Strong Skipping enabled (the default since Kotlin 2.0.20), `ItemList(items: List<Item>)` has an unstable parameter. On each recomposition the parent passes `items = state.items.filter { it.visible }`, a new list with equal contents. Does `ItemList` skip?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Yes, it skips: strong skipping compares every parameter, stable or not, with a structural `equals()` call regardless of its declared stability"
+        },
+        {
+          "id": "b",
+          "text": "No: unstable params use instance equality (`===`); `filter` returns a fresh instance each time"
+        },
+        {
+          "id": "c",
+          "text": "Yes, it skips: strong skipping mode simply ignores unstable parameters entirely when deciding whether a composable can be skipped"
+        },
+        {
+          "id": "d",
+          "text": "No, never: composables that declare even one unstable parameter remain permanently unskippable, even under strong skipping mode"
+        }
+      ],
+      "concept": "compose-strong-skipping-equality",
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/performance/stability/strongskipping",
+          "claim": "With strong skipping, all restartable composables become skippable; unstable parameters are compared using instance equality (`===`) and stable parameters using `Object.equals()`; enabled by default in Kotlin 2.0.20.",
+          "title": "Strong skipping mode",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "compose-stability",
+        "compose-performance"
+      ],
+      "explanation": "Strong skipping makes all restartable composables skippable, but it compares unstable parameters by instance identity and stable ones by `equals()`. A freshly filtered list is a new instance, so the check fails and `ItemList` recomposes. Fix it by computing the filtered list once (e.g. in the ViewModel or `remember(state.items)`) or by using an immutable collection type so `equals` is used."
+    },
+    {
+      "id": "w05-l02-q04",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w05-l02",
+      "prompt": "Under Strong Skipping, a composable passes `onClick = { viewModel.select(item) }` where `item` has an unstable type. What does the compiler generate for this lambda?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Nothing at all: lambdas are only ever memoized automatically when every one of their captured values is already stable"
+        },
+        {
+          "id": "b",
+          "text": "A brand-new lambda instance is allocated on every single recomposition, so the child composable always recomposes"
+        },
+        {
+          "id": "c",
+          "text": "Wrapped in `remember(viewModel, item) { ... }`, with the unstable capture compared by instance equality"
+        },
+        {
+          "id": "d",
+          "text": "One static singleton lambda instance shared by every call site of this composable across the whole app"
+        }
+      ],
+      "concept": "compose-strong-skipping-equality",
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/performance/stability/strongskipping",
+          "claim": "With strong skipping every lambda inside a composable is automatically remembered, wrapped in `remember` keyed by its captures; unstable keys are compared with instance equality and stable keys with object equality; `@DontMemoize` opts out.",
+          "title": "Strong skipping mode",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "compose-stability"
+      ],
+      "explanation": "Strong skipping remembers every lambda inside a composable, keyed by its captures. Unstable keys are compared by instance equality and stable keys by object equality, so the lambda instance stays the same while `viewModel` and `item` are the same instances. Option (a) was the behaviour before strong skipping. `@DontMemoize` opts a lambda out."
+    },
+    {
+      "id": "w05-l02-q05",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w05-l02",
+      "prompt": "You add `composeCompiler { reportsDestination = layout.buildDirectory.dir(\"compose_compiler\") }` to a module. Which output tells you whether the `SnackCollection` composable is restartable and skippable, and how should you build to get accurate results?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`<module>-classes.txt`, from a debug build"
+        },
+        {
+          "id": "b",
+          "text": "The Layout Inspector recomposition column, from a debug build"
+        },
+        {
+          "id": "c",
+          "text": "`<module>-module.json` from `metricsDestination`, from any build type"
+        },
+        {
+          "id": "d",
+          "text": "`<module>-composables.txt` (or the `.csv` version), from a release build"
+        }
+      ],
+      "concept": "compose-compiler-reports-reading",
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/performance/stability/diagnose",
+          "claim": "`reportsDestination` produces `<module>-classes.txt` (class stability), `<module>-composables.txt` (restartable and skippable status) and `<module>-composables.csv`; always run on a release build for accurate results.",
+          "title": "Diagnose stability issues",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "compose-stability"
+      ],
+      "explanation": "The composables report lists each composable with `restartable`/`skippable` markers and the stability of each parameter. The classes report explains class stability, which tells you why a parameter is unstable, but it does not tell you whether the function is skippable. The docs say to always run the reports on a release build."
+    },
+    {
+      "id": "w05-l02-q06",
+      "type": "written",
+      "lesson": "w05-l02",
+      "prompt": "Explain what makes a type stable in Compose. Then compare three ways to make a UI model stable: making it truly immutable, annotating it with `@Immutable`/`@Stable`, and a stability configuration file. When is each appropriate and what are the risks?",
+      "concept": "compose-stability-inference-rules",
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/lifecycle",
+          "claim": "A stable type must satisfy: `equals` results are forever the same for the same two instances, Composition is notified when a public property changes, and all public property types are stable.",
+          "title": "Lifecycle of composables",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/develop/ui/compose/performance/stability/fix",
+          "claim": "`@Stable`/`@Immutable` don't make a class stable on their own but opt into a contract, and incorrect annotation can break recomposition; prefer achieving stability without annotations; a stability configuration file can mark classes such as `java.time.LocalDateTime` stable.",
+          "title": "Fix stability issues",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "compose-stability"
+      ],
+      "explanation": "A senior answer prefers structural fixes over annotations and can explain the failure mode of a wrong annotation. It also notes the docs warn against making everything skippable as a goal.",
+      "model_answer": {
+        "summary": "A stable type has consistent `equals`, notifies Composition when public properties change, and has only stable property types. Prefer real immutability; annotations and configuration files are promises the compiler trusts without checking, so a wrong promise produces stale UI.",
+        "key_points": [
+          "States the three stability conditions: `equals` always returns the same result for the same two instances, Composition is notified when a public property changes, and all public property types are stable",
+          "Notes inferred cases: primitives, `String`, function types and `MutableState` are stable; `var` properties, interfaces and collection types like `List` make a class unstable",
+          "Real immutability: `val` properties, immutable types or kotlinx `ImmutableList`/`persistentListOf`, and Compose state (`mutableStateOf`) for anything that must change",
+          "`@Immutable`/`@Stable` are a contract, not enforcement; annotating a type that actually mutates can make recomposition skip and show stale data",
+          "Stability configuration file (`stabilityConfigurationFile`) for classes you do not own, such as `java.time.LocalDateTime` or a data module's package, with the same risk if the class is actually mutable"
+        ]
+      }
+    },
+    {
+      "id": "w05-l02-q07",
+      "type": "written",
+      "lesson": "w05-l02",
+      "prompt": "After upgrading to Kotlin 2.0.20+, a colleague says: \"Strong Skipping is on now, so stability doesn't matter any more.\" Evaluate that claim.",
+      "concept": "compose-strong-skipping-equality",
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/performance/stability/strongskipping",
+          "claim": "Strong skipping makes composables with unstable parameters skippable and remembers lambdas with unstable captures; unstable parameters use instance equality, stable ones use `equals`; opt out with `@NonSkippableComposable` or `@DontMemoize`; enabled by default in Kotlin 2.0.20.",
+          "title": "Strong skipping mode",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "compose-stability",
+        "compose-performance"
+      ],
+      "explanation": "The strong candidate knows exactly what changed (skippability and lambda memoization) and what did not (the equality rule depends on stability), and gives a concrete case where identity comparison still fails.",
+      "model_answer": {
+        "summary": "Partly true: every restartable composable is now skippable and lambdas are remembered, but unstable parameters are compared by identity, so any unstable value recreated during recomposition still defeats skipping. Stability still decides whether `equals` or `===` is used.",
+        "key_points": [
+          "Strong skipping is enabled by default since Kotlin 2.0.20 and makes all restartable composables skippable, even with unstable parameters",
+          "Unstable parameters are compared with `===` and stable ones with `equals()`; an unstable value rebuilt on each recomposition (a mapped or filtered list, a new wrapper object) still triggers recomposition",
+          "Lambdas are memoized with their captures as keys, so passing callbacks no longer needs manual `remember`, but an unstable capture that is a new instance each time still produces a new lambda",
+          "Opt-outs exist: `@NonSkippableComposable` for a function and `@DontMemoize` for a lambda",
+          "Stability still matters where equal-but-new values are common; fix with immutable types or by creating values once, and measure before optimising"
+        ]
+      }
+    },
+    {
+      "id": "w05-l02-q08",
+      "type": "written",
+      "lesson": "w05-l02",
+      "prompt": "Walk through how you would find and fix unnecessary recompositions on one screen using Layout Inspector and Compose compiler reports. What would you avoid doing?",
+      "concept": "compose-compiler-reports-reading",
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/performance/stability/diagnose",
+          "claim": "Layout Inspector shows recomposition and skip counts; compiler reports are enabled with `reportsDestination` and `metricsDestination`, should be run on release builds, and making your entire UI skippable is a premature optimisation.",
+          "title": "Diagnose stability issues",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/develop/ui/compose/performance/stability/fix",
+          "claim": "You shouldn't attempt to make every composable skippable; skip optimising composables that rarely recompose or only call other skippable composables.",
+          "title": "Fix stability issues",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "compose-stability",
+        "compose-performance-codelab"
+      ],
+      "explanation": "The docs explicitly warn that making the whole UI skippable is premature optimisation. A senior answer is measurement-driven and names the specific report files and what each one tells you.",
+      "model_answer": {
+        "summary": "Find hot composables with Layout Inspector's recomposition and skip counts, generate compiler reports on a release build to see which parameters are unstable and why, apply the smallest fix, and re-measure. Avoid trying to make every composable skippable.",
+        "key_points": [
+          "Use Layout Inspector recomposition and skip counts to find composables that recompose more than expected",
+          "Enable `reportsDestination`/`metricsDestination` in the `composeCompiler` block per module and build a release variant",
+          "Read `-composables.txt` for `restartable`/`skippable` and unstable parameters, and `-classes.txt` to see which property makes a class unstable",
+          "Apply a targeted fix: immutable collections, the Compose compiler on the data module, a stability configuration file, a UI wrapper model, or not recreating values during recomposition",
+          "Avoid premature optimisation: do not chase every unstable parameter or make everything skippable; fix only what measurements show matters"
+        ]
+      }
+    },
+    {
+      "id": "w05-l03-q01",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w05-l03",
+      "prompt": "A `FilterBar` and a `ResultsHeader` both display the selected filter, and only `FilterBar` changes it. Per the Compose state hoisting rules, where should the selected-filter state live?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Inside `FilterBar` itself, which then exposes the current value to `ResultsHeader` by providing a `CompositionLocal`"
+        },
+        {
+          "id": "b",
+          "text": "At the lowest common parent, passed down as a value with an `onFilterChange` event going up"
+        },
+        {
+          "id": "c",
+          "text": "Duplicated separately inside both composables and kept in sync afterward with a `LaunchedEffect` observing each other"
+        },
+        {
+          "id": "d",
+          "text": "In a globally accessible singleton object, so that any composable anywhere in the tree can freely read and write it"
+        }
+      ],
+      "concept": "compose-state-hoisting-udf",
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/state",
+          "claim": "State should be hoisted to at least the lowest common parent of all composables that read it and at least the highest level it may be changed; state goes down and events go up (unidirectional data flow).",
+          "title": "State and Jetpack Compose",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "compose-state"
+      ],
+      "explanation": "Hoist state to at least the lowest common parent of everything that reads it, and at least to the highest level where it is written. The parent passes the value down and receives events up (unidirectional data flow), giving a single source of truth. Duplicating state and syncing it with effects creates two sources of truth."
+    },
+    {
+      "id": "w05-l03-q02",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w05-l03",
+      "prompt": "A screen keeps `var filter by rememberSaveable { mutableStateOf(Filter(query = \"\", sort = Sort.Name)) }`, where `Filter` is a plain Kotlin data class. What must you do for this to work across activity recreation and process death?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Nothing at all: `rememberSaveable` automatically serializes any Kotlin data class using reflection under the hood"
+        },
+        {
+          "id": "b",
+          "text": "Replace it with plain `remember(filter)` so the composition key itself survives activity recreation"
+        },
+        {
+          "id": "c",
+          "text": "Make it `Bundle`-storable, e.g. `@Parcelize`, or supply a `Saver` (`mapSaver`/`listSaver`)"
+        },
+        {
+          "id": "d",
+          "text": "Store the filter inside a `CompositionLocal` instead, since composition locals are documented to survive full process death"
+        }
+      ],
+      "concept": "remember-vs-remembersaveable-savers",
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/state",
+          "claim": "`rememberSaveable` retains state across activity or process recreation using the saved instance state mechanism; for types that can't be put in a Bundle use `@Parcelize`, `mapSaver` or `listSaver`.",
+          "title": "State and Jetpack Compose",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "compose-state"
+      ],
+      "explanation": "`rememberSaveable` persists through the saved instance state mechanism, so the value must be a type a `Bundle` can hold, or you provide a `Saver`. `remember` with keys only controls cache invalidation during composition; it does not survive recreation."
+    },
+    {
+      "id": "w05-l03-q03",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w05-l03",
+      "prompt": "`@Composable fun Splash(onTimeout: () -> Unit) { LaunchedEffect(onTimeout) { delay(3000); onTimeout() } }`. The parent recomposes often and passes a new lambda each time, so the timer keeps restarting. What is the documented fix?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`val current by rememberUpdatedState(onTimeout)` and `LaunchedEffect(true) { delay(3000); current() }`"
+        },
+        {
+          "id": "b",
+          "text": "Replace `LaunchedEffect` with `SideEffect { }` so the timer runs after every recomposition"
+        },
+        {
+          "id": "c",
+          "text": "Use `DisposableEffect(onTimeout)` so the old timer is disposed correctly"
+        },
+        {
+          "id": "d",
+          "text": "Launch the timer from `rememberCoroutineScope()` directly in the composable body"
+        }
+      ],
+      "concept": "compose-effect-keys-and-updated-state",
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/side-effects",
+          "claim": "`rememberUpdatedState` references a value in an effect that shouldn't restart if the value changes; the `LandingScreen` example uses `LaunchedEffect(true)` with `currentOnTimeout` so the timeout isn't restarted by recomposition.",
+          "title": "Side-effects in Compose",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "compose-side-effects"
+      ],
+      "explanation": "The effect should follow the call site's lifecycle and not restart, but it must call the latest callback. `rememberUpdatedState` holds the newest `onTimeout` without being a key, and a constant key keeps the effect from restarting. `DisposableEffect(onTimeout)` has the same restart problem, and launching from a scope in the composable body runs on every recomposition."
+    },
+    {
+      "id": "w05-l03-q04",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w05-l03",
+      "prompt": "A composable must add a `LifecycleEventObserver` to `lifecycleOwner` and remove it when the composable leaves the Composition or `lifecycleOwner` changes. Which API fits?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`SideEffect { lifecycleOwner.lifecycle.addObserver(observer) }`"
+        },
+        {
+          "id": "b",
+          "text": "`LaunchedEffect(Unit) { lifecycleOwner.lifecycle.addObserver(observer) }` and rely on coroutine cancellation to remove it"
+        },
+        {
+          "id": "c",
+          "text": "`remember { lifecycleOwner.lifecycle.addObserver(observer) }`"
+        },
+        {
+          "id": "d",
+          "text": "`DisposableEffect(lifecycleOwner) { addObserver(observer); onDispose { removeObserver(observer) } }`"
+        }
+      ],
+      "concept": "compose-effect-keys-and-updated-state",
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/side-effects",
+          "claim": "`DisposableEffect` is for side effects that need cleanup after keys change or the composable leaves the Composition, with a mandatory `onDispose`; the lifecycle observer example adds the observer and removes it in `onDispose`. `SideEffect` runs after every successful recomposition.",
+          "title": "Side-effects in Compose",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "compose-side-effects"
+      ],
+      "explanation": "`DisposableEffect` is for effects that need cleanup when keys change or the composable leaves; `onDispose` is mandatory. `SideEffect` runs after every successful recomposition and has no cleanup, so it would add duplicate observers. Coroutine cancellation does not remove a lifecycle observer, and the `Unit` key would ignore a new `lifecycleOwner`."
+    },
+    {
+      "id": "w05-l03-q05",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w05-l03",
+      "prompt": "Which of these is an appropriate use of `derivedStateOf`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`val fullName by remember { derivedStateOf { \"$firstName $lastName\" } }` for two text fields"
+        },
+        {
+          "id": "b",
+          "text": "`val showScrollToTop by remember { derivedStateOf { listState.firstVisibleItemIndex > 0 } }`"
+        },
+        {
+          "id": "c",
+          "text": "`val total = derivedStateOf { price * quantity }` without `remember`, so it recomputes each time"
+        },
+        {
+          "id": "d",
+          "text": "`val user by remember { derivedStateOf { repository.loadUser() } }` to load data once"
+        }
+      ],
+      "concept": "compose-derivedstateof-snapshotflow",
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/side-effects",
+          "claim": "Use `derivedStateOf` when state changes more often than the UI needs to update, e.g. `listState.firstVisibleItemIndex > 0`; using it for `\"$firstName $lastName\"` is incorrect overhead.",
+          "title": "Side-effects in Compose",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "compose-side-effects",
+        "compose-performance"
+      ],
+      "explanation": "`derivedStateOf` is useful when the input changes much more often than the result you care about: the index changes constantly while scrolling, but the boolean flips rarely, so readers recompose only on the flip. For `fullName` the output changes whenever an input changes, so the extra object is pure overhead. Loading data belongs in an effect or the ViewModel, not a derived state."
+    },
+    {
+      "id": "w05-l03-q06",
+      "type": "written",
+      "lesson": "w05-l03",
+      "prompt": "Design the state for a search screen with a text field, a list of results and a ViewModel. Explain stateful vs stateless composables, unidirectional data flow, and where each piece of state should live.",
+      "concept": "compose-state-hoisting-udf",
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/state",
+          "claim": "Hoisting makes a composable stateless using a `value` and `onValueChange` pair; state should be hoisted to at least the lowest common parent of readers and highest writer, states changing on the same events together; hoisted state is single source of truth, shareable, interceptable and decoupled; state holders manage logic and state of composables.",
+          "title": "State and Jetpack Compose",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "compose-state"
+      ],
+      "explanation": "A senior answer uses the three hoisting rules precisely, distinguishes UI element state from screen state, and explains the testability win rather than stating UDF as a slogan.",
+      "model_answer": {
+        "summary": "Make the UI composables stateless (value in, events out), hoist UI state to the lowest common parent that reads it and the highest level that writes it, and keep screen/business state in the ViewModel or a state holder. State flows down, events flow up.",
+        "key_points": [
+          "A stateless composable takes `value` and `onValueChange` (e.g. `SearchField(query, onQueryChange)`) and is easier to reuse, preview and test",
+          "Unidirectional data flow: state goes down as parameters, events go up as callbacks, giving one source of truth",
+          "Applies the hoisting rules: at least the lowest common parent of readers, at least the highest writer, and hoist states that change on the same events together",
+          "Business and screen state lives in the ViewModel; pure UI element logic can live in a plain state holder class created with `remember` (keyed where needed)",
+          "Benefits: the caller can intercept or modify events before changing state, and state can move to another layer without changing the composable"
+        ]
+      }
+    },
+    {
+      "id": "w05-l03-q07",
+      "type": "written",
+      "lesson": "w05-l03",
+      "prompt": "Compare `remember`, `remember(key)` and `rememberSaveable` for three pieces of UI state: an expensive `ShaderBrush` built from an avatar resource, a half-typed comment draft, and a `mutableListOf()` of selected ids. What would you use for each and why?",
+      "concept": "remember-vs-remembersaveable-savers",
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/state",
+          "claim": "`remember` returns the stored value on recomposition, with keys invalidating the cache; `rememberSaveable` also survives activity or process recreation and needs Bundle types or a Saver; using mutable objects like `ArrayList` or `mutableListOf()` as state causes users to see stale data.",
+          "title": "State and Jetpack Compose",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "compose-state"
+      ],
+      "explanation": "The key separation is lifetime: recomposition vs recreation vs process death, plus observability. Mentioning that `rememberSaveable` also takes `inputs` to invalidate shows depth.",
+      "model_answer": {
+        "summary": "`remember(avatarRes)` for the brush (cache, recompute when the key changes), `rememberSaveable` for the draft (must survive rotation and process death), and an observable immutable list in state rather than a raw `mutableListOf()` for the selection, saved with a `Saver` if it must survive recreation.",
+        "key_points": [
+          "`remember` stores a value in the Composition and returns it on recomposition, but it is lost on activity recreation or when the composable leaves",
+          "`remember(key)` invalidates the cache and recalculates when a key changes; right for the brush keyed on `avatarRes`",
+          "`rememberSaveable` survives recomposition, configuration changes and process death via saved instance state; values must be Bundle-compatible or have a `Saver` (`@Parcelize`, `mapSaver`, `listSaver`)",
+          "A raw `mutableListOf()`/`ArrayList` as state is not observable, so changes do not recompose and users see stale data; hold an immutable `List` in `mutableStateOf` (or a `SnapshotStateList`)"
+        ]
+      }
+    },
+    {
+      "id": "w05-l03-q08",
+      "type": "written",
+      "lesson": "w05-l03",
+      "prompt": "Compare `derivedStateOf`, `snapshotFlow` and `produceState`. For a feed screen, show which you would use to (1) show a \"scroll to top\" button, (2) send one analytics event when the user first scrolls past the first item, and (3) expose an image loaded from a repository as Compose state.",
+      "concept": "compose-derivedstateof-snapshotflow",
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/side-effects",
+          "claim": "`derivedStateOf` is for state changing more often than needed; `snapshotFlow` converts State into a cold Flow that emits when read values change, shown with `firstVisibleItemIndex` and an analytics event in `LaunchedEffect`; `produceState` launches a coroutine that converts non-Compose state into Compose state.",
+          "title": "Side-effects in Compose",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "compose-side-effects"
+      ],
+      "explanation": "Strong answers match each API to its job (value derivation, state-to-Flow bridge, non-Compose-to-state bridge) and call out the common misuse of `derivedStateOf` for simple concatenation.",
+      "model_answer": {
+        "summary": "(1) `derivedStateOf` to turn a fast-changing index into a rarely changing boolean; (2) `snapshotFlow` inside a `LaunchedEffect` to use Flow operators on Compose state; (3) `produceState` to launch a coroutine that converts non-Compose data into `State`.",
+        "key_points": [
+          "`derivedStateOf` (inside `remember`) limits recomposition when inputs change more often than the result, e.g. `firstVisibleItemIndex > 0`; it is overhead when output changes as often as input",
+          "`snapshotFlow { listState.firstVisibleItemIndex }` turns Compose state into a cold Flow that emits when read state changes; combine with `map`, `distinctUntilChanged`, `filter` and collect inside `LaunchedEffect`",
+          "`produceState(initialValue, key)` launches a coroutine scoped to the Composition and exposes its result as `State<T>`; it restarts when keys change and cleans up with `awaitDispose`",
+          "Explains why the analytics event is not a `derivedStateOf`: it is a side effect that belongs in a coroutine, not a value read during composition"
+        ]
+      }
+    },
+    {
+      "id": "w05-l04-q01",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w05-l04",
+      "prompt": "You add `key = { message -> message }` to a `LazyColumn`, where `message` is a large non-Parcelable data class. Why is this a poor key?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Keys must always be of type `String`; passing any other type as a `LazyColumn` key throws an exception at runtime"
+        },
+        {
+          "id": "b",
+          "text": "Keys need a `Bundle`-savable type (primitive, enum, Parcelable) so item state restores; use `message.id`"
+        },
+        {
+          "id": "c",
+          "text": "Keys only ever affect item animations, so passing any arbitrary object works fine and gives no measurable performance benefit either way"
+        },
+        {
+          "id": "d",
+          "text": "Data classes can never be used as keys, because their generated `hashCode` implementation changes between successive recompositions"
+        }
+      ],
+      "concept": "lazy-list-keys-and-content-type",
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/lists",
+          "claim": "Providing keys lets Compose move remembered item state when position changes; the key type must be supported by `Bundle` (primitive types, enums or Parcelables) so `rememberSaveable` state inside items can be restored.",
+          "title": "Lists and grids",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "compose-performance"
+      ],
+      "explanation": "Keys let Compose move remembered state with an item when it moves and avoid unnecessary recompositions. The key must be saveable in a `Bundle` so `rememberSaveable` inside items can be restored after recreation, and it should identify the item stably; the whole object changes whenever any field changes. A simple `id` satisfies both requirements."
+    },
+    {
+      "id": "w05-l04-q02",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w05-l04",
+      "prompt": "A feed `LazyColumn` mixes date headers, text posts and video posts. What does passing `contentType = { it.type }` to `items` do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Lets Compose freely reuse the existing composition of any list item for any other item, regardless of type, maximising overall reuse"
+        },
+        {
+          "id": "b",
+          "text": "Completely replaces the need for a `key`, since the content type alone is documented to uniquely identify each list item"
+        },
+        {
+          "id": "c",
+          "text": "Is a strict requirement for `Modifier.animateItem()` to work at all on any item inside this `LazyColumn`"
+        },
+        {
+          "id": "d",
+          "text": "Reuses compositions only within the same type, avoiding a video post composed on a header's structure"
+        }
+      ],
+      "concept": "lazy-list-keys-and-content-type",
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/lists",
+          "claim": "When you provide the `contentType`, Compose reuses compositions only between items of the same type, so it doesn't try to compose an item of type A on top of a completely different item of type B.",
+          "title": "Lists and grids",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "compose-performance"
+      ],
+      "explanation": "Composition reuse is most efficient between items of similar structure, so content types restrict reuse to matching types. It does not identify individual items; that is what `key` is for, and `animateItem` depends on keys."
+    },
+    {
+      "id": "w05-l04-q03",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w05-l04",
+      "prompt": "`LazyColumn { items(contacts.sortedWith(comparator)) { ContactRow(it) } }` janks when the list animates. Which change is correct?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`val sorted = remember { contacts.sortedWith(comparator) }`, caching the very first sort result forever with no keys"
+        },
+        {
+          "id": "b",
+          "text": "Wrap the sort call directly in `derivedStateOf { contacts.sortedWith(comparator) }` without ever wrapping that in `remember`"
+        },
+        {
+          "id": "c",
+          "text": "`remember(contacts, comparator) { contacts.sortedWith(comparator) }`, or sort earlier in the ViewModel"
+        },
+        {
+          "id": "d",
+          "text": "Move the sorting call into a `SideEffect { }` block that runs once after every successful recomposition completes"
+        }
+      ],
+      "concept": "compose-avoid-work-in-composition",
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/performance/bestpractices",
+          "claim": "Sorting `contacts.sortedWith(comparator)` inside `LazyColumn` sorts on every recomposition; use `remember(contacts, comparator) { ... }` or move the sort out of composition (e.g. ViewModel); composables can run as often as every frame of an animation.",
+          "title": "Follow best practices (Compose performance)",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "compose-performance",
+        "compose-performance-codelab"
+      ],
+      "explanation": "Composable functions can run as often as every animation frame, so sorting in the body repeats the work each time. `remember` with `contacts` and `comparator` as keys caches the result and recomputes only when an input changes. `remember` without keys is the tempting wrong answer: it shows a stale list when `contacts` changes. Even better, move the sort out of the UI layer."
+    },
+    {
+      "id": "w05-l04-q04",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w05-l04",
+      "prompt": "Layout Inspector shows a card recomposing hundreds of times during a scroll, but you do not know whether it actually costs frame time. Which tool shows how long composition of that card takes inside each frame?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A system trace with composition tracing (`runtime-tracing`), viewed in Perfetto"
+        },
+        {
+          "id": "b",
+          "text": "Compose compiler reports, which list the exact wall-clock duration spent inside each composable function on the device"
+        },
+        {
+          "id": "c",
+          "text": "Layout Inspector's recomposition counts panel, which already includes a precise timing measurement per recomposition"
+        },
+        {
+          "id": "d",
+          "text": "A generated Baseline Profile, since it records the execution time of every composable it lists during profiling"
+        }
+      ],
+      "concept": "compose-perf-measurement-workflow",
+      "sources": [
+        {
+          "url": "https://developer.android.com/codelabs/jetpack-compose-performance",
+          "claim": "System tracing with composition tracing (`androidx.compose.runtime:runtime-tracing`) shows timing of composables and phases, analysed in Perfetto; Layout Inspector shows recomposition frequency but not actual timing.",
+          "title": "Practical performance problem solving in Jetpack Compose",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/develop/ui/compose/performance/tooling",
+          "claim": "Composition tracing traces composable functions in system traces; traces are often the best source of information when first looking into a performance issue.",
+          "title": "Tools for Compose performance",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "compose-performance-codelab",
+        "compose-performance"
+      ],
+      "explanation": "Layout Inspector gives counts, not timing. Compiler reports are static analysis of stability and skippability. Composition tracing adds composable-level sections to system traces, so Perfetto shows how long composition, layout and drawing take in each frame."
+    },
+    {
+      "id": "w05-l04-q05",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w05-l04",
+      "prompt": "A teammate argues: \"Google Play Cloud Profiles already optimize our app, so we don't need a Baseline Profile.\" What is the flaw?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Cloud Profiles only ever work for apps that are written using the legacy Android View system, not Compose-based UI at all"
+        },
+        {
+          "id": "b",
+          "text": "Cloud Profiles take hours to days to distribute, so early users run uncompiled code; a Baseline Profile applies at install"
+        },
+        {
+          "id": "c",
+          "text": "Baseline Profiles fully replace R8, so an app shipped without one is never minified or shrunk at all in release builds"
+        },
+        {
+          "id": "d",
+          "text": "Cloud Profiles are only ever applied on devices that are running Android 16 or a newer API level"
+        }
+      ],
+      "concept": "baseline-profiles-for-compose-apps",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/performance/baselineprofiles/overview",
+          "claim": "Baseline Profiles improve code execution speed by about 30% from the first launch by avoiding interpretation and JIT; Cloud Profiles take several hours to days after an update to be distributed.",
+          "title": "Baseline Profiles overview",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "baseline-profiles",
+        "compose-performance"
+      ],
+      "explanation": "Baseline Profiles let ART compile the listed code paths ahead of time, avoiding interpretation and JIT, for about 30% faster code from the first launch. Cloud Profiles come from real usage but take hours to days per update, so every release starts slow for its first users without a Baseline Profile."
+    },
+    {
+      "id": "w05-l04-q06",
+      "type": "written",
+      "lesson": "w05-l04",
+      "prompt": "You changed three things to fix scroll jank on a Compose feed. Describe a measurement workflow that proves which changes helped, including build configuration and tools.",
+      "concept": "compose-perf-measurement-workflow",
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/performance",
+          "claim": "Try running your app in release mode; debug mode imposes a performance cost and can make other issues hard to spot; enable optimizing and shrinking with R8 and use Baseline Profiles.",
+          "title": "Compose performance",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/codelabs/jetpack-compose-performance",
+          "claim": "Macrobenchmark provides `frameDurationCpuMs` and `frameOverrunMs`; measure before fixing, use system and composition tracing to observe, then modify and measure again; don't do hard-to-read optimizations based on gut feeling.",
+          "title": "Practical performance problem solving in Jetpack Compose",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "compose-performance-codelab",
+        "compose-performance"
+      ],
+      "explanation": "The codelab frames this as a scientific loop: baseline, observe, modify, measure. A senior answer includes the release/R8/profile setup that makes numbers meaningful.",
+      "model_answer": {
+        "summary": "Measure a release build with R8 and a Baseline Profile, record a baseline with Macrobenchmark frame metrics, find the cause with a system trace plus composition tracing, change one thing at a time, and compare against the baseline.",
+        "key_points": [
+          "Profile a release build with R8 shrinking and optimisation, not debug, because debug mode adds overhead and hides the real problems",
+          "Record a baseline with a Macrobenchmark scroll test using `frameDurationCpuMs` and `frameOverrunMs` (look at P50/P99, not one run)",
+          "Use a system trace with composition tracing in Perfetto to find which phase and composable take the time; use Layout Inspector counts only as a quick hint",
+          "Change one thing at a time and re-run the benchmark; keep only changes that move the metrics",
+          "Avoid gut-feeling or hard-to-read optimisations that measurements do not justify"
+        ]
+      }
+    },
+    {
+      "id": "w05-l04-q07",
+      "type": "written",
+      "lesson": "w05-l04",
+      "prompt": "Name the main kinds of work that should not happen during composition of a list item, and the fix for each, as you would after working through the Compose performance codelab.",
+      "concept": "compose-avoid-work-in-composition",
+      "sources": [
+        {
+          "url": "https://developer.android.com/codelabs/jetpack-compose-performance",
+          "claim": "The codelab fixes: replace a large image placeholder with a smaller or vector drawable, move `registerReceiver` binder calls off the main thread and hoist them, replace an unnecessary `LazyRow` with `Row`, and defer state reads with lambda modifiers.",
+          "title": "Practical performance problem solving in Jetpack Compose",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/develop/ui/compose/performance/bestpractices",
+          "claim": "Use `remember` to minimise expensive calculations, since composables can run as often as every animation frame.",
+          "title": "Follow best practices (Compose performance)",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "compose-performance-codelab",
+        "compose-performance"
+      ],
+      "explanation": "A senior answer knows composables can run every frame, so any main-thread cost is multiplied, and finds the cost with traces before fixing it.",
+      "model_answer": {
+        "summary": "Heavy synchronous work on the main thread during composition causes jank: big image decoding, blocking I/O or binder calls, repeated expensive calculations, unnecessary subcomposition and reading fast-changing state in composition. Each has a specific fix.",
+        "key_points": [
+          "Loading large images synchronously (e.g. a huge `painterResource`) blocks the main thread; use smaller or vector images or an async loader such as Coil",
+          "Blocking I/O or binder calls such as registering a `BroadcastReceiver` per item; move them off the main thread and hoist them so they run once, not per item",
+          "Expensive calculations in the body; cache with `remember(keys)` or move them to the ViewModel",
+          "Unnecessary subcomposition, such as a `LazyRow` for a few tags; use a plain `Row`",
+          "Fast-changing state read in composition; defer reads with lambda modifiers (`offset { }`, `graphicsLayer { }`, `drawBehind { }`)"
+        ]
+      }
+    },
+    {
+      "id": "w05-l04-q08",
+      "type": "written",
+      "lesson": "w05-l04",
+      "prompt": "Explain what Baseline Profiles and Startup Profiles do for a Compose app, how you would generate them, and how they relate to Cloud Profiles.",
+      "concept": "baseline-profiles-for-compose-apps",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/performance/baselineprofiles/overview",
+          "claim": "ART AOT-compiles code paths in the Baseline Profile (compiled to `assets/dexopt/baseline.prof`) for about 30% faster execution from first launch; generate with `BaselineProfileRule`; generation needs a non-obfuscated build and R8 rewrites rules; Startup Profiles optimise DEX layout for about 15% more; Cloud Profiles take hours to days.",
+          "title": "Baseline Profiles overview",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "baseline-profiles",
+        "compose-performance"
+      ],
+      "explanation": "A senior answer explains why profiles matter (JIT/interpretation cost of library code on first run), not just how to add the plugin, and knows the relationship between the three kinds of profile.",
+      "model_answer": {
+        "summary": "A Baseline Profile lists hot code paths that ART compiles ahead of time at install, about 30% faster from the first launch; a Startup Profile optimises DEX layout for startup. Generate both with `BaselineProfileRule` in a Macrobenchmark module covering real journeys; Cloud Profiles arrive later from real usage.",
+        "key_points": [
+          "Baseline Profile rules are compiled into the app (`baseline.prof`) and ART AOT-compiles those methods at install, avoiding interpretation and JIT; about 30% faster from the first launch",
+          "They should cover startup and critical journeys such as scrolling a lazy list and navigating, not only startup",
+          "Generated with `BaselineProfileRule.collect { }` in a Macrobenchmark or Baseline Profile Gradle plugin module, against a non-obfuscated build; R8 rewrites the rules for the obfuscated release",
+          "A Startup Profile optimises DEX layout for startup (about 15% extra for large apps); the Baseline Profile is generally a superset",
+          "Cloud Profiles come from real users but take hours to days after an update, so Baseline Profiles cover the gap for each release"
+        ]
+      }
+    }
+  ]
+}

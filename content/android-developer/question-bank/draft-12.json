@@ -1,0 +1,1389 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "feature-api-impl-boundaries",
+      "name": "Feature api/impl module boundaries and dependency rules"
+    },
+    {
+      "id": "gradle-implementation-vs-api-exposure",
+      "name": "Gradle `implementation` vs `api` dependency exposure"
+    },
+    {
+      "id": "modularization-granularity-pitfalls",
+      "name": "Modularization granularity and measuring its benefit"
+    },
+    {
+      "id": "gradle-configuration-cache-vs-build-cache",
+      "name": "Configuration cache vs build cache (and build speed)"
+    },
+    {
+      "id": "convention-plugins-for-build-logic",
+      "name": "Convention plugins and version catalogs for shared build logic"
+    },
+    {
+      "id": "ksp-over-kapt-stub-generation",
+      "name": "KSP vs kapt stub generation"
+    },
+    {
+      "id": "build-variant-flavor-dimensions",
+      "name": "Build variants, flavor dimensions and build types"
+    },
+    {
+      "id": "r8-reflection-keep-rules",
+      "name": "R8 reachability, reflection and keep rules"
+    },
+    {
+      "id": "r8-mapping-file-retrace",
+      "name": "R8 mapping files and deobfuscating crashes"
+    },
+    {
+      "id": "app-bundle-device-targeted-delivery",
+      "name": "App Bundles, feature delivery and app size"
+    },
+    {
+      "id": "ci-secrets-and-fork-pull-requests",
+      "name": "CI secrets and untrusted fork pull requests"
+    },
+    {
+      "id": "play-app-signing-upload-key",
+      "name": "Play App Signing: upload key vs app signing key"
+    },
+    {
+      "id": "play-staged-rollout-halt",
+      "name": "Play staged rollouts and halting"
+    },
+    {
+      "id": "in-app-update-priority-and-flows",
+      "name": "In-app updates: priority, immediate vs flexible"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w09-l01-q01",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w09-l01",
+      "prompt": "Your app follows the Now in Android layout, where each feature is split into `:feature:x:api` and `:feature:x:impl`. `:feature:interests:impl` must open the Topic screen owned by the topic feature. Which dependency keeps the features decoupled?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`:feature:interests:impl` depends on `:feature:topic:impl` so it can call the Topic screen composable directly"
+        },
+        {
+          "id": "b",
+          "text": "`:feature:topic:impl` depends on `:feature:interests:impl` and registers a callback"
+        },
+        {
+          "id": "c",
+          "text": "`:feature:interests:impl` depends on `:feature:topic:api`, which exposes the Topic navigation key or navigator"
+        },
+        {
+          "id": "d",
+          "text": "Both features depend on `:app`, which exposes the Topic screen composable"
+        }
+      ],
+      "concept": "feature-api-impl-boundaries",
+      "sources": [
+        {
+          "url": "https://github.com/android/nowinandroid/blob/main/docs/ModularizationLearningJourney.md",
+          "claim": "A feature's impl should only depend on another feature's api module; :topic:api exposes a navigator that :interests:impl uses to navigate to the TopicScreen.",
+          "title": "Now in Android: Modularization learning journey",
+          "accessed": "2026-09-27",
+          "publisher": "Android (GitHub)"
+        },
+        {
+          "url": "https://developer.android.com/topic/modularization/patterns",
+          "claim": "Feature modules should not depend directly on each other; communication goes through a mediator or shared modules to keep coupling low.",
+          "title": "Common modularization patterns",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        }
+      ],
+      "materials": [
+        "now-in-android",
+        "android-modularization-patterns"
+      ],
+      "explanation": "In Now in Android a feature's `api` module exposes only navigation keys, and a feature's `impl` may depend only on another feature's `api`. Navigating through `:feature:topic:api` means the Topic UI can change without recompiling Interests. Depending on the other feature's `impl` (the tempting choice) couples the two features' internals and builds together."
+    },
+    {
+      "id": "w09-l01-q02",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w09-l01",
+      "prompt": "A module `:core:data` changes from `api(project(\":core:network\"))` to `implementation(project(\":core:network\"))`. Which build benefit follows directly from that change?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Modules depending only on `:core:data` no longer recompile when `:core:network` changes, since it's off their compile classpath"
+        },
+        {
+          "id": "b",
+          "text": "`:core:network` is no longer packaged into the APK at all unless some other module in the graph also declares a direct or transitive dependency on it"
+        },
+        {
+          "id": "c",
+          "text": "Gradle can now skip the configuration phase entirely for `:core:network` on every subsequent build, because `implementation` enables the configuration cache"
+        },
+        {
+          "id": "d",
+          "text": "R8 can now remove `:core:network`'s classes from the final APK entirely, because `implementation` dependencies are excluded from reachability analysis"
+        }
+      ],
+      "concept": "gradle-implementation-vs-api-exposure",
+      "sources": [
+        {
+          "url": "https://docs.gradle.org/current/userguide/java_library_plugin.html",
+          "claim": "implementation dependencies do not leak into consumers' compile classpath, giving faster compilation and fewer recompilations because consumers need not be recompiled when implementation dependencies change.",
+          "title": "The Java Library Plugin",
+          "accessed": "2026-09-27",
+          "publisher": "Gradle Inc."
+        },
+        {
+          "url": "https://developer.android.com/topic/modularization/patterns",
+          "claim": "Prefer implementation over api; api exposes transitive dependencies to the consumers of your module.",
+          "title": "Common modularization patterns",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        }
+      ],
+      "materials": [
+        "android-modularization-patterns",
+        "android-gradle-build"
+      ],
+      "explanation": "`implementation` dependencies do not leak onto consumers' compile classpath, so consumers are not recompiled when those dependencies change, and the smaller classpath compiles faster. The dependency is still present at runtime and in the APK, so the packaging and R8 choices are wrong; skipping configuration is what the configuration cache does, not a dependency configuration."
+    },
+    {
+      "id": "w09-l01-q03",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w09-l01",
+      "prompt": "After a modularization push, a 40-screen app has 350 Gradle modules, many holding one or two classes. Builds got slower and every new feature needs several boilerplate build files. Which pitfall does the Android modularization guide name for this?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Too coarse-grained: modules are still too large and tightly coupled internally to benefit from parallel builds or independent recompilation"
+        },
+        {
+          "id": "b",
+          "text": "Too complex: the guide says modularization is never worthwhile for apps with fewer than 100 screens or without a dedicated build team"
+        },
+        {
+          "id": "c",
+          "text": "Missing an `api`/`impl` split: every module, no matter how small, should still be split into a separate `api` and `impl` pair"
+        },
+        {
+          "id": "d",
+          "text": "Too fine-grained: many small modules add build complexity and boilerplate that can outweigh the benefits"
+        }
+      ],
+      "concept": "modularization-granularity-pitfalls",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/modularization",
+          "claim": "The guide lists pitfalls: too fine-grained (overhead in build complexity and boilerplate), too coarse-grained, and too complex for small projects.",
+          "title": "Guide to Android app modularization",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        }
+      ],
+      "materials": [
+        "android-modularization"
+      ],
+      "explanation": "The guide lists three granularity pitfalls. Very many tiny modules is the too-fine-grained one: each module adds build configuration and overhead, which can cancel the gains. 'Too coarse' is the opposite problem, and 'too complex' refers to small projects that never reach the growth threshold. Splitting every module into `api`/`impl` would make the problem worse."
+    },
+    {
+      "id": "w09-l01-q04",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w09-l01",
+      "prompt": "Using the Now in Android module rules, which dependency is a violation?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`:feature:bookmarks:impl` depends on `:feature:topic:api`"
+        },
+        {
+          "id": "b",
+          "text": "`:core:ui` depends on `:feature:settings:impl`"
+        },
+        {
+          "id": "c",
+          "text": "`:core:data` depends on `:core:network`"
+        },
+        {
+          "id": "d",
+          "text": "`:app` depends on `:feature:bookmarks:impl`"
+        }
+      ],
+      "concept": "feature-api-impl-boundaries",
+      "sources": [
+        {
+          "url": "https://github.com/android/nowinandroid/blob/main/docs/ModularizationLearningJourney.md",
+          "claim": "Core modules can depend on other core modules, but they shouldn't depend on feature nor app modules; a feature's impl should only depend on another feature's api module.",
+          "title": "Now in Android: Modularization learning journey",
+          "accessed": "2026-09-27",
+          "publisher": "Android (GitHub)"
+        },
+        {
+          "url": "https://developer.android.com/topic/modularization/patterns",
+          "claim": "App modules depend on feature modules and usually provide root navigation.",
+          "title": "Common modularization patterns",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        }
+      ],
+      "materials": [
+        "now-in-android",
+        "android-modularization-patterns"
+      ],
+      "explanation": "Core modules may depend on other core modules but never on feature or app modules; a core module depending on a feature inverts the layering and makes cycles likely. A feature `impl` depending on another feature's `api`, core depending on core, and the app module wiring feature implementations together are all allowed."
+    },
+    {
+      "id": "w09-l01-q05",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w09-l01",
+      "prompt": "`:feature:profile:impl` uses Retrofit only in internal classes, yet its build file says `api(libs.retrofit)`. What is the most important consequence for the rest of the codebase?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Retrofit is downloaded twice: once for the `api` configuration and once again for `implementation`, doubling the dependency resolution time"
+        },
+        {
+          "id": "b",
+          "text": "Retrofit is excluded from the release build entirely, because `api` dependencies are only ever placed on the compile classpath, never packaged"
+        },
+        {
+          "id": "c",
+          "text": "Retrofit leaks onto every consumer's compile classpath, so callers can accidentally use it and get recompiled when it changes"
+        },
+        {
+          "id": "d",
+          "text": "Nothing observable changes at build or runtime; `api` and `implementation` only affect metadata published to a Maven repository"
+        }
+      ],
+      "concept": "gradle-implementation-vs-api-exposure",
+      "sources": [
+        {
+          "url": "https://docs.gradle.org/current/userguide/java_library_plugin.html",
+          "claim": "Dependencies in the api configuration are transitively exposed to consumers and appear on their compile classpath; implementation dependencies do not leak.",
+          "title": "The Java Library Plugin",
+          "accessed": "2026-09-27",
+          "publisher": "Gradle Inc."
+        },
+        {
+          "url": "https://developer.android.com/topic/modularization/patterns",
+          "claim": "The public interface of a module should be minimal and should not leak implementation details; prefer implementation over api.",
+          "title": "Common modularization patterns",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        }
+      ],
+      "materials": [
+        "android-modularization-patterns",
+        "android-gradle-build"
+      ],
+      "explanation": "`api` dependencies are exposed transitively and appear on consumers' compile classpath. Consumers can start depending on Retrofit by accident, which breaks encapsulation, and they must recompile when it changes. `api` is not compile-only, and the difference matters for every build, not just publishing."
+    },
+    {
+      "id": "w09-l01-q06",
+      "type": "written",
+      "lesson": "w09-l01",
+      "prompt": "You are splitting a checkout feature out of a large single-module app. Describe the module structure and the dependency rules you would put in place so the feature stays independent, including how other features reach it.",
+      "concept": "feature-api-impl-boundaries",
+      "sources": [
+        {
+          "url": "https://github.com/android/nowinandroid/blob/main/docs/ModularizationLearningJourney.md",
+          "claim": "Feature api modules expose navigation keys and impl modules contain feature logic and UI; an impl depends only on another feature's api; core modules don't depend on feature or app modules.",
+          "title": "Now in Android: Modularization learning journey",
+          "accessed": "2026-09-27",
+          "publisher": "Android (GitHub)"
+        },
+        {
+          "url": "https://developer.android.com/topic/modularization/patterns",
+          "claim": "You shouldn't pass objects as navigation arguments; use simple ids that features use to load resources from the data layer.",
+          "title": "Common modularization patterns",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        }
+      ],
+      "materials": [
+        "android-modularization-patterns",
+        "now-in-android"
+      ],
+      "explanation": "A senior answer names concrete, enforceable rules (who may depend on whom) rather than 'keep modules decoupled', and explains why each rule matters: API-only dependencies keep recompilation local, and one-way layering prevents cycles.",
+      "model_answer": {
+        "summary": "Split checkout into a small API module (navigation keys, public models or interfaces) and an implementation module (UI, ViewModels, internal logic). Other features depend only on the API; the app module wires implementations and owns root navigation; core modules never depend on features.",
+        "key_points": [
+          "Checkout gets an `api` module exposing only navigation keys or contracts and an `impl` module with UI, ViewModels and internals marked `internal`",
+          "Other feature `impl` modules may depend on `:feature:checkout:api` only, never on its `impl`; feature `api` modules depend on no other feature",
+          "Core modules (data, network, ui) never depend on feature or app modules, which keeps the graph acyclic",
+          "The app module depends on the `impl` modules, wires them together (DI) and owns root navigation",
+          "Features pass simple IDs as navigation arguments and load data from a shared data module rather than passing objects"
+        ]
+      }
+    },
+    {
+      "id": "w09-l01-q07",
+      "type": "written",
+      "lesson": "w09-l01",
+      "prompt": "A teammate wants to navigate from the book-details feature to checkout by passing the whole `Book` object as a navigation argument, and proposes making `:feature:checkout` depend on `:feature:bookdetails` to share the `Book` class. Critique the proposal and give a better design.",
+      "concept": "feature-api-impl-boundaries",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/modularization/patterns",
+          "claim": "Feature modules should not depend on each other; the mediator is the module that owns the navigation graph (usually an app module), and features pass simple ids instead of objects.",
+          "title": "Common modularization patterns",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        },
+        {
+          "url": "https://developer.android.com/topic/modularization/patterns",
+          "claim": "Both feature modules depending on the same data module minimizes the data the mediator must forward and keeps coupling low.",
+          "title": "Common modularization patterns",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        }
+      ],
+      "materials": [
+        "android-modularization-patterns",
+        "now-in-android"
+      ],
+      "explanation": "The official guidance is explicit: features shouldn't depend on each other, and navigation arguments should be IDs. A strong answer also notes that shared models belong in a data or model module, not in either feature.",
+      "model_answer": {
+        "summary": "Don't couple two feature modules or pass objects as navigation arguments. Let a mediator (the module that owns navigation, usually the app module) route between features, pass the book ID, and have both features depend on a shared data module that loads the `Book`.",
+        "key_points": [
+          "A direct feature-to-feature dependency raises coupling and makes cycles and cross-team build impact likely",
+          "Navigation should go through a mediator, usually the app module that owns the navigation graph, or through the target feature's API module",
+          "Pass a primitive ID (the book ID) rather than an object; objects in navigation arguments get stale and couple the features' models",
+          "Both features depend on the same data module, which exposes a repository to load the book by ID"
+        ]
+      }
+    },
+    {
+      "id": "w09-l01-q08",
+      "type": "written",
+      "lesson": "w09-l01",
+      "prompt": "Your director asks whether modularizing a 200k-line single-module app is worth it and how you would prove it. Explain the benefits you would expect, the risks, and what you would measure before and after.",
+      "concept": "modularization-granularity-pitfalls",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/modularization",
+          "claim": "Gradle functionalities such as incremental build, build cache or parallel build can leverage modularity to improve build performance; pitfalls include too fine-grained and too coarse-grained modules.",
+          "title": "Guide to Android app modularization",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        },
+        {
+          "url": "https://docs.gradle.org/current/userguide/performance.html",
+          "claim": "Parallel builds can significantly improve build times, but the impact depends on the project's structure and inter-subproject dependencies; build scans and profile reports identify bottlenecks.",
+          "title": "Improve the Performance of Gradle Builds",
+          "accessed": "2026-09-27",
+          "publisher": "Gradle Inc."
+        }
+      ],
+      "materials": [
+        "android-modularization",
+        "android-gradle-build"
+      ],
+      "explanation": "Senior answers treat modularization as an investment with a measurable return, and they know the build win comes from specific Gradle mechanisms that need a loosely coupled graph. Saying 'modules make builds faster' without that condition is the junior answer.",
+      "model_answer": {
+        "summary": "Modularization pays off through visibility control, ownership, testability and build performance (incremental builds, build cache and parallel execution work per module), but only with the right granularity. Measure build times on representative scenarios and track ownership and coupling, and avoid too-fine or too-coarse modules.",
+        "key_points": [
+          "Expected benefits: strict visibility (`internal`), clear team ownership per module, isolated testing, and Play Feature Delivery options",
+          "Build-time gains come from Gradle features that exploit modules: incremental builds, the build cache and parallel execution of decoupled modules",
+          "Risks: too fine-grained modules add configuration overhead and boilerplate; too coarse-grained ones recreate the monolith",
+          "Measure first: profile clean and incremental builds for common changes (Build Analyzer or build scans), then compare after the split",
+          "Parallel speedup depends on how coupled the modules are, so also track the dependency graph (depth, and cycles avoided)"
+        ]
+      }
+    },
+    {
+      "id": "w09-l02-q01",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w09-l02",
+      "prompt": "With `org.gradle.configuration-cache=true`, what does Gradle reuse on a cache hit?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The compiled outputs of tasks whose inputs haven't changed, including outputs fetched from other machines through a shared remote build cache"
+        },
+        {
+          "id": "b",
+          "text": "The result of the configuration phase (the task graph and each task's state), skipping build-script and plugin re-evaluation"
+        },
+        {
+          "id": "c",
+          "text": "The downloaded dependency JARs and their transitive metadata, so a cache hit needs no network access even on a completely clean checkout"
+        },
+        {
+          "id": "d",
+          "text": "The Gradle daemon JVM process itself, including its warmed-up classes, so daemon startup and JIT warm-up are both skipped entirely"
+        }
+      ],
+      "concept": "gradle-configuration-cache-vs-build-cache",
+      "sources": [
+        {
+          "url": "https://docs.gradle.org/current/userguide/configuration_cache.html",
+          "claim": "The configuration cache stores the result of the configuration phase (the task graph, task state and dependency information); on a hit the configuration phase is skipped and build scripts and plugins are not re-evaluated.",
+          "title": "Configuration Cache",
+          "accessed": "2026-09-27",
+          "publisher": "Gradle Inc."
+        },
+        {
+          "url": "https://docs.gradle.org/current/userguide/build_cache.html",
+          "claim": "The build cache stores task outputs and lets builds fetch them when inputs have not changed, locally or from a remote cache.",
+          "title": "Build Cache",
+          "accessed": "2026-09-27",
+          "publisher": "Gradle Inc."
+        }
+      ],
+      "materials": [
+        "android-gradle-build"
+      ],
+      "explanation": "The configuration cache stores the output of the configuration phase: the task graph and task state. On a hit, settings and build scripts and plugins are not evaluated again. Reusing task outputs (the tempting choice) is the build cache, a separate feature enabled with `org.gradle.caching`."
+    },
+    {
+      "id": "w09-l02-q02",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w09-l02",
+      "prompt": "A team adds `gradle/libs.versions.toml` and expects every module to now use the same `compileSdk`, Kotlin JVM target and lint settings. Nothing changes. Why?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The catalog must be named exactly `versions.toml` (not `libs.versions.toml`) and placed at the project root for Gradle to auto-apply it"
+        },
+        {
+          "id": "b",
+          "text": "The catalog also needs a `[bundles]` section defined before any module can automatically pick up shared `compileSdk`, Kotlin and lint settings from it"
+        },
+        {
+          "id": "c",
+          "text": "A version catalog only declares dependency and plugin coordinates and versions; shared configuration needs a convention plugin to apply it"
+        },
+        {
+          "id": "d",
+          "text": "The catalog applies its settings only after a full Gradle sync completes with the configuration cache disabled in `gradle.properties`"
+        }
+      ],
+      "concept": "convention-plugins-for-build-logic",
+      "sources": [
+        {
+          "url": "https://developer.android.com/build/migrate-to-catalogs",
+          "claim": "The catalog in gradle/libs.versions.toml has [versions], [libraries] and [plugins] sections; modules reference entries such as libs.androidx.ktx, and convention plugins are applied with id rather than alias.",
+          "title": "Migrate your build to version catalogs",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        },
+        {
+          "url": "https://docs.gradle.org/current/userguide/sharing_build_logic_between_subprojects.html",
+          "claim": "Convention plugins encapsulate shared build configuration and are applied by subprojects that need it.",
+          "title": "Sharing Build Logic between Subprojects",
+          "accessed": "2026-09-27",
+          "publisher": "Gradle Inc."
+        }
+      ],
+      "materials": [
+        "android-version-catalogs",
+        "android-gradle-build"
+      ],
+      "explanation": "A version catalog is declarative: it gives modules type-safe aliases such as `libs.androidx.ktx` but applies nothing. Shared settings such as `compileSdk` belong in convention plugins that each module applies with `id(...)`. `libs.versions.toml` is the default name Gradle looks for, and `[bundles]` only groups libraries."
+    },
+    {
+      "id": "w09-l02-q03",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w09-l02",
+      "prompt": "Why is kapt slower than KSP for a processor like Room?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "kapt runs annotation processors in a completely separate long-lived JVM process with no incremental caching, unlike KSP which reuses the Kotlin compiler daemon"
+        },
+        {
+          "id": "b",
+          "text": "kapt processes the Java bytecode produced after Kotlin compilation finishes, so the module effectively has to be compiled twice for every build"
+        },
+        {
+          "id": "c",
+          "text": "KSP skips type checking of the annotated code entirely and trusts the generated sources, while kapt fully type-checks before generating anything"
+        },
+        {
+          "id": "d",
+          "text": "kapt must generate Java stubs from Kotlin sources for annotation processors to read; that step is expensive, while KSP reads Kotlin directly"
+        }
+      ],
+      "concept": "ksp-over-kapt-stub-generation",
+      "sources": [
+        {
+          "url": "https://developer.android.com/build/migrate-to-ksp",
+          "claim": "kapt generates Java stubs from Kotlin files for processors to read, which is expensive; KSP analyzes Kotlin code directly and is up to 2x faster. kapt is in maintenance mode.",
+          "title": "Migrate from kapt to KSP",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        }
+      ],
+      "materials": [
+        "ksp",
+        "android-gradle-build"
+      ],
+      "explanation": "kapt makes Java annotation processors work with Kotlin by generating Java stubs, and that step is a large part of its cost. KSP reads Kotlin symbols directly and is up to 2x faster. kapt does not run on bytecode, and KSP does not skip type information; it understands Kotlin constructs better."
+    },
+    {
+      "id": "w09-l02-q04",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w09-l02",
+      "prompt": "In `:core:database` you moved Room from kapt to KSP, but one legacy annotation processor there still has no KSP support and stays on kapt. Build time for the module barely improved. What explains this?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "While any kapt processor remains, kapt still generates stubs for the module, so most of the gain arrives only once kapt is fully removed"
+        },
+        {
+          "id": "b",
+          "text": "KSP and kapt cannot coexist in the same module at all; Gradle detects the conflict and silently falls back to running Room through kapt instead"
+        },
+        {
+          "id": "c",
+          "text": "KSP only speeds up clean builds; for incremental builds its performance is identical to kapt because both regenerate all stubs each time"
+        },
+        {
+          "id": "d",
+          "text": "Room's KSP processor is measurably slower than its kapt counterpart, because Room's code generation logic itself hasn't been ported to KSP"
+        }
+      ],
+      "concept": "ksp-over-kapt-stub-generation",
+      "sources": [
+        {
+          "url": "https://developer.android.com/build/migrate-to-ksp",
+          "claim": "You can run kapt and KSP alongside each other while migrating, but if a module has any kapt processors remaining, stubs are still generated, so most of the improvement occurs only when all kapt usages are removed from the module.",
+          "title": "Migrate from kapt to KSP",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        }
+      ],
+      "materials": [
+        "ksp",
+        "android-gradle-build"
+      ],
+      "explanation": "The migration guide says kapt and KSP can run side by side, but stubs are still generated in any module with a kapt processor left, so most of the improvement appears only when kapt is gone from the module. A practical fix is to move the legacy processor's code into its own module. They can coexist, so the 'silent fallback' choice is wrong."
+    },
+    {
+      "id": "w09-l02-q05",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w09-l02",
+      "prompt": "An app declares `flavorDimensions += listOf(\"api\", \"mode\")` with three flavors in `api`, two in `mode`, and the `debug` and `release` build types. How many build variants does Gradle create, before any filtering?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "7"
+        },
+        {
+          "id": "b",
+          "text": "12"
+        },
+        {
+          "id": "c",
+          "text": "6"
+        },
+        {
+          "id": "d",
+          "text": "10"
+        }
+      ],
+      "concept": "build-variant-flavor-dimensions",
+      "sources": [
+        {
+          "url": "https://developer.android.com/build/build-variants",
+          "claim": "The number of build variants equals the product of the number of flavors in each flavor dimension and the number of build types; 3 api flavors x 2 mode flavors x 2 build types gives 12.",
+          "title": "Configure build variants",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        }
+      ],
+      "materials": [
+        "android-gradle-build"
+      ],
+      "explanation": "The number of variants is the product of the number of flavors in each dimension and the number of build types: 3 x 2 x 2 = 12. Adding the counts together (7) is the common mistake. Unwanted combinations can be disabled with `androidComponents.beforeVariants`."
+    },
+    {
+      "id": "w09-l02-q06",
+      "type": "written",
+      "lesson": "w09-l02",
+      "prompt": "CI builds for a 60-module Android app take 14 minutes and local incremental builds feel slow. Walk through how you would diagnose the problem and which Gradle and Android settings you would change, and why each one helps.",
+      "concept": "gradle-configuration-cache-vs-build-cache",
+      "sources": [
+        {
+          "url": "https://developer.android.com/build/optimize-your-build",
+          "claim": "Enable the configuration cache, migrate from kapt to KSP, avoid dynamic version numbers, raise the JVM heap if GC exceeds 15% of build time, and use the Build Analyzer to find bottlenecks.",
+          "title": "Optimize your build speed",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        },
+        {
+          "url": "https://docs.gradle.org/current/userguide/configuration_cache.html",
+          "claim": "The configuration cache stores the configuration phase result, while the build cache stores task outputs and intermediate artifacts.",
+          "title": "Configuration Cache",
+          "accessed": "2026-09-27",
+          "publisher": "Gradle Inc."
+        }
+      ],
+      "materials": [
+        "android-gradle-build",
+        "ksp"
+      ],
+      "explanation": "The key senior distinction is between the two caches: the configuration cache removes configuration time, the build cache removes task execution time. Candidates who say 'turn on caching' without saying which, or who skip measurement, give a weaker answer.",
+      "model_answer": {
+        "summary": "Measure first (Build Analyzer, build scans), then use the configuration cache to skip configuration, the build cache (shared remotely with CI) to reuse task outputs, and parallel execution for decoupled modules. Remove kapt in favour of KSP, avoid dynamic versions, and size the JVM heap.",
+        "key_points": [
+          "Profile before changing anything: Build Analyzer or build scans to see whether configuration, compilation or annotation processing dominates",
+          "The configuration cache skips the configuration phase on a hit; the build cache reuses task outputs by inputs, and a remote cache shares them between CI and developers",
+          "`org.gradle.parallel=true` runs decoupled modules at the same time; its benefit depends on how coupled the module graph is",
+          "Replace kapt with KSP where processors support it, since kapt's stub generation is expensive",
+          "Avoid dynamic dependency versions (`2.+`) and increase `org.gradle.jvmargs` if garbage collection takes a large share of build time"
+        ]
+      }
+    },
+    {
+      "id": "w09-l02-q07",
+      "type": "written",
+      "lesson": "w09-l02",
+      "prompt": "Twenty module build scripts copy the same Android, Kotlin and Compose configuration. Design how you would centralize build logic, and compare convention plugins in an included `build-logic` build with `buildSrc` and with `subprojects {}` blocks.",
+      "concept": "convention-plugins-for-build-logic",
+      "sources": [
+        {
+          "url": "https://docs.gradle.org/current/userguide/sharing_build_logic_between_subprojects.html",
+          "claim": "Avoid subprojects {} and allprojects {} because logic can be injected into a subproject in a way that isn't obvious; changes to code in buildSrc invalidate the configuration phase and require re-execution of all tasks.",
+          "title": "Sharing Build Logic between Subprojects",
+          "accessed": "2026-09-27",
+          "publisher": "Gradle Inc."
+        },
+        {
+          "url": "https://developer.android.com/build/migrate-to-catalogs",
+          "claim": "Use alias for plugins from the version catalog and id for plugins that don't come from it, such as convention plugins.",
+          "title": "Migrate your build to version catalogs",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        }
+      ],
+      "materials": [
+        "android-version-catalogs",
+        "android-gradle-build",
+        "now-in-android"
+      ],
+      "explanation": "Strong answers separate 'what versions' (catalog) from 'how a module is configured' (convention plugins) and justify the included-build choice with the `buildSrc` invalidation cost. This is how Now in Android organizes `build-logic`.",
+      "model_answer": {
+        "summary": "Put versions in a version catalog and shared configuration in convention plugins, ideally in an included `build-logic` build, applied explicitly by each module. Avoid `subprojects {}` or `allprojects {}` injection, and know that changes in `buildSrc` invalidate configuration and rerun tasks.",
+        "key_points": [
+          "A version catalog (`libs.versions.toml`) holds coordinates and versions; it does not apply configuration by itself",
+          "Convention plugins (such as `android-library`, `android-compose`, `jvm-library`) hold the shared settings and each module applies them with `id(...)`",
+          "`subprojects {}` and `allprojects {}` inject logic in ways that aren't visible from a module's own build script, so behaviour is hard to follow",
+          "`buildSrc` is automatic, but any change to it invalidates configuration and reruns all tasks; an included build is a standalone project that is more flexible for large builds",
+          "Measure build time before and after, and keep plugins compatible with the configuration cache"
+        ]
+      }
+    },
+    {
+      "id": "w09-l02-q08",
+      "type": "written",
+      "lesson": "w09-l02",
+      "prompt": "Product wants free and paid editions, each able to point at a staging or production backend, with debug and release builds of the same edition installable side by side on one device. Design the variant setup and say how you would keep the variant count under control.",
+      "concept": "build-variant-flavor-dimensions",
+      "sources": [
+        {
+          "url": "https://developer.android.com/build/build-variants",
+          "claim": "Gradle combines one flavor from each dimension with a build type; the count is the product. Build type suffix is applied after the flavor's, giving com.example.myapp.free.debug so debug and release can coexist.",
+          "title": "Configure build variants",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        },
+        {
+          "url": "https://developer.android.com/build/build-variants",
+          "claim": "Unwanted variants can be disabled with androidComponents.beforeVariants; source set priority is build variant, build type, product flavor, then main.",
+          "title": "Configure build variants",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        }
+      ],
+      "materials": [
+        "android-gradle-build"
+      ],
+      "explanation": "Senior candidates think about the combinatorial cost: every variant multiplies build, test and CI work, so they filter variants rather than letting them grow. Knowing the suffix ordering and source-set precedence shows real experience.",
+      "model_answer": {
+        "summary": "Use two flavor dimensions (edition: free/paid; environment: staging/prod) plus the debug and release build types, which gives 2x2x2 = 8 variants. Use `applicationIdSuffix` so variants install side by side, `beforeVariants` to disable combinations nobody ships, and variant source sets for per-variant code.",
+        "key_points": [
+          "Two flavor dimensions, `edition` (free, paid) and `environment` (staging, prod), combined with build types; variant count is the product (2x2x2 = 8)",
+          "`applicationIdSuffix` on flavors and build types (for example `.free` + `.debug` = `com.example.app.free.debug`) lets builds coexist, because no two apps can share an application ID",
+          "Disable unused combinations (such as `release` with `staging`) with `androidComponents.beforeVariants { enable = false }` to cut build and CI cost",
+          "Source set precedence: build variant > build type > flavor > `main`, so put per-environment config (base URLs) in the flavor source sets or `buildConfigField`s"
+        ]
+      }
+    },
+    {
+      "id": "w09-l03-q01",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w09-l03",
+      "prompt": "After enabling R8, the release build crashes with `ClassNotFoundException` for a class that a JSON library instantiates by reflection. Debug builds work. What is the best fix?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Add `-keep class com.example.** { *; }` so nothing in the app is removed or renamed"
+        },
+        {
+          "id": "b",
+          "text": "Set `isMinifyEnabled = false` for release, since R8 is unsafe with reflection"
+        },
+        {
+          "id": "c",
+          "text": "Add a narrowly scoped keep rule for the classes and members accessed by reflection"
+        },
+        {
+          "id": "d",
+          "text": "Add `-dontwarn` for the class so R8 stops reporting it"
+        }
+      ],
+      "concept": "r8-reflection-keep-rules",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/performance/app-optimization/keep-rules-overview",
+          "claim": "R8 can't identify classes, fields or methods accessed with reflection and may rename or remove them, leading to ClassNotFoundException; narrowly scoped keep rules allow maximum optimization.",
+          "title": "About keep rules",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        },
+        {
+          "url": "https://developer.android.com/topic/performance/app-optimization/troubleshoot-the-optimization",
+          "claim": "The most common cause of crashes after R8 optimization is broken reflection (ClassNotFoundException, NoSuchMethodException and similar); the solution is to add a keep rule.",
+          "title": "Troubleshoot optimization",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        }
+      ],
+      "materials": [
+        "android-r8"
+      ],
+      "explanation": "R8 can't see reflective access, so it may rename or remove those classes, which produces `ClassNotFoundException` at runtime. The documented fix is a keep rule, as specific as possible so the rest of the app is still optimized. A package-wide `-keep` works but gives up most of R8's benefit; disabling minification throws away all of it; `-dontwarn` only silences build warnings and does nothing for a runtime crash."
+    },
+    {
+      "id": "w09-l03-q02",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w09-l03",
+      "prompt": "Your own crash reporter shows obfuscated stack traces (`a.b.c`) for release 5.3.0, which you built two weeks ago. Since then the team has built release candidates many times. What do you need to deobfuscate the 5.3.0 traces?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The `mapping.txt` from the current build, since R8 always produces the exact same stable class and member mapping regardless of which commit is built"
+        },
+        {
+          "id": "b",
+          "text": "The `mapping.txt` from the exact 5.3.0 build, used with `retrace`; mapping files are overwritten every build, so each release must be archived"
+        },
+        {
+          "id": "c",
+          "text": "Only the source code checked out at the 5.3.0 git tag; the `retrace` tool recompiles it locally and recomputes the original R8 mapping from scratch"
+        },
+        {
+          "id": "d",
+          "text": "Nothing extra is needed; obfuscated names can be reversed directly from the APK's DEX file using any standard bytecode disassembler"
+        }
+      ],
+      "concept": "r8-mapping-file-retrace",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/performance/app-optimization/troubleshoot-the-optimization",
+          "claim": "Use the retrace tool with mapping.txt to deobfuscate stack traces; the mapping file is overwritten every time you build, so you must save a copy each time you publish a release.",
+          "title": "Troubleshoot optimization",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        }
+      ],
+      "materials": [
+        "android-r8"
+      ],
+      "explanation": "`retrace` maps obfuscated names back using the mapping file from the build that produced the binary. Android Studio writes it to `build/outputs/mapping/` and overwrites it on every build, so you must save a copy for each release. A mapping from a different build does not match, and obfuscation can't be reversed from the binary alone."
+    },
+    {
+      "id": "w09-l03-q03",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w09-l03",
+      "prompt": "What does uploading an Android App Bundle (`.aab`) instead of a universal APK change about what users download?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Play generates and signs optimized APKs per device configuration, so a device downloads only the ABI, density and language resources it needs"
+        },
+        {
+          "id": "b",
+          "text": "The bundle itself is installed directly on devices and unpacked into a running APK by the Play Store app the first time it launches"
+        },
+        {
+          "id": "c",
+          "text": "The bundle format simply compresses resources better than a universal APK, but every device still receives every ABI, density and language"
+        },
+        {
+          "id": "d",
+          "text": "Users always download a small stub APK first, and every other part of the app streams in on demand regardless of what the developer configures"
+        }
+      ],
+      "concept": "app-bundle-device-targeted-delivery",
+      "sources": [
+        {
+          "url": "https://developer.android.com/guide/app-bundle",
+          "claim": "An app bundle defers APK generation and signing to Google Play, which generates optimized APKs for each device configuration so only the needed code and resources are downloaded.",
+          "title": "About Android App Bundles",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        },
+        {
+          "url": "https://developer.android.com/guide/app-bundle",
+          "claim": "From August 2021, new apps are required to publish with the Android App Bundle on Google Play.",
+          "title": "About Android App Bundles",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        }
+      ],
+      "materials": [
+        "android-app-bundles"
+      ],
+      "explanation": "An app bundle is a publishing format; Play uses it to generate and serve device-specific APKs through configuration splits by ABI, screen density and language, and Play signs them (which requires Play App Signing). Devices never install the `.aab` itself, and on-demand downloads apply only to modules you configure that way."
+    },
+    {
+      "id": "w09-l03-q04",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w09-l03",
+      "prompt": "Your R8 output is much larger than expected, and you suspect some rule is keeping far more code than needed. Which tools help you find out why?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`-dontobfuscate`, which disables renaming and prints every kept class alongside its original, unobfuscated name in the output mapping"
+        },
+        {
+          "id": "b",
+          "text": "Disabling full mode with `android.enableR8.fullMode=false`, rebuilding, and comparing the resulting APK sizes to isolate which rules changed"
+        },
+        {
+          "id": "c",
+          "text": "Reading `mapping.txt`, which lists, next to each class, the exact keep rule and source library responsible for retaining it"
+        },
+        {
+          "id": "d",
+          "text": "`-whyareyoukeeping` for a class or member, plus `configuration.txt`, which lists every merged rule including ones from libraries"
+        }
+      ],
+      "concept": "r8-reflection-keep-rules",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/performance/app-optimization/troubleshoot-the-optimization",
+          "claim": "configuration.txt contains all merged rules from every library and module used to configure R8; -whyareyoukeeping outputs a path from the kept code to an entry point.",
+          "title": "Troubleshoot optimization",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        }
+      ],
+      "materials": [
+        "android-r8"
+      ],
+      "explanation": "`-whyareyoukeeping` prints the path from the kept item to an entry point, and `build/outputs/mapping/configuration.txt` contains the merged rules from every library and module, which is where broad library rules and global options are found. `mapping.txt` maps names, not reasons, and turning off full mode only reduces optimization."
+    },
+    {
+      "id": "w09-l03-q05",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w09-l03",
+      "prompt": "You move a rarely used 'sell an item' flow into an on-demand Play Feature Delivery module. Which statement about that module is correct?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The base `:app` module declares a dependency on the feature module, exactly as it would on any other ordinary library module in the project"
+        },
+        {
+          "id": "b",
+          "text": "The feature module declares its own `signingConfig`, `versionCode` and `versionName`, all independent of whatever the base module specifies"
+        },
+        {
+          "id": "c",
+          "text": "The feature module depends on the base `:app` module, and shouldn't declare `android:exported=\"true\"` activities since it may not be installed yet"
+        },
+        {
+          "id": "d",
+          "text": "On-demand modules work on every Android version the app supports, including devices as old as API 19 (Android KitKat), with absolutely no extra runtime requirement at all"
+        }
+      ],
+      "concept": "app-bundle-device-targeted-delivery",
+      "sources": [
+        {
+          "url": "https://developer.android.com/guide/playcore/feature-delivery",
+          "claim": "The feature module's build.gradle declares a dependency on the base module ':app' and omits signing configurations, minifyEnabled, versionCode and versionName.",
+          "title": "Overview of Play Feature Delivery",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        },
+        {
+          "url": "https://developer.android.com/guide/playcore/feature-delivery",
+          "claim": "Feature modules should not specify activities with android:exported set to true, and only devices running Android 5.0 (API 21) and higher support on-demand features.",
+          "title": "Overview of Play Feature Delivery",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        }
+      ],
+      "materials": [
+        "play-feature-delivery",
+        "android-app-bundles"
+      ],
+      "explanation": "Feature modules reverse the usual direction: they depend on `:app`. They omit signing configs, `minifyEnabled` and version codes, which are inherited from the base. Exported activities are discouraged because the module might not be installed yet. On-demand install needs Android 5.0 (API 21) or higher."
+    },
+    {
+      "id": "w09-l03-q06",
+      "type": "written",
+      "lesson": "w09-l03",
+      "prompt": "You enable R8 (full mode, the default in recent AGP) for release. QA reports three problems: a crash in JSON parsing, a JNI call that fails with `NoSuchMethodError`, and a feature that silently stops working in release only. How do you diagnose and fix these without giving up most of R8's benefit?",
+      "concept": "r8-reflection-keep-rules",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/performance/app-optimization/keep-rules-overview",
+          "claim": "R8 can't identify reflective lookups or JNI calls based on dynamic string lookups, so its optimizations might break that code; keep rules should be as specific as possible.",
+          "title": "About keep rules",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        },
+        {
+          "url": "https://developer.android.com/topic/performance/app-optimization/enable-app-optimization",
+          "claim": "You should always enable optimization for the release build; R8 performs shrinking, optimizations such as inlining and class merging, and obfuscation, and full mode is enabled by default.",
+          "title": "Enable app optimization",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        }
+      ],
+      "materials": [
+        "android-r8"
+      ],
+      "explanation": "Senior answers explain why R8 breaks these cases (static reachability analysis can't see dynamic lookups) and refuse the easy fix of disabling R8 or keeping whole packages, because R8 improves startup, memory use and size.",
+      "model_answer": {
+        "summary": "All three point to R8 removing or renaming code it cannot see being used (reflection, JNI string lookups). Reproduce on a release build, retrace the stack traces with the build's mapping file, and add narrowly scoped keep rules (or use library-provided consumer rules), then check the result with the R8 diagnostics.",
+        "key_points": [
+          "R8 can't see reflection (`Class.forName`, `getDeclaredMethod`, reflective serializers) or JNI's string-based method lookups, so it may rename or remove those members",
+          "Retrace the crashes with the `mapping.txt` from that exact build to find the real class and member",
+          "Add keep rules that are as specific as possible (just the model classes or native methods), not package-wide `-keep ... { *; }`",
+          "Use `configuration.txt` and `-whyareyoukeeping` to audit the merged rules, including broad rules from libraries",
+          "Test release (minified) builds in CI or pre-release, since the problems only appear there"
+        ]
+      }
+    },
+    {
+      "id": "w09-l03-q07",
+      "type": "written",
+      "lesson": "w09-l03",
+      "prompt": "Design how your team makes sure every production crash and ANR from an R8-optimized build can be deobfuscated, both in Play Console and in a third-party crash reporter.",
+      "concept": "r8-mapping-file-retrace",
+      "sources": [
+        {
+          "url": "https://support.google.com/googleplay/android-developer/answer/9848633?hl=en",
+          "claim": "With an app bundle and Android Gradle plugin 4.1 or later, Play automatically grabs the deobfuscation file from the bundle; only crashes and ANRs that occur after upload are deobfuscated.",
+          "title": "Deobfuscate or symbolicate crash stack traces",
+          "accessed": "2026-09-27",
+          "publisher": "Google Play Console Help"
+        },
+        {
+          "url": "https://developer.android.com/topic/performance/app-optimization/troubleshoot-the-optimization",
+          "claim": "Android Studio saves the mapping file in /build/outputs/mapping/ and overwrites it every build, so save a copy for each release; use retrace to deobfuscate.",
+          "title": "Troubleshoot optimization",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        }
+      ],
+      "materials": [
+        "android-r8",
+        "github-actions"
+      ],
+      "explanation": "What separates a senior answer is building this into the pipeline rather than relying on someone remembering, and knowing that timing matters: crashes that arrive before the mapping is uploaded won't be deobfuscated.",
+      "model_answer": {
+        "summary": "Treat the mapping file as a release artifact: archive it for each version code, and let Play pick it up automatically from the app bundle (AGP 4.1+). Upload it to any third-party crash tool as part of the release pipeline, and use `retrace` for manual traces, knowing only crashes after an upload are deobfuscated.",
+        "key_points": [
+          "The mapping file (`build/outputs/mapping/<variant>/mapping.txt`) is overwritten on every build, so the CI release job must archive it keyed by version code",
+          "With an app bundle and AGP 4.1+, Play Console takes the deobfuscation file from the bundle automatically; APK uploads need a manual upload",
+          "Crashes are deobfuscated only after the file is uploaded; earlier crashes stay obfuscated, so upload before or during rollout",
+          "Third-party crash reporters need the same mapping uploaded by the pipeline; `retrace` handles ad-hoc traces"
+        ]
+      }
+    },
+    {
+      "id": "w09-l03-q08",
+      "type": "written",
+      "lesson": "w09-l03",
+      "prompt": "Your app's download size has grown 40% in a year and install conversion is dropping in emerging markets. Explain how you would measure and reduce the size, and which techniques give the biggest wins.",
+      "concept": "app-bundle-device-targeted-delivery",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/performance/reduce-apk-size",
+          "claim": "Upload an app bundle so Play serves optimized APKs per device; enable shrinkResources with minification (R8 removes unused code, then AGP removes unused resources); declare supported resource configurations; use WebP and vector drawables.",
+          "title": "Reduce your app size",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        },
+        {
+          "url": "https://developer.android.com/guide/playcore/feature-delivery",
+          "claim": "On-demand modules are downloaded only when requested, for example making a feature used by only 20% of users an on-demand download.",
+          "title": "Overview of Play Feature Delivery",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        }
+      ],
+      "materials": [
+        "android-app-bundles",
+        "android-r8",
+        "play-feature-delivery"
+      ],
+      "explanation": "A strong answer ranks techniques by impact (bundle splits and shrinking first) and treats download size as a tracked metric per release, not a one-off cleanup.",
+      "model_answer": {
+        "summary": "Publish as an app bundle so Play serves device-specific splits, enable R8 and resource shrinking, restrict resource configurations, convert images to WebP or vectors, trim native libraries and heavy dependencies, and move rarely used features to on-demand modules. Measure download size per version.",
+        "key_points": [
+          "Use the Android App Bundle so each device gets only its ABI, density and language splits",
+          "Enable R8 code shrinking plus `isShrinkResources` so unused code, then unused resources, are removed",
+          "Declare supported resource configurations (locales, densities) and prefer WebP or vector drawables over large PNGs",
+          "Reduce native and dependency weight: strip debug symbols, keep native libs uncompressed-but-not-extracted, and drop heavy libraries",
+          "Move rarely used flows into on-demand or conditional feature modules with Play Feature Delivery"
+        ]
+      }
+    },
+    {
+      "id": "w09-l04-q01",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w09-l04",
+      "prompt": "Your open-source app's GitHub Actions workflow runs on `pull_request`. A PR from a fork fails at the step that decodes the upload keystore from `secrets.UPLOAD_KEYSTORE_BASE64`. Why?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Base64-encoded secrets aren't supported by GitHub Actions at all; binary secrets must instead be committed to the repository pre-encrypted"
+        },
+        {
+          "id": "b",
+          "text": "Secrets are redacted in logs, and for that reason GitHub also clears the decoded value from the environment before the step actually runs"
+        },
+        {
+          "id": "c",
+          "text": "The keystore file is larger than GitHub's 1 KB per-secret size limit, so the encoding step silently truncates it before the step can read it"
+        },
+        {
+          "id": "d",
+          "text": "Except for `GITHUB_TOKEN`, secrets aren't passed to the runner for forked-repository workflows, and that token is read-only there"
+        }
+      ],
+      "concept": "ci-secrets-and-fork-pull-requests",
+      "sources": [
+        {
+          "url": "https://docs.github.com/en/actions/security-for-github-actions/security-guides/using-secrets-in-github-actions",
+          "claim": "With the exception of GITHUB_TOKEN, secrets are not passed to the runner when a workflow is triggered from a forked repository; small binary blobs can be stored as Base64 secrets up to 48 KB.",
+          "title": "Using secrets in GitHub Actions",
+          "accessed": "2026-09-27",
+          "publisher": "GitHub Docs"
+        },
+        {
+          "url": "https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows",
+          "claim": "The GITHUB_TOKEN has read-only permissions in pull requests from forked repositories.",
+          "title": "Events that trigger workflows",
+          "accessed": "2026-09-27",
+          "publisher": "GitHub Docs"
+        }
+      ],
+      "materials": [
+        "github-actions"
+      ],
+      "explanation": "GitHub doesn't give secrets to workflows triggered from forks, so untrusted PR code can't read them. That's why PR builds should build, test and lint without signing, and signing belongs in a trusted job such as a push to `main`. Base64 is the documented way to store small binary files, masking affects log output only, and the limit is 48 KB."
+    },
+    {
+      "id": "w09-l04-q02",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w09-l04",
+      "prompt": "To let fork PRs sign builds, a teammate switches the workflow to `pull_request_target` and checks out the PR's head commit before running `./gradlew assembleRelease`. What is the main risk?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`pull_request_target` runs with the base repository's permissions, so executing untrusted PR code there can expose secrets or poison caches"
+        },
+        {
+          "id": "b",
+          "text": "`pull_request_target` doesn't support Gradle-based workflows at all, so `assembleRelease` silently fails to resolve the Android Gradle plugin"
+        },
+        {
+          "id": "c",
+          "text": "The build always uses the base branch's checked-out code by default, so the actual PR changes are never compiled or really tested at all"
+        },
+        {
+          "id": "d",
+          "text": "There is no real risk here, because GitHub automatically masks any secret value that appears anywhere in the workflow's console log output"
+        }
+      ],
+      "concept": "ci-secrets-and-fork-pull-requests",
+      "sources": [
+        {
+          "url": "https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows",
+          "claim": "Running untrusted code on the pull_request_target trigger may lead to security vulnerabilities including cache poisoning and granting unintended access to write privileges or secrets.",
+          "title": "Events that trigger workflows",
+          "accessed": "2026-09-27",
+          "publisher": "GitHub Docs"
+        }
+      ],
+      "materials": [
+        "github-actions"
+      ],
+      "explanation": "`pull_request_target` runs with the base repository's privileges. Checking out and executing fork code there lets a malicious Gradle script read secrets or push with write access; GitHub warns about cache poisoning and secret access. Masking logs doesn't stop code from sending a secret elsewhere."
+    },
+    {
+      "id": "w09-l04-q03",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w09-l04",
+      "prompt": "Your app uses Play App Signing. A laptop holding the upload keystore is stolen. What is the situation?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The app is lost entirely: current policy requires you to publish a completely unrelated new app listing under a brand-new package name and start over from zero"
+        },
+        {
+          "id": "b",
+          "text": "You can ask Google to reset the upload key with a new certificate; the app signing key, held by Google, is unaffected and keeps signing user APKs"
+        },
+        {
+          "id": "c",
+          "text": "Nothing needs to happen at all, because once Play App Signing is enabled the upload key no longer plays any role in the release process"
+        },
+        {
+          "id": "d",
+          "text": "You must immediately rotate the app signing key yourself, an action which silently uninstalls the app for every existing user overnight"
+        }
+      ],
+      "concept": "play-app-signing-upload-key",
+      "sources": [
+        {
+          "url": "https://support.google.com/googleplay/android-developer/answer/9842756?hl=en",
+          "claim": "You use the upload key to sign your app bundle before uploading; Google uses the app signing key to sign APKs delivered to users. If you lose your upload key or suspect it was compromised, you are not locked out and can request a reset.",
+          "title": "Use Play App Signing",
+          "accessed": "2026-09-27",
+          "publisher": "Google Play Console Help"
+        },
+        {
+          "url": "https://developer.android.com/guide/app-bundle",
+          "claim": "An app bundle defers APK generation and signing to Google Play.",
+          "title": "About Android App Bundles",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        }
+      ],
+      "materials": [
+        "fastlane",
+        "android-app-bundles"
+      ],
+      "explanation": "With Play App Signing there are two keys: you sign uploads with the upload key, and Google signs what users install with the app signing key. A lost or compromised upload key can be reset. Without Play App Signing, losing the signing key can't be fixed. The upload key still authenticates your uploads, so it does matter."
+    },
+    {
+      "id": "w09-l04-q04",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w09-l04",
+      "prompt": "Version 7.2 is at a 10% staged rollout when crash rates spike. You halt the rollout. What happens next?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Users who already installed 7.2 are automatically rolled back and silently downgraded to running version 7.1 the next time they open Play Store"
+        },
+        {
+          "id": "b",
+          "text": "Play keeps increasing the rollout percentage automatically on its own schedule unless you manually delete the entire release from the console"
+        },
+        {
+          "id": "c",
+          "text": "No additional users get 7.2; those who have it keep it, and you fix them by releasing a new build with a higher version code"
+        },
+        {
+          "id": "d",
+          "text": "Every single user who already installed 7.2 receives an automatic prompt from Play Store forcing them to reinstall the previous 7.1 build"
+        }
+      ],
+      "concept": "play-staged-rollout-halt",
+      "sources": [
+        {
+          "url": "https://support.google.com/googleplay/android-developer/answer/6346149?hl=en",
+          "claim": "When you halt a rollout, no additional users receive that version; users who already received it remain on it. If you find an issue, create and roll out a new release with a fixed app bundle. The rollout percentage won't increase automatically.",
+          "title": "Release app updates with staged rollouts",
+          "accessed": "2026-09-27",
+          "publisher": "Google Play Console Help"
+        }
+      ],
+      "materials": [
+        "fastlane",
+        "github-actions"
+      ],
+      "explanation": "Halting stops the rollout reaching new users but doesn't revert anyone, and Play has no downgrade path. You ship a fixed bundle as a new release with a higher version code. Rollout percentages never increase on their own."
+    },
+    {
+      "id": "w09-l04-q05",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w09-l04",
+      "prompt": "You need a critical security fix to trigger an IMMEDIATE in-app update on old versions, while normal releases only show a flexible prompt. Where does the app get the signal that a release is critical?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "From an update priority (0-5) set through the Play Developer API's `inAppUpdatePriority`, which can only be set at rollout time"
+        },
+        {
+          "id": "b",
+          "text": "From a 'priority' dropdown directly in Play Console's release page, which you can freely raise or lower at any point even after rollout"
+        },
+        {
+          "id": "c",
+          "text": "From `versionCode` jumps: internally, Play treats any jump of 100 or more between consecutive version codes as an automatically critical update"
+        },
+        {
+          "id": "d",
+          "text": "From `clientVersionStalenessDays`, a value which Play forces to exactly 0 for any release the developer has flagged as a critical update"
+        }
+      ],
+      "concept": "in-app-update-priority-and-flows",
+      "sources": [
+        {
+          "url": "https://developer.android.com/guide/playcore/in-app-updates/kotlin-java",
+          "claim": "Set priority with the inAppUpdatePriority field under Edits.tracks.releases in the Google Play Developer API; Play uses an integer between 0 and 5, default 0; priority can only be set when rolling out a new release and cannot be changed later.",
+          "title": "Support in-app updates (Kotlin or Java)",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        },
+        {
+          "url": "https://developer.android.com/guide/playcore/in-app-updates/kotlin-java",
+          "claim": "clientVersionStalenessDays() returns the number of days since the update became available on the Play Store.",
+          "title": "Support in-app updates (Kotlin or Java)",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        }
+      ],
+      "materials": [
+        "in-app-updates"
+      ],
+      "explanation": "Update priority is an integer from 0 (default) to 5, set only through `inAppUpdatePriority` in the Play Developer API when the release is rolled out, and it can't be changed later. The app reads it from `AppUpdateInfo` to choose IMMEDIATE or FLEXIBLE. Staleness days is the time since the update became available, not a priority, and Play Console has no priority dropdown."
+    },
+    {
+      "id": "w09-l04-q06",
+      "type": "written",
+      "lesson": "w09-l04",
+      "prompt": "Design a GitHub Actions pipeline that builds, tests and lints every PR and ships a signed bundle to the internal testing track from `main`. Explain how signing keys and the Play service-account credentials are handled.",
+      "concept": "play-app-signing-upload-key",
+      "sources": [
+        {
+          "url": "https://docs.github.com/en/actions/security-for-github-actions/security-guides/using-secrets-in-github-actions",
+          "claim": "Secrets aren't passed to workflows triggered from forks; store small binary blobs as Base64 secrets; avoid passing secrets between processes on the command line.",
+          "title": "Using secrets in GitHub Actions",
+          "accessed": "2026-09-27",
+          "publisher": "GitHub Docs"
+        },
+        {
+          "url": "https://docs.fastlane.tools/actions/upload_to_play_store/",
+          "claim": "upload_to_play_store takes a track (production, beta, alpha, internal), an aab path, a json_key service-account credential, and a rollout fraction.",
+          "title": "upload_to_play_store - fastlane docs",
+          "accessed": "2026-09-27",
+          "publisher": "fastlane"
+        }
+      ],
+      "materials": [
+        "github-actions",
+        "fastlane"
+      ],
+      "explanation": "A senior design separates trusted from untrusted triggers and explains the two-key model, which makes a leaked CI secret recoverable. Mentioning fork-PR secret behaviour shows real operational experience.",
+      "model_answer": {
+        "summary": "Split into a PR workflow (build, unit tests, lint, no secrets) and a trusted release workflow on `main` that decodes the upload keystore from a Base64 secret, signs the bundle with the upload key, and uploads it with fastlane `upload_to_play_store` to the `internal` track using a service-account JSON key, with Play App Signing re-signing for users.",
+        "key_points": [
+          "PR workflow (`pull_request`) runs `./gradlew` build, tests and lint with no secrets, which is safe for forks",
+          "Release workflow runs only on pushes to `main` or tags, ideally in a protected environment; the upload keystore is a Base64 secret decoded at runtime and never committed",
+          "Sign with the upload key; Play App Signing holds the app signing key, so a leaked upload key can be reset",
+          "fastlane `upload_to_play_store` with `track: internal`, `aab:` and a service-account `json_key` from a secret; internal testing reaches testers within minutes",
+          "Don't pass secrets on command lines where possible, and mask any derived sensitive values"
+        ]
+      }
+    },
+    {
+      "id": "w09-l04-q07",
+      "type": "written",
+      "lesson": "w09-l04",
+      "prompt": "You are about to ship a risky rewrite of the checkout flow to 5 million users on Google Play. Describe your rollout plan, what you would monitor, and what you would do if something goes wrong.",
+      "concept": "play-staged-rollout-halt",
+      "sources": [
+        {
+          "url": "https://support.google.com/googleplay/android-developer/answer/6346149?hl=en",
+          "claim": "Halting stops additional users receiving the version but users who received it remain on it; if there's an issue, roll out a new release with a fixed bundle; percentages don't increase automatically.",
+          "title": "Release app updates with staged rollouts",
+          "accessed": "2026-09-27",
+          "publisher": "Google Play Console Help"
+        },
+        {
+          "url": "https://support.google.com/googleplay/android-developer/answer/9845334?hl=en",
+          "claim": "Internal testing is limited to 100 testers and bundles are available to testers within minutes; closed and open testing reach wider audiences before production.",
+          "title": "Set up an open, closed, or internal test",
+          "accessed": "2026-09-27",
+          "publisher": "Google Play Console Help"
+        }
+      ],
+      "materials": [
+        "fastlane",
+        "in-app-updates"
+      ],
+      "explanation": "The senior insight is that Play has no rollback: a halt limits the damage but doesn't undo it, so you plan kill switches and fix-forward releases ahead of time.",
+      "model_answer": {
+        "summary": "Go through internal and closed testing, then a staged production rollout at a small percentage that you raise by hand while watching crash, ANR and business metrics. Halt if needed, knowing halting doesn't revert users, so fix forward with a higher version code, ideally with a server-side flag to switch off the new flow.",
+        "key_points": [
+          "Internal testing (up to 100 testers, available within minutes), then a closed test for wider feedback, before production",
+          "A staged production rollout (for example 1% to 5% to 20% to 50% to 100%) that Play doesn't advance automatically; each step is gated on metrics",
+          "Monitor crash-free users, ANRs (Android vitals, with mapping uploaded), and checkout conversion or errors",
+          "If it goes wrong, halt: no new users receive it, but existing recipients stay, so ship a fix with a higher version code",
+          "Put the rewrite behind a remote feature flag so you can disable it without a release; use in-app update priority to push the fix"
+        ]
+      }
+    },
+    {
+      "id": "w09-l04-q08",
+      "type": "written",
+      "lesson": "w09-l04",
+      "prompt": "A backend API change means app versions older than 6.0 will break in two weeks. How would you get users onto a supported version, and what are the limits of in-app updates?",
+      "concept": "in-app-update-priority-and-flows",
+      "sources": [
+        {
+          "url": "https://developer.android.com/guide/playcore/in-app-updates/kotlin-java",
+          "claim": "For immediate updates, check for UpdateAvailability.DEVELOPER_TRIGGERED_UPDATE_IN_PROGRESS in onResume and resume the flow; if the user cancels (RESULT_CANCELED) and the app can't function, show an informative message or prompt them to close the app.",
+          "title": "Support in-app updates (Kotlin or Java)",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        },
+        {
+          "url": "https://developer.android.com/guide/playcore/in-app-updates",
+          "claim": "Flexible updates download in the background; immediate updates are full-screen flows that require the user to update and restart; supported on Android 5.0 (API 21) or higher.",
+          "title": "In-app updates",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers (Google)"
+        }
+      ],
+      "materials": [
+        "in-app-updates"
+      ],
+      "explanation": "A senior answer notes that in-app updates only help versions that already contain the check, so a forced upgrade also needs a server-side version gate, and it covers the cancel path instead of assuming users comply.",
+      "model_answer": {
+        "summary": "Use the Play in-app updates API: ship releases with a high `inAppUpdatePriority` and have the app request IMMEDIATE updates when priority or staleness is high, resuming in-progress updates in `onResume`. Handle cancellation, and keep a server-side minimum-version check, because in-app updates only work for Play-installed apps on supported devices.",
+        "key_points": [
+          "IMMEDIATE is a full-screen flow that blocks use until the update installs; FLEXIBLE downloads in the background and needs `completeUpdate()` after `InstallStatus.DOWNLOADED`",
+          "Decide the flow from `updatePriority()` (0-5, set through the Play Developer API at rollout) and `clientVersionStalenessDays()`",
+          "In `onResume`, resume updates that show `DEVELOPER_TRIGGERED_UPDATE_IN_PROGRESS` so users can't escape an immediate update",
+          "If the user cancels (`RESULT_CANCELED`) and the app can't work, explain why and ask again or close the app",
+          "Limits: needs a Play-installed app on a supported device (API 21+); old versions without the code can only be caught by a server-side minimum version response"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,1400 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "single-immutable-ui-state",
+      "name": "One immutable UI state object per screen"
+    },
+    {
+      "id": "viewmodel-events-reduced-to-state",
+      "name": "ViewModel events reduced to UI state, not sent as one-off events"
+    },
+    {
+      "id": "mvi-reducer-with-stateflow-update",
+      "name": "MVI reducers and atomic StateFlow.update"
+    },
+    {
+      "id": "viewmodel-lifecycle-hygiene",
+      "name": "What never belongs in a ViewModel (Context, init-block work)"
+    },
+    {
+      "id": "repository-single-source-of-truth",
+      "name": "Repositories as the data layer's entry point and single source of truth"
+    },
+    {
+      "id": "domain-layer-use-case-trade-offs",
+      "name": "Use cases: when a domain layer helps and when it is overkill"
+    },
+    {
+      "id": "per-layer-model-mapping",
+      "name": "Mapping models between network, database and UI layers"
+    },
+    {
+      "id": "hilt-scope-mismatch-leak",
+      "name": "Leaks from holding shorter-lived objects in longer-lived Hilt scopes"
+    },
+    {
+      "id": "hilt-component-lifetimes",
+      "name": "Hilt components, lifetimes and the cost of scoping"
+    },
+    {
+      "id": "hilt-entry-points-and-assisted-injection",
+      "name": "Entry points, assisted injection and qualifiers"
+    },
+    {
+      "id": "compile-time-di-vs-runtime-koin",
+      "name": "Compile-time DI (Hilt/Dagger) vs runtime resolution (Koin)"
+    },
+    {
+      "id": "nia-module-dependency-rules",
+      "name": "Now in Android's module graph: app, feature api/impl and core rules"
+    },
+    {
+      "id": "nia-offline-first-sync-decision",
+      "name": "Now in Android's offline-first and WorkManager sync decision"
+    },
+    {
+      "id": "nia-selective-domain-layer",
+      "name": "Now in Android's selective use of use cases"
+    },
+    {
+      "id": "architecture-decision-record-practice",
+      "name": "Writing and maintaining architecture decision records"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w07-l01-q01",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w07-l01",
+      "prompt": "A screen's ViewModel exposes `isLoading: LiveData<Boolean>`, `items: LiveData<List<Item>>` and `error: LiveData<String?>` separately. Testers report frames where the spinner, the stale list and an error all show at once. Which change does the Android UI-layer guidance favour?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Merge the three into a `MediatorLiveData` that re-emits whenever any of the loading, items or error sources changes, but still tracks them as three independent fields"
+        },
+        {
+          "id": "b",
+          "text": "Replace each `LiveData` with its own `MutableStateFlow` so updates are conflated, keeping loading, items and error as three separately observed streams"
+        },
+        {
+          "id": "c",
+          "text": "Add `distinctUntilChanged()` to each of the three streams so identical consecutive emissions are dropped before reaching the observer"
+        },
+        {
+          "id": "d",
+          "text": "Model one immutable `UiState`, expose it as a single `StateFlow<UiState>`, and produce each state with `copy`"
+        }
+      ],
+      "concept": "single-immutable-ui-state",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/architecture/ui-layer",
+          "claim": "Use a single UI state object to handle states that are related to each other; this leads to fewer inconsistencies and makes the code easier to understand.",
+          "title": "UI layer",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/topic/architecture/recommendations",
+          "claim": "Recommended: ViewModels expose data through a single `uiState` property as a `StateFlow`.",
+          "title": "Recommendations for Android architecture",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-ui-state-production",
+        "android-app-architecture"
+      ],
+      "explanation": "The guide says to use a single UI state object for states that are related to each other, because it leads to fewer inconsistencies. Separate streams (LiveData or StateFlow) can still be observed in half-updated combinations, so swapping the stream type does not fix the bug. `distinctUntilChanged` only removes duplicates. A `MediatorLiveData` still composes independently mutated fields rather than one atomic snapshot."
+    },
+    {
+      "id": "w07-l01-q02",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w07-l01",
+      "prompt": "After a successful payment the ViewModel must make the UI navigate to a receipt screen. A teammate exposes `val events = Channel<Event>()` and collects it in the UI. What does the official guidance say about this?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It is the recommended pattern, because a `Channel` buffers one event per receiver and guarantees exactly-once delivery even across process death"
+        },
+        {
+          "id": "b",
+          "text": "Avoid it: when the ViewModel outlives the consumer, delivery is not guaranteed; reduce it to UI state such as `paymentCompleted = true` instead"
+        },
+        {
+          "id": "c",
+          "text": "It is fine if the channel is replaced by a `SharedFlow(replay = 1)`, since replaying the last value guarantees every late subscriber still receives it"
+        },
+        {
+          "id": "d",
+          "text": "Navigation should be triggered directly from the ViewModel through an injected `NavController`, since the ViewModel already owns the navigation graph"
+        }
+      ],
+      "concept": "viewmodel-events-reduced-to-state",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/architecture/ui-layer/events",
+          "claim": "ViewModel events should always result in a UI state update; exposing them with Kotlin Channels or other reactive streams does not guarantee delivery and processing when the producer outlives the consumer.",
+          "title": "UI events",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/topic/architecture/recommendations",
+          "claim": "Strongly recommended: do not send events from the ViewModel to the UI; process them immediately and cause a state update with the result.",
+          "title": "Recommendations for Android architecture",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-ui-state-production",
+        "android-architecture-recommendations"
+      ],
+      "explanation": "The guide states that ViewModel events should always result in a UI state update, and warns that Channels or other reactive streams do not guarantee delivery and processing when the producer outlives the consumer. A replaying `SharedFlow` just trades lost events for duplicated ones. Holding a `NavController` in a ViewModel ties it to UI lifecycle types."
+    },
+    {
+      "id": "w07-l01-q03",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w07-l01",
+      "prompt": "In an MVI-style ViewModel, every intent is applied with `_state.update { reduce(it, intent) }`. A developer puts `analytics.log(intent)` inside `reduce`. Why is that a bug under concurrency?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`update` runs its lambda on the main thread only, so a slow `analytics.log` call inside it would block the next frame from rendering"
+        },
+        {
+          "id": "b",
+          "text": "`update` throws an exception at runtime whenever the lambda passed to it performs any side effect such as logging or network calls"
+        },
+        {
+          "id": "c",
+          "text": "`update` may evaluate the function several times under concurrent updates, so the log can run more than once; the reducer must be pure"
+        },
+        {
+          "id": "d",
+          "text": "`update` is not atomic, so two intents applied at once can silently overwrite each other's state and the log call hides the lost update"
+        }
+      ],
+      "concept": "mvi-reducer-with-stateflow-update",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/update.html",
+          "claim": "`MutableStateFlow.update` updates the value atomically; the function may be evaluated multiple times if the value is being concurrently updated.",
+          "title": "update - kotlinx.coroutines API",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        },
+        {
+          "url": "https://developer.android.com/topic/architecture/ui-layer/state-production",
+          "claim": "Mutating state from async calls uses `_uiState.update { currentState -> currentState.copy(...) }`.",
+          "title": "UI State production",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-ui-state-production",
+        "android-app-architecture"
+      ],
+      "explanation": "`MutableStateFlow.update` is atomic: it retries a compare-and-set, and its documentation warns the function may be evaluated multiple times under concurrent updates. That is exactly why an MVI reducer must be pure, with side effects (logging, network) moved outside it. The tempting choice (d) is wrong: atomicity is the point of `update`."
+    },
+    {
+      "id": "w07-l01-q04",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w07-l01",
+      "prompt": "A ViewModel calls `viewModelScope.launch { _state.value = repo.load() }` from its `init` block. What does the state-production guide say is wrong with this?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Nothing: `init` is the recommended place to start loading, since the ViewModel is fully constructed by the time Hilt hands it to the caller"
+        },
+        {
+          "id": "b",
+          "text": "It reads or writes the object before it is fully initialized; prefer a lazily started `stateIn(..., WhileSubscribed(...))` pipeline instead"
+        },
+        {
+          "id": "c",
+          "text": "`viewModelScope` is not yet created during `init`, so the coroutine silently fails to launch and the state field is never assigned"
+        },
+        {
+          "id": "d",
+          "text": "It leaks the Activity, because `init` runs on the Activity's scope rather than a scope tied to the ViewModel's own lifecycle"
+        }
+      ],
+      "concept": "viewmodel-lifecycle-hygiene",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/architecture/ui-layer/state-production",
+          "claim": "Don't launch asynchronous operations in the init block or constructor of a ViewModel: the asynchronous code can read from or write to the object before it is fully initialized.",
+          "title": "UI State production",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/topic/architecture/ui-layer/state-production",
+          "claim": "`SharingStarted.WhileSubscribed` keeps the state pipeline active only while the UI is visible; the example uses `stateIn(viewModelScope, WhileSubscribed(5_000), initialValue)`.",
+          "title": "UI State production",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-ui-state-production",
+        "android-app-architecture"
+      ],
+      "explanation": "The guide says not to launch asynchronous operations in the `init` block or constructor, because the async code can read from or write to the object before it is fully initialized, and it recommends `stateIn` with `SharingStarted.WhileSubscribed` so production starts when the UI collects. `viewModelScope` does exist during `init`; the problem is initialization order and eager, unconditional work."
+    },
+    {
+      "id": "w07-l01-q05",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w07-l01",
+      "prompt": "A ViewModel needs a localized string for an error message. Which approach follows the architecture recommendations?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Extend `AndroidViewModel` and call `getApplication<App>().getString(...)` since it is designed for this exact case"
+        },
+        {
+          "id": "b",
+          "text": "Inject the `Activity` itself with Hilt and call `activity.getString(...)` directly from the ViewModel"
+        },
+        {
+          "id": "c",
+          "text": "Inject `Resources` so the ViewModel can resolve the string itself before publishing the UI state"
+        },
+        {
+          "id": "d",
+          "text": "Expose a resource id or typed message in the UI state and resolve the text in the UI layer"
+        }
+      ],
+      "concept": "viewmodel-lifecycle-hygiene",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/architecture/recommendations",
+          "claim": "Keep ViewModels independent of the Android lifecycle: don't pass Activity, Context or Resources as dependencies; use `ViewModel`, not `AndroidViewModel`, and don't use the `Application` class in a ViewModel.",
+          "title": "Recommendations for Android architecture",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/topic/architecture/ui-layer",
+          "claim": "UI logic, such as resolving text resources and showing Snackbars, stays in the UI; ViewModels have a longer lifespan than the UI.",
+          "title": "UI layer",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-ui-state-production",
+        "android-architecture-recommendations"
+      ],
+      "explanation": "The recommendations say to keep ViewModels independent of the Android lifecycle and not to pass `Activity`, `Context` or `Resources` as dependencies, and not to use `AndroidViewModel` or the `Application` class. Text-resource resolution is UI logic, which the UI layer guide places in the UI. Injecting the Activity is also a leak, since the ViewModel outlives it."
+    },
+    {
+      "id": "w07-l01-q06",
+      "type": "written",
+      "lesson": "w07-l01",
+      "prompt": "You are refactoring a screen that shows a list from `topicsRepository.getTopicsStream()`, a filter the user types, and a loading/error status. Describe how you would produce a single UI state in the ViewModel, and name the cases where you would deliberately expose a second stream.",
+      "concept": "single-immutable-ui-state",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/architecture/ui-layer/state-production",
+          "claim": "Stream inputs are aggregated with `combine` and converted with `stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(5_000), initialValue = ...)`; one-shot inputs can be turned into streams with a private `MutableStateFlow` or `snapshotFlow`.",
+          "title": "UI State production",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/topic/architecture/ui-layer",
+          "claim": "Because `PagingData` is not an immutable type, do not represent it in an immutable UI state; expose it from the ViewModel in its own stream. Multiple streams are also appropriate for unrelated data.",
+          "title": "UI layer",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-ui-state-production",
+        "android-app-architecture"
+      ],
+      "explanation": "A senior answer treats state as the output of a pipeline (inputs, state holder, output) rather than a set of mutable fields, knows why `WhileSubscribed(5000)` survives configuration changes without leaking work, and knows the documented exceptions to a single stream instead of applying the rule blindly.",
+      "model_answer": {
+        "summary": "Combine the repository stream with a private `MutableStateFlow` for the user's filter, map to one immutable sealed or data-class `UiState`, and convert it to a hot `StateFlow` with `stateIn(viewModelScope, WhileSubscribed(5_000), Loading)`; split streams only for unrelated state or for types like `PagingData`.",
+        "key_points": [
+          "Model the screen as one immutable `UiState` (sealed Loading/Success/Error or a data class) produced only by the ViewModel",
+          "Turn user input into a stream (a private `MutableStateFlow` or `snapshotFlow`) and `combine` it with repository flows",
+          "Convert with `stateIn` using `SharingStarted.WhileSubscribed(5_000)` and an `initialValue`, and collect with `collectAsStateWithLifecycle`",
+          "Expose a separate stream for unrelated data or for `PagingData`, which must not be placed inside an immutable UI state",
+          "Map errors into the state (for example with `catch`) rather than throwing to the UI"
+        ]
+      }
+    },
+    {
+      "id": "w07-l01-q07",
+      "type": "written",
+      "lesson": "w07-l01",
+      "prompt": "An interviewer says: \"Showing a Snackbar is a one-off event, so a `SharedFlow` is the right tool.\" Argue the official position and describe how you would implement a Snackbar message that is never lost or shown twice.",
+      "concept": "viewmodel-events-reduced-to-state",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/architecture/ui-layer/events",
+          "claim": "Handle one-off ViewModel events immediately and reduce them to UI state; UI state gives more delivery and processing guarantees and is usually easier to test.",
+          "title": "UI events",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/topic/architecture/ui-layer",
+          "claim": "The example `NewsUiState` carries `userMessages: List<Message>` as part of the UI state.",
+          "title": "UI layer",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-ui-state-production",
+        "android-architecture-recommendations"
+      ],
+      "explanation": "Weak answers argue from taste. Strong answers name the concrete failure mode (the producer outliving the consumer), show the consume-acknowledge loop that makes state-based messages exactly-once, and note that this keeps the ViewModel testable by asserting on state.",
+      "model_answer": {
+        "summary": "Reduce the event to state: add the message to a `userMessages` list in the UI state, let the UI show it, and have the UI call back to the ViewModel (for example `userMessageShown(id)`) so the ViewModel removes it; this survives the consumer going away, unlike a stream of one-off events.",
+        "key_points": [
+          "ViewModel events should always result in a UI state update; think about how the action affects UI state, not what action the UI must perform",
+          "Channels and `SharedFlow` do not guarantee delivery and processing when the ViewModel outlives the UI (rotation, backgrounding)",
+          "Keep pending messages in the UI state (for example a list with ids) so they survive until handled",
+          "The UI reports that it consumed the message and the ViewModel removes it from state, which prevents duplicates",
+          "State is easier to test and consistent with the rest of UDF"
+        ]
+      }
+    },
+    {
+      "id": "w07-l01-q08",
+      "type": "written",
+      "lesson": "w07-l01",
+      "prompt": "Compare MVVM and MVI for an Android screen. What does MVI add on top of a UDF-style MVVM ViewModel, what does it cost, and when would you choose each?",
+      "concept": "mvi-reducer-with-stateflow-update",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/architecture/ui-layer",
+          "claim": "UDF: the ViewModel holds and exposes state, the UI notifies the ViewModel of events, the ViewModel handles them and updates the state, and the updated state is fed back to the UI.",
+          "title": "UI layer",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/update.html",
+          "claim": "The function passed to `MutableStateFlow.update` may be evaluated multiple times if the value is being concurrently updated.",
+          "title": "update - kotlinx.coroutines API",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "android-ui-state-production",
+        "android-app-architecture"
+      ],
+      "explanation": "A senior answer frames MVI as a stricter form of UDF rather than a different architecture, knows the technical reason reducers must stay pure, and makes the choice per screen based on how many inputs interact.",
+      "model_answer": {
+        "summary": "Both follow UDF. MVI makes intents a single sealed input type and state changes a pure reducer `(State, Intent) -> State`, which gives a replayable, very testable event log at the cost of boilerplate; choose it for complex screens with many interacting inputs, and plain MVVM with a single `StateFlow` for simpler screens.",
+        "key_points": [
+          "Both share UDF: state flows down, events flow up, and one owner produces immutable state",
+          "MVI adds a sealed `Intent` type and a pure reducer, so every state change is traceable and testable as (state, intent) -> state",
+          "Reducers must be pure because `StateFlow.update` may re-run the function; side effects go outside the reducer",
+          "Cost: more boilerplate and indirection for simple screens; MVVM methods like `onSave()` are enough there",
+          "Choose by screen complexity and team conventions, not by fashion"
+        ]
+      }
+    },
+    {
+      "id": "w07-l02-q01",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w07-l02",
+      "prompt": "An offline-capable `NewsRepository` fetches from the network and also writes to Room. What should `getNewsStream()` return according to the data-layer guide?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The network response, falling back to reading the database only when the network call itself fails or times out"
+        },
+        {
+          "id": "b",
+          "text": "Whichever of the network call or the database query answers first, to minimize the time the UI spends loading"
+        },
+        {
+          "id": "c",
+          "text": "A merge of the network list and the database list, de-duplicated by id so the UI never shows a duplicate entry"
+        },
+        {
+          "id": "d",
+          "text": "A `Flow` read from the database, the single source of truth; network results are written into it first"
+        }
+      ],
+      "concept": "repository-single-source-of-truth",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/architecture/data-layer",
+          "claim": "Each repository should define a single source of truth, and the data exposed from the repository should always come directly from it; for offline-first support a local data source such as a database is the recommended source of truth.",
+          "title": "Data layer",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-app-architecture",
+        "android-architecture-recommendations"
+      ],
+      "explanation": "Each repository should define a single source of truth, and the data it exposes should always come directly from that source. For offline-first support the recommended source of truth is a local database. Returning network data with a fallback creates two sources of truth that can disagree."
+    },
+    {
+      "id": "w07-l02-q02",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w07-l02",
+      "prompt": "A `GetFilteredOrdersUseCase` keeps a `private var lastResult: List<Order>` as a cache and is bound as `@Singleton`. What does the domain-layer guide say?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Correct: use cases should cache their own results so ViewModels stay thin and repositories don't need to know about caching at all"
+        },
+        {
+          "id": "b",
+          "text": "Correct, but the cache field should be bound `@ViewModelScoped` instead of `@Singleton` so each screen gets its own copy"
+        },
+        {
+          "id": "c",
+          "text": "Use cases should hold no mutable data and have no lifecycle of their own; keep the cache in the data layer, one instance per dependency"
+        },
+        {
+          "id": "d",
+          "text": "Use cases must be declared as Kotlin `object`s, so the question of a Hilt scope never arises for them"
+        }
+      ],
+      "concept": "domain-layer-use-case-trade-offs",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/architecture/domain-layer",
+          "claim": "Each use case should only have responsibility over a single functionality and should not contain mutable data; use cases don't have their own lifecycle and a new instance should be created every time one is passed as a dependency.",
+          "title": "Domain layer",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-app-architecture",
+        "android-architecture-recommendations"
+      ],
+      "explanation": "The guide says each use case should have a single responsibility and should not contain mutable data; mutable data belongs to the UI or data layers. Use cases have no lifecycle of their own and are scoped to the class that uses them, so a new instance is created each time one is passed as a dependency. Changing the scope does not fix mutable state in the wrong layer."
+    },
+    {
+      "id": "w07-l02-q03",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w07-l02",
+      "prompt": "A team rule says the UI layer may only reach data through use cases, never through repositories. What trade-off does the domain-layer guide describe for this rule?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It stops the UI bypassing domain logic, but can force pass-through use cases that add little benefit"
+        },
+        {
+          "id": "b",
+          "text": "It is required for Hilt, which cannot inject a repository instance directly into a ViewModel's constructor"
+        },
+        {
+          "id": "c",
+          "text": "It has no downside at all, because constructing a use case object costs nothing at runtime compared with a repository call"
+        },
+        {
+          "id": "d",
+          "text": "It is discouraged because use cases are unable to call repository methods that return a `Flow` of results"
+        }
+      ],
+      "concept": "domain-layer-use-case-trade-offs",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/architecture/domain-layer",
+          "claim": "Restricting the UI to use cases stops it bypassing domain logic, but the potentially significant disadvantage is adding use cases that are just simple function calls to the data layer; add use cases only when required.",
+          "title": "Domain layer",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-app-architecture",
+        "android-architecture-recommendations"
+      ],
+      "explanation": "The guide lists the advantage (the UI cannot bypass domain-layer logic) and a potentially significant disadvantage (use cases that are just simple function calls to the data layer). It recommends adding use cases only when required, and restricting access only if the UI already goes through use cases almost exclusively."
+    },
+    {
+      "id": "w07-l02-q04",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w07-l02",
+      "prompt": "Which is NOT one of the reasons the data-layer guide gives for mapping a network model (for example `NetworkArticle` with 30 fields) into a separate app model?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It saves memory by keeping only the fields the app needs"
+        },
+        {
+          "id": "b",
+          "text": "It adapts external types (such as date formats) to the types the app uses"
+        },
+        {
+          "id": "c",
+          "text": "It lets team members work on the network and UI layers separately once the model is defined"
+        },
+        {
+          "id": "d",
+          "text": "It is required for Room, which cannot store classes annotated for JSON parsing"
+        }
+      ],
+      "concept": "per-layer-model-mapping",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/architecture/data-layer",
+          "claim": "Separating model classes saves memory by reducing data to what's needed, adapts external data types to those used by the app, and gives better separation of concerns; create new models at minimum when a data source's data doesn't match what the app expects.",
+          "title": "Data layer",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/topic/architecture/recommendations",
+          "claim": "Recommended in complex apps: create a model per layer, for example a remote data source mapping network models to simpler classes.",
+          "title": "Recommendations for Android architecture",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-app-architecture",
+        "android-architecture-recommendations"
+      ],
+      "explanation": "The guide gives three reasons: saving memory, adapting external data types, and better separation of concerns in a team. It recommends new models at minimum whenever a data source's data does not match what the rest of the app expects. Nothing in Room forbids JSON annotations on a class; mapping is a design choice, not a Room constraint."
+    },
+    {
+      "id": "w07-l02-q05",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w07-l02",
+      "prompt": "A ViewModel injects a Room `ArticleDao` directly because \"there is only one data source, so a repository adds nothing\". Which recommendation does this break?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "None: repositories are optional overhead when the data layer has only a single data source to expose"
+        },
+        {
+          "id": "b",
+          "text": "UI components must not talk to data sources directly; create a repository even with a single data source"
+        },
+        {
+          "id": "c",
+          "text": "Only the naming convention is broken: renaming the DAO interface to `ArticleRepository` would fully satisfy the guideline"
+        },
+        {
+          "id": "d",
+          "text": "It breaks the rule that every Room DAO must be scoped to Hilt's `SingletonComponent` rather than to a shorter-lived component"
+        }
+      ],
+      "concept": "repository-single-source-of-truth",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/architecture/recommendations",
+          "claim": "Strongly recommended: create repositories even if they contain only a single data source; UI components must not interact directly with data sources such as databases, DataStore or SharedPreferences.",
+          "title": "Recommendations for Android architecture",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/topic/architecture/data-layer",
+          "claim": "Other layers should never access data sources directly; the entry points to the data layer are always the repository classes.",
+          "title": "Data layer",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-app-architecture",
+        "android-architecture-recommendations"
+      ],
+      "explanation": "The recommendations (strongly recommended) say to create repositories even if they contain only a single data source, and that composables and ViewModels must not interact directly with data sources such as databases. The data-layer guide adds that the entry points to the data layer are always the repository classes. Renaming the DAO does not create the boundary."
+    },
+    {
+      "id": "w07-l02-q06",
+      "type": "written",
+      "lesson": "w07-l02",
+      "prompt": "Design the data layer for an articles feature that loads from a REST API, caches in Room and must work offline. Describe the repository's public API, where each operation reads and writes, and how threading and scoping are handled.",
+      "concept": "repository-single-source-of-truth",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/architecture/data-layer",
+          "claim": "Calling data sources and repositories should be main-safe; the data exposed by the data layer should be immutable; a class holding in-memory data such as a cache can be scoped to the Application or to the class that owns a flow's lifecycle.",
+          "title": "Data layer",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/topic/architecture/data-layer/offline-first",
+          "claim": "In an offline-first app, repositories read directly from the local data source and write updates to the local data source first, so that its observers are updated.",
+          "title": "Build an offline-first app",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-app-architecture",
+        "android-architecture-recommendations"
+      ],
+      "explanation": "Senior answers make the direction of data explicit (network writes into the database, the UI reads only from the database), say who owns threading, and justify the repository's scope instead of making everything a singleton by default.",
+      "model_answer": {
+        "summary": "Expose `Flow`s read from Room (the single source of truth) and `suspend` functions for refresh and writes; the repository calls the network data source, maps and writes results into Room, which then re-emits; all calls are main-safe, and the repository is scoped to the app only if it holds shared in-memory state.",
+        "key_points": [
+          "Room is the single source of truth: `getArticlesStream(): Flow<List<Article>>` reads only from the database",
+          "`refresh()`/writes are `suspend` functions that fetch from the network data source, map to entities, and write to Room",
+          "Only the repository touches the data sources; ViewModels and use cases depend on the repository",
+          "Repositories and data sources are main-safe and move blocking work to the right dispatcher themselves",
+          "Exposed data is immutable; scope the repository (for example application-wide) only if it holds in-memory state such as a cache"
+        ]
+      }
+    },
+    {
+      "id": "w07-l02-q07",
+      "type": "written",
+      "lesson": "w07-l02",
+      "prompt": "An interviewer asks: \"When is a domain layer overkill?\" Answer with concrete criteria, and describe what a use case should look like when you do add one.",
+      "concept": "domain-layer-use-case-trade-offs",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/architecture/domain-layer",
+          "claim": "The domain layer is optional: use it only when needed, to encapsulate complex business logic or simple business logic reused by multiple ViewModels; use cases are named verb + noun + UseCase and must be main-safe.",
+          "title": "Domain layer",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/topic/architecture/recommendations",
+          "claim": "Use a domain layer with use cases (recommended in big apps) if you need to reuse business logic across multiple ViewModels or simplify ViewModel complexity.",
+          "title": "Recommendations for Android architecture",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-app-architecture",
+        "android-architecture-recommendations"
+      ],
+      "explanation": "The strong answer gives measurable criteria (reuse across ViewModels, complexity inside a ViewModel) and names the specific cost of pass-through use cases, rather than saying \"Clean Architecture always has a domain layer\".",
+      "model_answer": {
+        "summary": "The domain layer is optional: add use cases for complex business logic or logic reused by several ViewModels, not as pass-throughs. A use case is a single-responsibility, stateless, main-safe class named verb + noun + `UseCase` with `operator fun invoke`, depending on repositories or other use cases.",
+        "key_points": [
+          "The domain layer is optional and recommended mainly in big apps, for complex or reused business logic",
+          "It is overkill when use cases would just forward a single repository call",
+          "A use case does one thing, holds no mutable data, and has no lifecycle of its own",
+          "It is main-safe (moves blocking work with `withContext`) and exposed via `operator fun invoke`",
+          "Use cases may combine several repositories or other use cases, for example combining news and user streams"
+        ]
+      }
+    },
+    {
+      "id": "w07-l02-q08",
+      "type": "written",
+      "lesson": "w07-l02",
+      "prompt": "Your app has `NetworkArticle` (JSON), `ArticleEntity` (Room) and `Article` (app model). A junior asks why not use one class everywhere. When is mapping worth it, where do the mappers live, and what does it cost?",
+      "concept": "per-layer-model-mapping",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/architecture/data-layer",
+          "claim": "At minimum, create new models in any case where a data source receives data that doesn't match what the rest of the app expects.",
+          "title": "Data layer",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/topic/architecture/data-layer/offline-first",
+          "claim": "The offline-first guide maps between layers with functions such as `NetworkAuthor.asEntity()` and `AuthorEntity.asExternalModel()`.",
+          "title": "Build an offline-first app",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-app-architecture",
+        "android-architecture-recommendations"
+      ],
+      "explanation": "Seniors connect mapping to concrete failure modes (a backend field rename breaking the UI, Room schema tied to JSON) and to cost, rather than treating one model per layer as dogma.",
+      "model_answer": {
+        "summary": "Map when a source's shape differs from what the app needs: it saves memory, adapts external types and decouples teams and layers. Mappers live at layer boundaries (network data source or repository), usually as extension functions like `asEntity()` and `asExternalModel()`; the cost is boilerplate, so small apps can share a model where shapes match.",
+        "key_points": [
+          "At minimum, create a new model whenever a data source's data doesn't match what the rest of the app expects",
+          "Benefits: less memory, adapting types such as dates, and independent work on layers",
+          "Mapping happens at boundaries: network to entity when writing, entity to app model when reading",
+          "Extension functions such as `NetworkAuthor.asEntity()` and `AuthorEntity.asExternalModel()` keep mapping close to the models",
+          "Cost is boilerplate and conversion overhead, so it is a per-layer decision in complex apps, not a universal rule"
+        ]
+      }
+    },
+    {
+      "id": "w07-l03-q01",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w07-l03",
+      "prompt": "`class ImageCache @Inject constructor(private val activity: Activity)` is annotated `@Singleton`. After rotation LeakCanary reports the old Activity retained. What is the root cause?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`@Singleton` bindings are recreated on every rotation, so briefly two Activity instances exist and LeakCanary flags the older one as if it were retained"
+        },
+        {
+          "id": "b",
+          "text": "A `SingletonComponent` binding holds an object from `ActivityComponent`; scope the cache to a shorter component instead"
+        },
+        {
+          "id": "c",
+          "text": "Hilt injects a defensive copy of the Activity into the singleton, and that copy is never eligible for garbage collection"
+        },
+        {
+          "id": "d",
+          "text": "LeakCanary misreports this case; Hilt already clears every singleton's references to Activities inside `onDestroy` automatically"
+        }
+      ],
+      "concept": "hilt-scope-mismatch-leak",
+      "sources": [
+        {
+          "url": "https://developer.android.com/training/dependency-injection/hilt-android",
+          "claim": "`SingletonComponent` is created at `Application#onCreate()` and destroyed with the Application; `ActivityComponent` is created at `Activity#onCreate()` and destroyed at `Activity#onDestroy()`; `@ApplicationContext` provides the application Context.",
+          "title": "Dependency injection with Hilt",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://dagger.dev/hilt/components",
+          "claim": "A binding in a child component can have dependencies on any binding in an ancestor component; the reverse is not true.",
+          "title": "Hilt Components",
+          "accessed": "2026-09-27",
+          "publisher": "Dagger (Google)"
+        }
+      ],
+      "materials": [
+        "android-hilt",
+        "dagger-hilt",
+        "leakcanary"
+      ],
+      "explanation": "`SingletonComponent` lives from `Application#onCreate()` until the app is destroyed, while `ActivityComponent` is destroyed at `Activity#onDestroy()`. A singleton holding the Activity keeps it alive after rotation. Hilt's component graph only lets child components depend on ancestors, so the fix is an `@ApplicationContext` dependency, or moving the cache into an Activity-level component."
+    },
+    {
+      "id": "w07-l03-q02",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w07-l03",
+      "prompt": "You need one instance of a `CheckoutSession` shared by an Activity and its ViewModels, and it must survive rotation. Which scope fits?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`@ActivityScoped`, because that annotation is defined specifically to match the lifetime of one Activity instance"
+        },
+        {
+          "id": "b",
+          "text": "`@ViewModelScoped`, because ViewModels already survive configuration changes and this scope is meant for exactly that"
+        },
+        {
+          "id": "c",
+          "text": "`@ActivityRetainedScoped`, whose component lives from the first `onCreate` to the last `onDestroy` across rotation"
+        },
+        {
+          "id": "d",
+          "text": "`@Singleton`, because only application-scoped singleton bindings are guaranteed to survive a configuration change"
+        }
+      ],
+      "concept": "hilt-component-lifetimes",
+      "sources": [
+        {
+          "url": "https://developer.android.com/training/dependency-injection/hilt-android",
+          "claim": "`ActivityRetainedComponent` lives across configuration changes: it is created at the first `Activity#onCreate()` and destroyed at the last `Activity#onDestroy()`.",
+          "title": "Dependency injection with Hilt",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://dagger.dev/hilt/components",
+          "claim": "`ActivityRetainedComponent` is the parent of both `ViewModelComponent` and `ActivityComponent`.",
+          "title": "Hilt Components",
+          "accessed": "2026-09-27",
+          "publisher": "Dagger (Google)"
+        }
+      ],
+      "materials": [
+        "android-hilt",
+        "dagger-hilt"
+      ],
+      "explanation": "`ActivityRetainedComponent` lives across configuration changes and is the parent of both `ViewModelComponent` and `ActivityComponent`, so both can use it. `@ActivityScoped` is recreated with each Activity instance. `@ViewModelScoped` gives one instance per ViewModel, not one shared across ViewModels. `@Singleton` works but keeps the object alive for the whole app, longer than the checkout."
+    },
+    {
+      "id": "w07-l03-q03",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w07-l03",
+      "prompt": "A module provides `fun provideFormatter(): DateFormatter` with no scope annotation. What does Hilt do, and what is the guidance on adding a scope?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It creates a new instance each request; scope only shared state, bindings needing synchronization, or objects measured as expensive"
+        },
+        {
+          "id": "b",
+          "text": "It makes the binding `@Singleton` by default for safety, so adding a scope annotation is only needed to shorten its lifetime later"
+        },
+        {
+          "id": "c",
+          "text": "It fails at compile time with a missing-binding error, because Hilt requires every provider function to declare an explicit scope"
+        },
+        {
+          "id": "d",
+          "text": "It creates exactly one instance per component instance regardless of scope; adding a scope annotation only changes which component holds it"
+        }
+      ],
+      "concept": "hilt-component-lifetimes",
+      "sources": [
+        {
+          "url": "https://developer.android.com/training/dependency-injection/hilt-android",
+          "claim": "By default all bindings in Hilt are unscoped, so each request creates a new instance; scoping is costly because the object stays in memory until the component is destroyed and is appropriate for internal state, synchronization, or bindings measured to be expensive.",
+          "title": "Dependency injection with Hilt",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-hilt",
+        "dagger-hilt"
+      ],
+      "explanation": "Hilt bindings are unscoped by default, so every request creates a new instance. The Hilt guide warns scoping can be costly because the object stays in memory until its component is destroyed, and lists when scoping is appropriate. Assuming `@Singleton` by default leads to accidental leaks."
+    },
+    {
+      "id": "w07-l03-q04",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w07-l03",
+      "prompt": "`class ItemPresenter @AssistedInject constructor(repo: ItemRepository, @Assisted itemId: String)` has a matching `@AssistedFactory`. A teammate tries to inject `ItemPresenter` directly and also annotate it `@ActivityScoped`. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Both work fine; Hilt fills the missing `itemId` parameter with an empty string when nothing is supplied at the call site"
+        },
+        {
+          "id": "b",
+          "text": "Direct injection works as expected, but the `@ActivityScoped` annotation on the class is silently ignored by Hilt"
+        },
+        {
+          "id": "c",
+          "text": "Scoping the class works normally, but every caller must inject the generated factory instead of the presenter directly"
+        },
+        {
+          "id": "d",
+          "text": "Neither is allowed: assisted-injected types cannot be injected directly, only their factory can, and they cannot be scoped"
+        }
+      ],
+      "concept": "hilt-entry-points-and-assisted-injection",
+      "sources": [
+        {
+          "url": "https://dagger.dev/dev-guide/assisted-injection",
+          "claim": "AssistedInject types cannot be injected directly, only the AssistedFactory type can be injected; AssistedInject types cannot be scoped.",
+          "title": "Assisted Injection",
+          "accessed": "2026-09-27",
+          "publisher": "Dagger (Google)"
+        }
+      ],
+      "materials": [
+        "android-hilt",
+        "dagger-hilt"
+      ],
+      "explanation": "Dagger's assisted-injection guide states that AssistedInject types cannot be injected directly, only the `@AssistedFactory` type can, and that AssistedInject types cannot be scoped. The runtime parameter comes from the factory call. If two assisted parameters share a type, they need `@Assisted(\"name\")` identifiers."
+    },
+    {
+      "id": "w07-l03-q05",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w07-l03",
+      "prompt": "In a 40-module app, a binding is removed from one module while a feature still needs it. How does detection differ between Hilt and classic Koin DSL?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Both fail only at runtime, once the user actually navigates to the screen that needed the removed binding"
+        },
+        {
+          "id": "b",
+          "text": "Hilt fails the build at compile time; Koin resolves at runtime, so add a `verify()` test or its compiler plugin"
+        },
+        {
+          "id": "c",
+          "text": "Koin fails at compile time because its DSL is checked by the Kotlin compiler, while Hilt only fails at runtime"
+        },
+        {
+          "id": "d",
+          "text": "Neither framework detects it automatically; the only way to catch this is to write full instrumentation tests for every screen"
+        }
+      ],
+      "concept": "compile-time-di-vs-runtime-koin",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/architecture",
+          "claim": "Hilt automatically constructs objects by walking the dependency tree, provides compile-time verification of dependencies, and creates containers for Android framework classes.",
+          "title": "Guide to app architecture",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://insert-koin.io/docs/reference/koin-test/verify",
+          "claim": "Koin's `verify()` crosschecks constructor classes with the Koin configuration and throws `MissingKoinDefinitionException`; the Koin Compiler Plugin provides compile-time validation of missing dependencies.",
+          "title": "Verifying your Koin configuration",
+          "accessed": "2026-09-27",
+          "publisher": "Koin (Kotzilla)"
+        }
+      ],
+      "materials": [
+        "android-hilt",
+        "koin"
+      ],
+      "explanation": "The architecture guide says Hilt provides compile-time verification of dependencies. Koin's `verify()` API checks the configuration by crosschecking constructors against definitions and throws `MissingKoinDefinitionException`, which runs as a test rather than at build time; Koin now also offers a compiler plugin for build-time validation. In a large team, build-time failure is the stronger guarantee."
+    },
+    {
+      "id": "w07-l03-q06",
+      "type": "written",
+      "lesson": "w07-l03",
+      "prompt": "An injected singleton keeps an old Activity alive after rotation. Walk through how you diagnose it and fix it, and how you would prevent the class of bug in code review.",
+      "concept": "hilt-scope-mismatch-leak",
+      "sources": [
+        {
+          "url": "https://developer.android.com/training/dependency-injection/hilt-android",
+          "claim": "`ActivityComponent` is destroyed at `Activity#onDestroy()` while `SingletonComponent` lives until the Application is destroyed; `ActivityRetainedComponent` lives across configuration changes.",
+          "title": "Dependency injection with Hilt",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://dagger.dev/hilt/components",
+          "claim": "A scoped binding is created once per instance of its component and all requests share that instance.",
+          "title": "Hilt Components",
+          "accessed": "2026-09-27",
+          "publisher": "Dagger (Google)"
+        }
+      ],
+      "materials": [
+        "android-hilt",
+        "dagger-hilt",
+        "leakcanary"
+      ],
+      "explanation": "The senior signal is reasoning in lifetimes (who outlives whom) rather than memorizing annotations, noticing that retained scopes also outlive the Activity instance, and turning the fix into a review or lint rule.",
+      "model_answer": {
+        "summary": "Reproduce with LeakCanary to get the reference chain, find the `@Singleton` (or application-scoped) object holding an Activity, View or Activity Context, and fix the lifetime mismatch: depend on `@ApplicationContext`, pass the Activity per call, or move the binding into `ActivityComponent`/`ActivityRetainedComponent`. Prevent it with a rule that longer-lived components never hold shorter-lived objects.",
+        "key_points": [
+          "Use LeakCanary's leak trace to find the GC root path from the singleton to the destroyed Activity",
+          "The mismatch: a `SingletonComponent` object outlives `ActivityComponent`, whose objects die at `onDestroy`",
+          "Fix by depending on `@ApplicationContext`, or by scoping the object to an Activity-level component that dies with the Activity",
+          "`ActivityRetainedComponent` survives rotation, so it must not hold the Activity either",
+          "Review rule: never capture Activity, View or Activity Context in singletons, listeners or callbacks registered on long-lived objects"
+        ]
+      }
+    },
+    {
+      "id": "w07-l03-q07",
+      "type": "written",
+      "lesson": "w07-l03",
+      "prompt": "You must (1) use an injected `AnalyticsService` inside a `ContentProvider`, (2) create a `ReportGenerator` that needs both injected dependencies and a runtime `reportId`, and (3) provide two different `OkHttpClient`s. Explain the Hilt/Dagger feature for each and a pitfall of each.",
+      "concept": "hilt-entry-points-and-assisted-injection",
+      "sources": [
+        {
+          "url": "https://dagger.dev/hilt/entry-points",
+          "claim": "An entry point is the boundary for getting Dagger-provided objects from code that cannot use Dagger injection, such as ContentProviders; it is an interface with `@EntryPoint` and `@InstallIn`, defined alongside the consuming class, and returned types must be public.",
+          "title": "Hilt Entry Points",
+          "accessed": "2026-09-27",
+          "publisher": "Dagger (Google)"
+        },
+        {
+          "url": "https://developer.android.com/training/dependency-injection/hilt-android",
+          "claim": "A `@Qualifier` annotation such as `@AuthInterceptorOkHttpClient` distinguishes multiple bindings of the same type like `OkHttpClient`.",
+          "title": "Dependency injection with Hilt",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-hilt",
+        "dagger-hilt"
+      ],
+      "explanation": "Good answers pick the right tool for each constraint and know its sharp edge, instead of falling back to a service locator or a global singleton.",
+      "model_answer": {
+        "summary": "Use an `@EntryPoint` interface `@InstallIn(SingletonComponent::class)` and read it with `EntryPointAccessors` in the ContentProvider; use `@AssistedInject` with an `@AssistedFactory` for the runtime `reportId`; and use `@Qualifier` annotations to tell the two clients apart.",
+        "key_points": [
+          "Entry points get Dagger objects into classes Hilt cannot inject, such as ContentProviders, via `@EntryPoint` + `@InstallIn` and `EntryPointAccessors`",
+          "Define the entry point next to the consuming class; its returned types must be public",
+          "Assisted injection mixes graph-provided and caller-provided parameters; inject the factory, not the type",
+          "Assisted types cannot be scoped; same-typed assisted params need `@Assisted(\"id\")`",
+          "Qualifiers (`@Qualifier` annotations) distinguish two bindings of the same type, such as an auth and a non-auth `OkHttpClient`"
+        ]
+      }
+    },
+    {
+      "id": "w07-l03-q08",
+      "type": "written",
+      "lesson": "w07-l03",
+      "prompt": "Why would you choose Hilt over manual DI or Koin for a large team's Android app, and when would you choose Koin or manual DI instead?",
+      "concept": "compile-time-di-vs-runtime-koin",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/architecture/recommendations",
+          "claim": "Use Hilt or manual dependency injection in simple apps; use Hilt in complex projects with multiple screens, ViewModels, WorkManager, or ViewModels scoped to the navigation back stack.",
+          "title": "Recommendations for Android architecture",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://insert-koin.io/",
+          "claim": "Koin describes itself as a pure Kotlin DI framework for Kotlin and Kotlin Multiplatform that doesn't impact compilation time, with an optional Koin Compiler Plugin for type safety.",
+          "title": "Koin - the pragmatic Kotlin & Kotlin Multiplatform Dependency Injection framework",
+          "accessed": "2026-09-27",
+          "publisher": "Koin (Kotzilla)"
+        }
+      ],
+      "materials": [
+        "android-hilt",
+        "dagger-hilt",
+        "koin"
+      ],
+      "explanation": "A senior answer trades build-time safety and conventions against simplicity and multiplatform reach, and is current on Koin's compile-time options instead of repeating an outdated \"Koin is just a service locator\" claim.",
+      "model_answer": {
+        "summary": "Hilt gives compile-time graph validation, standard Android components and scopes, and consistent conventions across many modules and developers. Manual DI suits small apps. Koin's pure-Kotlin DSL is simpler and multiplatform-friendly, but classic Koin validates at runtime or in tests unless you adopt its compiler plugin.",
+        "key_points": [
+          "Hilt: compile-time verification, generated components for Android classes, and standard scopes that a whole team shares",
+          "Hilt integrates with ViewModels, WorkManager and navigation back-stack scoping, which the recommendations cite for complex apps",
+          "Manual DI or Hilt is fine for simple apps; manual DI costs boilerplate as the graph grows",
+          "Koin: pure Kotlin, no annotation processing, KMP support; misconfigurations surface at runtime unless covered by `verify()` tests or the compiler plugin",
+          "Decision factors: team size, module count, KMP needs, build-time cost, and how early you need errors caught"
+        ]
+      }
+    },
+    {
+      "id": "w07-l04-q01",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w07-l04",
+      "prompt": "In Now in Android's modularization, `feature:bookmarks:impl` needs to open the topic screen from `feature:topic`. Which dependency is allowed?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`feature:bookmarks:impl` depends on `feature:topic:impl`"
+        },
+        {
+          "id": "b",
+          "text": "`feature:bookmarks:api` depends on `feature:topic:api`"
+        },
+        {
+          "id": "c",
+          "text": "`feature:bookmarks:impl` depends on `feature:topic:api`"
+        },
+        {
+          "id": "d",
+          "text": "`core:ui` depends on `feature:topic:api` and re-exports it"
+        }
+      ],
+      "concept": "nia-module-dependency-rules",
+      "sources": [
+        {
+          "url": "https://github.com/android/nowinandroid/blob/main/docs/ModularizationLearningJourney.md",
+          "claim": "A feature's `impl` should only depend on another feature's `api` module; a feature's `api` should not depend on another feature's `api` or `impl`; core modules shouldn't depend on feature nor app modules.",
+          "title": "Now in Android: Modularization Learning Journey",
+          "accessed": "2026-09-27",
+          "publisher": "Android (GitHub)"
+        }
+      ],
+      "materials": [
+        "now-in-android",
+        "android-architecture-recommendations",
+        "android-modularization"
+      ],
+      "explanation": "Now in Android splits each feature into `api` and `impl`. A feature's `impl` may only depend on another feature's `api`, and a feature's `api` must not depend on another feature's `api` or `impl`. Core modules must not depend on feature modules. This keeps features independently buildable."
+    },
+    {
+      "id": "w07-l04-q02",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w07-l04",
+      "prompt": "Which module in Now in Android depends on all `feature` modules and the `core` modules it needs, and is responsible for scaffolding and navigation?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The `app` module"
+        },
+        {
+          "id": "b",
+          "text": "`core:data`"
+        },
+        {
+          "id": "c",
+          "text": "`core:ui`"
+        },
+        {
+          "id": "d",
+          "text": "The `sync` module"
+        }
+      ],
+      "concept": "nia-module-dependency-rules",
+      "sources": [
+        {
+          "url": "https://github.com/android/nowinandroid/blob/main/docs/ModularizationLearningJourney.md",
+          "claim": "The app module contains scaffolding and navigation orchestration and depends on all feature modules and required core modules; sync, benchmark and test are miscellaneous modules.",
+          "title": "Now in Android: Modularization Learning Journey",
+          "accessed": "2026-09-27",
+          "publisher": "Android (GitHub)"
+        }
+      ],
+      "materials": [
+        "now-in-android",
+        "android-architecture-recommendations",
+        "android-modularization"
+      ],
+      "explanation": "The `app` module contains scaffolding and navigation orchestration and depends on all feature modules and required core modules. Core modules, including `core:data` and `core:ui`, must not depend on feature or app modules, and `sync` is a separate miscellaneous module."
+    },
+    {
+      "id": "w07-l04-q03",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w07-l04",
+      "prompt": "Now in Android's docs say errors are not expected when reading from repositories. Why?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Every network call inside a repository is wrapped in `runCatching`, so a failed request never propagates as a thrown exception"
+        },
+        {
+          "id": "b",
+          "text": "Reads come from local storage, the source of truth; sync retries failures with `WorkManager` backoff"
+        },
+        {
+          "id": "c",
+          "text": "Repositories return cached HTTP responses served by OkHttp's on-disk `Cache`, so a network outage still returns the last response"
+        },
+        {
+          "id": "d",
+          "text": "The UI never collects repository flows directly; it only observes a separate ViewModel-level cache that absorbs any read errors"
+        }
+      ],
+      "concept": "nia-offline-first-sync-decision",
+      "sources": [
+        {
+          "url": "https://github.com/android/nowinandroid/blob/main/docs/ArchitectureLearningJourney.md",
+          "claim": "Reads are performed from local storage as the source of truth, so errors are not expected when reading from repositories; sync errors use exponential backoff delegated to WorkManager via SyncWorker.",
+          "title": "Now in Android: Architecture Learning Journey",
+          "accessed": "2026-09-27",
+          "publisher": "Android (GitHub)"
+        }
+      ],
+      "materials": [
+        "now-in-android",
+        "android-architecture-recommendations",
+        "android-offline-first"
+      ],
+      "explanation": "Now in Android is offline-first: repositories read from local storage as the source of truth, so a read has no network failure mode. Network data is written to local storage immediately, and synchronization runs in `SyncWorker` through `WorkManager`, which applies exponential backoff on errors."
+    },
+    {
+      "id": "w07-l04-q04",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w07-l04",
+      "prompt": "How does Now in Android handle user events such as following a topic, with respect to its domain layer?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Every user event goes through its own dedicated use case, following Clean Architecture strictly across the whole codebase"
+        },
+        {
+          "id": "b",
+          "text": "Events are sent to the domain layer through a `Channel` of intents that a central reducer use case consumes and applies"
+        },
+        {
+          "id": "c",
+          "text": "Events are handled directly inside composables, which write to Room through an injected DAO without going through a ViewModel"
+        },
+        {
+          "id": "d",
+          "text": "The UI calls repositories directly; use cases only combine logic, such as `GetUserNewsResourcesUseCase`"
+        }
+      ],
+      "concept": "nia-selective-domain-layer",
+      "sources": [
+        {
+          "url": "https://github.com/android/nowinandroid/blob/main/docs/ArchitectureLearningJourney.md",
+          "claim": "The domain layer in Now in Android does not (for now) contain any use cases for event handling; events are handled by the UI layer calling methods on repositories directly. `GetUserNewsResourcesUseCase` combines NewsRepository and UserDataRepository streams.",
+          "title": "Now in Android: Architecture Learning Journey",
+          "accessed": "2026-09-27",
+          "publisher": "Android (GitHub)"
+        }
+      ],
+      "materials": [
+        "now-in-android",
+        "android-architecture-recommendations"
+      ],
+      "explanation": "The NiA architecture doc says its domain layer does not (for now) contain use cases for event handling; events are handled by the UI layer calling repository methods directly. Use cases such as `GetUserNewsResourcesUseCase` combine streams from several repositories. This matches the official advice to add use cases only when required."
+    },
+    {
+      "id": "w07-l04-q05",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w07-l04",
+      "prompt": "Your team adopted Hilt in ADR-0007. A year later you move the shared KMP module to Koin. What is the recommended way to record this?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Edit ADR-0007 so it describes the current state"
+        },
+        {
+          "id": "b",
+          "text": "Delete ADR-0007 to avoid confusing readers"
+        },
+        {
+          "id": "c",
+          "text": "Write a new ADR that supersedes ADR-0007, and mark the old one as superseded rather than rewriting it"
+        },
+        {
+          "id": "d",
+          "text": "Note it in the pull request description only, since ADRs describe initial designs"
+        }
+      ],
+      "concept": "architecture-decision-record-practice",
+      "sources": [
+        {
+          "url": "https://github.com/joelparkerhenderson/architecture-decision-record",
+          "claim": "An ADR captures an important architecture decision along with its context and consequences; don't alter existing information in an ADR, amend it with new information or supersede it with a new ADR.",
+          "title": "Architecture decision record (ADR)",
+          "accessed": "2026-09-27",
+          "publisher": "Joel Parker Henderson (GitHub)"
+        }
+      ],
+      "materials": [
+        "now-in-android",
+        "android-architecture-recommendations"
+      ],
+      "explanation": "An ADR captures an important architecture decision with its context and consequences. The guidance says not to alter existing information in an ADR, but to amend it with new information or supersede it with a new ADR. This keeps the history of why the team chose Hilt at the time."
+    },
+    {
+      "id": "w07-l04-q06",
+      "type": "written",
+      "lesson": "w07-l04",
+      "prompt": "In a 10-minute architecture review of Now in Android, present one decision you agree with and one risk it carries: its offline-first data layer with `WorkManager`-based sync. How would you structure the argument?",
+      "concept": "nia-offline-first-sync-decision",
+      "sources": [
+        {
+          "url": "https://github.com/android/nowinandroid/blob/main/docs/ArchitectureLearningJourney.md",
+          "claim": "Repositories reconcile local storage with remote sources: data obtained from a remote source is immediately written to local storage; sync errors use exponential backoff delegated to WorkManager via SyncWorker; Proto DataStore holds user preferences.",
+          "title": "Now in Android: Architecture Learning Journey",
+          "accessed": "2026-09-27",
+          "publisher": "Android (GitHub)"
+        },
+        {
+          "url": "https://developer.android.com/topic/architecture/data-layer/offline-first",
+          "claim": "The local data source is the canonical source of truth and should be the exclusive source of data that higher layers read.",
+          "title": "Build an offline-first app",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "now-in-android",
+        "android-architecture-recommendations",
+        "android-offline-first"
+      ],
+      "explanation": "Interviewers look for a structured argument (context, decision, evidence, trade-off, recommendation) tied to specific classes such as `OfflineFirstNewsRepository` and `SyncWorker`, not a tour of every module.",
+      "model_answer": {
+        "summary": "State the decision (local storage as the source of truth, repositories reconcile with the network, `SyncWorker` via `WorkManager` with backoff), the benefits (reads never fail, works offline, resilient sync), the trade-offs (complexity, stale data, conflict handling for writes), and what you would measure or change, citing code locations.",
+        "key_points": [
+          "Decision: reads come from local storage (Room, Proto DataStore) as the source of truth",
+          "Repositories write network data into local storage immediately and reconcile with remote sources",
+          "Sync runs in `SyncWorker` through `WorkManager`, with exponential backoff on errors",
+          "Trade-offs: extra complexity, possible stale data, and harder write and conflict handling",
+          "Structure: context, decision, evidence in code, trade-off, recommendation"
+        ]
+      }
+    },
+    {
+      "id": "w07-l04-q07",
+      "type": "written",
+      "lesson": "w07-l04",
+      "prompt": "Write, in outline, an ADR for splitting every feature module into `api` and `impl` modules. What sections would it have and what would you put in each?",
+      "concept": "architecture-decision-record-practice",
+      "sources": [
+        {
+          "url": "https://github.com/joelparkerhenderson/architecture-decision-record",
+          "claim": "An ADR records a decision with its context and consequences, and the Michael Nygard template is simple and popular; ADRs are amended or superseded rather than altered.",
+          "title": "Architecture decision record (ADR)",
+          "accessed": "2026-09-27",
+          "publisher": "Joel Parker Henderson (GitHub)"
+        },
+        {
+          "url": "https://github.com/android/nowinandroid/blob/main/docs/ModularizationLearningJourney.md",
+          "claim": "Feature modules are split into `api` and `impl`; a feature's `impl` should only depend on another feature's `api`.",
+          "title": "Now in Android: Modularization Learning Journey",
+          "accessed": "2026-09-27",
+          "publisher": "Android (GitHub)"
+        }
+      ],
+      "materials": [
+        "now-in-android",
+        "android-modularization"
+      ],
+      "explanation": "Strong ADRs spend most of their words on context and consequences, including the costs, because that is what a future reader needs in order to decide whether the decision still holds.",
+      "model_answer": {
+        "summary": "Use a Nygard-style ADR: title and status; context (build times, coupling between features, navigation needs); decision (feature `api`/`impl` split, `impl` depends only on other features' `api`); consequences (faster incremental builds and clearer boundaries, but more modules and boilerplate); and how it will be superseded if it changes.",
+        "key_points": [
+          "Title, date and status (proposed, accepted, superseded)",
+          "Context: the forces, such as build times, cross-feature coupling and team ownership",
+          "Decision: the rule itself, for example `impl` depends only on other features' `api`; core never depends on features",
+          "Consequences: benefits and costs, follow-ups such as convention plugins or lint checks",
+          "Never rewrite an accepted ADR; supersede it with a new one"
+        ]
+      }
+    },
+    {
+      "id": "w07-l04-q08",
+      "type": "written",
+      "lesson": "w07-l04",
+      "prompt": "In a review of Now in Android you are asked: \"Would you change its choice to handle events by calling repositories directly from ViewModels instead of through use cases?\" Give a balanced answer.",
+      "concept": "nia-selective-domain-layer",
+      "sources": [
+        {
+          "url": "https://github.com/android/nowinandroid/blob/main/docs/ArchitectureLearningJourney.md",
+          "claim": "The domain layer in Now in Android does not (for now) contain any use cases for event handling; events are handled by the UI layer calling methods on repositories directly.",
+          "title": "Now in Android: Architecture Learning Journey",
+          "accessed": "2026-09-27",
+          "publisher": "Android (GitHub)"
+        },
+        {
+          "url": "https://developer.android.com/topic/architecture/domain-layer",
+          "claim": "Add use cases only when required; forcing the UI to access data only through use cases can add use cases that are just simple function calls to the data layer.",
+          "title": "Domain layer",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "now-in-android",
+        "android-architecture-recommendations"
+      ],
+      "explanation": "The senior answer avoids \"always\" and \"never\", ties the choice to documented trade-offs, and names the concrete trigger that would make a use case worth it.",
+      "model_answer": {
+        "summary": "Mostly keep it: the official guidance says to add use cases only when needed, and pass-through use cases add complexity. Change it only for specific events that need shared or cross-cutting business logic (validation, analytics, combining repositories) or that several ViewModels would duplicate, and document the rule in an ADR.",
+        "key_points": [
+          "NiA's domain layer has no use cases for event handling; ViewModels call repositories directly",
+          "Official guidance: the domain layer is optional; add use cases for complex or reused logic",
+          "Forcing every event through use cases creates pass-through classes with little benefit",
+          "Change it where logic is reused across ViewModels or must not be bypassed, for example analytics or validation",
+          "Record the chosen rule so the team applies it consistently"
+        ]
+      }
+    }
+  ]
+}

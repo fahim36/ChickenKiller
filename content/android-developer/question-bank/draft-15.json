@@ -1,0 +1,1343 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "okhttp-interceptors-and-client-reuse",
+      "name": "OkHttp application vs network interceptors and sharing one client"
+    },
+    {
+      "id": "auth-token-refresh-single-flight",
+      "name": "Refreshing an expired auth token once for many parallel requests"
+    },
+    {
+      "id": "network-result-error-model",
+      "name": "A Result-style network error model that respects cancellation"
+    },
+    {
+      "id": "mobile-api-protocol-trade-offs",
+      "name": "REST vs GraphQL vs gRPC, caching, timeouts and retries on mobile"
+    },
+    {
+      "id": "room-migration-strategy",
+      "name": "Room manual and auto-migrations and testing them"
+    },
+    {
+      "id": "room-observable-query-invalidation",
+      "name": "Room Flow queries, table-level invalidation and threading"
+    },
+    {
+      "id": "room-transactions-and-conflict-strategies",
+      "name": "Room transactions, relations and insert conflict strategies"
+    },
+    {
+      "id": "datastore-vs-sharedpreferences",
+      "name": "DataStore (Preferences and typed) vs SharedPreferences"
+    },
+    {
+      "id": "offline-first-write-strategies",
+      "name": "Online-only, queued and lazy writes in offline-first apps"
+    },
+    {
+      "id": "offline-sync-and-conflict-resolution",
+      "name": "Pull vs push sync and conflict resolution"
+    },
+    {
+      "id": "paging-remote-mediator",
+      "name": "Paging 3 RemoteMediator with the database as the source of truth"
+    },
+    {
+      "id": "paging-load-state-ui",
+      "name": "Showing paging and sync state and errors in the UI"
+    },
+    {
+      "id": "kmp-source-set-hierarchy",
+      "name": "KMP common, intermediate and platform source sets"
+    },
+    {
+      "id": "kmp-expect-actual-vs-interfaces",
+      "name": "expect/actual declarations vs interfaces and DI"
+    },
+    {
+      "id": "kmp-shared-networking-persistence",
+      "name": "Sharing networking (Ktor) and persistence (Room KMP, SQLDelight)"
+    },
+    {
+      "id": "kmp-adoption-strategy",
+      "name": "When and how to adopt Kotlin Multiplatform in an existing team"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w08-l01-q01",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w08-l01",
+      "prompt": "You add a logging interceptor to measure every request the app makes, and an OkHttp `Cache` is configured. Some requests are served from cache. Which statement is correct?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "An application interceptor is invoked once even for a cache hit; a network interceptor is skipped when the cache short-circuits the network"
+        },
+        {
+          "id": "b",
+          "text": "Both kinds of interceptors run for cached responses, because OkHttp places its `Cache` after the chain of network interceptors, not before them"
+        },
+        {
+          "id": "c",
+          "text": "A network interceptor runs exactly once per logical call, observing a single combined view even when OkHttp follows redirects or retries"
+        },
+        {
+          "id": "d",
+          "text": "An application interceptor sees each redirect and each retry as a separate invocation, the same way a network interceptor does"
+        }
+      ],
+      "concept": "okhttp-interceptors-and-client-reuse",
+      "sources": [
+        {
+          "url": "https://raw.githubusercontent.com/square/okhttp/master/docs/features/interceptors.md",
+          "claim": "Application interceptors are always invoked once, even if the HTTP response is served from the cache; network interceptors operate on redirects and retries and are not invoked for cached responses that short-circuit the network.",
+          "title": "OkHttp: Interceptors",
+          "accessed": "2026-09-27",
+          "publisher": "Square (OkHttp)"
+        }
+      ],
+      "materials": [
+        "ktor-client",
+        "android-app-architecture"
+      ],
+      "explanation": "OkHttp documents that application interceptors are always invoked once, even for cache hits, and observe the app's original intent, while network interceptors run on intermediate responses such as redirects and retries but are not invoked for cached responses. For \"every request the app makes\" use an application interceptor; for bytes on the wire use a network interceptor."
+    },
+    {
+      "id": "w08-l01-q02",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w08-l01",
+      "prompt": "A codebase builds a new `OkHttpClient` (each with its own `Cache` in the same directory) inside every repository. What problems does this cause?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "None: every `OkHttpClient` instance in a process automatically shares one global connection pool and one global cache behind the scenes"
+        },
+        {
+          "id": "b",
+          "text": "Only a small amount of extra memory for each builder object; the connections and cache entries are still shared correctly"
+        },
+        {
+          "id": "c",
+          "text": "Each client gets its own connection pool, losing reuse and multiplexing; sharing one cache directory can corrupt it"
+        },
+        {
+          "id": "d",
+          "text": "It makes certificate pinning impossible, because `CertificatePinner` can only be configured once per process, on the first client created"
+        }
+      ],
+      "concept": "okhttp-interceptors-and-client-reuse",
+      "sources": [
+        {
+          "url": "https://raw.githubusercontent.com/square/okhttp/master/docs/features/connections.md",
+          "claim": "OkHttp uses a ConnectionPool that automatically reuses HTTP/1.x connections and multiplexes HTTP/2 connections; connection sharing gives lower latency, higher throughput and conserved battery.",
+          "title": "OkHttp: Connections",
+          "accessed": "2026-09-27",
+          "publisher": "Square (OkHttp)"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/square/okhttp/master/docs/recipes.md",
+          "claim": "It is an error to have multiple caches accessing the same cache directory simultaneously; most applications should call `new OkHttpClient()` exactly once, configure it with their cache, and use that same instance everywhere.",
+          "title": "OkHttp: Recipes",
+          "accessed": "2026-09-27",
+          "publisher": "Square (OkHttp)"
+        }
+      ],
+      "materials": [
+        "ktor-client",
+        "android-app-architecture"
+      ],
+      "explanation": "OkHttp's `ConnectionPool` reuses HTTP/1.x connections and multiplexes HTTP/2, giving lower latency, higher throughput and saved battery, but only for calls that share the client. The recipes say it is an error to have multiple caches accessing the same cache directory, and that most apps should create one `OkHttpClient`, configure its cache, and use it everywhere."
+    },
+    {
+      "id": "w08-l01-q03",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w08-l01",
+      "prompt": "With Ktor's `Auth` plugin and a `bearer { refreshTokens { ... } }` provider, ten requests fail with `401` at the same time. What happens, and what must you do with the refresh request itself?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "All ten refreshes run in parallel against the auth server; you must add your own mutex around the `refreshTokens` block to serialize them"
+        },
+        {
+          "id": "b",
+          "text": "The first `401` triggers `refreshTokens {}`; mark the refresh call with `markAsRefreshTokenRequest()` to exclude it from the retry loop"
+        },
+        {
+          "id": "c",
+          "text": "Ktor's `Auth` plugin never retries automatically on `401`; every one of the ten call sites must catch it and retry manually"
+        },
+        {
+          "id": "d",
+          "text": "All ten requests fail outright, and only the next unrelated request made after them ends up triggering the token refresh"
+        }
+      ],
+      "concept": "auth-token-refresh-single-flight",
+      "sources": [
+        {
+          "url": "https://ktor.io/docs/client-bearer-auth.html",
+          "claim": "The first request that receives the 401 response triggers the refreshTokens callback; other requests wait for the refresh to complete and are retried with the new token; requests marked with markAsRefreshTokenRequest() are excluded from the authentication retry mechanism.",
+          "title": "Bearer authentication in Ktor Client",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (Ktor)"
+        }
+      ],
+      "materials": [
+        "ktor-client"
+      ],
+      "explanation": "Ktor's bearer docs say the first request that receives `401` triggers `refreshTokens {}`, and other requests wait for the refresh and are then retried with the new token. A refresh request marked with `markAsRefreshTokenRequest()` is excluded from the retry mechanism, which avoids a refresh call that itself returns 401 triggering another refresh."
+    },
+    {
+      "id": "w08-l01-q04",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w08-l01",
+      "prompt": "A repository wraps calls as `suspend fun load() = runCatching { api.getFeed() }` and returns `Result<Feed>`. When the user leaves the screen, `viewModelScope` is cancelled. What is the subtle bug?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`runCatching` also catches `CancellationException` as a `Result.failure`; rethrow it, or catch only expected types instead"
+        },
+        {
+          "id": "b",
+          "text": "`runCatching` cannot be used inside `suspend` functions at all, because its lambda parameter is not itself marked `suspend`"
+        },
+        {
+          "id": "c",
+          "text": "A `Result` value cannot be returned from a `suspend` function; the compiler silently unwraps it to the success value or throws"
+        },
+        {
+          "id": "d",
+          "text": "`runCatching` retries the wrapped call automatically up to three times before finally wrapping the last failure in a `Result.failure`"
+        }
+      ],
+      "concept": "network-result-error-model",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/exception-handling.html",
+          "claim": "Coroutines internally use CancellationException for cancellation; the docs show a caught CancellationException being rethrown.",
+          "title": "Coroutine exceptions handling",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "ktor-client",
+        "android-app-architecture",
+        "kotlin-coroutine-exceptions"
+      ],
+      "explanation": "Coroutines use `CancellationException` internally for cancellation, and the Kotlin docs show catching it and rethrowing it. Catching all `Throwable`s, as `runCatching` does, swallows cancellation, so the coroutine may carry on (logging errors, updating state) after it was cancelled. A Result-style model should catch expected types such as `IOException` and rethrow cancellation."
+    },
+    {
+      "id": "w08-l01-q05",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w08-l01",
+      "prompt": "Your team is moving a mobile feed from REST to GraphQL and wants to keep relying on HTTP caching (`Cache-Control`, ETags) in OkHttp. What is the core problem?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "GraphQL responses cannot be gzip-compressed, so every payload arrives larger over the wire than the equivalent REST response would"
+        },
+        {
+          "id": "b",
+          "text": "GraphQL servers forbid setting `Cache-Control` response headers, since the specification reserves them for the transport layer only"
+        },
+        {
+          "id": "c",
+          "text": "OkHttp is unable to send a GraphQL query at all, because its request body must be a typed multipart form rather than raw JSON"
+        },
+        {
+          "id": "d",
+          "text": "HTTP caching keys on the URL; GraphQL uses one endpoint, so clients rely on normalized caches keyed by object ids instead"
+        }
+      ],
+      "concept": "mobile-api-protocol-trade-offs",
+      "sources": [
+        {
+          "url": "https://graphql.org/learn/caching/",
+          "claim": "In an endpoint-based API the URL is a globally unique identifier clients use for HTTP caching; in GraphQL there's no URL-like primitive providing this identifier, so APIs should expose a globally unique id for client caching.",
+          "title": "Caching",
+          "accessed": "2026-09-27",
+          "publisher": "GraphQL Foundation"
+        }
+      ],
+      "materials": [
+        "ktor-client",
+        "android-app-architecture"
+      ],
+      "explanation": "GraphQL's caching guide explains that in endpoint-based APIs the URL is a globally unique identifier clients use for HTTP caching, while GraphQL has no URL-like primitive for an object. The best practice is to expose a unique id that client caches can use. Nothing forbids headers; the issue is the cache key."
+    },
+    {
+      "id": "w08-l01-q06",
+      "type": "written",
+      "lesson": "w08-l01",
+      "prompt": "Implement auth-token refresh with OkHttp so that ten parallel requests with an expired token trigger only one refresh. Describe the components, the synchronization, and the edge cases.",
+      "concept": "auth-token-refresh-single-flight",
+      "sources": [
+        {
+          "url": "https://raw.githubusercontent.com/square/okhttp/master/docs/recipes.md",
+          "claim": "OkHttp's Authenticator retries unauthenticated requests after a 401; return null to skip the retry when no credentials are available, if the same credentials already failed, or after too many attempts, counting prior responses.",
+          "title": "OkHttp: Recipes",
+          "accessed": "2026-09-27",
+          "publisher": "Square (OkHttp)"
+        },
+        {
+          "url": "https://ktor.io/docs/client-bearer-auth.html",
+          "claim": "In Ktor, the first 401 triggers refreshTokens while other requests wait and are retried with the new token, which is the single-refresh behaviour to reproduce.",
+          "title": "Bearer authentication in Ktor Client",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (Ktor)"
+        }
+      ],
+      "materials": [
+        "ktor-client",
+        "android-app-architecture"
+      ],
+      "explanation": "The senior answer explains the double-checked comparison of the failed request's token against the stored token, which is what turns N refreshes into one, and covers the give-up and recursion cases that cause infinite 401 loops in production.",
+      "model_answer": {
+        "summary": "Attach the token in an application interceptor and handle `401` in an `Authenticator`. Inside the authenticator, synchronize on a single lock; compare the token on the failed request with the current stored token: if another thread has already refreshed, retry with the new token; otherwise refresh once (with a client that has no authenticator), store the result, and retry. Return `null` to give up after repeated failures or when refresh fails, and log the user out.",
+        "key_points": [
+          "An interceptor adds the `Authorization` header; the `Authenticator` is called on `401` and returns a new request or `null`",
+          "Serialize refreshes with a lock (mutex or `synchronized`), and check whether the token was already refreshed before refreshing again",
+          "The refresh call must not go through the same authenticator, to avoid recursion",
+          "Give up (return `null`) if the same credentials already failed or after N attempts (count prior responses)",
+          "On refresh failure, clear tokens and route to login; persist new tokens atomically"
+        ]
+      }
+    },
+    {
+      "id": "w08-l01-q07",
+      "type": "written",
+      "lesson": "w08-l01",
+      "prompt": "Design the error model for a data layer that uses Ktor. How do you represent success, HTTP errors, network failures and cancellation, and where does each get translated?",
+      "concept": "network-result-error-model",
+      "sources": [
+        {
+          "url": "https://ktor.io/docs/client-response-validation.html",
+          "claim": "With `expectSuccess = true` the Ktor client throws for non-successful statuses: RedirectResponseException for 3xx, ClientRequestException for 4xx, ServerResponseException for 5xx; HttpResponseValidator allows custom exceptions.",
+          "title": "Response validation",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (Ktor)"
+        },
+        {
+          "url": "https://kotlinlang.org/docs/exception-handling.html",
+          "claim": "Coroutines use CancellationException internally for cancellation, and a caught CancellationException should be rethrown.",
+          "title": "Coroutine exceptions handling",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "ktor-client",
+        "kotlin-coroutine-exceptions"
+      ],
+      "explanation": "Separating strong from weak answers: knowing the client's default (no throw on 4xx/5xx), translating at one boundary, and handling cancellation correctly instead of a catch-all.",
+      "model_answer": {
+        "summary": "Translate at the network data source or repository boundary into a sealed result (for example `Success`, `HttpError(code)`, `NetworkError`, `Unknown`), catching specific exceptions; enable `expectSuccess` or use `HttpResponseValidator` so non-2xx responses become typed exceptions; always rethrow `CancellationException`; the ViewModel maps results into UI state.",
+        "key_points": [
+          "Ktor does not throw for non-2xx by default; `expectSuccess = true` throws `RedirectResponseException`, `ClientRequestException` and `ServerResponseException` for 3xx, 4xx and 5xx",
+          "`HttpResponseValidator` can map responses to domain exceptions, such as 404 to `NotFound`",
+          "Wrap results in a sealed type at the data-layer boundary so the UI never sees transport exceptions",
+          "Catch expected exception types only and rethrow `CancellationException`",
+          "The ViewModel maps the result into UI state (Error/Content), in line with UDF"
+        ]
+      }
+    },
+    {
+      "id": "w08-l01-q08",
+      "type": "written",
+      "lesson": "w08-l01",
+      "prompt": "Compare REST, GraphQL and gRPC for a mobile client, and explain how you would configure timeouts and retries for the chosen one.",
+      "concept": "mobile-api-protocol-trade-offs",
+      "sources": [
+        {
+          "url": "https://grpc.io/docs/what-is-grpc/core-concepts/",
+          "claim": "gRPC uses protocol buffers as its IDL, supports unary, server-streaming, client-streaming and bidirectional streaming methods, and lets clients set deadlines that end with DEADLINE_EXCEEDED.",
+          "title": "Core concepts, architecture and lifecycle",
+          "accessed": "2026-09-27",
+          "publisher": "gRPC Authors"
+        },
+        {
+          "url": "https://ktor.io/docs/client-timeout.html",
+          "claim": "Ktor's HttpTimeout has requestTimeoutMillis for the whole call, connectTimeoutMillis for establishing a connection, and socketTimeoutMillis for the maximum time between two data packets.",
+          "title": "Timeout",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (Ktor)"
+        }
+      ],
+      "materials": [
+        "ktor-client"
+      ],
+      "explanation": "Senior answers tie the choice to mobile constraints (flaky networks, battery, caching, payload size) and treat retries as a correctness issue (idempotency), not just a config flag.",
+      "model_answer": {
+        "summary": "REST gets HTTP caching and simple tooling; GraphQL reduces over- and under-fetching but moves caching to a normalized client cache; gRPC offers Protobuf contracts, streaming and deadlines, but needs HTTP/2 tooling and has no browser-style caching. Configure separate connect, socket and whole-request timeouts, and retry only idempotent or safe requests, with exponential backoff and a cap.",
+        "key_points": [
+          "REST: URL-keyed HTTP caching works out of the box",
+          "GraphQL: one endpoint, so cache by object id in a client-side normalized cache",
+          "gRPC: Protobuf IDL, unary and streaming RPCs, and client deadlines (`DEADLINE_EXCEEDED`)",
+          "Timeouts: connect, socket (between packets) and whole-request timeouts; each fails differently",
+          "Retries are not on by default in Ktor; retry only idempotent requests, with exponential backoff and a cap"
+        ]
+      }
+    },
+    {
+      "id": "w08-l02-q01",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w08-l02",
+      "prompt": "You rename the column `name` to `full_name` in a Room entity and add `AutoMigration(from = 3, to = 4)`. What else does Room need?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Nothing: Room compares the old and new schemas and detects that this is a rename rather than a drop-and-add automatically"
+        },
+        {
+          "id": "b",
+          "text": "An `AutoMigrationSpec` with `@RenameColumn`, since a rename is ambiguous; auto-migrations also need exported schemas"
+        },
+        {
+          "id": "c",
+          "text": "A call to `fallbackToDestructiveMigration()`, which recreates the tables in the new shape and silently preserves all existing rows"
+        },
+        {
+          "id": "d",
+          "text": "A manual `Migration` is mandatory here; auto-migrations can only add or remove whole tables, never rename or change columns"
+        }
+      ],
+      "concept": "room-migration-strategy",
+      "sources": [
+        {
+          "url": "https://developer.android.com/training/data-storage/room/migrating-db-versions",
+          "claim": "Auto-migrations require exportSchema not to be false; for ambiguous changes such as renaming or deleting tables or columns, provide an AutoMigrationSpec using @RenameColumn, @DeleteColumn, @RenameTable or @DeleteTable.",
+          "title": "Migrate your Room database",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-room",
+        "android-datastore"
+      ],
+      "explanation": "Auto-migrations rely on the exported schemas of both versions (`exportSchema` must not be false). For ambiguous changes such as renaming or deleting tables or columns, Room requires an `AutoMigrationSpec` with `@RenameColumn`, `@DeleteColumn`, `@RenameTable` or `@DeleteTable`. Destructive fallback would erase user data."
+    },
+    {
+      "id": "w08-l02-q02",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w08-l02",
+      "prompt": "A DAO exposes `@Query(\"SELECT * FROM user WHERE id = :id\") fun user(id: Int): Flow<User>`. A background job updates other users' rows every few seconds, and the profile screen re-renders each time. Why?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Room re-runs the query whenever any row in the `user` table changes, even rows outside this query's result; add `distinctUntilChanged()`"
+        },
+        {
+          "id": "b",
+          "text": "Flow-returning DAO queries poll the underlying SQLite table on a fixed interval of roughly one second, regardless of writes"
+        },
+        {
+          "id": "c",
+          "text": "Room emits exactly once per database transaction, no matter how many tables that transaction actually touched or modified"
+        },
+        {
+          "id": "d",
+          "text": "The DAO method needs an `@Transaction` annotation added to it to stop these extra emissions from the background job's writes"
+        }
+      ],
+      "concept": "room-observable-query-invalidation",
+      "sources": [
+        {
+          "url": "https://developer.android.com/training/data-storage/room/async-queries",
+          "claim": "Observable queries rerun whenever any row in the table is updated, regardless of whether that row is in the result set; apply distinctUntilChanged so the UI is only notified when results change.",
+          "title": "Write asynchronous DAO queries",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-room",
+        "android-datastore"
+      ],
+      "explanation": "Room's docs describe this limitation: the query reruns whenever any row in the table is updated, regardless of whether that row is in the result set. Applying `distinctUntilChanged()` makes the UI notified only when the query's result actually changes."
+    },
+    {
+      "id": "w08-l02-q03",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w08-l02",
+      "prompt": "Why must a DAO method returning `List<UserWithPlaylists>` (an `@Embedded` user plus an `@Relation` list) be annotated with `@Transaction`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Because classes annotated `@Relation` must be serialized and written to disk before Room can read them back into memory"
+        },
+        {
+          "id": "b",
+          "text": "To make Room schedule the whole query to run on a background thread instead of blocking the caller's own thread"
+        },
+        {
+          "id": "c",
+          "text": "Room runs more than one query to build the result, and `@Transaction` makes it atomic so parent and child rows stay consistent"
+        },
+        {
+          "id": "d",
+          "text": "Because a class annotated `@Relation` requires Room to hold an exclusive write lock on the child table for the whole query"
+        }
+      ],
+      "concept": "room-transactions-and-conflict-strategies",
+      "sources": [
+        {
+          "url": "https://developer.android.com/training/data-storage/room/relationships/one-to-many",
+          "claim": "Add the @Transaction annotation so Room performs the entire operation atomically; this is necessary because the function requires Room to run two queries.",
+          "title": "Define and query one-to-many relationships",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-room"
+      ],
+      "explanation": "The one-to-many guide says to add `@Transaction` so Room performs the entire operation atomically, because the function requires Room to run two queries (users, then their playlists). Without it, a write between the two queries could return a user with a playlist list from a different moment."
+    },
+    {
+      "id": "w08-l02-q04",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w08-l02",
+      "prompt": "You sync server data with `@Insert(onConflict = OnConflictStrategy.REPLACE)`. How does this differ from `@Upsert` when a row with the same primary key exists?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "They are identical; `@Upsert` is only a Kotlin-friendly alias that Room compiles down to the same `OnConflictStrategy.REPLACE` insert"
+        },
+        {
+          "id": "b",
+          "text": "`REPLACE` updates only the columns that actually changed in place, while `@Upsert` always rewrites and re-inserts the whole row"
+        },
+        {
+          "id": "c",
+          "text": "`REPLACE` fails with a unique-constraint error on the conflicting row, while `@Upsert` silently succeeds and merges the two rows"
+        },
+        {
+          "id": "d",
+          "text": "SQLite's `REPLACE` deletes then re-inserts the row, whereas `@Upsert` updates it in place, returning `-1` for updates"
+        }
+      ],
+      "concept": "room-transactions-and-conflict-strategies",
+      "sources": [
+        {
+          "url": "https://www.sqlite.org/lang_conflict.html",
+          "claim": "When a UNIQUE or PRIMARY KEY constraint violation occurs, REPLACE deletes pre-existing rows that are causing the violation prior to inserting the current row; delete triggers fire if and only if recursive triggers are enabled.",
+          "title": "The ON CONFLICT Clause",
+          "accessed": "2026-09-27",
+          "publisher": "SQLite"
+        },
+        {
+          "url": "https://developer.android.com/training/data-storage/room/accessing-data",
+          "claim": "@Upsert inserts new rows or updates existing ones based on primary key; for a single parameter it returns the rowId of an inserted row, or -1 if an existing row was updated.",
+          "title": "Accessing data using Room DAOs",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-room"
+      ],
+      "explanation": "SQLite's REPLACE algorithm deletes pre-existing rows that cause a UNIQUE or PRIMARY KEY violation before inserting the current row. Room's `@Upsert` inserts new rows or updates existing ones by primary key, returning `-1` when a row was updated. Delete-then-insert has side effects: for example, delete triggers can fire when recursive triggers are enabled."
+    },
+    {
+      "id": "w08-l02-q05",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w08-l02",
+      "prompt": "Two classes each create `DataStore` for `settings.preferences_pb` through their own `PreferenceDataStoreFactory.create(...)` calls in the same process. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It works fine, because DataStore internally coordinates multiple instances pointed at the same file through an OS-level file lock"
+        },
+        {
+          "id": "b",
+          "text": "The second instance silently reads stale data from its own cached snapshot but the process otherwise never fails or crashes"
+        },
+        {
+          "id": "c",
+          "text": "It breaks DataStore and throws `IllegalStateException`; provide one instance, such as a Hilt `@Singleton` or a top-level delegate"
+        },
+        {
+          "id": "d",
+          "text": "It is fine for Preferences DataStore, since it has no schema, but not for typed DataStore, which validates its schema per instance"
+        }
+      ],
+      "concept": "datastore-vs-sharedpreferences",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/libraries/architecture/datastore",
+          "claim": "Never create more than one instance of DataStore for a given file in the same process, as it breaks DataStore functionality and throws IllegalStateException; the generic type must be immutable; don't mix SingleProcessDataStore and MultiProcessDataStore for the same file.",
+          "title": "DataStore",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-datastore"
+      ],
+      "explanation": "The DataStore docs list as a rule: never create more than one `DataStore` instance for a given file in the same process, since doing so breaks functionality and throws `IllegalStateException`. Related rules: the stored type must be immutable, and single-process and multi-process DataStore must not be mixed for one file."
+    },
+    {
+      "id": "w08-l02-q06",
+      "type": "written",
+      "lesson": "w08-l02",
+      "prompt": "Version 5 of your schema splits `user.full_name` into `first_name` and `last_name` without losing data. Write the migration strategy and describe how you would test it.",
+      "concept": "room-migration-strategy",
+      "sources": [
+        {
+          "url": "https://developer.android.com/training/data-storage/room/migrating-db-versions",
+          "claim": "Manual Migration classes handle complex changes and take precedence over auto-migrations for the same version; missing migrations throw IllegalStateException; fallbackToDestructiveMigration permanently deletes all user data.",
+          "title": "Migrate your Room database",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/training/data-storage/room/migrating-db-versions",
+          "claim": "Migration tests export schemas (schemaDirectory or room.schemaLocation) and use MigrationTestHelper: createDatabase(1), insert data, then runMigrationsAndValidate(2, listOf(MIGRATION_1_2)).",
+          "title": "Migrate your Room database",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-room"
+      ],
+      "explanation": "Seniors test migrations with real old-version data, not just that the app opens, and know the failure modes (a missing migration crashes, destructive fallback deletes user data).",
+      "model_answer": {
+        "summary": "Auto-migration cannot infer how to split data, so write a manual `Migration(5, 6)`: add the new columns (or build a new table), populate them from `full_name` with SQL string functions, then drop or rename using the create-copy-drop-rename pattern. Test with `MigrationTestHelper`: create a v5 database from the exported schema, insert rows, run `runMigrationsAndValidate(6, ...)`, and assert both the schema and the split data.",
+        "key_points": [
+          "Data transformations need a manual `Migration`; auto-migrations cover schema changes (with specs for ambiguous ones)",
+          "Migrate in SQL inside the migration: add columns or build a new table, copy transformed data, then replace the old table",
+          "Export schemas (Room Gradle plugin `schemaDirectory` or `room.schemaLocation`) so tests can create old versions",
+          "Test with `MigrationTestHelper.createDatabase(5)` plus inserted data, then `runMigrationsAndValidate(6, ...)` and assert the values",
+          "Never rely on `fallbackToDestructiveMigration()` in production; a missing path throws `IllegalStateException`"
+        ]
+      }
+    },
+    {
+      "id": "w08-l02-q07",
+      "type": "written",
+      "lesson": "w08-l02",
+      "prompt": "DataStore or SharedPreferences: why was DataStore introduced, when do you choose Preferences vs typed (Proto/JSON) DataStore, and when is neither right?",
+      "concept": "datastore-vs-sharedpreferences",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/libraries/architecture/datastore",
+          "claim": "DataStore offers an async API, main-thread safety, error signalling, transactional updates and type safety compared with SharedPreferences; it is not suitable for large or complex datasets, partial updates or referential integrity, for which Room is recommended.",
+          "title": "DataStore",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/topic/libraries/architecture/datastore",
+          "claim": "updateData() performs an atomic read-write-modify transaction; Preferences DataStore requires no schema and is not type-safe, while typed DataStore requires a schema and is type-safe.",
+          "title": "DataStore",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-datastore",
+        "android-room"
+      ],
+      "explanation": "Strong answers go beyond \"it's async\" to the transactional and error-signalling guarantees, the one-instance rule, and the clear line where Room is the right tool.",
+      "model_answer": {
+        "summary": "DataStore replaces SharedPreferences with an async, Flow-based, main-thread-safe API that signals errors and applies updates transactionally with `updateData`. Preferences DataStore is schema-less key-value storage; typed DataStore gives type safety through a schema. For large or relational data, partial updates or referential integrity, use Room.",
+        "key_points": [
+          "SharedPreferences problems addressed: synchronous APIs on the main thread, no error signalling, no transactional updates, no type safety",
+          "DataStore exposes data as a `Flow` and writes with the transactional `updateData { }` read-modify-write",
+          "Preferences DataStore: no schema, not type-safe; typed DataStore: schema (Proto or JSON), type-safe, immutable models",
+          "Rules: one instance per file per process, immutable types, don't mix single- and multi-process access",
+          "Use Room for large or complex datasets, partial updates or referential integrity"
+        ]
+      }
+    },
+    {
+      "id": "w08-l02-q08",
+      "type": "written",
+      "lesson": "w08-l02",
+      "prompt": "Explain how Room decides when to re-emit a `Flow` query, why it forbids main-thread access, and why it does not allow object references between entities. What do these rules imply for how you design DAOs?",
+      "concept": "room-observable-query-invalidation",
+      "sources": [
+        {
+          "url": "https://developer.android.com/training/data-storage/room/async-queries",
+          "claim": "Room doesn't support database access on the main thread; observable queries rerun whenever any row in the table is updated, regardless of whether that row is in the result set.",
+          "title": "Write asynchronous DAO queries",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/training/data-storage/room/referencing-data",
+          "claim": "Room forbids object references between entities because lazy loading usually occurs on the UI thread, where even a 5 ms query risks missing the frame, while not lazy loading fetches more data than needed.",
+          "title": "Referencing complex data using Room",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-room"
+      ],
+      "explanation": "A senior connects the three rules to one principle (predictable, off-main-thread I/O) and shows how each shapes the DAO API.",
+      "model_answer": {
+        "summary": "Room invalidates observable queries at table level, so any write to a referenced table re-runs the query; use `distinctUntilChanged` and narrow queries. Main-thread disk access would drop frames, so DAOs use `suspend` for one-shot work and `Flow` for observation. Lazy object references would trigger hidden queries on the UI thread, so relations are loaded explicitly with `@Relation`, joins or multimap returns.",
+        "key_points": [
+          "Observable queries rerun on any change to a referenced table, even to rows outside the result",
+          "Mitigate with `distinctUntilChanged()` and focused queries",
+          "Room doesn't support database access on the main thread; use `suspend` for one-shot and `Flow` for observable reads",
+          "No entity object references: lazy loading would run disk queries on the UI thread, while eager loading wastes memory",
+          "Model relations explicitly (`@Relation` with `@Transaction`, joins, or multimap return types)"
+        ]
+      }
+    },
+    {
+      "id": "w08-l03-q01",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w08-l03",
+      "prompt": "In an offline-first to-do app, users must be able to create tasks in airplane mode and see them immediately. Which write strategy from the offline-first guide fits?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Online-only writes, which attempt the network call first and only update the local database once the server confirms success"
+        },
+        {
+          "id": "b",
+          "text": "Queued writes that are appended to a job queue for later delivery but are never stored in, or reflected by, the local database"
+        },
+        {
+          "id": "c",
+          "text": "Pull-based writes, where the client periodically asks the server whether anything changed since the last sync"
+        },
+        {
+          "id": "d",
+          "text": "Lazy writes: write to the local source first, then queue the network write, accepting conflicts once back online"
+        }
+      ],
+      "concept": "offline-first-write-strategies",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/architecture/data-layer/offline-first",
+          "claim": "Lazy writes: write to the local data source first, then queue the write to notify the network at the earliest opportunity; this is nontrivial because there can be conflicts between the network and local data sources when the app comes back online.",
+          "title": "Build an offline-first app",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-offline-first",
+        "android-paging-3"
+      ],
+      "explanation": "The guide describes lazy writes as writing to the local data source first and then queuing the write to the network at the earliest opportunity, and notes this is nontrivial because conflicts can arise when the app comes back online. Online-only writes fail offline; plain queued writes suit data such as analytics that the UI does not need to show."
+    },
+    {
+      "id": "w08-l03-q02",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w08-l03",
+      "prompt": "For a bank transfer, which write strategy fits, and why?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Online-only: attempt the write across the network first; update the local source only on success, and surface failure to the caller"
+        },
+        {
+          "id": "b",
+          "text": "Lazy writes, so the transfer shows as complete in the UI immediately and the network call is queued to run whenever connectivity returns"
+        },
+        {
+          "id": "c",
+          "text": "Queued writes that are enqueued locally and drained with exponential backoff once the device is back online, regardless of outcome"
+        },
+        {
+          "id": "d",
+          "text": "Write only to the local database and let a nightly `WorkManager` sync job upload the accumulated transfers to the bank's servers"
+        }
+      ],
+      "concept": "offline-first-write-strategies",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/architecture/data-layer/offline-first",
+          "claim": "Online-only writes attempt to write the data across the network boundary; if successful, update the local data source, otherwise throw an exception and leave it to the caller to respond.",
+          "title": "Build an offline-first app",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-offline-first",
+        "android-paging-3"
+      ],
+      "explanation": "The guide's online-only strategy writes across the network boundary and updates the local data source only if it succeeds; otherwise it throws and lets the caller respond. For money movement, showing an optimistic success that may later fail is unacceptable, so queued and lazy writes are the wrong choice."
+    },
+    {
+      "id": "w08-l03-q03",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w08-l03",
+      "prompt": "Which is a documented trade-off of push-based synchronization compared with pull-based?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Push-based synchronization fetches data the app never actually needed and scales poorly once relational data is involved"
+        },
+        {
+          "id": "b",
+          "text": "Push-based synchronization cannot work while the device is offline, since it depends on a live persistent connection to the server"
+        },
+        {
+          "id": "c",
+          "text": "Push-based lets the app stay offline indefinitely and fetches only changes, but conflict versioning is nontrivial and the backend must support it"
+        },
+        {
+          "id": "d",
+          "text": "Push-based synchronization requires the app to refetch every record from scratch on every single screen visit, even unchanged ones"
+        }
+      ],
+      "concept": "offline-sync-and-conflict-resolution",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/architecture/data-layer/offline-first",
+          "claim": "Push-based sync lets the app remain offline indefinitely with minimum data use and works well for relational data, but versioning data for conflict resolution is nontrivial and the network data source must support synchronization; pull-based is prone to heavy data use and scales poorly with relational data.",
+          "title": "Build an offline-first app",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-offline-first",
+        "android-paging-3"
+      ],
+      "explanation": "The guide lists push-based advantages (the app can remain offline indefinitely, minimal data use, works well with relational data) and disadvantages (nontrivial versioning for conflict resolution, write concerns during sync, network support required). Pull-based is the one prone to repeated refetching and poor scaling with relational data."
+    },
+    {
+      "id": "w08-l03-q04",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w08-l03",
+      "prompt": "In a Paging 3 feed backed by `RemoteMediator` and a Room `PagingSource`, where do the items shown in the UI come from?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Directly from the `RemoteMediator.load()` network response, which `Pager` then merges page by page with whatever the database already holds"
+        },
+        {
+          "id": "b",
+          "text": "Only from the database: `RemoteMediator` writes network pages into Room, which invalidates the `PagingSource` so new rows appear"
+        },
+        {
+          "id": "c",
+          "text": "From the network when the device is online, falling back to the local database automatically only while offline"
+        },
+        {
+          "id": "d",
+          "text": "From an in-memory cache that `RemoteMediator` itself owns and hands to the UI, independent of whatever Room currently stores"
+        }
+      ],
+      "concept": "paging-remote-mediator",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/libraries/architecture/paging/v3-network-db",
+          "claim": "RemoteMediator doesn't load data directly into the UI; the app uses the database as the source of truth and only displays data cached in the database, loaded by a PagingSource such as one generated by Room; inserts invalidate the current PagingData.",
+          "title": "Page from network and database",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-offline-first",
+        "android-paging-3"
+      ],
+      "explanation": "The Paging guide says `RemoteMediator` does not load data directly into the UI; the app uses the database as the source of truth and only displays data cached there. Inserting into Room invalidates the current `PagingData`. That is why the feed keeps working in airplane mode."
+    },
+    {
+      "id": "w08-l03-q05",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w08-l03",
+      "prompt": "The feed shows cached rows while a background network refresh fails. Which load state tells you the network (mediator) refresh failed, separately from the local source?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`loadState.refresh` on the combined state, which by itself already isolates the network mediator's refresh from the local source's"
+        },
+        {
+          "id": "b",
+          "text": "`loadState.source.refresh`, since the `source` field is where Paging reports the state of network-originated refresh attempts"
+        },
+        {
+          "id": "c",
+          "text": "`loadState.append` on the `LazyPagingItems`, which reports whether appending further pages at the end of the list is in progress"
+        },
+        {
+          "id": "d",
+          "text": "`loadState.mediator?.refresh`, since `CombinedLoadStates` tracks `source` and `mediator` separately"
+        }
+      ],
+      "concept": "paging-load-state-ui",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/libraries/architecture/paging/load-state",
+          "claim": "CombinedLoadStates tracks refresh, prepend and append separately for source (PagingSource/local) and mediator (RemoteMediator/network); retry() retries failed loads.",
+          "title": "Manage and present loading states",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-offline-first",
+        "android-paging-3"
+      ],
+      "explanation": "`CombinedLoadStates` exposes separate states for the local `source` and the network `mediator`, each with `refresh`, `prepend` and `append`. Checking `mediator.refresh` lets you keep showing cached rows with a non-blocking error banner and a `retry()` action, instead of replacing content with a full-screen error."
+    },
+    {
+      "id": "w08-l03-q06",
+      "type": "written",
+      "lesson": "w08-l03",
+      "prompt": "Design sync for an offline-first notes app edited on two devices. Cover pull vs push, change tokens or versions, conflict resolution, and how the sync is scheduled.",
+      "concept": "offline-sync-and-conflict-resolution",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/architecture/data-layer/offline-first",
+          "claim": "Last write wins: devices attach timestamp metadata to data they write, and the network data source discards data older than its current state and accepts newer data.",
+          "title": "Build an offline-first app",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/topic/architecture/data-layer/offline-first",
+          "claim": "Sync uses WorkManager unique work with a CONNECTED network constraint, and the SyncWorker returns Result.retry() for exponential backoff when sync fails.",
+          "title": "Build an offline-first app",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-offline-first",
+        "android-paging-3",
+        "android-workmanager"
+      ],
+      "explanation": "The senior answer makes the conflict policy an explicit product decision (what data may be lost), prefers server-assigned versions over device clocks, and keeps sync idempotent so retries are safe.",
+      "model_answer": {
+        "summary": "Keep Room as the source of truth, with a local change log or dirty flags for pending writes. Sync incrementally with a server change token or version so only changes are fetched. Resolve conflicts with a clear policy (last-write-wins by server-assigned version or timestamp, or field-level merge and user prompts for important data). Schedule with unique `WorkManager` work with a network constraint and exponential backoff, triggered by push notifications or app start.",
+        "key_points": [
+          "Local database is the canonical source of truth; the UI reads only from it",
+          "Pull-based is simpler but refetches; push-based with change tokens or versions minimises data but needs backend support",
+          "Conflict policy such as last-write-wins using timestamps or versions, with its data-loss risk acknowledged",
+          "Pending writes are persisted and drained after reconnect (lazy writes)",
+          "`WorkManager` unique work, `NetworkType.CONNECTED` constraint, `Result.retry()` with exponential backoff"
+        ]
+      }
+    },
+    {
+      "id": "w08-l03-q07",
+      "type": "written",
+      "lesson": "w08-l03",
+      "prompt": "Implement a `RemoteMediator`-backed paged feed that keeps working in airplane mode. Describe the `load()` logic for each `LoadType`, remote keys, transactions, and `initialize()`.",
+      "concept": "paging-remote-mediator",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/libraries/architecture/paging/v3-network-db",
+          "claim": "load() is called with LoadType REFRESH (first page), PREPEND or APPEND; it returns MediatorResult.Success(endOfPaginationReached) or MediatorResult.Error; remote keys go in a separate table; items and next key are stored in a transaction.",
+          "title": "Page from network and database",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/topic/libraries/architecture/paging/v3-network-db",
+          "claim": "initialize() can return InitializeAction.LAUNCH_INITIAL_REFRESH to fully reload, or SKIP_INITIAL_REFRESH to skip the remote refresh and load cached data.",
+          "title": "Page from network and database",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-offline-first",
+        "android-paging-3"
+      ],
+      "explanation": "Seniors get the transaction and remote-key details right (they are what prevent duplicate or missing pages) and use `initialize()` so a cold start offline does not wipe the cache.",
+      "model_answer": {
+        "summary": "Room provides the `PagingSource`; `RemoteMediator.load()` fetches from the network and writes pages into Room. On REFRESH, load the first page and clear old rows; PREPEND returns `Success(endOfPaginationReached = true)` for top-anchored feeds; APPEND reads the next key from a `remote_keys` table. Write items and keys in one transaction and return `MediatorResult.Error` on failure. `initialize()` returns `SKIP_INITIAL_REFRESH` when the cache is fresh.",
+        "key_points": [
+          "Database is the source of truth; the UI shows only cached rows, so airplane mode still shows data",
+          "REFRESH loads the first page (clearing old data), PREPEND usually ends immediately, APPEND uses the stored next key",
+          "Store remote keys in a separate table when they don't map to items",
+          "Insert items and keys in one `withTransaction` so they stay consistent; inserts invalidate the PagingSource",
+          "`initialize()` returns `LAUNCH_INITIAL_REFRESH` or `SKIP_INITIAL_REFRESH` depending on cache staleness; errors return `MediatorResult.Error`"
+        ]
+      }
+    },
+    {
+      "id": "w08-l03-q08",
+      "type": "written",
+      "lesson": "w08-l03",
+      "prompt": "How would you show sync state and errors in the UI of an offline-first app, both for a paged feed and for non-paged screens?",
+      "concept": "paging-load-state-ui",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/libraries/architecture/paging/load-state",
+          "claim": "Paging exposes LoadState.NotLoading, Loading and Error for refresh, prepend and append, separately for source and mediator, and LazyPagingItems.retry() retries failed loads.",
+          "title": "Manage and present loading states",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/topic/architecture/data-layer/offline-first",
+          "claim": "Read errors can be handled with the catch operator and an LCE-style sealed UI state (Loading, Success, Error).",
+          "title": "Build an offline-first app",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-offline-first",
+        "android-paging-3"
+      ],
+      "explanation": "The best answers put the user's view first: stale but visible data beats a spinner, and they know which paging signal distinguishes \"no data\" from \"could not refresh\".",
+      "model_answer": {
+        "summary": "Model loading and errors as UI state, not events. For paged feeds, read `CombinedLoadStates`: a mediator refresh error with cached content shows a non-blocking banner with `retry()`; a source refresh with no items shows a full-screen state. For non-paged screens, map repository flows to Loading/Success/Error with `catch`, and surface sync status (for example `WorkManager` work state) as a separate field so reads never block on the network.",
+        "key_points": [
+          "Separate local-source state from network-sync state; cached content stays visible when sync fails",
+          "Paged: use `loadState.mediator` vs `loadState.source` for refresh, prepend and append; `retry()` on errors",
+          "Non-paged: sealed Loading/Success/Error UI state, mapping errors with `catch`",
+          "Sync status such as \"offline\" or \"last synced\" is part of UI state, derived from connectivity or sync work",
+          "Avoid blocking full-screen errors when data exists locally"
+        ]
+      }
+    },
+    {
+      "id": "w08-l04-q01",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w08-l04",
+      "prompt": "A developer writes `java.io.File(path).readText()` in `commonMain` of a KMP module that targets Android and iOS. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It compiles for both targets but only throws a `NoClassDefFoundError` once the iOS binary actually tries to call the missing JDK class"
+        },
+        {
+          "id": "b",
+          "text": "It compiles cleanly, because the Android target in the same module supplies the JDK classes the common source set needs"
+        },
+        {
+          "id": "c",
+          "text": "It works correctly on both platforms, since Kotlin/Native ships its own emulation layer that maps `java.io.File` onto Foundation APIs"
+        },
+        {
+          "id": "d",
+          "text": "The compiler rejects it: common code can't use platform APIs that don't compile everywhere; use a multiplatform library instead"
+        }
+      ],
+      "concept": "kmp-source-set-hierarchy",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/multiplatform/multiplatform-discover-project.html",
+          "claim": "The Kotlin compiler prevents you from using platform-specific functions or classes in common code if the code can't be compiled to a different platform; java.io.File is JDK-only and doesn't compile in common code.",
+          "title": "Basic project structure",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "kmp-get-started",
+        "android-kmp",
+        "kmp-production-sample"
+      ],
+      "explanation": "Kotlin's KMP docs state that the compiler prevents platform-specific functions or classes in common code when that code can't be compiled to a different platform, and use `java.io.File` (JDK-only) as the example. The fix is a multiplatform API or an interface, or `expect`/`actual` with platform implementations."
+    },
+    {
+      "id": "w08-l04-q02",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w08-l04",
+      "prompt": "You need iOS code that calls `platform.Foundation` APIs and must run on both a device and the Apple-silicon simulator. Where should it live?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "In `iosArm64Main` only, since the Apple-silicon simulator target reuses the exact same compiled binaries produced for physical iOS devices"
+        },
+        {
+          "id": "b",
+          "text": "In `iosMain`, an intermediate source set compiling to `iosArm64` and `iosSimulatorArm64`, since there's no single `ios` target"
+        },
+        {
+          "id": "c",
+          "text": "In `commonMain`, guarded by a runtime platform check that branches between the Foundation call and an Android-specific equivalent"
+        },
+        {
+          "id": "d",
+          "text": "In `androidMain`, since the Kotlin/Native compiler generates the equivalent iOS Objective-C bindings straight from that source set"
+        }
+      ],
+      "concept": "kmp-source-set-hierarchy",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/multiplatform/multiplatform-discover-project.html",
+          "claim": "An intermediate source set compiles to some, but not all, targets; there is no single ios target, so projects use iosArm64 and iosSimulatorArm64 with an iosMain intermediate source set.",
+          "title": "Basic project structure",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "kmp-get-started",
+        "android-kmp",
+        "kmp-production-sample"
+      ],
+      "explanation": "The docs note that there is no single iOS target: projects typically declare `iosArm64` (device) and `iosSimulatorArm64`, and share iOS code through the intermediate `iosMain` source set. An intermediate source set compiles to some, but not all, targets."
+    },
+    {
+      "id": "w08-l04-q03",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w08-l04",
+      "prompt": "You declare `expect fun platformName(): String` in `commonMain` of a module with Android and iOS targets, and implement `actual` only in `androidMain`. What does the compiler do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It reports an error: every `expect` declaration needs a matching `actual` in every platform source set, in the same package"
+        },
+        {
+          "id": "b",
+          "text": "It compiles successfully, and calling `platformName()` from iOS code simply falls back to returning an empty string at runtime"
+        },
+        {
+          "id": "c",
+          "text": "It compiles successfully, and calling `platformName()` from iOS code throws a `NotImplementedError` the first time it runs"
+        },
+        {
+          "id": "d",
+          "text": "It compiles fine, because an `actual` implementation is only mandatory for `expect class` declarations, never for plain functions"
+        }
+      ],
+      "concept": "kmp-expect-actual-vs-interfaces",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/multiplatform/multiplatform-expect-actual.html",
+          "claim": "The compiler ensures every expected declaration in the common source set has a matching actual declaration in every platform-specific source set, expected declarations contain no implementation, and actual declarations share the same package.",
+          "title": "Expected and actual declarations",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "kmp-get-started",
+        "android-kmp",
+        "kmp-production-sample"
+      ],
+      "explanation": "The compiler ensures that every expected declaration in the common source set has a matching actual declaration in every platform-specific source set, and that the `actual` shares the package of the `expect`. Expected declarations contain no implementation, so there is no fallback."
+    },
+    {
+      "id": "w08-l04-q04",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w08-l04",
+      "prompt": "Your shared module needs a `SecureStorage` backed by Keystore on Android and Keychain on iOS, and your project already uses a DI framework. What does the Kotlin documentation recommend?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "An `expect class SecureStorage` in `commonMain` with a matching `actual class` implementation written per platform source set"
+        },
+        {
+          "id": "b",
+          "text": "A `typealias` in common code pointing to each platform's own native storage class, resolved separately per platform source set"
+        },
+        {
+          "id": "c",
+          "text": "Put all storage code in `androidMain` and call it from iOS through JNI bindings generated by the Kotlin/Native interop tooling"
+        },
+        {
+          "id": "d",
+          "text": "Define an interface in common code and supply implementations through the existing DI framework, which allows fakes in tests"
+        }
+      ],
+      "concept": "kmp-expect-actual-vs-interfaces",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/multiplatform/multiplatform-expect-actual.html",
+          "claim": "Rely on standard language constructs wherever possible instead of expected and actual declarations; if you already use a DI framework, use it for platform dependencies; interfaces allow multiple implementations and easy fakes in tests.",
+          "title": "Expected and actual declarations",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "kmp-get-started",
+        "android-kmp",
+        "kmp-production-sample"
+      ],
+      "explanation": "The docs advise relying on standard language constructs where possible instead of expect/actual, and recommend using the existing DI approach to manage platform dependencies. Interfaces don't limit you to one implementation per target and are easier to fake in tests. Expected and actual classes are in Beta."
+    },
+    {
+      "id": "w08-l04-q05",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w08-l04",
+      "prompt": "You move a Room DAO into `commonMain` of a KMP module. Which constraint applies to the DAO functions there?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "They may freely return `LiveData`, since the Room KMP artifact bundles a multiplatform `LiveData` implementation for every target"
+        },
+        {
+          "id": "b",
+          "text": "They must be `suspend` or return `Flow`; blocking functions and `LiveData`/RxJava types aren't available in common code"
+        },
+        {
+          "id": "c",
+          "text": "They must be plain blocking functions, and each platform's build wraps every call in its own background-thread dispatcher automatically"
+        },
+        {
+          "id": "d",
+          "text": "DAO interfaces cannot live in `commonMain` at all; only the `@Entity` and `@Database` classes are allowed to be shared there"
+        }
+      ],
+      "concept": "kmp-shared-networking-persistence",
+      "sources": [
+        {
+          "url": "https://developer.android.com/kotlin/multiplatform/room",
+          "claim": "In Room for KMP, DAOs and entities live in commonMain; LiveData and RxJava are unavailable, so use Flow; DAO functions in commonMain must be suspend or return Flow, with blocking functions only allowed in androidMain.",
+          "title": "Set up Room Database for KMP",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-kmp",
+        "android-room"
+      ],
+      "explanation": "The Room KMP guide says DAOs and entities are placed in `commonMain`, reactive types must be `Flow`, and DAO functions in common code must be `suspend` or return `Flow` (blocking functions are allowed only in `androidMain`). `LiveData` and RxJava are not supported there."
+    },
+    {
+      "id": "w08-l04-q06",
+      "type": "written",
+      "lesson": "w08-l04",
+      "prompt": "When would you adopt Kotlin Multiplatform for an existing Android and iOS product, and what would you share first?",
+      "concept": "kmp-adoption-strategy",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/multiplatform/multiplatform-reasons-to-try.html",
+          "claim": "KMP can be introduced gradually by sharing a focused subset of logic such as validation, domain calculations or authentication flows, while each platform retains its native UI; KMP became Stable in November 2023.",
+          "title": "Why should you try Kotlin Multiplatform?",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        },
+        {
+          "url": "https://developer.android.com/kotlin/multiplatform",
+          "claim": "With Kotlin Multiplatform you don't need to rewrite the whole application to start sharing code; you choose what to share, from core business logic to the entire app.",
+          "title": "Kotlin Multiplatform",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "kmp-get-started",
+        "android-kmp",
+        "kmp-production-sample"
+      ],
+      "explanation": "The senior answer is driven by cost and risk: it names what would make KMP not worth it (thin shared logic, no iOS buy-in, build and tooling cost) and proposes a reversible first step.",
+      "model_answer": {
+        "summary": "Adopt it when both apps duplicate non-trivial business or data logic that drifts between platforms and the team can own Kotlin on iOS builds. Start small and measurable: models, validation, then a data-layer slice (a Ktor client and one repository), and keep native UI. Run it as an experiment with success criteria before widening scope.",
+        "key_points": [
+          "Good signals: duplicated, bug-prone business or data logic; consistency matters more than platform-specific differences",
+          "KMP has been Stable since November 2023, and Google supports it for sharing business logic between Android and iOS",
+          "Start incrementally with constants, models, validation, then a data-layer slice such as networking and one repository",
+          "Keep native UI (SwiftUI/Compose) at first; Compose Multiplatform is optional",
+          "Define an experiment plan with success criteria and retrospectives"
+        ]
+      }
+    },
+    {
+      "id": "w08-l04-q07",
+      "type": "written",
+      "lesson": "w08-l04",
+      "prompt": "The iOS team is sceptical about taking a shared Kotlin module. How would you introduce KMP to an existing team, and how do you keep it from becoming a bottleneck?",
+      "concept": "kmp-adoption-strategy",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/multiplatform/multiplatform-reasons-to-try.html",
+          "claim": "Advice for introducing KMP: start small with simple shared components or constants, create a clear experiment plan with expected outcomes, and run retrospectives to assess success.",
+          "title": "Why should you try Kotlin Multiplatform?",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        },
+        {
+          "url": "https://developer.android.com/kotlin/multiplatform",
+          "claim": "Jetpack libraries with KMP support include ViewModel, Room, SQLite, DataStore, Lifecycle and Paging.",
+          "title": "Kotlin Multiplatform",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "kmp-get-started",
+        "android-kmp",
+        "kmp-production-sample"
+      ],
+      "explanation": "Interviewers want to hear change management, not just Gradle: shared ownership, an easy exit, and evidence gathered before scaling up.",
+      "model_answer": {
+        "summary": "Start with a small, low-risk shared piece that benefits iOS directly, co-own it with iOS engineers, ship it behind a clear API that feels native in Swift, and agree on success criteria and a retrospective. Keep native UI and use existing Jetpack KMP libraries (ViewModel, Room, DataStore) where they help.",
+        "key_points": [
+          "Pick a first slice with visible value for iOS (for example validation or one API client) and low blast radius",
+          "Co-ownership: iOS engineers review and contribute, and CI builds the iOS framework",
+          "Keep the UI native; share only data and business logic at first",
+          "Use KMP-ready libraries (Room, DataStore, ViewModel, Paging, Ktor) to avoid bespoke platform glue",
+          "Experiment plan, measurable outcomes and a retrospective before expanding"
+        ]
+      }
+    },
+    {
+      "id": "w08-l04-q08",
+      "type": "written",
+      "lesson": "w08-l04",
+      "prompt": "Design a shared KMP data layer with Ktor for networking and Room KMP for persistence. What lives in `commonMain`, what is platform-specific, and which Room features do you lose compared with Android-only Room?",
+      "concept": "kmp-shared-networking-persistence",
+      "sources": [
+        {
+          "url": "https://ktor.io/docs/client-engines.html",
+          "claim": "Ktor engines are platform-specific (OkHttp, Android or CIO on Android/JVM; Darwin on iOS); engine dependencies are added per source set, and if the engine argument is omitted the client picks one from the available dependencies.",
+          "title": "Client engines",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (Ktor)"
+        },
+        {
+          "url": "https://developer.android.com/kotlin/multiplatform/room",
+          "claim": "Room KMP puts the database in commonMain with @ConstructedBy and an expect object RoomDatabaseConstructor, uses platform-specific builders, sets BundledSQLiteDriver via setDriver, and lacks LiveData/RxJava, query callbacks, auto-close, prepackaged databases and multi-instance invalidation in common code.",
+          "title": "Set up Room Database for KMP",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-kmp",
+        "ktor-client",
+        "android-room"
+      ],
+      "explanation": "A strong answer knows exactly where the platform seams are (engines, drivers, database file paths) and which Android-only Room features must be replaced before migrating, rather than assuming Room behaves identically everywhere.",
+      "model_answer": {
+        "summary": "Create the Ktor `HttpClient` in common code and add a platform engine per source set (OkHttp on Android, Darwin on iOS). Put Room entities, DAOs and the database in `commonMain` with `@ConstructedBy` and an `expect object` `RoomDatabaseConstructor`, write platform-specific database builders for file paths, and build with `setDriver(BundledSQLiteDriver())`. In common code DAOs are `suspend`/`Flow` only, and LiveData/RxJava, query callbacks, auto-close, prepackaged databases and multi-instance invalidation are unavailable.",
+        "key_points": [
+          "Ktor: common `HttpClient`, engine dependencies per source set (OkHttp or Android on Android, Darwin on iOS), or auto-selected from available engines",
+          "Room KMP: entities, DAOs and database in `commonMain`, with `@ConstructedBy` and an `expect object ... : RoomDatabaseConstructor`",
+          "Platform seams: database builders (file paths, Android `Context`) live in `androidMain`/`iosMain`",
+          "Build with `setDriver(BundledSQLiteDriver())` and `setQueryCoroutineContext(Dispatchers.IO)`",
+          "Lost in common code: blocking DAOs, LiveData/RxJava, query callbacks, auto-close, `createFromAsset`, multi-instance invalidation"
+        ]
+      }
+    }
+  ]
+}

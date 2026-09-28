@@ -1,0 +1,1354 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "android-process-importance-hierarchy",
+      "name": "How Android ranks and kills app processes"
+    },
+    {
+      "id": "viewmodelstore-config-change-retention",
+      "name": "How ViewModelStore keeps ViewModels across configuration changes"
+    },
+    {
+      "id": "saved-state-process-death-restore",
+      "name": "Restoring state after system-initiated process death"
+    },
+    {
+      "id": "activity-recreation-on-config-change",
+      "name": "Activity recreation on configuration changes"
+    },
+    {
+      "id": "looper-handler-messagequeue-internals",
+      "name": "Looper, Handler and MessageQueue, including Android 17's lock-free queue"
+    },
+    {
+      "id": "main-thread-anr-triggers",
+      "name": "What blocks the main thread and triggers an ANR"
+    },
+    {
+      "id": "binder-ipc-threading-model",
+      "name": "Binder IPC threading and synchronous calls"
+    },
+    {
+      "id": "activity-tasks-launch-modes",
+      "name": "Tasks, the back stack and launch modes"
+    },
+    {
+      "id": "workmanager-unique-chained-work",
+      "name": "WorkManager constraints, unique work, chains and retries"
+    },
+    {
+      "id": "background-work-api-selection",
+      "name": "Choosing coroutines, WorkManager or a foreground service"
+    },
+    {
+      "id": "foreground-service-type-rules",
+      "name": "Foreground service types, permissions and start restrictions"
+    },
+    {
+      "id": "doze-app-standby-buckets",
+      "name": "Doze, App Standby and standby buckets"
+    },
+    {
+      "id": "play-target-api-deadline",
+      "name": "Google Play target API level deadlines"
+    },
+    {
+      "id": "android16-edge-to-edge-predictive-back",
+      "name": "Android 16 mandatory edge-to-edge and predictive back"
+    },
+    {
+      "id": "large-screen-resizability-enforcement",
+      "name": "Ignored orientation and resizability limits on large screens"
+    },
+    {
+      "id": "targetsdk-migration-compat-testing",
+      "name": "Running a targetSdk migration with the compatibility framework"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w04-l01-q01",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w04-l01",
+      "prompt": "A `BroadcastReceiver` starts a `Thread` in `onReceive()` to upload a file and returns immediately. The app has no visible activity. Why do uploads sometimes never finish, and what is the documented fix?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The thread runs on the main thread by default because `onReceive()` executes there, which triggers an ANR watchdog; switch the upload work to `Dispatchers.IO`"
+        },
+        {
+          "id": "b",
+          "text": "Threads started from a receiver are always daemon threads owned by the system, and they stop unconditionally the instant `onReceive` returns to its caller"
+        },
+        {
+          "id": "c",
+          "text": "Every time the receiver is re-registered by the manifest, the runtime cancels whatever background thread the previous registration had started"
+        },
+        {
+          "id": "d",
+          "text": "Once `onReceive()` returns, the process is no longer treated as active and can be killed along with the thread; schedule a job (WorkManager) instead"
+        }
+      ],
+      "concept": "android-process-importance-hierarchy",
+      "sources": [
+        {
+          "url": "https://developer.android.com/guide/components/activities/process-lifecycle",
+          "claim": "A BroadcastReceiver that starts a thread and returns is no longer active, so the system can kill the process and the thread; the fix is to schedule a JobService from the receiver.",
+          "title": "Processes and app lifecycle | App architecture | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-process-lifecycle",
+        "android-app-architecture"
+      ],
+      "explanation": "A running `onReceive()` makes the process foreground, but once it returns nothing tells the system that work is still happening, so the process may drop down the importance hierarchy and be killed to reclaim memory, taking the thread with it. Scheduling a job makes the work known to the system. Changing dispatchers doesn't change the process's importance."
+    },
+    {
+      "id": "w04-l01-q02",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w04-l01",
+      "prompt": "What mechanism lets a `ViewModel` keep its in-memory state when an Activity is rotated?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The ViewModel and all its held objects are serialized into the saved-instance-state `Bundle`, then fully deserialized back in the newly created Activity"
+        },
+        {
+          "id": "b",
+          "text": "The `ViewModelStore` is retained across the configuration change and handed to the new Activity, so the same ViewModel instances are returned"
+        },
+        {
+          "id": "c",
+          "text": "Rotation simply does not destroy or recreate the Activity at all whenever it happens to have at least one attached ViewModel instance"
+        },
+        {
+          "id": "d",
+          "text": "The ViewModel is silently stored as a static field inside the Application object and stays there until the whole process is eventually killed"
+        }
+      ],
+      "concept": "viewmodelstore-config-change-retention",
+      "sources": [
+        {
+          "url": "https://developer.android.com/reference/kotlin/androidx/lifecycle/ViewModelStore",
+          "claim": "A ViewModelStore instance is retained through configuration changes, and clear() calls onCleared() on the stored ViewModels.",
+          "title": "ViewModelStore | API reference | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/topic/libraries/architecture/viewmodel",
+          "claim": "A ViewModel stays in memory until its ViewModelStoreOwner disappears, e.g. when an activity finishes.",
+          "title": "ViewModel overview | App architecture | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-process-lifecycle",
+        "android-app-architecture"
+      ],
+      "explanation": "ViewModels are scoped to a `ViewModelStoreOwner`; its `ViewModelStore` is retained through configuration changes, so the recreated Activity gets the same instances. The store is cleared (calling `onCleared()`) only when the owner goes away for good, e.g. the Activity finishes. Nothing is serialized, which is why ViewModel state doesn't survive process death."
+    },
+    {
+      "id": "w04-l01-q03",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w04-l01",
+      "prompt": "To stop a video player from restarting on rotation, a developer adds `android:configChanges=\"orientation|screenSize|screenLayout|keyboardHidden\"` to the Activity. What is true afterwards?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The configuration change still happens; only recreation is skipped, so any code or embedded View/Fragment relying on recreation must reload manually"
+        },
+        {
+          "id": "b",
+          "text": "The device itself stops generating any configuration-change event at all for that Activity, so its layouts are permanently locked into portrait mode forever"
+        },
+        {
+          "id": "c",
+          "text": "Compose content entirely stops recomposing on rotation, because the underlying configuration snapshot it reads from is never updated"
+        },
+        {
+          "id": "d",
+          "text": "The ViewModel and its `ViewModelStore` are now cleared and recreated on every rotation instead of being retained across it"
+        }
+      ],
+      "concept": "activity-recreation-on-config-change",
+      "sources": [
+        {
+          "url": "https://developer.android.com/guide/topics/resources/runtime-changes",
+          "claim": "Even when activity recreation is disabled for a configuration change, the change still occurs; responsibility moves to the Activity, and embedded components like AndroidView and AndroidFragment must be updated manually.",
+          "title": "Handle configuration changes | App architecture | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-process-lifecycle",
+        "android-app-architecture"
+      ],
+      "explanation": "Declaring `configChanges` only disables recreation; the change itself still happens, and the Activity becomes responsible for handling it. Compose recomposes with the new configuration, but components like `AndroidView` and `AndroidFragment` that rely on recreation must be updated by hand. It doesn't lock orientation, and it doesn't affect ViewModel retention."
+    },
+    {
+      "id": "w04-l01-q04",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w04-l01",
+      "prompt": "A user half-fills a checkout form, switches apps, and the system kills your process for memory. When they return, which storage restores the form draft without extra disk writes?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A property held directly in the screen's `ViewModel`, since ViewModels are designed to survive any kind of process termination"
+        },
+        {
+          "id": "b",
+          "text": "A `companion object` field in the Activity class, which keeps its value independently of any particular Activity instance"
+        },
+        {
+          "id": "c",
+          "text": "`SavedStateHandle` in the ViewModel (or `rememberSaveable` in Compose)"
+        },
+        {
+          "id": "d",
+          "text": "`remember { mutableStateOf(...) }` in the composable function itself, since Compose persists remembered state across process restarts"
+        }
+      ],
+      "concept": "saved-state-process-death-restore",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/libraries/architecture/saving-states",
+          "claim": "ViewModel does not survive system-initiated process death, while saved state (SavedStateHandle, rememberSaveable) does; saved state is for primitive and small, simple objects.",
+          "title": "Save UI states | App architecture | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/topic/libraries/architecture/viewmodel/viewmodel-savedstate",
+          "claim": "Values in SavedStateHandle persist after the process is killed by the system and remain available through the same object.",
+          "title": "Saved State module for ViewModel | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-process-lifecycle",
+        "android-app-architecture"
+      ],
+      "explanation": "Saved instance state (SavedStateHandle, rememberSaveable) survives system-initiated process death; the ViewModel and anything else in memory (statics, `remember`) do not. Saved state is meant for small, simple data like input text and IDs; larger data belongs in persistent storage."
+    },
+    {
+      "id": "w04-l01-q05",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w04-l01",
+      "prompt": "To test process-death restoration, a teammate runs `adb shell am force-stop <package>` and then reopens the app, and nothing is restored. What is going on?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Force-stop is the correct way to test this; the real bug is that `SavedStateHandle` only restores state correctly on devices running API 34 or higher, not older ones"
+        },
+        {
+          "id": "b",
+          "text": "Saved state is only ever written from within the `onPause()` callback, and a force-stop bypasses that callback entirely, so nothing gets persisted"
+        },
+        {
+          "id": "c",
+          "text": "Saved state is lost only in debug builds, because release builds disable the saved-instance-state mechanism to save a small amount of memory"
+        },
+        {
+          "id": "d",
+          "text": "Saved state is tied to the task; force-stopping removes it. Use `adb shell am kill <package>` (or 'Don't keep activities') to simulate a real system kill"
+        }
+      ],
+      "concept": "saved-state-process-death-restore",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/libraries/architecture/viewmodel/viewmodel-savedstate",
+          "claim": "Saved state is tied to the task stack; if the task stack goes away, e.g. by force stopping the app, removing it from recents or rebooting, the saved state goes away too.",
+          "title": "Saved State module for ViewModel | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/topic/libraries/architecture/saving-states",
+          "claim": "Process death can be simulated with adb shell am kill <package_name> or the 'Don't keep activities' developer option.",
+          "title": "Save UI states | App architecture | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-process-lifecycle",
+        "android-app-architecture"
+      ],
+      "explanation": "System-initiated process death keeps the task and its saved state, which is what restoration relies on. Force-stopping, removing the app from Recents, or rebooting clears the task, so saved state is gone by design. `am kill` on a backgrounded app mimics the real low-memory kill."
+    },
+    {
+      "id": "w04-l01-q06",
+      "type": "written",
+      "lesson": "w04-l01",
+      "prompt": "Explain how Android decides which app process to kill when memory is low. Walk through the importance levels and what places a process in each, and state what this means for how you design long-running work.",
+      "concept": "android-process-importance-hierarchy",
+      "sources": [
+        {
+          "url": "https://developer.android.com/guide/components/activities/process-lifecycle",
+          "claim": "Processes are ranked foreground, visible, service and cached; long-running services (e.g. 30 minutes or more) may be demoted; an app process's lifetime is not directly controlled by the application.",
+          "title": "Processes and app lifecycle | App architecture | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-process-lifecycle",
+        "android-app-architecture"
+      ],
+      "explanation": "A senior answer links the hierarchy to concrete bugs (receiver threads, long-running started services being demoted) and to design choices, not just the list of levels.",
+      "model_answer": {
+        "summary": "Processes are ranked by the components they run and their state: foreground, visible, service, then cached. The system kills cached processes first. Apps don't control their own process lifetime, so work that must finish has to be declared to the system (foreground service, WorkManager job).",
+        "key_points": [
+          "Foreground: a resumed activity, a running `onReceive()`, or a service executing a lifecycle callback",
+          "Visible: a paused-but-visible activity, a foreground service (`startForeground`), or a user-aware service like a live wallpaper or IME",
+          "Service: a started service; long-running ones (e.g. 30+ minutes) may be demoted to cached",
+          "Cached: stopped activities etc.; killed first when memory is needed",
+          "Design consequence: the app doesn't control process lifetime, so use WorkManager/foreground services and persist state instead of relying on the process staying alive"
+        ]
+      }
+    },
+    {
+      "id": "w04-l01-q07",
+      "type": "written",
+      "lesson": "w04-l01",
+      "prompt": "An interviewer asks: 'How does a ViewModel survive rotation, and what survives process death?' Give a complete answer, including where you would put a list loaded from the network, the selected item ID and the user's in-progress text.",
+      "concept": "viewmodelstore-config-change-retention",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/libraries/architecture/viewmodel",
+          "claim": "ViewModel scopes to a ViewModelStoreOwner, survives configuration changes, calls onCleared when the owner destroys it, and does not survive process death.",
+          "title": "ViewModel overview | App architecture | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/topic/libraries/architecture/viewmodel/viewmodel-savedstate",
+          "claim": "SavedStateHandle data is saved as a Bundle and should be simple and lightweight; complex or large data belongs in local persistence.",
+          "title": "Saved State module for ViewModel | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-process-lifecycle",
+        "android-app-architecture"
+      ],
+      "explanation": "The senior distinction is between the three lifetimes (configuration change, system process death, user dismissal) and matching each piece of state to the storage that covers the lifetime it needs.",
+      "model_answer": {
+        "summary": "The ViewModel lives in its owner's `ViewModelStore`, which is retained across configuration changes and cleared when the owner is finished. It is in-memory only, so it dies with the process. Keep the network list in the ViewModel backed by a cache or database, and the selected ID and in-progress text in SavedStateHandle.",
+        "key_points": [
+          "ViewModels are scoped to a `ViewModelStoreOwner` (activity, fragment, nav entry); its store survives configuration changes",
+          "`onCleared()` runs when the owner is gone for good (activity finishes, nav entry popped), not on rotation",
+          "Process death destroys the ViewModel; SavedStateHandle (Bundle types, small data) and persistent storage survive it",
+          "Placement: large or complex data in ViewModel + local persistence; IDs, queries and input text in SavedStateHandle/rememberSaveable",
+          "Don't hold `Context`/`Resources` in a ViewModel, because it can outlive the owner's views"
+        ]
+      }
+    },
+    {
+      "id": "w04-l01-q08",
+      "type": "written",
+      "lesson": "w04-l01",
+      "prompt": "After rotating the device, a screen re-fires its network request and a `TextField` loses what the user typed. Explain what the system does on rotation and how you fix both problems without using `android:configChanges`.",
+      "concept": "activity-recreation-on-config-change",
+      "sources": [
+        {
+          "url": "https://developer.android.com/guide/topics/resources/runtime-changes",
+          "claim": "The system recreates the Activity on a configuration change (onDestroy, then a new instance via onCreate); use ViewModel for data and rememberSaveable for UI state that must survive recreation and process death.",
+          "title": "Handle configuration changes | App architecture | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/guide/components/activities/activity-lifecycle",
+          "claim": "Use isFinishing() in onDestroy to distinguish an activity that is finishing from one being recreated for a configuration change.",
+          "title": "The activity lifecycle | App architecture | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-process-lifecycle",
+        "android-app-architecture"
+      ],
+      "explanation": "Seniors treat recreation as normal and design state ownership around it, instead of suppressing recreation, which also leaves process death unhandled.",
+      "model_answer": {
+        "summary": "Rotation destroys and recreates the Activity, clearing Activity fields and non-saveable composable state. Move the load into a ViewModel so it runs once per ViewModel, not per Activity, and keep the text in `rememberSaveable` or SavedStateHandle.",
+        "key_points": [
+          "On a configuration change the system calls `onDestroy` and creates a new Activity instance with the new configuration",
+          "State held in Activity fields or in plain `remember` is lost on recreation",
+          "Start the load from the ViewModel (retained across configuration changes) and expose it as state, instead of starting it in `onCreate`/a composable effect",
+          "Use `rememberSaveable` (or SavedStateHandle) for user input so it also survives process death",
+          "`configChanges` is a last resort: the change still happens and you must handle resources yourself"
+        ]
+      }
+    },
+    {
+      "id": "w04-l02-q01",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w04-l02",
+      "prompt": "After bumping `targetSdk` to 37 (Android 17), an in-house idle detector that reads `MessageQueue.mMessages` via reflection reports the main queue as always empty. Why?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Android 17 moves the main thread's entire message queue processing into a dedicated, separately sandboxed system process for better isolation and safety"
+        },
+        {
+          "id": "b",
+          "text": "Apps targeting Android 17 get a lock-free `MessageQueue` where `mMessages` is always null; use `TestLooperManager` instead of reflecting on it"
+        },
+        {
+          "id": "c",
+          "text": "Reflection is disabled entirely at the runtime level for any app that declares `targetSdkVersion` 37 or higher in its manifest"
+        },
+        {
+          "id": "d",
+          "text": "`mMessages` only returns delayed (postDelayed) messages on Android 17, while immediate messages bypass that private field entirely"
+        }
+      ],
+      "concept": "looper-handler-messagequeue-internals",
+      "sources": [
+        {
+          "url": "https://developer.android.com/about/versions/17/changes/messagequeue",
+          "claim": "In the lock-free MessageQueue, the private field mMessages is always null; use the TestLooperManager API instead of reflection, and toggle USE_NEW_MESSAGEQUEUE with adb am compat.",
+          "title": "MessageQueue behavior change guidance | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/about/versions/17/behavior-changes-17",
+          "claim": "Apps targeting Android 17 get a lock-free MessageQueue that improves performance but may break clients that reflect on MessageQueue private fields and methods.",
+          "title": "Behavior changes: Apps targeting Android 17 or higher | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-anr",
+        "android-17-behavior-changes"
+      ],
+      "explanation": "Android 17 introduces a lock-free `MessageQueue` for apps targeting API 37+, to reduce lock contention and missed frames. Code that reflects on its private fields breaks; `mMessages` is always null. Reflection in general still works, but reflection on these private internals is not supported. You can test ahead of the bump with the `USE_NEW_MESSAGEQUEUE` compat flag."
+    },
+    {
+      "id": "w04-l02-q02",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w04-l02",
+      "prompt": "An app calls `Context.startForegroundService()`. In `onStartCommand` the service first migrates a database (about 7 seconds) and then calls `startForeground()`. What happens on a typical device?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Nothing happens here; `startForeground()` may legally be called at absolutely any point in the service's lifecycle before it stops or is destroyed"
+        },
+        {
+          "id": "b",
+          "text": "The system quietly and silently converts the started service into an ordinary background service without notifying the app in any way"
+        },
+        {
+          "id": "c",
+          "text": "The app gets an ANR, because `startForeground()` must be called within 5 seconds of `startForegroundService()`"
+        },
+        {
+          "id": "d",
+          "text": "The system immediately crashes the app process by throwing an uncaught `ForegroundServiceStartNotAllowedException` from the framework itself"
+        }
+      ],
+      "concept": "main-thread-anr-triggers",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/performance/vitals/anr",
+          "claim": "An ANR is triggered if an app uses Context.startForegroundService but the service doesn't call startForeground within 5 seconds.",
+          "title": "ANRs | App quality | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-anr",
+        "android-17-behavior-changes"
+      ],
+      "explanation": "Calling `startForegroundService()` promises to call `startForeground()` within 5 seconds, and missing that deadline is an ANR trigger. The DB work also blocks the service's main-thread callback. Call `startForeground()` first and move the migration off the main thread. `ForegroundServiceStartNotAllowedException` is about starting from the background, not this timing."
+    },
+    {
+      "id": "w04-l02-q03",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w04-l02",
+      "prompt": "An ANR trace shows the main thread doing no I/O. It is `BLOCKED` entering a `synchronized(cache)` block while a background thread holds that lock during a slow network call. What should you conclude?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "This can't be a real ANR at all, because the trace shows the main thread merely blocked and not actively doing any computational work"
+        },
+        {
+          "id": "b",
+          "text": "Lock contention is a documented ANR cause; don't hold a lock shared with the main thread during a long operation"
+        },
+        {
+          "id": "c",
+          "text": "The background thread holding the lock must instead be moved onto `Dispatchers.Main` so it shares the main thread's execution context"
+        },
+        {
+          "id": "d",
+          "text": "ANRs are only ever triggered by literal disk or network I/O running directly on the main thread, so this particular trace must be mistaken"
+        }
+      ],
+      "concept": "main-thread-anr-triggers",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/performance/vitals/anr",
+          "claim": "Common ANR causes include I/O and long calculations on the main thread, a slow synchronous binder call, the main thread blocked waiting for a synchronized block held for a long operation on another thread, and deadlocks.",
+          "title": "ANRs | App quality | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-anr",
+        "android-17-behavior-changes"
+      ],
+      "explanation": "The main thread waiting on a lock held by another thread during a long operation is a listed ANR cause, along with main-thread I/O, long computations, slow synchronous Binder calls and deadlocks. The fix is to narrow the critical section (don't do network calls while holding the lock) or use non-blocking structures."
+    },
+    {
+      "id": "w04-l02-q04",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w04-l02",
+      "prompt": "Which statement about an AIDL method declared `oneway` is correct?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It makes both local, same-process calls and remote, cross-process calls fully asynchronous with respect to the calling thread in every situation"
+        },
+        {
+          "id": "b",
+          "text": "It always runs the remote implementation on the calling client's own main thread instead of a dedicated Binder thread-pool thread"
+        },
+        {
+          "id": "c",
+          "text": "It guarantees at-least-once delivery of the call even if the service's process crashes or is killed partway through handling it"
+        },
+        {
+          "id": "d",
+          "text": "A remote call sends the transaction and returns immediately, handled on a Binder pool thread; a local call has no effect and stays synchronous"
+        }
+      ],
+      "concept": "binder-ipc-threading-model",
+      "sources": [
+        {
+          "url": "https://developer.android.com/guide/components/aidl",
+          "claim": "With oneway a remote call does not block: it sends the transaction and returns immediately; used with a local call there is no impact and the call is still synchronous.",
+          "title": "Android Interface Definition Language (AIDL) | Background work | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-anr",
+        "android-17-behavior-changes"
+      ],
+      "explanation": "`oneway` makes remote calls non-blocking: the transaction is sent and the call returns, and the implementation runs later on a thread from the Binder pool. In the same process it has no effect, and the call executes synchronously on the calling thread. It gives no delivery guarantee if the other process dies; clients should handle `DeadObjectException`."
+    },
+    {
+      "id": "w04-l02-q05",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w04-l02",
+      "prompt": "`DetailActivity` has `launchMode=\"singleTop\"`. The task's back stack is `Main → Detail → Comments` (Comments on top). A notification starts `DetailActivity` into this task. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A new `DetailActivity` instance is created above `Comments`, since the existing one isn't currently on top"
+        },
+        {
+          "id": "b",
+          "text": "The existing `DetailActivity` instance receives a fresh call to `onNewIntent()`, and the `Comments` screen above it is destroyed and removed"
+        },
+        {
+          "id": "c",
+          "text": "The existing `DetailActivity` instance is simply moved back to the top of the stack without being destroyed, recreated, or receiving any new intent"
+        },
+        {
+          "id": "d",
+          "text": "The start request is silently ignored altogether, because `singleTop` guarantees at most one instance of the activity can ever exist in a task"
+        }
+      ],
+      "concept": "activity-tasks-launch-modes",
+      "sources": [
+        {
+          "url": "https://developer.android.com/guide/components/activities/tasks-and-back-stack",
+          "claim": "With singleTop, if an instance is already at the top of the task it receives onNewIntent(); otherwise a new instance is created, and one task can have multiple instances if the top activity is not an existing instance.",
+          "title": "Tasks and the back stack | App architecture | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-app-architecture",
+        "android-process-lifecycle"
+      ],
+      "explanation": "`singleTop` only reuses an instance (via `onNewIntent()`) when it is already at the top of the task. Otherwise a new instance is created, so a task can hold several instances. Destroying the activities above an existing instance is the `singleTask`/`FLAG_ACTIVITY_CLEAR_TOP` behaviour."
+    },
+    {
+      "id": "w04-l02-q06",
+      "type": "written",
+      "lesson": "w04-l02",
+      "prompt": "Explain how `Looper`, `Handler` and `MessageQueue` work together on Android's main thread, how a background thread gets a result onto the main thread, and what changed in Android 17.",
+      "concept": "looper-handler-messagequeue-internals",
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/background-work/background-tasks/asynchronous/java-threads",
+          "claim": "A Handler constructed with a thread's Looper enqueues actions on that thread; Looper.getMainLooper() gets the main thread's Looper, and Handler.post runs code there.",
+          "title": "Asynchronous work with Java threads | Background work | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/about/versions/17/changes/messagequeue",
+          "claim": "Android 17's lock-free MessageQueue replaces a single-lock implementation that caused contention and dropped frames; Espresso 3.7.0+ and Robolectric 4.17+ are needed.",
+          "title": "MessageQueue behavior change guidance | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-anr",
+        "android-17-behavior-changes"
+      ],
+      "explanation": "A senior answer explains why the model makes blocking work harmful (it's one queue) and shows awareness of current platform changes and their testing impact.",
+      "model_answer": {
+        "summary": "Each Looper thread runs a loop that takes messages from its MessageQueue and dispatches them. A Handler is bound to a Looper and posts Runnables/Messages into that queue, possibly delayed. Android 17 replaces the queue with a lock-free implementation for apps targeting API 37.",
+        "key_points": [
+          "A thread with a `Looper` runs a message loop over its `MessageQueue`; the main thread has one (`Looper.getMainLooper()`)",
+          "A `Handler` created with a specific Looper enqueues work to that thread with `post`/`postDelayed`/`sendMessage`; a background thread posts to a main-thread Handler to update UI",
+          "Everything on the main thread (input, drawing, lifecycle callbacks, your posted Runnables) is serialized through the queue, so any long task delays all others and can cause an ANR",
+          "Android 17's lock-free MessageQueue reduces lock contention and missed frames; reflection on private fields like `mMessages` breaks, and Espresso/Robolectric need updates"
+        ]
+      }
+    },
+    {
+      "id": "w04-l02-q07",
+      "type": "written",
+      "lesson": "w04-l02",
+      "prompt": "Your app exposes a bound service with an AIDL interface that other apps call. Explain the threading model on the service side, how clients should call it, and which failure modes both sides must handle.",
+      "concept": "binder-ipc-threading-model",
+      "sources": [
+        {
+          "url": "https://developer.android.com/guide/components/aidl",
+          "claim": "Remote calls are dispatched from a thread pool inside your process and the implementation must be completely thread-safe; IPC calls are synchronous by default and shouldn't be made from the main thread if slow; trap DeadObjectException and SecurityException.",
+          "title": "Android Interface Definition Language (AIDL) | Background work | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-anr",
+        "android-17-behavior-changes"
+      ],
+      "explanation": "Seniors reason about both ends of the transaction: concurrency on the server, blocking on the client, and failure when the other process dies.",
+      "model_answer": {
+        "summary": "Remote calls arrive on threads from a Binder thread pool in the service's process, possibly concurrently, so the implementation must be thread-safe. Calls are synchronous by default, so clients must not make slow calls from their main thread. Both sides handle dead connections and definition mismatches.",
+        "key_points": [
+          "Calls from other processes are dispatched on the platform-managed Binder thread pool in your process; several may run at once, so the implementation must be thread-safe",
+          "Calls from the same process run on the calling thread (for example the main thread)",
+          "IPC calls are synchronous by default; a call that takes more than a few milliseconds must not be made from the client's main thread (ANR risk)",
+          "`oneway` makes remote calls fire-and-forget",
+          "Handle `DeadObjectException` when the connection breaks and `SecurityException` for mismatched AIDL definitions"
+        ]
+      }
+    },
+    {
+      "id": "w04-l02-q08",
+      "type": "written",
+      "lesson": "w04-l02",
+      "prompt": "Tapping a chat notification repeatedly stacks duplicate `ChatActivity` screens, and Back walks through each one. Explain tasks and the back stack, then choose the launch mode or Intent flags that fix it, and say what Android 12+ does when Back is pressed on the root launcher activity.",
+      "concept": "activity-tasks-launch-modes",
+      "sources": [
+        {
+          "url": "https://developer.android.com/guide/components/activities/tasks-and-back-stack",
+          "claim": "Defines tasks and the back stack, the standard/singleTop/singleTask/singleInstance modes, FLAG_ACTIVITY_NEW_TASK/SINGLE_TOP/CLEAR_TOP, and that on Android 12+ Back from a root launcher activity moves the task to the background instead of finishing it.",
+          "title": "Tasks and the back stack | App architecture | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-app-architecture",
+        "android-process-lifecycle"
+      ],
+      "explanation": "A senior answer picks the smallest change that fixes the bug, remembers to handle `onNewIntent`, and knows the Android 12 Back change, which affects state and startup assumptions.",
+      "model_answer": {
+        "summary": "A task is a stack of activities; `standard` launches always push a new instance. Use `singleTop`/`FLAG_ACTIVITY_SINGLE_TOP` so a top instance gets `onNewIntent()`, or `FLAG_ACTIVITY_CLEAR_TOP` to return to an existing instance and drop what is above it. On Android 12+, Back on a root launcher activity moves the task to the background instead of finishing it.",
+        "key_points": [
+          "A task is the activities for one user job, kept in a back stack in the order they were opened",
+          "`standard` creates a new instance for each launch; `singleTop`/`FLAG_ACTIVITY_SINGLE_TOP` deliver `onNewIntent()` only when the instance is on top",
+          "`FLAG_ACTIVITY_CLEAR_TOP` destroys the activities above an existing instance and delivers the intent to it; `singleTask`/`FLAG_ACTIVITY_NEW_TASK` route to an existing task",
+          "Handle the new intent's data in `onNewIntent()` (e.g. switch conversation)",
+          "Android 12+: Back from a root launcher activity moves the activity and its task to the background rather than finishing it"
+        ]
+      }
+    },
+    {
+      "id": "w04-l03-q01",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w04-l03",
+      "prompt": "You call `enqueueUniqueWork(\"sync\", ExistingWorkPolicy.APPEND, newSync)` while the previous `\"sync\"` work is still unfinished. That earlier work then ends in `FAILED`. What happens to `newSync`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It runs anyway and completes normally, because `APPEND` only controls execution ordering and has no effect on failure propagation between requests"
+        },
+        {
+          "id": "b",
+          "text": "It is also marked `FAILED`, since the existing work became its prerequisite; `APPEND_OR_REPLACE` would run it anyway"
+        },
+        {
+          "id": "c",
+          "text": "It immediately replaces the failed work in the queue and starts running right away, discarding the earlier failed request entirely"
+        },
+        {
+          "id": "d",
+          "text": "It is automatically retried, reusing the exact backoff policy and delay that were configured on the earlier, now-failed work request"
+        }
+      ],
+      "concept": "workmanager-unique-chained-work",
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/background-work/background-tasks/persistent/how-to/manage-work",
+          "claim": "With APPEND the existing work becomes a prerequisite, and if it becomes CANCELLED or FAILED the new work is too; APPEND_OR_REPLACE runs the new work regardless.",
+          "title": "Managing work | Background work | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/develop/background-work/background-tasks/persistent/how-to/chain-work",
+          "claim": "When work fails or is cancelled, all dependent work requests are marked FAILED or CANCELLED.",
+          "title": "Chaining work | Background work | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-background-tasks",
+        "android-workmanager",
+        "android-foreground-services"
+      ],
+      "explanation": "`APPEND` chains the new work after the existing work, which becomes its prerequisite. If the prerequisite is `FAILED` or `CANCELLED`, so is the new work. `APPEND_OR_REPLACE` behaves like APPEND but doesn't depend on the prerequisite's status. This matters for sync queues, where one bad run could otherwise block every later one."
+    },
+    {
+      "id": "w04-l03-q02",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w04-l03",
+      "prompt": "Following Android's decision guide for user-initiated background work: the task must keep running if the user leaves the app, deferring or interrupting it would hurt the user, and it is short and critical (it finishes well within 3 minutes). Which API does the guide point to?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A coroutine in `viewModelScope`"
+        },
+        {
+          "id": "b",
+          "text": "A periodic WorkManager request with a network constraint"
+        },
+        {
+          "id": "c",
+          "text": "`AlarmManager.setExact()`"
+        },
+        {
+          "id": "d",
+          "text": "A foreground service of type `shortService`"
+        }
+      ],
+      "concept": "background-work-api-selection",
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/background-work/background-tasks",
+          "claim": "For user-initiated tasks that must continue in the background and would give a bad experience if deferred, a short, critical task uses a foreground service of type shortService (must complete within 3 minutes).",
+          "title": "Background tasks overview | Background work | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-background-tasks",
+        "android-workmanager",
+        "android-foreground-services"
+      ],
+      "explanation": "The guide's path: it must continue in the background (not plain async work), it can't be deferred (not ordinary task scheduling), and it's short and critical, so it points to a `shortService` foreground service, which must finish within about 3 minutes. A `viewModelScope` coroutine dies with the screen or process, and periodic WorkManager is deferrable by design."
+    },
+    {
+      "id": "w04-l03-q03",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w04-l03",
+      "prompt": "Your app targets Android 14+ and adds a foreground service for run tracking with GPS. Which set of declarations and permissions is required?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Only the base `FOREGROUND_SERVICE` permission, since Android infers the specific foreground service type automatically from the service's declared code"
+        },
+        {
+          "id": "b",
+          "text": "`FOREGROUND_SERVICE_LOCATION` only; the manifest's `foregroundServiceType` attribute is entirely inferred from whichever permission is requested"
+        },
+        {
+          "id": "c",
+          "text": "`android:foregroundServiceType=\"location\"`, the `FOREGROUND_SERVICE`/`FOREGROUND_SERVICE_LOCATION` permissions, and a granted location permission"
+        },
+        {
+          "id": "d",
+          "text": "`android:foregroundServiceType=\"specialUse\"` together with a `<property>` element specifically explaining and justifying the GPS use case"
+        }
+      ],
+      "concept": "foreground-service-type-rules",
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/background-work/services/fgs/service-types",
+          "claim": "From Android 14, declare android:foregroundServiceType, request the type-specific permission and base FOREGROUND_SERVICE; location needs FOREGROUND_SERVICE_LOCATION plus a granted coarse or fine location permission.",
+          "title": "Foreground service types | Background work | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-background-tasks",
+        "android-workmanager",
+        "android-foreground-services"
+      ],
+      "explanation": "Since Android 14 you must declare the service type in the manifest, request the base `FOREGROUND_SERVICE` permission and the type-specific permission, and meet the type's runtime prerequisites. For `location` that means a granted location permission and location services on, and without `ACCESS_BACKGROUND_LOCATION` it can't be started from the background. `specialUse` is for cases no other type covers."
+    },
+    {
+      "id": "w04-l03-q04",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w04-l03",
+      "prompt": "A phone sits unplugged and stationary overnight and enters Doze. Your periodic WorkManager sync is due. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It runs exactly on time regardless of Doze, because WorkManager's persistence guarantee overrides all system-level power-management restrictions"
+        },
+        {
+          "id": "b",
+          "text": "It is deferred: Doze suspends network access and stops JobScheduler (and WorkManager) from running, so the work waits for a maintenance window"
+        },
+        {
+          "id": "c",
+          "text": "It runs right on schedule, but without network access, so any upload or download step inside the worker simply fails silently and is skipped"
+        },
+        {
+          "id": "d",
+          "text": "It is cancelled outright by the system when Doze begins, and the app itself is fully responsible for detecting this and re-enqueueing the request"
+        }
+      ],
+      "concept": "doze-app-standby-buckets",
+      "sources": [
+        {
+          "url": "https://developer.android.com/training/monitoring-device-state/doze-standby",
+          "claim": "In Doze the system suspends network access and doesn't let JobScheduler run, so WorkManager tasks don't run; pending jobs run during maintenance windows.",
+          "title": "Optimize for Doze and App Standby | App quality | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-background-tasks",
+        "android-workmanager",
+        "android-foreground-services"
+      ],
+      "explanation": "Doze suspends network access, ignores wake locks, defers standard alarms, and stops JobScheduler jobs, and with them WorkManager tasks. Pending jobs run during periodic maintenance windows, which get less frequent over time. WorkManager guarantees the work will eventually run, not when. For time-sensitive, user-visible updates, high-priority FCM is the exception path."
+    },
+    {
+      "id": "w04-l03-q05",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w04-l03",
+      "prompt": "Analytics show your background sync runs at most once a day for some users, in a short batch, and their alarms fire only once a day. Which App Standby bucket are these users' installs most likely in?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Active"
+        },
+        {
+          "id": "b",
+          "text": "Working set"
+        },
+        {
+          "id": "c",
+          "text": "Frequent"
+        },
+        {
+          "id": "d",
+          "text": "Restricted"
+        }
+      ],
+      "concept": "doze-app-standby-buckets",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/performance/appstandby",
+          "claim": "In the restricted bucket, jobs run once per day in a 10-minute batched session and one alarm per day is allowed; apps enter it after 8 days of no interaction on Android 13+ or excessive broadcasts or bindings.",
+          "title": "App Standby Buckets | App quality | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-background-tasks",
+        "android-workmanager",
+        "android-foreground-services"
+      ],
+      "explanation": "The Restricted bucket (added in Android 12) limits jobs to once per day in a 10-minute batched session and alarms to one per day, and the limits apply even while charging. Apps land there after long inactivity (8 days on Android 13+) or excessive broadcasts/bindings. Working set and Frequent impose milder or stronger limits, but not the once-a-day cap. Check with `adb shell am get-standby-bucket`."
+    },
+    {
+      "id": "w04-l03-q06",
+      "type": "written",
+      "lesson": "w04-l03",
+      "prompt": "Design a periodic sync that uploads pending changes and pulls updates. It should run only on an unmetered network with a battery that isn't low, never run twice concurrently, retry transient failures, and let the user trigger an immediate sync. Describe the WorkManager setup.",
+      "concept": "workmanager-unique-chained-work",
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/background-work/background-tasks/persistent/getting-started/define-work",
+          "claim": "Periodic work has a 15-minute minimum; constraints include NetworkType, BatteryNotLow, RequiresCharging, DeviceIdle and StorageNotLow; Result.retry uses backoff with a 10-second minimum; expedited work takes an OutOfQuotaPolicy and needs getForegroundInfo on Android 11 and lower.",
+          "title": "Define work requests | Background work | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/develop/background-work/background-tasks/persistent",
+          "claim": "WorkManager stores work in an internally managed SQLite database that persists across reboots, and supports constraints, expedited work, retry policies and chaining.",
+          "title": "Task scheduling | Background work | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-background-tasks",
+        "android-workmanager",
+        "android-foreground-services"
+      ],
+      "explanation": "A senior answer covers deduplication, idempotency, quota for expedited work, and the gap between 'runs periodically' and 'runs exactly on time' under Doze and standby buckets.",
+      "model_answer": {
+        "summary": "Use a `PeriodicWorkRequest` (≥15-minute interval) with network and battery constraints, enqueued with `enqueueUniquePeriodicWork(KEEP)`. The worker returns `Result.retry()` on transient errors, using exponential backoff. The manual sync is a separate unique one-time request, optionally expedited.",
+        "key_points": [
+          "`Constraints` with `setRequiredNetworkType(NetworkType.UNMETERED)` and `setRequiresBatteryNotLow(true)`",
+          "Periodic work has a minimum interval of 15 minutes; a flex interval controls when in the period it runs",
+          "Unique work (`enqueueUniquePeriodicWork` with KEEP; one-time with KEEP/REPLACE/APPEND) prevents duplicates; work is persisted in WorkManager's database across reboots",
+          "Return `Result.retry()` for transient errors: backoff is exponential by default (minimum 10 s); make the worker idempotent",
+          "For 'sync now', `setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)` and implement `getForegroundInfo()` for Android 11 and lower"
+        ]
+      }
+    },
+    {
+      "id": "w04-l03-q07",
+      "type": "written",
+      "lesson": "w04-l03",
+      "prompt": "For each case, pick coroutines, WorkManager or a foreground service, and justify it: (a) loading a feed while the screen is open, (b) uploading crash logs sometime today, (c) turn-by-turn navigation audio with GPS, (d) a user-initiated 2 GB download.",
+      "concept": "background-work-api-selection",
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/background-work/background-tasks",
+          "claim": "Background work splits into asynchronous work, task scheduling APIs and foreground services; the guide recommends user-initiated data transfers instead of a data sync foreground service for large downloads or uploads.",
+          "title": "Background tasks overview | Background work | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-background-tasks",
+        "android-workmanager",
+        "android-foreground-services"
+      ],
+      "explanation": "The senior answer uses the decision criteria (continues in the background? harmful if deferred? short and critical? alternative API?) rather than habit, and knows the newer UIDT option.",
+      "model_answer": {
+        "summary": "(a) Coroutines in a lifecycle scope, (b) WorkManager with constraints, (c) a foreground service with the `location` type (and the matching media handling), (d) a user-initiated data transfer job rather than a dataSync foreground service. The choice depends on whether the work must outlive the UI and whether deferring it hurts the user.",
+        "key_points": [
+          "Async work (coroutines) is for work that only matters while the app is in a valid lifecycle state and may be cancelled when the user leaves",
+          "Task scheduling (WorkManager) is for work that must finish even if the user leaves but can be deferred and run under constraints",
+          "Foreground services are for user-visible work that must run now without interruption, and come with type, permission and start restrictions",
+          "For large user-initiated transfers, Android recommends user-initiated data transfer jobs instead of a dataSync foreground service",
+          "Always check for a purpose-built API before reaching for a foreground service"
+        ]
+      }
+    },
+    {
+      "id": "w04-l03-q08",
+      "type": "written",
+      "lesson": "w04-l03",
+      "prompt": "Your `dataSync` foreground service crashes with `ForegroundServiceStartNotAllowedException` when started from a push-driven receiver, and on Android 15 devices it gets `onTimeout` callbacks during very long syncs. Diagnose both issues and propose a redesign.",
+      "concept": "foreground-service-type-rules",
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/background-work/services/fgs/restrictions-bg-start",
+          "claim": "Apps targeting Android 12+ can't start foreground services while in the background, except in listed cases, and the system throws ForegroundServiceStartNotAllowedException.",
+          "title": "Restrictions on starting a foreground service from the background | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/develop/background-work/services/fgs/service-types",
+          "claim": "On Android 15+, dataSync foreground services have a 6-hours-in-24 limit with Service.onTimeout, and apps targeting Android 15 can't launch them from a BOOT_COMPLETED receiver.",
+          "title": "Foreground service types | Background work | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-background-tasks",
+        "android-workmanager",
+        "android-foreground-services"
+      ],
+      "explanation": "Seniors know that FGS rules change with each release, can name the specific restriction behind each symptom, and move work to the API the platform expects instead of hunting for exemptions.",
+      "model_answer": {
+        "summary": "Since Android 12, apps can't start foreground services from the background except in listed situations. Android 15 limits `dataSync` to 6 hours per 24 hours and calls `Service.onTimeout`. Move background-triggered sync to WorkManager (expedited if urgent), and use user-initiated data transfer jobs for large user-requested transfers.",
+        "key_points": [
+          "Apps targeting Android 12+ can't start a foreground service from the background, or `ForegroundServiceStartNotAllowedException` is thrown",
+          "Exemptions include high-priority FCM (which may be downgraded), user interaction with a notification/widget, exact alarms for user-requested actions, and others",
+          "Android 15: `dataSync` may run 6 hours in every 24; `Service.onTimeout()` is called and the service must stop; it also can't be launched from `BOOT_COMPLETED`",
+          "Redesign: WorkManager (optionally expedited) for background-triggered sync, UIDT for large user-initiated transfers, and a foreground service only for user-visible, uninterruptible work"
+        ]
+      }
+    },
+    {
+      "id": "w04-l04-q01",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w04-l04",
+      "prompt": "It is September 2026. Your team wants to publish an update to an existing phone app that still targets API 35, and has not requested an extension. What does Google Play's target API policy require?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Nothing needs to change yet: the requirement to target API 36 only applies starting from August of next year, 2027, not this year"
+        },
+        {
+          "id": "b",
+          "text": "The update must target Android 16 (API 36): the deadline for new apps and updates is August 31, 2026, with an extension available to November 1"
+        },
+        {
+          "id": "c",
+          "text": "API 35 remains perfectly fine for app updates going forward from this point on; the API 36 targeting requirement applies only to brand-new app submissions"
+        },
+        {
+          "id": "d",
+          "text": "The update must instead target the newer API 37 (Android 17), which became the mandatory minimum baseline as of this September"
+        }
+      ],
+      "concept": "play-target-api-deadline",
+      "sources": [
+        {
+          "url": "https://support.google.com/googleplay/android-developer/answer/11926878?hl=en",
+          "claim": "Starting August 31, 2026, new apps and app updates must target Android 16 (API level 36); developers can request an extension to November 1, 2026.",
+          "title": "Target API level requirements for Google Play apps - Play Console Help",
+          "accessed": "2026-09-27",
+          "publisher": "Google"
+        }
+      ],
+      "materials": [
+        "play-target-api",
+        "android-16-behavior-changes",
+        "android-17-behavior-changes"
+      ],
+      "explanation": "From August 31, 2026, new apps and app updates must target Android 16 (API 36), with an optional extension to November 1, 2026 on request. The separate rule for existing apps (API 35+ to stay available to new users on newer devices) covers apps that are not updated; it doesn't exempt updates."
+    },
+    {
+      "id": "w04-l04-q02",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w04-l04",
+      "prompt": "An existing app that won't be updated targets Android 14 (API 34). What happens after August 31, 2026 under Play's target API policy?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It is removed from Google Play entirely and permanently for all users worldwide, including everyone who already has the app installed on their device"
+        },
+        {
+          "id": "b",
+          "text": "Nothing happens at all to this listing, because Google's target API policy has always applied only to brand-new app submissions"
+        },
+        {
+          "id": "c",
+          "text": "It stays on Play, but new users running Android versions newer than its target can no longer discover or install it without API 35+"
+        },
+        {
+          "id": "d",
+          "text": "It is automatically detected by Play and recompiled server-side against API 36 without the developer needing to take any action"
+        }
+      ],
+      "concept": "play-target-api-deadline",
+      "sources": [
+        {
+          "url": "https://support.google.com/googleplay/android-developer/answer/11926878?hl=en",
+          "claim": "Existing apps must target Android 15 (API level 35) or higher by August 31, 2026 to remain available to new users on newer devices; apps targeting API 34 or lower lose that availability.",
+          "title": "Target API level requirements for Google Play apps - Play Console Help",
+          "accessed": "2026-09-27",
+          "publisher": "Google"
+        }
+      ],
+      "materials": [
+        "play-target-api",
+        "android-16-behavior-changes",
+        "android-17-behavior-changes"
+      ],
+      "explanation": "Existing apps must target at least API 35 by August 31, 2026 to stay available to new users on newer Android devices. Apps targeting API 34 or lower lose discoverability there, but existing installs are not removed. That is why abandoned apps quietly lose users rather than disappearing."
+    },
+    {
+      "id": "w04-l04-q03",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w04-l04",
+      "prompt": "An Activity overrides `onBackPressed()` to show a 'Discard draft?' dialog. After targeting API 36, the dialog never appears on Android 16 devices, and Back animates straight to the previous screen. Why, and what is the right fix?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Predictive back is on by default at API 36, so `onBackPressed()` isn't called; register an `OnBackPressedCallback`/`BackHandler` instead"
+        },
+        {
+          "id": "b",
+          "text": "`onBackPressed()` now silently runs on a dedicated background thread pool instead of the main thread, so any dialog it tries to show never renders"
+        },
+        {
+          "id": "c",
+          "text": "Edge-to-edge enforcement draws dialogs entirely behind the system status and navigation bars, making them invisible even though they still appear"
+        },
+        {
+          "id": "d",
+          "text": "Android 16 removed back navigation entirely from gesture mode, replacing it with a mandatory swipe-up-only home and recents gesture system"
+        }
+      ],
+      "concept": "android16-edge-to-edge-predictive-back",
+      "sources": [
+        {
+          "url": "https://developer.android.com/about/versions/16/behavior-changes-16",
+          "claim": "For apps targeting Android 16, predictive back system animations are enabled by default, onBackPressed is not called and KEYCODE_BACK is not dispatched; apps can temporarily opt out with android:enableOnBackInvokedCallback=\"false\".",
+          "title": "Behavior changes: Apps targeting Android 16 or higher | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "play-target-api",
+        "android-16-behavior-changes",
+        "android-17-behavior-changes"
+      ],
+      "explanation": "For apps targeting Android 16 on Android 16 devices, predictive back system animations are enabled by default, `onBackPressed()` isn't called and `KEYCODE_BACK` isn't dispatched. Use the supported back APIs (for example an `OnBackPressedCallback` enabled only while the draft is dirty). The manifest opt-out is temporary."
+    },
+    {
+      "id": "w04-l04-q04",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w04-l04",
+      "prompt": "An app (not a game) declares `android:screenOrientation=\"portrait\"` and `android:resizableActivity=\"false\"`. It now targets API 36. What happens on a tablet with smallest width ≥ 600dp running Android 16?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Both attributes are still fully honoured exactly as before, because the app explicitly declared them in its manifest at compile time"
+        },
+        {
+          "id": "b",
+          "text": "The app is letterboxed into a fixed portrait window as before, with black bars filling the remaining space on the tablet's display"
+        },
+        {
+          "id": "c",
+          "text": "The app is blocked from installing entirely on any large-screen device, and the Play Store hides its listing on tablets and foldables"
+        },
+        {
+          "id": "d",
+          "text": "Both are ignored, so the app must handle any orientation and size; a temporary opt-out exists but stops working at API 37"
+        }
+      ],
+      "concept": "large-screen-resizability-enforcement",
+      "sources": [
+        {
+          "url": "https://developer.android.com/about/versions/16/behavior-changes-16",
+          "claim": "On large screens (sw600dp+), screenOrientation, resizableActivity and min/max aspect ratio are ignored for apps targeting Android 16, except games; the PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY opt-out is temporary.",
+          "title": "Behavior changes: Apps targeting Android 16 or higher | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/about/versions/17/behavior-changes-17",
+          "claim": "The opt-out from ignored orientation, aspect ratio and resizability restrictions is no longer available for apps targeting Android 17 (API level 37).",
+          "title": "Behavior changes: Apps targeting Android 17 or higher | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "play-target-api",
+        "android-16-behavior-changes",
+        "android-17-behavior-changes"
+      ],
+      "explanation": "For apps targeting Android 16, orientation, resizability and aspect-ratio restrictions are ignored on displays with sw ≥ 600dp. Exceptions: games (by `android:appCategory`), smaller screens, and users who opt back into the app's default. `PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY` is a temporary opt-out, and Android 17 removes it for apps targeting API 37."
+    },
+    {
+      "id": "w04-l04-q05",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w04-l04",
+      "prompt": "Before bumping `targetSdk` to 37, you want to test the new lock-free `MessageQueue` against your current release candidate. What works?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It fundamentally can't be tested in any way until `targetSdk` is actually changed in the build file and the entire app is recompiled"
+        },
+        {
+          "id": "b",
+          "text": "Install a debuggable build and run `adb shell am compat enable USE_NEW_MESSAGEQUEUE <package>`, or toggle it from Developer options"
+        },
+        {
+          "id": "c",
+          "text": "Run the same change toggle directly on the signed, non-debuggable release build downloaded from Play onto a retail production device"
+        },
+        {
+          "id": "d",
+          "text": "Set the manifest attribute `android:usesNewMessageQueue=\"true\"` inside the application tag to enable the behavior ahead of time"
+        }
+      ],
+      "concept": "targetsdk-migration-compat-testing",
+      "sources": [
+        {
+          "url": "https://developer.android.com/guide/app-compatibility/test-debug",
+          "claim": "The compatibility framework toggles changes with adb shell am compat enable/disable/reset or Developer options without changing targetSdkVersion; on public user builds only debuggable apps can be toggled.",
+          "title": "Compatibility framework tools | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/about/versions/17/changes/messagequeue",
+          "claim": "Test the new MessageQueue without updating targetSdk using adb am compat enable USE_NEW_MESSAGEQUEUE <package>.",
+          "title": "MessageQueue behavior change guidance | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "play-target-api",
+        "android-16-behavior-changes",
+        "android-17-behavior-changes"
+      ],
+      "explanation": "The compatibility framework lets you toggle individual targetSdk-gated changes without changing `targetSdkVersion`, through ADB or Developer options. On public user builds, toggles only work for debuggable apps, so a non-debuggable Play build can't be toggled. `USE_NEW_MESSAGEQUEUE` is the flag for this change; the manifest attribute doesn't exist."
+    },
+    {
+      "id": "w04-l04-q06",
+      "type": "written",
+      "lesson": "w04-l04",
+      "prompt": "Your app targets API 35 and still uses `windowOptOutEdgeToEdgeEnforcement` and `onBackPressed()` overrides. Lay out what breaks when you target API 36 and how you migrate the UI.",
+      "concept": "android16-edge-to-edge-predictive-back",
+      "sources": [
+        {
+          "url": "https://developer.android.com/about/versions/16/behavior-changes-16",
+          "claim": "For apps targeting Android 16, windowOptOutEdgeToEdgeEnforcement is deprecated and disabled, predictive back animations are on by default, onBackPressed is not called and KEYCODE_BACK is not dispatched.",
+          "title": "Behavior changes: Apps targeting Android 16 or higher | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "play-target-api",
+        "android-16-behavior-changes",
+        "android-17-behavior-changes"
+      ],
+      "explanation": "A senior answer treats both as mandatory changes with a timeline, audits every back-interception point and screen edge, and doesn't depend on temporary opt-outs.",
+      "model_answer": {
+        "summary": "At API 36 the edge-to-edge opt-out is deprecated and disabled, so content draws behind the system bars and must handle insets. Predictive back is on by default, so `onBackPressed()` overrides and `KEYCODE_BACK` handling stop working and must move to the supported back APIs.",
+        "key_points": [
+          "`windowOptOutEdgeToEdgeEnforcement` is deprecated and disabled for apps targeting Android 16, so the app can no longer opt out of edge-to-edge",
+          "Handle window insets for system bars and IME so content and touch targets aren't hidden",
+          "Predictive back animations are enabled by default; `onBackPressed()` isn't called and `KEYCODE_BACK` isn't dispatched",
+          "Move custom back logic to `OnBackPressedCallback`/Compose `BackHandler`, enabled only when interception is needed, so system animations still work",
+          "`android:enableOnBackInvokedCallback=\"false\"` is only a temporary escape hatch"
+        ]
+      }
+    },
+    {
+      "id": "w04-l04-q07",
+      "type": "written",
+      "lesson": "w04-l04",
+      "prompt": "Your phone-first app locks portrait and disables resizing. Explain what Android 16 and 17 change for it on large screens, and describe how you would prepare the app.",
+      "concept": "large-screen-resizability-enforcement",
+      "sources": [
+        {
+          "url": "https://developer.android.com/about/versions/16/behavior-changes-16",
+          "claim": "For apps targeting Android 16 on sw600dp+ displays, orientation, resizability and aspect ratio restrictions are ignored, except for games and user opt-in; the opt-out won't apply when targeting API 37.",
+          "title": "Behavior changes: Apps targeting Android 16 or higher | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/about/versions/17/behavior-changes-17",
+          "claim": "Android 17 removes the option to opt out of ignored orientation, aspect ratio and resizability restrictions on large screens for apps targeting API 37.",
+          "title": "Behavior changes: Apps targeting Android 17 or higher | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "play-target-api",
+        "android-16-behavior-changes",
+        "android-17-behavior-changes"
+      ],
+      "explanation": "The senior answer connects a policy change to engineering work: layout adaptivity plus robust configuration-change handling, planned before the opt-out disappears.",
+      "model_answer": {
+        "summary": "For apps targeting Android 16, orientation, resizability and aspect-ratio restrictions are ignored on sw ≥ 600dp displays, with a temporary opt-out that disappears at targetSdk 37. The app must become adaptive and survive the frequent configuration changes that resizing causes.",
+        "key_points": [
+          "Ignored on sw600dp+ when targeting API 36: `screenOrientation`, `resizableActivity`, `min/maxAspectRatio`, `setRequestedOrientation()`",
+          "Exceptions: games (by `android:appCategory`), screens below sw600dp, and users who opt into the app's default behaviour",
+          "`PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY` is temporary and unavailable when targeting API 37",
+          "Prepare by building adaptive layouts (window size classes), testing resizing and multi-window, and making sure state survives recreation (ViewModel, saved state)"
+        ]
+      }
+    },
+    {
+      "id": "w04-l04-q08",
+      "type": "written",
+      "lesson": "w04-l04",
+      "prompt": "You own the targetSdk bump for a large app (35 → 36 now, 37 next). Describe a safe migration process, including how you find affected code, test changes one by one, and the Android 17 changes that commonly break libraries.",
+      "concept": "targetsdk-migration-compat-testing",
+      "sources": [
+        {
+          "url": "https://developer.android.com/guide/app-compatibility/test-debug",
+          "claim": "The compatibility framework lets developers turn targetSdk-gated breaking changes on and off individually with developer options or ADB, without changing targetSdkVersion.",
+          "title": "Compatibility framework tools | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/about/versions/17/behavior-changes-17",
+          "claim": "Apps targeting Android 17 cannot change static final fields: reflection throws IllegalAccessException and JNI modification crashes; the lock-free MessageQueue may break clients reflecting on its private fields.",
+          "title": "Behavior changes: Apps targeting Android 17 or higher | Android Developers",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "play-target-api",
+        "android-16-behavior-changes",
+        "android-17-behavior-changes"
+      ],
+      "explanation": "Seniors turn the bump into a controlled, incremental process with per-change toggles and dependency audits, instead of flipping targetSdk and hoping QA catches everything.",
+      "model_answer": {
+        "summary": "Inventory the behavior changes (all-apps vs. targetSdk-gated), toggle each gated change with the compatibility framework on a debuggable build to find breakage before the bump, fix or update dependencies, then bump and verify. For 37, watch reflection-based code: `static final` field writes and MessageQueue internals.",
+        "key_points": [
+          "Read both lists: changes affecting all apps on the new OS and changes gated by targetSdkVersion",
+          "Use the compatibility framework (`adb shell am compat enable/disable/reset` or Developer options) on a debuggable build to test gated changes individually without bumping targetSdk",
+          "Android 17: changing `static final` fields via reflection throws `IllegalAccessException` (JNI writes crash), and reflection on `MessageQueue` private fields breaks",
+          "Update test tooling (Espresso 3.7.0+, Robolectric 4.17+ with `@LooperMode(PAUSED)`) and audit libraries that rely on non-SDK internals",
+          "Schedule the bump against Play's target API deadline (API 36 for updates from August 31, 2026)"
+        ]
+      }
+    }
+  ]
+}

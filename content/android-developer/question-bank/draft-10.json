@@ -1,0 +1,1321 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "mobile-system-design-interview-framework",
+      "name": "A repeatable mobile system design framework"
+    },
+    {
+      "id": "feed-cursor-vs-offset-pagination",
+      "name": "Offset, keyset and cursor pagination for feeds"
+    },
+    {
+      "id": "feed-offline-cache-remote-mediator",
+      "name": "Offline feed caching with the database as source of truth"
+    },
+    {
+      "id": "feed-image-decode-sizing",
+      "name": "Decoding feed images at display size"
+    },
+    {
+      "id": "realtime-transport-websocket-vs-push",
+      "name": "WebSockets vs push vs polling on mobile"
+    },
+    {
+      "id": "message-send-idempotent-retries",
+      "name": "Message delivery states, ordering and idempotent retries"
+    },
+    {
+      "id": "chat-local-first-outbox-sync",
+      "name": "Local-first storage and sync for conversations"
+    },
+    {
+      "id": "radio-state-battery-batching",
+      "name": "Radio state, Doze and battery cost of real-time features"
+    },
+    {
+      "id": "image-loader-shared-cache-hierarchy",
+      "name": "Image loader cache hierarchy and shared instances"
+    },
+    {
+      "id": "library-binary-compatibility",
+      "name": "Evolving a library's public API without breaking clients"
+    },
+    {
+      "id": "mlkit-genai-on-device-constraints",
+      "name": "ML Kit GenAI and Gemini Nano constraints and fallbacks"
+    },
+    {
+      "id": "appfunctions-agent-tools",
+      "name": "AppFunctions: exposing app capabilities to agents"
+    },
+    {
+      "id": "star-story-structure",
+      "name": "The STAR method for behavioral answers"
+    },
+    {
+      "id": "senior-scope-influence-signals",
+      "name": "Senior signals: scope, ambiguity and influence"
+    },
+    {
+      "id": "code-review-code-health-standard",
+      "name": "Code review standards and comments"
+    },
+    {
+      "id": "ai-coding-agent-review-discipline",
+      "name": "Working safely with AI coding assistants and agents"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w12-l01-q01",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w12-l01",
+      "prompt": "The interviewer says \"Design a Twitter-style feed app.\" What should you do in the first five minutes?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Commit to MVVM or MVI right away and start sketching the ViewModel classes and their exposed state flows for the feed screen"
+        },
+        {
+          "id": "b",
+          "text": "Agree the scope: 3-5 functional requirements, the non-functional ones, and out-of-scope items, with clarifying questions"
+        },
+        {
+          "id": "c",
+          "text": "Design the backend's database schema and sharding strategy first, since the client architecture will follow from how the server stores posts"
+        },
+        {
+          "id": "d",
+          "text": "Start with the deepest component, image caching, and go into implementation detail there first to show expertise before anything else"
+        }
+      ],
+      "concept": "mobile-system-design-interview-framework",
+      "sources": [
+        {
+          "url": "https://github.com/weeeBox/mobile-system-design",
+          "claim": "The interview flow is introductions, 5 minutes of task definition and requirement gathering, 10 minutes of high-level discussion, then 20-30 minutes of detailed discussion; requirements split into functional, non-functional and out-of-scope.",
+          "title": "weeeBox/mobile-system-design",
+          "accessed": "2026-09-27",
+          "publisher": "GitHub (weeeBox)"
+        },
+        {
+          "url": "https://outcomeschool.com/blog/android-system-design-interviews",
+          "claim": "Always ask clarification questions to understand the requirements, and do not jump straight to implementation.",
+          "title": "Android System Design Interviews",
+          "accessed": "2026-09-27",
+          "publisher": "Outcome School"
+        }
+      ],
+      "materials": [
+        "mobile-system-design-weeebox",
+        "mobile-system-design-interview-book",
+        "outcomeschool-android-system-design"
+      ],
+      "explanation": "The usual structure is task definition and requirements, then a high-level diagram, then a deep dive the interviewer steers. Starting on implementation or architecture patterns before scope is the classic mistake; guides explicitly warn against jumping to implementation."
+    },
+    {
+      "id": "w12-l01-q02",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w12-l01",
+      "prompt": "The feed API uses `?offset=20&limit=20`. While a user scrolls, 5 new posts are inserted at the top. What happens when the client loads the next page, and what fixes it?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Nothing goes wrong: the API resolves every offset against a consistent snapshot the server took at the moment of the very first request in that session"
+        },
+        {
+          "id": "b",
+          "text": "The server rejects the request with a stale-offset error, forcing the client to restart pagination from the beginning of the feed"
+        },
+        {
+          "id": "c",
+          "text": "The next page shifts by 5, showing duplicates (page drift); cursors fix this by continuing from an opaque position"
+        },
+        {
+          "id": "d",
+          "text": "The next page silently skips 5 items instead of showing duplicates, and this skipping problem only ever shows up on SQL-backed APIs"
+        }
+      ],
+      "concept": "feed-cursor-vs-offset-pagination",
+      "sources": [
+        {
+          "url": "https://github.com/weeeBox/mobile-system-design",
+          "claim": "Offset pagination suffers from poor performance with large offsets and page drift when data changes; cursor pagination is more robust to data modifications and the API doesn't expose details about the underlying storage or ordering.",
+          "title": "weeeBox/mobile-system-design",
+          "accessed": "2026-09-27",
+          "publisher": "GitHub (weeeBox)"
+        }
+      ],
+      "materials": [
+        "mobile-system-design-weeebox",
+        "mobile-system-design-interview-book"
+      ],
+      "explanation": "With offset pagination, inserts ahead of the offset shift every later item, so the next page repeats items the user already saw (page drift), and large offsets are also slow. Cursor pagination continues from a server-issued position, so it copes with inserts and deletes."
+    },
+    {
+      "id": "w12-l01-q03",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w12-l01",
+      "prompt": "What is the main API design advantage of cursor pagination over keyset pagination such as `?created_after=2021-05-25T00:00:00`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Cursors let the client jump directly to any arbitrary page number the user requests, the way an offset-based API's page parameter does"
+        },
+        {
+          "id": "b",
+          "text": "An opaque cursor is the simplest of the three options to implement against a plain SQL table with a single auto-increment primary key"
+        },
+        {
+          "id": "c",
+          "text": "Keyset pagination's `created_after` filter cannot be backed by a database index, so every page requires a full table scan"
+        },
+        {
+          "id": "d",
+          "text": "The cursor is opaque, so the ordering field stays hidden and the backend can change storage"
+        }
+      ],
+      "concept": "feed-cursor-vs-offset-pagination",
+      "sources": [
+        {
+          "url": "https://github.com/weeeBox/mobile-system-design",
+          "claim": "Keyset pagination translates efficiently to database queries but requires a natural ordering field and exposes database implementation details; cursor pagination decouples the API from the underlying storage.",
+          "title": "weeeBox/mobile-system-design",
+          "accessed": "2026-09-27",
+          "publisher": "GitHub (weeeBox)"
+        }
+      ],
+      "materials": [
+        "mobile-system-design-weeebox",
+        "mobile-system-design-interview-book"
+      ],
+      "explanation": "Keyset pagination maps well to an indexed query, but it exposes the ordering field and needs a natural sort key. Cursor pagination hides that behind an opaque token, which decouples the API from storage at the cost of some complexity. Neither supports random page jumps well."
+    },
+    {
+      "id": "w12-l01-q04",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w12-l01",
+      "prompt": "You implement the feed with Paging 3, a Room `PagingSource` and a `RemoteMediator`. `initialize()` returns `LAUNCH_INITIAL_REFRESH`. What does that do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It shows the network response directly on screen as soon as it arrives, and only afterwards writes those same rows into Room in the background"
+        },
+        {
+          "id": "b",
+          "text": "It triggers a network REFRESH and blocks APPEND/PREPEND until it succeeds, while the UI reads only the database"
+        },
+        {
+          "id": "c",
+          "text": "It skips the network call entirely on this launch, trusting that whatever rows are already cached in Room are still fresh enough to show"
+        },
+        {
+          "id": "d",
+          "text": "It clears every row already stored in Room and disables offline reading of the feed until the fresh network refresh finishes"
+        }
+      ],
+      "concept": "feed-offline-cache-remote-mediator",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/libraries/architecture/paging/v3-network-db",
+          "claim": "The app uses the database as the source of truth and only displays data cached in the database; returning LAUNCH_INITIAL_REFRESH from initialize() also blocks RemoteMediator's APPEND and PREPEND from running until REFRESH succeeds; SKIP_INITIAL_REFRESH means cached data is up-to-date.",
+          "title": "Page from network and database",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-paging-3",
+        "android-offline-first"
+      ],
+      "explanation": "With `RemoteMediator`, the database is the single source of truth: network pages are written to Room and the UI only shows what is cached. `LAUNCH_INITIAL_REFRESH` refreshes from the network first and holds back APPEND and PREPEND until it succeeds. `SKIP_INITIAL_REFRESH` is for data that is still fresh."
+    },
+    {
+      "id": "w12-l01-q05",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w12-l01",
+      "prompt": "Feed items show 360x270 dp thumbnails, but the server sends 2048x1536 JPEGs. Low-end devices run out of memory while scrolling. Which statement is correct?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Each full decode costs about 12 MB in `ARGB_8888`, so decode at display size, for example `inSampleSize = 4`"
+        },
+        {
+          "id": "b",
+          "text": "Because the JPEG is compressed on disk, the decoded in-memory bitmap costs roughly the same number of megabytes as that compressed file size"
+        },
+        {
+          "id": "c",
+          "text": "Bitmap scaling is always handed off to the GPU compositor, so the sample size you decode at makes no difference to the Java heap or native memory usage"
+        },
+        {
+          "id": "d",
+          "text": "Switching every call site to `rememberAsyncImagePainter` fixes the memory problem, because it inspects the composable's measured size and downsamples to match automatically"
+        }
+      ],
+      "concept": "feed-image-decode-sizing",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/performance/graphics/load-bitmap",
+          "claim": "A 2048x1536 image decoded with inSampleSize 4 produces about 512x384, using 0.75MB rather than 12MB for the full image with ARGB_8888; load a lower resolution that matches the UI component.",
+          "title": "Loading large bitmaps efficiently",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://coil-kt.github.io/coil/compose/",
+          "claim": "AsyncImage determines the size to load based on the composable's constraints and ContentScale; rememberAsyncImagePainter does not detect the on-screen size and loads the image at its original dimensions.",
+          "title": "Compose - Coil",
+          "accessed": "2026-09-27",
+          "publisher": "Coil"
+        }
+      ],
+      "materials": [
+        "mobile-system-design-weeebox",
+        "android-memory"
+      ],
+      "explanation": "Decoded bitmaps cost width x height x 4 bytes in `ARGB_8888`, whatever the file size, so a 2048x1536 image is about 12 MB. Decoding at display size is the fix. `AsyncImage` resolves the request size from constraints and `ContentScale`, while `rememberAsyncImagePainter` loads at the original dimensions, so it is the wrong tool here."
+    },
+    {
+      "id": "w12-l01-q06",
+      "type": "written",
+      "lesson": "w12-l01",
+      "prompt": "Describe the framework you use for a 45-60 minute mobile system design interview, and how you handle it when the interviewer pushes back on one of your choices.",
+      "concept": "mobile-system-design-interview-framework",
+      "sources": [
+        {
+          "url": "https://github.com/weeeBox/mobile-system-design",
+          "claim": "Structure: requirements gathering, high-level diagram with API service, persistence, repository and image loader, then a detailed discussion; articulate assumptions and trade-offs; if stuck, ask for a hint because the interviewer is more interested in the approach than a perfect solution.",
+          "title": "weeeBox/mobile-system-design",
+          "accessed": "2026-09-27",
+          "publisher": "GitHub (weeeBox)"
+        }
+      ],
+      "materials": [
+        "mobile-system-design-weeebox",
+        "mobile-system-design-interview-book",
+        "outcomeschool-android-system-design"
+      ],
+      "explanation": "Seniors keep the time boxes, tie every choice to a requirement, and adapt without getting defensive.",
+      "model_answer": {
+        "summary": "Scope the requirements, agree the API and data model, draw the client architecture, then go deep where the interviewer points, stating trade-offs along the way. Treat pushback as new requirements: compare the options again instead of defending your first answer.",
+        "key_points": [
+          "Requirements: 3-5 functional features, non-functional needs (offline, real-time, performance, device range) and out-of-scope items, with clarifying questions about scale, OS versions and media",
+          "High-level client diagram: API service, persistence as the local source of truth, repository, image loader and navigation/coordination, plus the API and data model",
+          "Deep dives chosen with the interviewer: pagination, caching, real-time updates, offline sync. Go breadth first, then depth",
+          "Say the assumptions and trade-offs out loud (for example cursor vs offset, SSE vs WebSocket) and justify them against the stated requirements",
+          "On pushback or when stuck: restate the new constraint, re-evaluate openly, and ask for a hint. The interviewer cares more about the approach than a perfect answer"
+        ]
+      }
+    },
+    {
+      "id": "w12-l01-q07",
+      "type": "written",
+      "lesson": "w12-l01",
+      "prompt": "Deep dive: how does your news feed behave offline and when requests fail? Cover reading, liking a post while offline, cache limits and errors.",
+      "concept": "feed-offline-cache-remote-mediator",
+      "sources": [
+        {
+          "url": "https://github.com/weeeBox/mobile-system-design",
+          "claim": "Limit the total number of cached entries (e.g. 500), store attachments with LRU eviction, batch offline interactions and use an Idempotency-Key HTTP header to deduplicate retried requests.",
+          "title": "weeeBox/mobile-system-design",
+          "accessed": "2026-09-27",
+          "publisher": "GitHub (weeeBox)"
+        },
+        {
+          "url": "https://developer.android.com/topic/architecture/data-layer/offline-first",
+          "claim": "The local data source is the canonical source of truth; lazy writes write locally first then queue the network write; WorkManager retries synchronization with exponential backoff.",
+          "title": "Build an offline-first app",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-offline-first",
+        "android-paging-3",
+        "mobile-system-design-weeebox"
+      ],
+      "explanation": "The senior signal is that offline behaviour is designed in (source of truth, write strategy, bounds, idempotency), not added after a network error.",
+      "model_answer": {
+        "summary": "Room is the source of truth that the UI observes, with RemoteMediator filling it from the network. Likes are written locally first and synced later with idempotent retries. The cache is bounded, and errors appear as state over cached content, not as an empty screen.",
+        "key_points": [
+          "Reads come from the local database through `Flow`/`PagingData`. RemoteMediator loads pages from the network into Room, so cached posts show offline",
+          "Bound storage: cap cached feed entries (for example about 500) and keep media in an LRU-evicted file cache of a fixed size",
+          "Offline actions such as likes: write locally first (lazy write), queue them, and sync with WorkManager (network constraint, exponential backoff)",
+          "Retries must be safe: send an idempotency key so the server can drop duplicates, and let the server resolve conflicts",
+          "Errors: show `LoadState` errors with retry over the cached list, and mark stale data instead of clearing it"
+        ]
+      }
+    },
+    {
+      "id": "w12-l01-q08",
+      "type": "written",
+      "lesson": "w12-l01",
+      "prompt": "Your feed's scrolling is janky and memory climbs on low-end devices because of images. Explain the image pipeline you would design or configure, and why each part matters.",
+      "concept": "feed-image-decode-sizing",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/performance/graphics/load-bitmap",
+          "claim": "The lower-resolution version should match the UI component size; a 2048x1536 ARGB_8888 image uses 12MB, but 0.75MB when decoded with inSampleSize 4.",
+          "title": "Loading large bitmaps efficiently",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://coil-kt.github.io/coil/image_loaders/",
+          "claim": "Coil performs best with a single shared ImageLoader, since each ImageLoader has its own memory cache, disk cache and OkHttpClient; the memory cache can be sized with maxSizePercent.",
+          "title": "Image Loaders - Coil",
+          "accessed": "2026-09-27",
+          "publisher": "Coil"
+        }
+      ],
+      "materials": [
+        "mobile-system-design-weeebox",
+        "android-memory"
+      ],
+      "explanation": "Seniors know the cost is in decoded pixels, not file size, and fix the whole chain, including the server's image sizes.",
+      "model_answer": {
+        "summary": "Decode at display size, use one shared loader with a memory cache sized as a percentage of the heap plus a bounded disk cache, prefetch nearby items, cancel requests for items that scroll away, and release memory caches on trim signals.",
+        "key_points": [
+          "Decode at the target size (downsampling). Decoded memory is width x height x 4 bytes in `ARGB_8888`, so a full-size 2048x1536 image is about 12 MB",
+          "Use `AsyncImage`, which infers the size from constraints, instead of loading original dimensions with `rememberAsyncImagePainter`",
+          "One shared `ImageLoader`: a memory cache sized as a percentage of the heap and a bounded disk cache for network images",
+          "Prefetch images for items just beyond the viewport, and do not keep off-screen requests alive",
+          "Clear the memory cache on `TRIM_MEMORY_UI_HIDDEN`, and ask the backend for sized thumbnails (CDN variants) instead of originals"
+        ]
+      }
+    },
+    {
+      "id": "w12-l02-q01",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w12-l02",
+      "prompt": "In your chat design the app keeps a WebSocket open while in the foreground. How should a new message reach a user whose phone has been idle in their pocket for an hour?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Hold a partial wake lock and keep the same WebSocket connection open in the background for as long as the app process survives"
+        },
+        {
+          "id": "b",
+          "text": "Poll the server every 60 seconds by scheduling `AlarmManager.setExact` calls, since exact alarms are still delivered precisely while idle"
+        },
+        {
+          "id": "c",
+          "text": "Start a permanent foreground service just to keep that one socket connection open for the whole time the phone is idle in the pocket"
+        },
+        {
+          "id": "d",
+          "text": "Send an FCM high-priority message that shows a notification; reconnect the socket when the app is reopened"
+        }
+      ],
+      "concept": "realtime-transport-websocket-vs-push",
+      "sources": [
+        {
+          "url": "https://developer.android.com/training/monitoring-device-state/doze-standby",
+          "claim": "In Doze the system suspends network access, ignores wake locks and defers standard AlarmManager alarms; FCM high priority messages are delivered and give the app temporary network access and partial wakelocks.",
+          "title": "Optimize for Doze and App Standby",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "mobile-system-design-weeebox",
+        "mobile-system-design-interview-book",
+        "android-background-tasks"
+      ],
+      "explanation": "In Doze the system suspends network access, ignores wake locks and defers standard alarms, so a background socket or exact polling will not work reliably. FCM high-priority messages are delivered in Doze and give the app brief network access. Use them for user-visible messages and keep the socket for foreground use."
+    },
+    {
+      "id": "w12-l02-q02",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w12-l02",
+      "prompt": "To keep conversations fresh, a teammate sends a high-priority FCM data message every 5 minutes that silently triggers a sync with no notification. What is the risk?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "FCM may deprioritize this pattern of messages to normal, which Doze then delays alongside the real chat messages"
+        },
+        {
+          "id": "b",
+          "text": "None at all, since Firebase documents that every message sent at high priority is guaranteed to be delivered to the device immediately"
+        },
+        {
+          "id": "c",
+          "text": "FCM's servers reject any data-only message outright unless it also carries a visible notification payload alongside the data fields"
+        },
+        {
+          "id": "d",
+          "text": "Sending frequent high-priority messages permanently exempts the app from ever entering Doze or App Standby again on that device"
+        }
+      ],
+      "concept": "realtime-transport-websocket-vs-push",
+      "sources": [
+        {
+          "url": "https://firebase.google.com/docs/cloud-messaging/android/message-priority",
+          "claim": "High priority messages should generally result in user interaction; if FCM detects a pattern in which messages don't result in user-facing notifications, your messages may be deprioritized to normal priority; normal priority may be delayed in Doze; delivery is not guaranteed.",
+          "title": "Setting the priority of a message (Android)",
+          "accessed": "2026-09-27",
+          "publisher": "Firebase (Google)"
+        }
+      ],
+      "materials": [
+        "mobile-system-design-weeebox",
+        "mobile-system-design-interview-book"
+      ],
+      "explanation": "High priority is for messages that lead to user interaction, such as chat notifications. If FCM sees a pattern of high-priority messages that produce no user-facing notification, it may deprioritize them to normal, which Doze then delays. Delivery is never guaranteed for either priority."
+    },
+    {
+      "id": "w12-l02-q03",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w12-l02",
+      "prompt": "A user sends a message on a flaky network. The request times out, and the client retries, but the first request had actually reached the server. How do you avoid a duplicate message?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Never automatically retry any send on a timeout; instead show a permanent error and require the user to manually compose the message again"
+        },
+        {
+          "id": "b",
+          "text": "Keep the same retry logic but double the request timeout, on the theory that a longer wait avoids the race the first request created"
+        },
+        {
+          "id": "c",
+          "text": "Attach a client-generated idempotency key to the send, so the server dedupes and returns the same result for retries"
+        },
+        {
+          "id": "d",
+          "text": "Delete the pending local copy of the message as soon as the request times out, and prompt the user to type and send it again from scratch"
+        }
+      ],
+      "concept": "message-send-idempotent-retries",
+      "sources": [
+        {
+          "url": "https://github.com/weeeBox/mobile-system-design",
+          "claim": "Implement request deduplication using the Idempotency-Key HTTP header to prevent duplicate operations during retries.",
+          "title": "weeeBox/mobile-system-design",
+          "accessed": "2026-09-27",
+          "publisher": "GitHub (weeeBox)"
+        }
+      ],
+      "materials": [
+        "mobile-system-design-weeebox",
+        "mobile-system-design-interview-book"
+      ],
+      "explanation": "Timeouts do not tell you whether the server processed the request, so retries must be idempotent. A client-generated ID per message (for example sent as an `Idempotency-Key` header) lets the server deduplicate, and lets the client match the server's acknowledgement to its pending local message."
+    },
+    {
+      "id": "w12-l02-q04",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w12-l02",
+      "prompt": "Which offline-first write strategy fits sending a chat message that the user expects to see in the conversation immediately, even without a connection?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Online-only write: send the message to the server first, and only insert it into the conversation once the server has confirmed success"
+        },
+        {
+          "id": "b",
+          "text": "Lazy write: insert it as pending locally first, then queue the network write to go out as soon as possible"
+        },
+        {
+          "id": "c",
+          "text": "Pull-based sync: hold the message locally and only actually transmit it the next time the user happens to reopen this conversation screen"
+        },
+        {
+          "id": "d",
+          "text": "Keep the pending message only as in-memory ViewModel state until connectivity returns, then write it to the database and send it"
+        }
+      ],
+      "concept": "chat-local-first-outbox-sync",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/architecture/data-layer/offline-first",
+          "claim": "Lazy writes write to the local data source first, then queue the write to notify the network at the earliest opportunity; online-only writes suit near-real-time transactions like a bank transfer; the local data source is the source of truth.",
+          "title": "Build an offline-first app",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "mobile-system-design-weeebox",
+        "mobile-system-design-interview-book",
+        "android-offline-first"
+      ],
+      "explanation": "A lazy write puts the message in the local store (the source of truth the UI observes) and queues the network write, so it appears instantly and survives process death. Online-only writes suit actions that must happen in near real time, such as a bank transfer. Holding it only in memory loses it if the process dies."
+    },
+    {
+      "id": "w12-l02-q05",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w12-l02",
+      "prompt": "Your chat client sends a small presence heartbeat three times a minute. Why is this worse for battery than one combined transfer per minute?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Three separate small HTTP requests carry more total header and framing overhead in bytes than the same payload sent as one combined transfer"
+        },
+        {
+          "id": "b",
+          "text": "Each new heartbeat connection forces a fresh TLS handshake and full certificate renegotiation, which is expensive compared to one longer-lived connection"
+        },
+        {
+          "id": "c",
+          "text": "The platform enforces a hard throttle that silently drops or delays any app request beyond one network call per minute for background apps"
+        },
+        {
+          "id": "d",
+          "text": "The radio has a power tail (about 18s on 3G) after each transfer, so frequent small ones keep it almost always active"
+        }
+      ],
+      "concept": "radio-state-battery-batching",
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/connectivity/network-ops/network-access-optimization",
+          "claim": "Every data transfer session causes the radio to draw energy for at least 18 seconds on a typical 3G radio; one-second transfers three times a minute keep the radio perpetually active, while a single bundled transfer lets it idle for 40 seconds of every minute.",
+          "title": "Optimize network access",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "mobile-system-design-weeebox",
+        "mobile-system-design-interview-book"
+      ],
+      "explanation": "The radio's energy cost comes mostly from the tail time after each transfer, not from the bytes. Frequent small transfers keep the radio at high power almost all the time, while bundling the same data into fewer transfers leaves long standby periods. Batch or piggyback non-urgent traffic."
+    },
+    {
+      "id": "w12-l02-q06",
+      "type": "written",
+      "lesson": "w12-l02",
+      "prompt": "Design the send path and delivery states (sending, sent, delivered, read, failed) for a chat app. Cover ordering, retries and what the user sees.",
+      "concept": "message-send-idempotent-retries",
+      "sources": [
+        {
+          "url": "https://github.com/weeeBox/mobile-system-design",
+          "claim": "Use the Idempotency-Key HTTP header to deduplicate operations during retries; prefer server-side authority for conflict resolution.",
+          "title": "weeeBox/mobile-system-design",
+          "accessed": "2026-09-27",
+          "publisher": "GitHub (weeeBox)"
+        },
+        {
+          "url": "https://developer.android.com/topic/architecture/data-layer/offline-first",
+          "claim": "If synchronization fails, WorkManager automatically retries with exponential backoff; the worker returns Result.retry() on failure.",
+          "title": "Build an offline-first app",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "mobile-system-design-weeebox",
+        "mobile-system-design-interview-book",
+        "android-workmanager"
+      ],
+      "explanation": "Seniors separate the client ID from the server ID, use server-assigned order, and make every retry safe to repeat.",
+      "model_answer": {
+        "summary": "Each message gets a client ID and is stored locally as pending. It is sent idempotently with retries and backoff. The server acknowledges with its own ID and a per-conversation sequence number, which sets the order, and delivered and read receipts arrive as events that update the local row.",
+        "key_points": [
+          "The client creates a message ID, writes the message locally with status `SENDING` and shows it at once",
+          "Sending is idempotent: the client ID or idempotency key lets the server deduplicate retries after timeouts",
+          "Retries use exponential backoff through a persisted queue (for example WorkManager) that survives process death. Mark the message `FAILED` with a tap-to-retry after a limit",
+          "Ordering comes from the server: a per-conversation sequence number or server timestamp decides the final order, while pending local messages show at the end",
+          "Receipts: the server acknowledgement moves the message to `SENT`, and delivered and read events from recipients arrive over the socket or push and update the stored status"
+        ]
+      }
+    },
+    {
+      "id": "w12-l02-q07",
+      "type": "written",
+      "lesson": "w12-l02",
+      "prompt": "How do you store conversations on the device and keep them in sync with the server, including after the app was offline for two days?",
+      "concept": "chat-local-first-outbox-sync",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/architecture/data-layer/offline-first",
+          "claim": "The local data source is the canonical source of truth read via observable types; push-based sync relies on server notifications for stale data and lets the app remain offline indefinitely; last write wins uses timestamps; WorkManager runs sync with network constraints and exponential backoff.",
+          "title": "Build an offline-first app",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "mobile-system-design-weeebox",
+        "android-offline-first",
+        "android-workmanager"
+      ],
+      "explanation": "Stronger answers use push-triggered, cursor-based incremental sync and a persisted outbox, and explain what happens when the process dies partway through.",
+      "model_answer": {
+        "summary": "Room is the source of truth the UI observes, with an outbox of pending sends. Sync pulls changes since the last cursor when online, is triggered by push or the socket, runs under WorkManager with constraints and backoff, and the server resolves conflicts.",
+        "key_points": [
+          "The local database (Room) is the single source of truth. The UI observes conversations and messages as `Flow`s, and writes land locally first",
+          "An outbox table of pending messages is drained by a unique WorkManager job with a network constraint and exponential backoff",
+          "Incremental sync: store a per-conversation cursor or last sequence number, and ask for changes since then when online. Push or socket events trigger it",
+          "Conflicts: the server is authoritative (or last-write-wins by timestamp for simple fields). Deduplicate by message ID when merging",
+          "Bound local storage (page older history from the server) and handle a very long gap by resyncing or paging instead of downloading everything"
+        ]
+      }
+    },
+    {
+      "id": "w12-l02-q08",
+      "type": "written",
+      "lesson": "w12-l02",
+      "prompt": "An interviewer asks: \"Why not just use a WebSocket all the time, or poll every 10 seconds?\" Defend your transport choice for a chat app, including battery and network cost.",
+      "concept": "radio-state-battery-batching",
+      "sources": [
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc6455",
+          "claim": "The WebSocket Protocol enables two-way communication over a single connection established via an HTTP Upgrade handshake; a Ping frame may serve as a keepalive.",
+          "title": "RFC 6455: The WebSocket Protocol",
+          "accessed": "2026-09-27",
+          "publisher": "IETF"
+        },
+        {
+          "url": "https://github.com/weeeBox/mobile-system-design",
+          "claim": "Push notifications can wake the app in the background but are not 100% reliable; short polling has inefficient bandwidth usage; WebSockets provide full-duplex, lower-latency communication but require maintaining an active connection.",
+          "title": "weeeBox/mobile-system-design",
+          "accessed": "2026-09-27",
+          "publisher": "GitHub (weeeBox)"
+        }
+      ],
+      "materials": [
+        "mobile-system-design-weeebox",
+        "mobile-system-design-interview-book"
+      ],
+      "explanation": "Seniors match the transport to the app state (foreground socket, background push) and explain battery cost in terms of radio states, not bytes.",
+      "model_answer": {
+        "summary": "Use a WebSocket only while the app is in the foreground, because it is full-duplex over one connection with low latency. In the background, rely on FCM high-priority push for user-visible messages, since Doze suspends the network and ignores wake locks. Avoid polling because radio tail time makes frequent small requests expensive.",
+        "key_points": [
+          "WebSocket: full-duplex over a single TCP connection after an HTTP Upgrade, with ping/pong keepalives and low latency, which fits foreground chat and typing indicators",
+          "Background: Doze suspends network access and ignores wake locks, so a background socket or polling is unreliable. FCM high-priority messages are delivered in Doze for user-visible notifications",
+          "Polling keeps the radio in high-power states through repeated tail times and wastes bandwidth when nothing changed. Long polling or SSE are middle options",
+          "Batch non-urgent traffic (presence, read receipts, analytics) and prefetch when the radio is already on",
+          "Reconnect with backoff and resync from the last cursor on app open, since no transport gives guaranteed delivery"
+        ]
+      }
+    },
+    {
+      "id": "w12-l03-q01",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w12-l03",
+      "prompt": "Several feature modules in your app each create their own Coil `ImageLoader`. Why is that a problem?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Coil throws an `IllegalStateException` at app startup the moment a second `ImageLoader` instance is constructed anywhere in the process"
+        },
+        {
+          "id": "b",
+          "text": "Each `ImageLoader` owns its own memory cache, disk cache and `OkHttpClient`, splitting cache hits and wasting memory and connections"
+        },
+        {
+          "id": "c",
+          "text": "Only the very first `ImageLoader` created in the process is allowed to decode bitmaps off the main thread; every later one decodes synchronously"
+        },
+        {
+          "id": "d",
+          "text": "Once a second `ImageLoader` exists, request cancellation stops working across the whole app, so scrolled-away images keep loading forever"
+        }
+      ],
+      "concept": "image-loader-shared-cache-hierarchy",
+      "sources": [
+        {
+          "url": "https://coil-kt.github.io/coil/image_loaders/",
+          "claim": "Coil performs best when you create a single ImageLoader and share it throughout your app, because each ImageLoader has its own memory cache, disk cache and OkHttpClient.",
+          "title": "Image Loaders - Coil",
+          "accessed": "2026-09-27",
+          "publisher": "Coil"
+        }
+      ],
+      "materials": [
+        "mobile-system-design-weeebox"
+      ],
+      "explanation": "Coil recommends a single shared `ImageLoader`, because each instance owns a memory cache, a disk cache and an HTTP client. Separate instances fragment the caches, so the same image may be decoded and stored twice. For a shared library that is an API design decision too: expose a way to inject one loader."
+    },
+    {
+      "id": "w12-l03-q02",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w12-l03",
+      "prompt": "Your library published `fun fetch(url: String)`. In a minor release you change it to `fun fetch(url: String, retries: Int = 3)`. An app that depends on another library compiled against the old version now crashes. Why?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Kotlin default arguments are resolved at runtime by the JVM, so the old, precompiled caller quietly passes `null` for the missing `retries` argument"
+        },
+        {
+          "id": "b",
+          "text": "The change breaks source compatibility, so the dependent app fails to recompile against the new library version and needs a source-level fix before it builds"
+        },
+        {
+          "id": "c",
+          "text": "The bytecode signature changed, so old code compiled against `fetch(String)` fails at runtime with `NoSuchMethodError`"
+        },
+        {
+          "id": "d",
+          "text": "Kotlin's semantic-versioning rules forbid a minor release from adding any parameter to an existing public function, even one with a default value"
+        }
+      ],
+      "concept": "library-binary-compatibility",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/api-guidelines-backward-compatibility.html",
+          "claim": "Adding a default parameter changes the method signature in bytecode, breaking binary compatibility and causing NoSuchMethodError for old client code; it is possible to break binary compatibility without breaking source compatibility.",
+          "title": "Backward compatibility guidelines for library authors",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "kotlin-docs"
+      ],
+      "explanation": "Callers compiled earlier refer to the exact bytecode signature `fetch(String)`, which no longer exists, so they fail with `NoSuchMethodError` even though recompiled sources would still build. Keep the old overload (manually or with `@JvmOverloads`) and use a binary-compatibility validator in CI."
+    },
+    {
+      "id": "w12-l03-q03",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w12-l03",
+      "prompt": "What are AppFunctions on Android?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A Jetpack library that lets an app bundle and run its own private copy of the Gemini Nano model directly inside the app's own process"
+        },
+        {
+          "id": "b",
+          "text": "A newer replacement for deep links, designed to open a specific in-app screen when the user taps a notification generated by a background job"
+        },
+        {
+          "id": "c",
+          "text": "A way to package server-side cloud functions directly inside the APK so the same code can run fully offline without any device changes"
+        },
+        {
+          "id": "d",
+          "text": "A platform API and Jetpack library that let an app expose functions as on-device tools that agents and assistants like Gemini can discover and call"
+        }
+      ],
+      "concept": "appfunctions-agent-tools",
+      "sources": [
+        {
+          "url": "https://developer.android.com/ai/appfunctions",
+          "claim": "AppFunctions is an Android platform API with a Jetpack library that lets apps behave like on-device MCP servers, contributing functions that act as tools for agents and assistants like Gemini; they are the mobile equivalent of MCP tools.",
+          "title": "AppFunctions overview",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-ai-overview"
+      ],
+      "explanation": "AppFunctions make your app act like an on-device MCP server: you annotate functions with `@AppFunction`, the library generates a schema that the OS indexes, and agents select and run functions based on the user's prompt. They are not a model runtime; on-device models are accessed through ML Kit GenAI and AICore."
+    },
+    {
+      "id": "w12-l03-q04",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w12-l03",
+      "prompt": "You run ML Kit GenAI summarization of long email threads from a nightly WorkManager job so results are ready in the morning. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The nightly job runs successfully and produces summaries overnight, but only on devices that happen to be plugged in and charging at the time"
+        },
+        {
+          "id": "b",
+          "text": "Inference fails with `BACKGROUND_USE_BLOCKED`, since GenAI runs only while the app is foreground"
+        },
+        {
+          "id": "c",
+          "text": "The library detects it is running in a background job and silently routes the same summarization request to a cloud-hosted Gemini model instead"
+        },
+        {
+          "id": "d",
+          "text": "The background job succeeds as long as the code calls `downloadFeature()` once beforehand to make sure the on-device model is present"
+        }
+      ],
+      "concept": "mlkit-genai-on-device-constraints",
+      "sources": [
+        {
+          "url": "https://developers.google.com/ml-kit/genai",
+          "claim": "GenAI API inference is permitted only when the app is the top foreground application; background usage triggers ErrorCode.BACKGROUND_USE_BLOCKED; too many requests in a short period result in ErrorCode.BUSY.",
+          "title": "ML Kit GenAI APIs",
+          "accessed": "2026-09-27",
+          "publisher": "Google for Developers"
+        }
+      ],
+      "materials": [
+        "mlkit-genai",
+        "gemini-nano"
+      ],
+      "explanation": "The ML Kit GenAI APIs run on-device through AICore, allow inference only when the app is in the foreground, and return `BUSY` when you exceed quota. Background summarization therefore needs a different design: summarize on demand in the foreground, or use a cloud model where policy allows. Downloading the feature does not lift the foreground rule."
+    },
+    {
+      "id": "w12-l03-q05",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w12-l03",
+      "prompt": "You expose `createTask` as an AppFunction. Who can discover and call it, and on which devices?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Callers holding `EXECUTE_APP_FUNCTIONS`, such as agents and assistants, on Android 16 or higher"
+        },
+        {
+          "id": "b",
+          "text": "Any app installed on the device, without needing any special permission at all, going all the way back to Android 8.0 (API 26) and later"
+        },
+        {
+          "id": "c",
+          "text": "Only code running inside your own app's process, and even then only by using reflection to invoke the annotated function directly"
+        },
+        {
+          "id": "d",
+          "text": "Only the Google Play services process itself, and only on devices whose hardware is capable of running the Gemini Nano model on-device"
+        }
+      ],
+      "concept": "appfunctions-agent-tools",
+      "sources": [
+        {
+          "url": "https://developer.android.com/ai/appfunctions",
+          "claim": "AppFunctions is available on devices running Android 16 or higher; callers must have the EXECUTE_APP_FUNCTIONS permission to discover and execute AppFunctions, and can include agents, apps and AI assistants like Gemini.",
+          "title": "AppFunctions overview",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-ai-overview"
+      ],
+      "explanation": "AppFunctions are available on Android 16+, and callers need the `EXECUTE_APP_FUNCTIONS` permission to discover and run them. Callers should check that the device supports the feature by getting an `AppFunctionManager` first. Design each function as a public, versioned API: clear parameters and KDoc descriptions that agents use."
+    },
+    {
+      "id": "w12-l03-q06",
+      "type": "written",
+      "lesson": "w12-l03",
+      "prompt": "Design an image loading library for your company's apps. Cover the cache layers, memory limits, cancellation and threading.",
+      "concept": "image-loader-shared-cache-hierarchy",
+      "sources": [
+        {
+          "url": "https://coil-kt.github.io/coil/image_loaders/",
+          "claim": "Each ImageLoader has a memory cache of recently decoded bitmaps (sized with maxSizePercent) and a disk cache (DiskCache.Builder with directory and maxSizePercent) for internet images; share a single ImageLoader.",
+          "title": "Image Loaders - Coil",
+          "accessed": "2026-09-27",
+          "publisher": "Coil"
+        },
+        {
+          "url": "https://developer.android.com/topic/performance/graphics/load-bitmap",
+          "claim": "Load a lower-resolution version matching the size of the UI component, since a higher resolution takes up memory with no visible benefit.",
+          "title": "Loading large bitmaps efficiently",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "mobile-system-design-weeebox"
+      ],
+      "explanation": "Seniors discuss the cache key, bounded resources and lifecycle-bound cancellation, not only \"use an LRU cache\".",
+      "model_answer": {
+        "summary": "A request goes through the memory cache, then the disk cache, then the network, decodes off the main thread at the target size, and is cancelled when its view or composable goes away. One shared loader holds bounded caches, identical in-flight requests are merged, and the loader responds to memory trim signals.",
+        "key_points": [
+          "Pipeline: in-memory decoded-bitmap cache, then disk cache of downloaded bytes, then network fetch, with a cache key that includes size and transformations",
+          "Memory: size the memory cache as a percentage of the heap, bound the disk cache, decode at target size, and clear on `onTrimMemory`",
+          "Cancellation: tie each request to its target's lifecycle (view detach or leaving composition) so off-screen or recycled items stop wasting work and cannot show the wrong image",
+          "Threading: network I/O and decoding off the main thread with bounded parallelism. Deliver results on the main thread",
+          "One shared instance (singleton or DI) so caches and the HTTP client are shared; merge duplicate in-flight requests for the same key"
+        ]
+      }
+    },
+    {
+      "id": "w12-l03-q07",
+      "type": "written",
+      "lesson": "w12-l03",
+      "prompt": "Product wants \"summarize this conversation\" in your messaging app, on-device first. Design the feature: availability checks, fallbacks, privacy and device support.",
+      "concept": "mlkit-genai-on-device-constraints",
+      "sources": [
+        {
+          "url": "https://developers.google.com/ml-kit/genai/summarization/android",
+          "claim": "Feature status values are UNAVAILABLE, DOWNLOADABLE, DOWNLOADING and AVAILABLE; downloadFeature() downloads with progress; input must stay under 4,000 tokens; release resources with summarizer.close().",
+          "title": "GenAI Summarization API",
+          "accessed": "2026-09-27",
+          "publisher": "Google for Developers"
+        },
+        {
+          "url": "https://developer.android.com/ai/overview",
+          "claim": "On-device processing keeps sensitive data local and works offline but is constrained by hardware and varies by device; cloud models are more powerful but transmit data; a hybrid of on-device and cloud models is an option.",
+          "title": "AI/ML solutions for Android",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "mlkit-genai",
+        "gemini-nano",
+        "android-ai-overview"
+      ],
+      "explanation": "A senior answer treats availability as a normal state, makes the privacy trade-off explicit to users, and designs the fallback deliberately.",
+      "model_answer": {
+        "summary": "Check the feature status and download the model when needed. Run on-device only in the foreground and within input limits. When it is unavailable, fall back to a cloud model with clear consent, or hide the feature. On-device keeps private messages local, at the cost of capability and device coverage.",
+        "key_points": [
+          "Call `checkFeatureStatus()`: `AVAILABLE` runs, `DOWNLOADABLE` starts `downloadFeature()` with progress, `DOWNLOADING` waits, `UNAVAILABLE` takes the fallback path",
+          "Constraints: foreground-only inference, `BUSY` quota errors (back off), about 4,000-token input limits (truncate or chunk), limited languages, and `close()` the client when done",
+          "Privacy: on-device inference through AICore keeps the conversation on the device and AICore does not store inputs or outputs. That is the reason to go on-device first for private messages",
+          "Fallback: a cloud model (for example Gemini via Firebase AI Logic) handles more devices and larger inputs, but sends data off the device. Require explicit consent and disclosure, or disable the feature",
+          "Device support varies by manufacturer and model version, so design the UI to degrade gracefully and measure availability and quality"
+        ]
+      }
+    },
+    {
+      "id": "w12-l03-q08",
+      "type": "written",
+      "lesson": "w12-l03",
+      "prompt": "Your team publishes an Android SDK used by 20 other teams. How do you design and evolve its public API so upgrades don't break them?",
+      "concept": "library-binary-compatibility",
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/api-guidelines-backward-compatibility.html",
+          "claim": "Data classes in public APIs break compatibility when properties change (constructor, copy, componentN); @PublishedApi declarations must be treated as public; the binary-compatibility-validator adds apiDump and apiCheck; deprecation should go warning, then error, then hidden, with breaking changes only in major releases.",
+          "title": "Backward compatibility guidelines for library authors",
+          "accessed": "2026-09-27",
+          "publisher": "JetBrains (kotlinlang.org)"
+        }
+      ],
+      "materials": [
+        "kotlin-docs"
+      ],
+      "explanation": "The senior signal is knowing Kotlin-specific binary compatibility traps and enforcing compatibility with tools, not just good intentions.",
+      "model_answer": {
+        "summary": "Keep the public surface small and explicit, avoid constructs that break binary compatibility (data classes, adding default parameters), guard the API with a binary-compatibility validator in CI, and remove APIs only through staged deprecation in major releases.",
+        "key_points": [
+          "Enable explicit API mode and declare return types explicitly. Keep implementation `internal`, and remember that `@PublishedApi` internals used by inline functions are effectively public",
+          "Avoid public data classes, because adding properties changes the constructor, `copy()` and `componentN`. Avoid adding default parameters to existing functions and add overloads instead",
+          "Run the binary-compatibility validator (`apiDump` / `apiCheck`) in CI so any change to the `.api` file is reviewed",
+          "Deprecate in steps (WARNING, then ERROR, then HIDDEN) with `ReplaceWith`, and make breaking changes only in major versions",
+          "Distinguish binary from source compatibility: prebuilt dependencies need binary compatibility even when sources still compile"
+        ]
+      }
+    },
+    {
+      "id": "w12-l04-q01",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w12-l04",
+      "prompt": "A candidate's answer to \"Tell me about a hard bug\" spends four minutes on the system's background and says \"we\" throughout. What is the best feedback?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Add even more technical background about the system's architecture, so the interviewer fully understands the setup before hearing what happened"
+        },
+        {
+          "id": "b",
+          "text": "Keep saying \"we\" throughout the rest of the answer too, since consistently crediting the team signals that you are a strong team player"
+        },
+        {
+          "id": "c",
+          "text": "Skip describing the eventual result altogether, since the outcome of any team effort depends on many people and cannot fairly be credited to one person"
+        },
+        {
+          "id": "d",
+          "text": "Keep Situation and Task short, spend most time on your Action, and end with a concrete Result and lesson"
+        }
+      ],
+      "concept": "star-story-structure",
+      "sources": [
+        {
+          "url": "https://www.techinterviewhandbook.org/behavioral-interview/",
+          "claim": "STAR is Situation, Task, Action, Result; the interviewer looks for what you did and your reasoning; consider adding an extra R for Reflection on what you learned.",
+          "title": "Behavioral interviews for software engineers",
+          "accessed": "2026-09-27",
+          "publisher": "Tech Interview Handbook"
+        }
+      ],
+      "materials": [
+        "tech-interview-handbook-behavioral"
+      ],
+      "explanation": "In STAR the interviewer mainly assesses the Action: what you did and why. A long situation and \"we\" everywhere hide your contribution. Finish with the Result and, as the handbook suggests, a Reflection on what you learned."
+    },
+    {
+      "id": "w12-l04-q02",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w12-l04",
+      "prompt": "For a senior engineer loop, which story shows the expected scope best?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "You single-handedly tracked down and fixed a tricky, hard-to-reproduce crash over a weekend, without looping in any other engineer on the team"
+        },
+        {
+          "id": "b",
+          "text": "You wrote a clean, well-tested utility class on your own that a couple of other engineers later found useful and reused in their own code"
+        },
+        {
+          "id": "c",
+          "text": "You led four engineers through an offline-sync migration, including winning over the skeptics"
+        },
+        {
+          "id": "d",
+          "text": "You personally redesigned and rolled out a new engineering-wide release process that changed how five separate teams across the company ship code"
+        }
+      ],
+      "concept": "senior-scope-influence-signals",
+      "sources": [
+        {
+          "url": "https://www.techinterviewhandbook.org/behavioral-interview-rubrics/",
+          "claim": "Senior scope is impact on their entire team, usually requiring three or more people to work on; staff scope is impact on their entire org, usually requiring two or more teams.",
+          "title": "Behavioral interview rubrics",
+          "accessed": "2026-09-27",
+          "publisher": "Tech Interview Handbook"
+        }
+      ],
+      "materials": [
+        "tech-interview-handbook-behavioral"
+      ],
+      "explanation": "In the handbook's rubric, senior scope is impact on the whole team, usually work that needs three or more people. Org-wide, multi-team impact is the staff signal, so it can over-reach for a senior loop, and solo fixes read as junior scope. Showing how you influenced skeptics adds the influence signal."
+    },
+    {
+      "id": "w12-l04-q03",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w12-l04",
+      "prompt": "In a live code-review round, the PR fixes a real bug and improves the code, but you would have named two variables differently and prefer a different but equivalent loop style. What should you do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Approve, leaving optional `Nit:` comments on the naming, since the change clearly improves code health"
+        },
+        {
+          "id": "b",
+          "text": "Block the pull request from merging and require the author to rename the variables and rewrite the loop to match your own preferred style exactly"
+        },
+        {
+          "id": "c",
+          "text": "Check out their branch yourself, rewrite the two variable names and the loop, and push the changes directly to their branch without discussion"
+        },
+        {
+          "id": "d",
+          "text": "Approve without leaving any comment at all, because a reviewer's job is to check correctness only and style is never worth mentioning even as a nit"
+        }
+      ],
+      "concept": "code-review-code-health-standard",
+      "sources": [
+        {
+          "url": "https://google.github.io/eng-practices/review/reviewer/standard.html",
+          "claim": "Reviewers should favor approving a CL once it definitely improves the overall code health even if it isn't perfect; there is no perfect code, only better code; technical facts and data overrule opinions and personal preferences; prefix optional points with Nit:.",
+          "title": "The Standard of Code Review",
+          "accessed": "2026-09-27",
+          "publisher": "Google Engineering Practices"
+        }
+      ],
+      "materials": [
+        "android-interview-questions"
+      ],
+      "explanation": "Google's standard is to approve a change once it definitely improves the overall health of the code, even if it isn't perfect, because there is no perfect code, only better code. Personal preferences give way to technical facts and the style guide. Mark optional polish with `Nit:`."
+    },
+    {
+      "id": "w12-l04-q04",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w12-l04",
+      "prompt": "How should you prepare behavioral stories for a senior loop?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Write out and memorize a distinct, word-for-word answer for each of the hundred most commonly asked behavioral interview questions you can find online"
+        },
+        {
+          "id": "b",
+          "text": "Prepare 3-5 strong STAR stories you can adapt: your background, a favorite project and a conflict"
+        },
+        {
+          "id": "c",
+          "text": "Skip preparing any stories in advance and improvise fresh answers on the spot, since interviewers can tell when a story has been rehearsed beforehand"
+        },
+        {
+          "id": "d",
+          "text": "Prepare only deeply technical stories about systems you built, since behavioral and interpersonal skills matter far less for an engineering role"
+        }
+      ],
+      "concept": "star-story-structure",
+      "sources": [
+        {
+          "url": "https://www.techinterviewhandbook.org/behavioral-interview/",
+          "claim": "Focus on 3-5 high-impact stories rather than memorizing answers; prepare the big three: background, favorite project and a conflict; the company is hiring you to engage in similar behaviors on their projects.",
+          "title": "Behavioral interviews for software engineers",
+          "accessed": "2026-09-27",
+          "publisher": "Tech Interview Handbook"
+        }
+      ],
+      "materials": [
+        "tech-interview-handbook-behavioral"
+      ],
+      "explanation": "The handbook recommends a small set of high-impact stories you can adapt, covering the \"big three\": your background, a favorite project and a conflict. Interviewers want repeatable behaviours, because the company is hiring you to behave that way on its projects, not to redo your old project."
+    },
+    {
+      "id": "w12-l04-q05",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w12-l04",
+      "prompt": "You enable Gemini Agent Mode in Android Studio on a project whose repository contains a `KEYS.properties` file with signing credentials. What is the right setup?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "No special setup is needed, since Gemini's agent tools only ever read the single file currently open in the active editor tab, nothing else in the project"
+        },
+        {
+          "id": "b",
+          "text": "Move the keys to a different, still-committed location in the repository, and configure Agent Mode to auto-apply every change without stopping for review"
+        },
+        {
+          "id": "c",
+          "text": "Add `.aiexclude` patterns to keep secrets out of AI context, and review and approve every agent change"
+        },
+        {
+          "id": "d",
+          "text": "Remove the project from version control entirely, on the theory that an agent without access to git history cannot leak anything from past commits"
+        }
+      ],
+      "concept": "ai-coding-agent-review-discipline",
+      "sources": [
+        {
+          "url": "https://developer.android.com/studio/gemini/aiexclude",
+          "claim": "An .aiexclude file, like a .gitignore file, tracks files that shouldn't be shared with Gemini in Android Studio, including chat and in-editor AI features; the pattern KEYS.* blocks files named KEYS with any extension.",
+          "title": "Configure context sharing with .aiexclude files",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/studio/gemini/agent-mode",
+          "claim": "Agent Mode handles multi-stage tasks by creating a plan, invoking tools and making changes across multiple files; you review and approve changes as the agent works.",
+          "title": "Agent Mode",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-interview-questions"
+      ],
+      "explanation": "`.aiexclude` controls which files Gemini in Android Studio may use, for chat, code completion and agents, and uses `.gitignore` syntax. Agent Mode plans and edits multiple files and asks you to review and approve its changes, so you stay accountable for what gets merged."
+    },
+    {
+      "id": "w12-l04-q06",
+      "type": "written",
+      "lesson": "w12-l04",
+      "prompt": "\"Tell me about a technical decision you drove that the team first disagreed with.\" Outline a strong senior-level answer and what the interviewer is assessing.",
+      "concept": "senior-scope-influence-signals",
+      "sources": [
+        {
+          "url": "https://www.techinterviewhandbook.org/behavioral-interview-rubrics/",
+          "claim": "Rubric dimensions include proactivity, operating in ambiguity, conflict resolution and empathy, growth mindset and communication; senior scope is impact on the entire team, usually three or more people.",
+          "title": "Behavioral interview rubrics",
+          "accessed": "2026-09-27",
+          "publisher": "Tech Interview Handbook"
+        },
+        {
+          "url": "https://www.techinterviewhandbook.org/behavioral-interview/",
+          "claim": "Structure answers with STAR and consider an extra R for Reflection on what you learned.",
+          "title": "Behavioral interviews for software engineers",
+          "accessed": "2026-09-27",
+          "publisher": "Tech Interview Handbook"
+        }
+      ],
+      "materials": [
+        "tech-interview-handbook-behavioral"
+      ],
+      "explanation": "Weak answers make the story a win over the colleagues who disagreed. Senior answers show evidence, empathy and a better decision because of the pushback.",
+      "model_answer": {
+        "summary": "A STAR story with team-level scope: an ambiguous problem, how you gathered data and built a case, how you listened to objections and changed the proposal, how you reached agreement, and a measurable result with a reflection.",
+        "key_points": [
+          "Situation and Task, briefly: why the decision mattered, why it was ambiguous or contested, and that it affected the whole team (roughly 3+ people)",
+          "Action: you gathered evidence (a prototype, benchmark or data), wrote the proposal, and took objections seriously, changing the plan where they were right",
+          "Influence rather than authority: getting agreement or \"disagree and commit\", bringing in the tech lead when stuck, and keeping the relationships intact",
+          "Result: measurable outcomes (for example crash rate, build time or delivery speed) and what happened to the doubters",
+          "Reflection: what you would do differently. Interviewers look for handling ambiguity, conflict resolution, empathy and a growth mindset"
+        ]
+      }
+    },
+    {
+      "id": "w12-l04-q07",
+      "type": "written",
+      "lesson": "w12-l04",
+      "prompt": "You are given a 300-line Android PR and 30 minutes to review it aloud. How do you run the review, and how do you phrase your comments?",
+      "concept": "code-review-code-health-standard",
+      "sources": [
+        {
+          "url": "https://google.github.io/eng-practices/review/reviewer/comments.html",
+          "claim": "Be kind and comment on the code, never the developer; explain your reasoning; label severity with Nit:, Optional or FYI; comment on things you like too.",
+          "title": "How to write code review comments",
+          "accessed": "2026-09-27",
+          "publisher": "Google Engineering Practices"
+        },
+        {
+          "url": "https://google.github.io/eng-practices/review/reviewer/standard.html",
+          "claim": "Approve a CL once it definitely improves the overall code health even if it isn't perfect; technical facts and data overrule opinions; seek consensus or escalate rather than letting reviews stall.",
+          "title": "The Standard of Code Review",
+          "accessed": "2026-09-27",
+          "publisher": "Google Engineering Practices"
+        }
+      ],
+      "materials": [
+        "android-interview-questions"
+      ],
+      "explanation": "Interviewers want someone who prioritizes, stays kind and explains decisions. A list of 40 nits with no verdict is a weak signal.",
+      "model_answer": {
+        "summary": "First understand what the PR is for, then check correctness, design, threading, lifecycle and tests before style. Label comments by severity, explain why, comment on the code rather than the author, and approve when it improves code health.",
+        "key_points": [
+          "Start with the intent: read the description and tests, and find the risky parts (concurrency, lifecycle, state, security, performance)",
+          "Check correctness and design first: coroutine scopes and dispatchers, leaks, main-thread I/O, error handling and missing tests. Style comes last and follows the style guide",
+          "Word comments kindly, about the code and not the developer, and explain why (\"this adds complexity without a performance benefit\")",
+          "Label severity with `Nit:`, `Optional:` or `FYI:` so the must-fix items are clear, and point out what was done well",
+          "Decide using the code-health standard: approve if it definitely improves the code even if it is not perfect, and settle disagreements with facts or escalate instead of stalling"
+        ]
+      }
+    },
+    {
+      "id": "w12-l04-q08",
+      "type": "written",
+      "lesson": "w12-l04",
+      "prompt": "An interviewer asks how you work with AI coding assistants and agents on a production Android team. What practices do you follow, and how do you keep quality and security?",
+      "concept": "ai-coding-agent-review-discipline",
+      "sources": [
+        {
+          "url": "https://developer.android.com/studio/gemini/agent-mode",
+          "claim": "Agent Mode creates and executes a plan, invokes tools, makes changes across multiple files, and lets you review and approve changes; it supports AGENTS.md files for project rules.",
+          "title": "Agent Mode",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/studio/gemini/aiexclude",
+          "claim": ".aiexclude files control which project files AI features in Android Studio can access, using .gitignore syntax.",
+          "title": "Configure context sharing with .aiexclude files",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-interview-questions"
+      ],
+      "explanation": "The senior signal is using agents effectively without handing over judgement: clear context, guardrails, review and verification.",
+      "model_answer": {
+        "summary": "Use agents for well-scoped, multi-file tasks with project rules written down. Keep secrets out of their context, review every change as you would a colleague's PR, verify the change with tests and benchmarks, and stay accountable for what ships.",
+        "key_points": [
+          "Scope work clearly and give project context (for example an `AGENTS.md` with conventions). Agents plan, call tools and edit multiple files, so constraints matter",
+          "Keep sensitive files out of context with `.aiexclude` (signing keys, secrets, customer data)",
+          "Review and approve each change, and hold AI output to the same code-review standard: correctness, lifecycle and threading, tests, style guide",
+          "Verify by running tests, lint and benchmarks, because code that looks plausible can still be wrong. The author stays accountable for merged code",
+          "Share what works with the team: prompts, rules files and where agents help or hurt"
+        ]
+      }
+    }
+  ]
+}

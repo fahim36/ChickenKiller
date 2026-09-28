@@ -1,0 +1,1284 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "startup-ttid-vs-ttfd",
+      "name": "Startup types and TTID vs TTFD"
+    },
+    {
+      "id": "baseline-profile-aot-delivery",
+      "name": "Baseline Profiles, startup profiles and AOT compilation"
+    },
+    {
+      "id": "macrobenchmark-startup-measurement",
+      "name": "Measuring startup with Macrobenchmark compilation modes"
+    },
+    {
+      "id": "startup-lazy-initialization",
+      "name": "Deferring initialization with lazy init and App Startup"
+    },
+    {
+      "id": "frametimeline-jank-attribution",
+      "name": "Finding jank causes in Perfetto traces and FrameTimeline"
+    },
+    {
+      "id": "leakcanary-retained-object-detection",
+      "name": "How LeakCanary detects retained objects and leak traces"
+    },
+    {
+      "id": "anr-main-thread-blocking-causes",
+      "name": "ANR triggers and main-thread blocking causes"
+    },
+    {
+      "id": "ontrimmemory-ui-hidden-background",
+      "name": "onTrimMemory levels on modern Android"
+    },
+    {
+      "id": "vitals-bad-behavior-thresholds",
+      "name": "Android vitals core metrics and bad-behavior thresholds"
+    },
+    {
+      "id": "staged-rollout-halt-and-fix-forward",
+      "name": "Halting a staged rollout and fixing forward"
+    },
+    {
+      "id": "remote-config-flag-activation-strategy",
+      "name": "Feature flag loading and activation strategies"
+    },
+    {
+      "id": "keystore-non-exportable-key-material",
+      "name": "Android Keystore keys and encrypting data at rest"
+    },
+    {
+      "id": "certificate-pinning-backup-pins",
+      "name": "Certificate pinning trade-offs and backup pins"
+    },
+    {
+      "id": "play-integrity-server-side-verdicts",
+      "name": "Verifying Play Integrity verdicts on the server"
+    },
+    {
+      "id": "owasp-mobile-top10-masvs-audit",
+      "name": "Auditing with the OWASP Mobile Top 10 and MASVS"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w11-l01-q01",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w11-l01",
+      "prompt": "Your Compose home screen shows a skeleton on the first frame and fills in the feed from the network a moment later. You want startup metrics to reflect when the user can actually use the feed. What should you do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Trust the Logcat `Displayed` line, because the system delays printing it until every `ImageView` on screen finishes decoding its bitmap"
+        },
+        {
+          "id": "b",
+          "text": "Measure only TTID, because `ActivityManager` blocks the first frame internally until `Repository.fetchFeed()` returns its result"
+        },
+        {
+          "id": "c",
+          "text": "Call `ReportDrawnWhen { feedLoaded }` (or `reportFullyDrawn()`) once the feed is ready, so TTFD reflects that"
+        },
+        {
+          "id": "d",
+          "text": "Call `reportFullyDrawn()` inside `Application.onCreate`, before any activity is created, so the metric captures process launch instead"
+        }
+      ],
+      "concept": "startup-ttid-vs-ttfd",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/performance/vitals/launch-time",
+          "claim": "TTID is the time to display the first frame and is retrieved via Logcat's Displayed metric; TTFD includes content that loads asynchronously after the first frame, and is signalled with reportFullyDrawn or Compose's ReportDrawn, ReportDrawnWhen and ReportDrawnAfter.",
+          "title": "App startup time",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "baseline-profiles",
+        "macrobenchmark"
+      ],
+      "explanation": "TTID is the time to the first frame, which here is only the skeleton; the `Displayed` Logcat line reports TTID. TTFD covers the first frame plus the content that loads asynchronously, and you signal it with `reportFullyDrawn()` or, in Compose, `ReportDrawn`, `ReportDrawnWhen` or `ReportDrawnAfter`. Calling it before anything is drawn would make the metric meaningless."
+    },
+    {
+      "id": "w11-l01-q02",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w11-l01",
+      "prompt": "How does a Baseline Profile make the first launch after install faster?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "ART AOT-compiles the profile's listed methods at install time, so those paths skip interpretation and JIT"
+        },
+        {
+          "id": "b",
+          "text": "It disables `dex2oat`'s JIT tier entirely, forcing every method in the APK to run through the interpreter on every launch"
+        },
+        {
+          "id": "c",
+          "text": "It replaces Cloud Profiles, which `PackageManager` otherwise gathers from each device's first cold launch and uploads to Play"
+        },
+        {
+          "id": "d",
+          "text": "It makes R8 inline every method the profile lists during the release build's minification pass, shrinking the DEX before upload"
+        }
+      ],
+      "concept": "baseline-profile-aot-delivery",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/performance/baselineprofiles/overview",
+          "claim": "Google Play processes the profile and ships it with the APK; during installation ART AOT-compiles the methods in the profile, improving code execution by about 30% from the first launch by avoiding interpretation and JIT. Cloud Profiles take several hours to days after an update to be distributed.",
+          "title": "Baseline Profiles overview",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "baseline-profiles",
+        "baseline-profiles-codelab"
+      ],
+      "explanation": "Baseline Profiles are profile-guided AOT: the rules are compiled into `baseline.prof`, Play ships it with the APK and ART compiles the listed methods during installation. The docs quote roughly 30% faster code execution from the first launch. Cloud Profiles aggregate real usage but take hours to days after an update, which is exactly the gap Baseline Profiles fill; they complement Cloud Profiles rather than replace them."
+    },
+    {
+      "id": "w11-l01-q03",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w11-l01",
+      "prompt": "A large app already ships a Baseline Profile. A teammate proposes adding a startup profile too. What does a startup profile do that the Baseline Profile does not?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It is uploaded to Play so ART can compile the app in the background when the device is idle"
+        },
+        {
+          "id": "b",
+          "text": "It is used at build time to optimize the DEX layout so startup code is packed together"
+        },
+        {
+          "id": "c",
+          "text": "It replaces the Baseline Profile, so you should keep only one of them"
+        },
+        {
+          "id": "d",
+          "text": "It records startup timings from users and sends them to Android vitals"
+        }
+      ],
+      "concept": "baseline-profile-aot-delivery",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/performance/baselineprofiles/overview",
+          "claim": "Startup profiles are similar to Baseline Profiles but are used at compile time to optimize DEX layout for faster startup rather than for on-device optimization; Google recommends using both Baseline Profiles and startup profiles.",
+          "title": "Baseline Profiles overview",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "baseline-profiles",
+        "baseline-profiles-codelab"
+      ],
+      "explanation": "Startup profiles are used at compile time to optimize DEX layout for faster startup, while Baseline Profiles drive on-device AOT compilation. Google recommends using both; the docs cite about 15% extra improvement from startup profiles in large apps. Neither one reports telemetry."
+    },
+    {
+      "id": "w11-l01-q04",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w11-l01",
+      "prompt": "You want a trustworthy before-and-after number for your Baseline Profile. Which setup gives one?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A JUnit test in the app module that wraps `Activity.onCreate` with `System.nanoTime()` calls on an emulator and averages three runs"
+        },
+        {
+          "id": "b",
+          "text": "A Macrobenchmark in the app module, run against a debuggable build with `CompilationMode.Full` so every method is precompiled"
+        },
+        {
+          "id": "c",
+          "text": "One `measureRepeated` iteration per compilation mode, since `StartupTimingMetric` reports a deterministic result on a physical device"
+        },
+        {
+          "id": "d",
+          "text": "A Macrobenchmark in a separate `com.android.test` module, comparing `CompilationMode.None()` with `Partial(BaselineProfileMode.Require)` on a device"
+        }
+      ],
+      "concept": "macrobenchmark-startup-measurement",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/performance/benchmarking/macrobenchmark-overview",
+          "claim": "Macrobenchmarks require a com.android.test module separate from the app code; the target app must be profileable and should be non-debuggable, preferably with minification on.",
+          "title": "Write a Macrobenchmark",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/topic/performance/baselineprofiles/measure-baselineprofile",
+          "claim": "CompilationMode.None represents a fresh install without Baseline Profiles and Partial(BaselineProfileMode.Require) a fresh install with them; run benchmarks on a physical device because emulators likely give incorrect results.",
+          "title": "Benchmark Baseline Profiles with Macrobenchmark library",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "macrobenchmark",
+        "baseline-profiles"
+      ],
+      "explanation": "Macrobenchmark needs a separate `com.android.test` module and a profileable, non-debuggable target. `CompilationMode.None()` is a fresh install without profiles, and `Partial(BaselineProfileMode.Require)` is a fresh install with the profile applied, so the gap is the profile's value. `Full` measures full AOT, which users do not get. Emulators share host resources and give misleading numbers, and one iteration cannot show variance."
+    },
+    {
+      "id": "w11-l01-q05",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w11-l01",
+      "prompt": "Your app pulls in five libraries that each initialize themselves through their own `ContentProvider`. Why does migrating them to Jetpack App Startup help cold start?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Content providers are normally created after `onCreate` finishes drawing the first frame, so switching to App Startup moves the same work earlier in the timeline"
+        },
+        {
+          "id": "b",
+          "text": "App Startup schedules every registered `Initializer` on a background `HandlerThread` automatically, without any code change"
+        },
+        {
+          "id": "c",
+          "text": "App Startup replaces the five providers with one shared provider, and `dependencies()` lets each initializer declare its order"
+        },
+        {
+          "id": "d",
+          "text": "App Startup serializes each initializer's result to disk after first launch and restores it on later cold starts to skip the work"
+        }
+      ],
+      "concept": "startup-lazy-initialization",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/libraries/app-startup",
+          "claim": "Content providers are expensive to instantiate and Android initializes them in an undetermined order; App Startup lets component initializers share a single content provider, and dependencies() controls initialization order.",
+          "title": "App Startup",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "baseline-profiles"
+      ],
+      "explanation": "Each content provider costs time to instantiate during startup, and the order is undetermined. App Startup replaces them with one `InitializationProvider` and `Initializer` classes whose `dependencies()` set the order. It does not move work to a background thread; to defer work you remove an initializer from the manifest with `tools:node=\"remove\"` and call `AppInitializer.initializeComponent` when needed."
+    },
+    {
+      "id": "w11-l01-q06",
+      "type": "written",
+      "lesson": "w11-l01",
+      "prompt": "An interviewer asks: explain cold, warm and hot starts, what exactly time to initial display (TTID) covers, and why you would also track time to full display (TTFD). Which start type should you optimize first?",
+      "concept": "startup-ttid-vs-ttfd",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/performance/vitals/launch-time",
+          "claim": "In a cold start the system creates the app process; TTID covers launching the process, initializing objects, creating the activity, initializing the UI and drawing the first frame; hot start avoids repeating initialization when the UI is still in memory.",
+          "title": "App startup time",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "macrobenchmark",
+        "android-performance-overview"
+      ],
+      "explanation": "A senior answer lists the steps inside a cold start, knows that TTID stops at the first frame, and knows that TTFD exists only if the app reports it. The trap is optimizing TTID alone by showing an empty screen sooner.",
+      "model_answer": {
+        "summary": "Cold start creates the process from scratch and does the most work, so optimize it first. TTID runs from process launch to the first frame. TTFD adds the time until the asynchronously loaded content is shown, and the app reports it itself.",
+        "key_points": [
+          "Cold start: the system creates the app process, then the app object, the main thread, the first activity, and inflates and draws the UI. It is the slowest and the one to optimize first",
+          "Warm start: a subset of that work, for example the process is alive but the activity must be recreated (possibly from saved state). Hot start: the activity is brought to the foreground with its UI still in memory",
+          "TTID covers launching the process, initializing objects, creating the activity, initializing the UI and drawing the first frame. Logcat's `Displayed` line reports it",
+          "TTFD adds the content that loads asynchronously after the first frame. You report it with `reportFullyDrawn()` / `fullyDrawnReporter`, or with `ReportDrawnWhen` / `ReportDrawnAfter` in Compose",
+          "A fast TTID with a slow TTFD (a skeleton that takes seconds to fill) is still a slow startup for the user, so track both"
+        ]
+      }
+    },
+    {
+      "id": "w11-l01-q07",
+      "type": "written",
+      "lesson": "w11-l01",
+      "prompt": "You claim your Baseline Profile cut cold start by 25%. A skeptical staff engineer asks exactly how you measured it. Describe the benchmark setup and what makes the number trustworthy.",
+      "concept": "macrobenchmark-startup-measurement",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/performance/benchmarking/macrobenchmark-overview",
+          "claim": "StartupMode.COLD kills the app process between setupBlock and measureBlock; the target must be profileable and non-debuggable and include ProfileInstaller; iterations are set on measureRepeated.",
+          "title": "Write a Macrobenchmark",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/topic/performance/baselineprofiles/measure-baselineprofile",
+          "claim": "Compare CompilationMode.None with CompilationMode.Partial(baselineProfileMode = BaselineProfileMode.Require); measure on a physical device because an emulator likely provides incorrect results.",
+          "title": "Benchmark Baseline Profiles with Macrobenchmark library",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "macrobenchmark",
+        "baseline-profiles-codelab"
+      ],
+      "explanation": "The signals are knowing that the compilation mode decides what you are really comparing, and not trusting emulator or debuggable-build numbers. A strong candidate also mentions checking production TTID/TTFD afterwards.",
+      "model_answer": {
+        "summary": "Run a Macrobenchmark with `StartupTimingMetric` in `StartupMode.COLD`, in a separate test module, against a release-like profileable build on a physical device. Run many iterations, and compare no compilation with Baseline-Profile compilation.",
+        "key_points": [
+          "A separate `com.android.test` module runs `measureRepeated` with `StartupTimingMetric` and `StartupMode.COLD`, so the process is killed between iterations",
+          "The target build is non-debuggable, profileable, ideally minified, and includes ProfileInstaller. A debug build's numbers do not match production",
+          "Compare `CompilationMode.None()` (fresh install without the profile) with `CompilationMode.Partial(BaselineProfileMode.Require)`, rather than `Full`, which users never get",
+          "Use a physical device, several iterations, and report the median or percentiles. Emulators share host resources and give incorrect results",
+          "Keep the benchmark in CI and look at the traces it records to explain the gain, rather than relying on one number"
+        ]
+      }
+    },
+    {
+      "id": "w11-l01-q08",
+      "type": "written",
+      "lesson": "w11-l01",
+      "prompt": "`Application.onCreate` initializes analytics, crash reporting, an ad SDK, a feature-flag client, a database and an image loader, and cold start is 2.8 s. How would you bring it down without breaking anything?",
+      "concept": "startup-lazy-initialization",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/performance/vitals/launch-time",
+          "claim": "The solution to heavy app initialization is lazy initialization: only initialize objects that are immediately needed; consider Hilt, which creates dependencies when first injected, and App Startup instead of content providers.",
+          "title": "App startup time",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/topic/libraries/app-startup",
+          "claim": "Automatic initialization of a component can be disabled with tools:node=\"remove\" and the component initialized lazily with AppInitializer.getInstance(context).initializeComponent(...).",
+          "title": "App Startup",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "baseline-profiles",
+        "macrobenchmark"
+      ],
+      "explanation": "Juniors move everything to a background thread. Seniors ask which components the first frame needs, keep crash reporting early on purpose, and prove the gain with measurements.",
+      "model_answer": {
+        "summary": "Measure first, then initialize only what the first screen needs. Make the rest lazy (on first use, through DI or App Startup), remove per-library content providers, and move unavoidable I/O off the main thread.",
+        "key_points": [
+          "Profile startup first (a Macrobenchmark trace or system trace) to see which initializers actually cost time",
+          "Lazy initialization: create objects the first time they are needed, for example as lazy singletons or with Hilt, which creates dependencies when they are first injected",
+          "Replace per-library `ContentProvider` initializers with App Startup. Remove non-critical initializers with `tools:node=\"remove\"` and call `AppInitializer.initializeComponent` later",
+          "Keep what must run early (crash reporting) and defer the ad SDK and non-critical analytics until after the first frame. Do disk I/O such as opening the database off the main thread",
+          "Verify the change with before and after startup benchmarks, and add a Baseline Profile for the code that remains"
+        ]
+      }
+    },
+    {
+      "id": "w11-l02-q01",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w11-l02",
+      "prompt": "On an Android 14 device you record a Perfetto trace of a janky scroll. In your app's FrameTimeline Actual Timeline track, the long frames are labelled `AppDeadlineMissed`. What does that tell you?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "SurfaceFlinger's own composition pass missed its deadline compositing the layers, so the label points away from your app's code entirely"
+        },
+        {
+          "id": "b",
+          "text": "The app ran longer than its given frame time; check the main thread and RenderThread work in those frames"
+        },
+        {
+          "id": "c",
+          "text": "The app queued frames to the `BufferQueue` faster than the display could present them, a condition Perfetto instead labels buffer stuffing"
+        },
+        {
+          "id": "d",
+          "text": "The Choreographer's vsync prediction drifted from the real hardware vsync, so FrameTimeline is only reporting a measurement artifact here"
+        }
+      ],
+      "concept": "frametimeline-jank-attribution",
+      "sources": [
+        {
+          "url": "https://perfetto.dev/docs/data-sources/frametimeline",
+          "claim": "FrameTimeline requires Android 12+; AppDeadlineMissed means the app ran longer than expected causing a jank, while BufferStuffing, SurfaceFlingerCpuDeadlineMissed and PredictionError are other jank types.",
+          "title": "Android Jank detection with FrameTimeline",
+          "accessed": "2026-09-27",
+          "publisher": "Perfetto"
+        }
+      ],
+      "materials": [
+        "perfetto",
+        "android-tracing"
+      ],
+      "explanation": "FrameTimeline (Android 12+) compares each frame's expected and actual timelines and attributes the jank. `AppDeadlineMissed` means the app took longer than expected, so the cause is in the app's frame work. SurfaceFlinger deadline misses, `BufferStuffing` and `PredictionError` are separate labels."
+    },
+    {
+      "id": "w11-l02-q02",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w11-l02",
+      "prompt": "When does LeakCanary decide a destroyed `Activity` is retained, and when does it dump the heap?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "As soon as `onDestroy` returns and the reference queue notifies `ObjectWatcher`, and it dumps the heap on that very next frame"
+        },
+        {
+          "id": "b",
+          "text": "When the `Activity` is still strongly reachable one frame later, and it dumps the heap once 100 objects are strongly reachable"
+        },
+        {
+          "id": "c",
+          "text": "Only once the app actually crashes with an `OutOfMemoryError`, at which point it dumps whatever heap the crash left behind"
+        },
+        {
+          "id": "d",
+          "text": "When its weak reference is not cleared after 5 seconds and a GC; it dumps at 5 retained objects when visible, 1 in the background"
+        }
+      ],
+      "concept": "leakcanary-retained-object-detection",
+      "sources": [
+        {
+          "url": "https://square.github.io/leakcanary/fundamentals-how-leakcanary-works/",
+          "claim": "If the weak reference held by ObjectWatcher isn't cleared after waiting 5 seconds and running garbage collection, the object is considered retained; the heap is dumped at 5 retained objects when the app is visible and 1 when it is in the background.",
+          "title": "How LeakCanary works",
+          "accessed": "2026-09-27",
+          "publisher": "Square (LeakCanary)"
+        }
+      ],
+      "materials": [
+        "leakcanary",
+        "android-memory"
+      ],
+      "explanation": "LeakCanary's `ObjectWatcher` holds weak references to destroyed activities, fragments, fragment views and cleared ViewModels. If a reference is not cleared after 5 seconds and a GC, the object counts as retained. It dumps the heap at a threshold (5 when visible, 1 in the background) so it does not freeze the app on every short-lived retention."
+    },
+    {
+      "id": "w11-l02-q03",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w11-l02",
+      "prompt": "Which of these will cause an ANR?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A `BroadcastReceiver` whose `onReceive` blocks 8 seconds on a disk sync while an activity is in the foreground"
+        },
+        {
+          "id": "b",
+          "text": "A coroutine launched on `Dispatchers.IO` that spends 30 seconds downloading a file in the background, off the main thread entirely"
+        },
+        {
+          "id": "c",
+          "text": "A `WorkManager` `CoroutineWorker` that runs its `doWork()` for 4 minutes on WorkManager's own executor before returning `Result.success()`"
+        },
+        {
+          "id": "d",
+          "text": "A Compose recomposition that takes 40 ms on the main thread, dropping a couple of frames but finishing well under the 5-second window"
+        }
+      ],
+      "concept": "anr-main-thread-blocking-causes",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/performance/vitals/anr",
+          "claim": "An ANR is triggered if a BroadcastReceiver hasn't finished executing within a set time (5 seconds when the app has a foreground activity) or if the app doesn't respond to an input event within 5 seconds.",
+          "title": "ANRs",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-anr"
+      ],
+      "explanation": "A broadcast receiver that does not finish within its timeout (5 seconds when the app has a foreground activity) causes an ANR, and so does input not handled within 5 seconds. Long work on `Dispatchers.IO` or in a worker does not block the main thread. A 40 ms frame is jank, not an ANR."
+    },
+    {
+      "id": "w11-l02-q04",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w11-l02",
+      "prompt": "Your cache-trimming code only reacts to `TRIM_MEMORY_RUNNING_LOW` and `TRIM_MEMORY_COMPLETE`. What happens on Android 14 and later?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It keeps working exactly as before, since `ActivityManager` delivers those two levels even more often on Android 14 and later devices"
+        },
+        {
+          "id": "b",
+          "text": "Those two callbacks never arrive on Android 14+; only `TRIM_MEMORY_UI_HIDDEN` and `TRIM_MEMORY_BACKGROUND` still fire"
+        },
+        {
+          "id": "c",
+          "text": "The app crashes at runtime with an `IllegalArgumentException`, because referencing a constant Android 15 deprecated is now a hard failure"
+        },
+        {
+          "id": "d",
+          "text": "The system routes the same level value through `onLowMemory()` instead, so the callback still runs under a different method name"
+        }
+      ],
+      "concept": "ontrimmemory-ui-hidden-background",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/performance/memory/manage-app-memory",
+          "claim": "Beginning with Android 14, the system no longer delivers notifications for legacy trim constants other than TRIM_MEMORY_UI_HIDDEN and TRIM_MEMORY_BACKGROUND; those constants were formally deprecated in Android 15.",
+          "title": "Manage your app's memory",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-memory"
+      ],
+      "explanation": "From Android 14 the system no longer sends the legacy trim levels, so code keyed on them silently stops freeing memory. Handle `level >= TRIM_MEMORY_UI_HIDDEN` for UI resources and `level >= TRIM_MEMORY_BACKGROUND` for anything you can rebuild easily."
+    },
+    {
+      "id": "w11-l02-q05",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w11-l02",
+      "prompt": "Your app receives `TRIM_MEMORY_UI_HIDDEN`. Which release is the best fit for that signal?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Close the Room database's open connection and drop the OkHttp network cache, since those are the resources the process can rebuild"
+        },
+        {
+          "id": "b",
+          "text": "Call `System.exit(0)` immediately so the process restarts clean the next time the user reopens the app"
+        },
+        {
+          "id": "c",
+          "text": "Clear the image loader's memory cache and release video buffers and pre-rendered view bitmaps"
+        },
+        {
+          "id": "d",
+          "text": "Do nothing yet, since `TRIM_MEMORY_UI_HIDDEN` only signals that the whole device is critically low on memory and about to start killing processes"
+        }
+      ],
+      "concept": "ontrimmemory-ui-hidden-background",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/performance/memory/manage-app-memory",
+          "claim": "TRIM_MEMORY_UI_HIDDEN indicates the UI left the user's view: release bitmap caches (image loaders' clearMemory), media buffers and custom view caches; TRIM_MEMORY_BACKGROUND is when to release easily reconstructed resources such as database connections and network caches.",
+          "title": "Manage your app's memory",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-memory"
+      ],
+      "explanation": "`TRIM_MEMORY_UI_HIDDEN` means your UI has left the user's view, so release UI memory: bitmap caches (for example Coil's or Glide's `clearMemory`), media buffers and cached bitmaps or canvases. Database connections and network caches belong to `TRIM_MEMORY_BACKGROUND`, when the process is a candidate for termination."
+    },
+    {
+      "id": "w11-l02-q06",
+      "type": "written",
+      "lesson": "w11-l02",
+      "prompt": "Scrolling a `RecyclerView` product list stutters on mid-range phones. Walk through how you find the cause with a system trace and what you commonly find.",
+      "concept": "frametimeline-jank-attribution",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/performance/vitals/render",
+          "claim": "Frames must render in under 16ms for 60fps (8ms at 120fps); notifyDataSetChanged shows in Systrace as RV FullInvalidate, fixed by DiffUtil; onBindViewHolder must take much less than one millisecond; binder calls often cause long pauses.",
+          "title": "Slow rendering",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/topic/performance/tracing",
+          "claim": "Perfetto is the platform-wide tracing tool introduced in Android 10; on Android 10+ system trace files are saved in Perfetto format, and custom trace events label sections of your code.",
+          "title": "Overview of system tracing",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "perfetto",
+        "android-tracing"
+      ],
+      "explanation": "What separates seniors is reading thread state rather than only slice length, knowing the RecyclerView trace markers, and verifying the fix with a benchmark instead of by eye.",
+      "model_answer": {
+        "summary": "Record a Perfetto trace of the janky scroll on a release-like build. Find the late frames with FrameTimeline or long `Choreographer#doFrame` slices, and check what the main thread and RenderThread were doing. Typical causes are full rebinds, slow binds, inflation, binder calls and allocations.",
+        "key_points": [
+          "Record a system trace (Perfetto format on Android 10+) while reproducing the scroll on a real device and a non-debuggable build, and add custom trace sections around your own code",
+          "Locate janky frames with FrameTimeline's expected and actual timelines (Android 12+) or long `Choreographer#doFrame` slices, and check the frame budget (16 ms at 60 Hz, 8 ms at 120 Hz)",
+          "Check thread states on the main thread and RenderThread: running means CPU work, sleeping or blocked often means a binder call or a lock",
+          "Common list causes: `RV FullInvalidate` from `notifyDataSetChanged()` (fix with DiffUtil/ListAdapter), `onBindViewHolder` taking much more than 1 ms, inflation of heavy or too many view types, and allocations in hot loops",
+          "Fix one cause, then re-measure with a `FrameTimingMetric` Macrobenchmark to confirm"
+        ]
+      }
+    },
+    {
+      "id": "w11-l02-q07",
+      "type": "written",
+      "lesson": "w11-l02",
+      "prompt": "Your user-perceived ANR rate doubled after a release. What are the usual causes of ANRs, and how do you find and fix the one you just shipped?",
+      "concept": "anr-main-thread-blocking-causes",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/performance/vitals/anr",
+          "claim": "Common ANR causes are slow I/O or long calculations on the main thread, synchronous binder calls, waiting on a synchronized block and deadlocks; StrictMode finds accidental main-thread I/O; a receiver calling goAsync without finish causes ANRs; use Mutex.withLock and Dispatchers.IO.",
+          "title": "ANRs",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-anr",
+        "android-vitals"
+      ],
+      "explanation": "Seniors know that lock contention is invisible to StrictMode, and that the stack trace shows what the main thread was waiting for, not necessarily the slow code itself.",
+      "model_answer": {
+        "summary": "ANRs come from a blocked main thread (I/O, long computation, synchronous binder calls, lock contention, deadlocks) or from components that miss their deadlines (receivers, services, `startForeground`). Use the ANR stack traces to find what the main thread was waiting on, then move or restructure that work.",
+        "key_points": [
+          "Triggers: input not handled within 5 s, a `BroadcastReceiver` over its timeout, a service slow in `onCreate`/`onStartCommand`, `startForegroundService` without `startForeground` within 5 s, and slow `JobService` callbacks",
+          "Main-thread causes: disk or network I/O, long computation, synchronous binder calls, waiting on a `synchronized` lock held by a slow background thread, and deadlocks",
+          "Diagnose: group ANR stack traces from Android vitals by the main thread's top frames, pull `/data/anr` traces when you can reproduce it, and use StrictMode in development to catch main-thread I/O",
+          "Receivers: keep `onReceive` short. Always call `finish()` on the `PendingResult` from `goAsync()`, and hand longer work to WorkManager",
+          "Fixes: move I/O to `withContext(Dispatchers.IO)`, replace blocking locks with `Mutex.withLock`, and then compare the release's ANR rate against the previous version"
+        ]
+      }
+    },
+    {
+      "id": "w11-l02-q08",
+      "type": "written",
+      "lesson": "w11-l02",
+      "prompt": "LeakCanary reports that `CheckoutActivity` is retained, and the leak trace ends at a static `PaymentEventBus.listeners` list. Explain what LeakCanary did to reach that report, how you read the trace, and how you fix it.",
+      "concept": "leakcanary-retained-object-detection",
+      "sources": [
+        {
+          "url": "https://square.github.io/leakcanary/fundamentals-how-leakcanary-works/",
+          "claim": "LeakCanary automatically watches destroyed activities, fragments, fragment views and cleared ViewModels; a leak trace shows the path of references preventing garbage collection, with suspect references underlined; leaks are grouped into application leaks and library leaks.",
+          "title": "How LeakCanary works",
+          "accessed": "2026-09-27",
+          "publisher": "Square (LeakCanary)"
+        }
+      ],
+      "materials": [
+        "leakcanary",
+        "android-memory"
+      ],
+      "explanation": "The senior signals are reading the trace from the GC root, choosing a lifecycle-correct fix over sprinkling `WeakReference`, and knowing that LeakCanary also marks known library leaks.",
+      "model_answer": {
+        "summary": "LeakCanary watched the destroyed Activity through a weak reference, found it still reachable after GC, dumped and analyzed the heap, and printed the shortest reference path from a GC root. The static list holding the listener keeps the Activity alive, so unregister it in the matching lifecycle callback or stop capturing the Activity.",
+        "key_points": [
+          "LeakCanary hooks lifecycle callbacks and watches destroyed activities, fragments, fragment views and cleared ViewModels through weak references",
+          "If a watched object is not cleared after 5 s and a GC, it counts as retained. Past the threshold, LeakCanary dumps the heap and analyzes it",
+          "The leak trace is the reference path from a GC root (here a static field) to the retained object. Suspect references are underlined, so find the first one that should not exist",
+          "Fix at the source: unregister the listener in the matching callback (`onStop`/`onDestroy`), or use a lifecycle-aware observer, or register a callback that does not capture the Activity",
+          "Separate application leaks from known library leaks, and add a regression test or check that the leak is gone"
+        ]
+      }
+    },
+    {
+      "id": "w11-l03-q01",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w11-l03",
+      "prompt": "Which set of numbers matches Android vitals' overall bad-behavior thresholds for the core stability metrics?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "User-perceived crash rate 2% overall, user-perceived ANR rate 1% overall, each with a 10% per-device-model ceiling"
+        },
+        {
+          "id": "b",
+          "text": "User-perceived crash rate 0.47% overall, user-perceived ANR rate 1.09% overall, with an 8% per-device-model threshold for each"
+        },
+        {
+          "id": "c",
+          "text": "User-perceived crash rate 1.09%, user-perceived ANR rate 0.47%, each with an 8% per-device-model threshold"
+        },
+        {
+          "id": "d",
+          "text": "User-perceived crash rate 8% overall and user-perceived ANR rate 8% overall, and Play tracks no separate per-device-model threshold at all"
+        }
+      ],
+      "concept": "vitals-bad-behavior-thresholds",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/performance/vitals",
+          "claim": "Bad behavior thresholds: user-perceived crash rate 1.09% overall and 8% per device model; user-perceived ANR rate 0.47% overall and 8% per device model.",
+          "title": "Android vitals",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-vitals",
+        "android-performance-overview"
+      ],
+      "explanation": "The overall thresholds are 1.09% for the user-perceived crash rate and 0.47% for the user-perceived ANR rate, with 8% for any single device model. The swapped pair in the second choice is the common slip."
+    },
+    {
+      "id": "w11-l03-q02",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w11-l03",
+      "prompt": "Your app's user-perceived ANR rate has been 0.6% overall for the past month. What can Google Play do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Remove the app listing from the store entirely until Play recomputes the 28-day rate and confirms it is back under threshold"
+        },
+        {
+          "id": "b",
+          "text": "Nothing at the store level, since Play only acts once a single device model's own rate crosses its separate threshold"
+        },
+        {
+          "id": "c",
+          "text": "Block all future app updates from that developer account until someone acknowledges the issue inside Play Console"
+        },
+        {
+          "id": "d",
+          "text": "Reduce visibility and warn users on the listing, from the trailing 28-day rate"
+        }
+      ],
+      "concept": "vitals-bad-behavior-thresholds",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/performance/vitals",
+          "claim": "If your app exceeds a bad behavior threshold, Play may reduce the visibility of your title and may show users a warning on your store listing; Play uses the last 28 days of data to assess quality.",
+          "title": "Android vitals",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-vitals",
+        "android-performance-overview"
+      ],
+      "explanation": "Core vitals affect visibility on Google Play. Above a bad-behavior threshold, Play may reduce the title's visibility and show a warning on the store listing. It judges the last 28 days, so a fix shows up only as the 28-day average improves."
+    },
+    {
+      "id": "w11-l03-q03",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w11-l03",
+      "prompt": "A crash from release 5.4.0 arrives obfuscated. You rebuild the 5.4.0 tag today and use that build's `mapping.txt` to retrace it. What is the risk, and what is the right practice?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "No risk at all: R8's renaming is deterministic from the source and dependency versions, so any mapping built from the same git commit retraces correctly"
+        },
+        {
+          "id": "b",
+          "text": "The mapping is overwritten every build, so archive the exact release build's `mapping.txt` for retracing"
+        },
+        {
+          "id": "c",
+          "text": "Retracing is impossible once an app has shipped, because R8 discards the original class and method names permanently during the release build"
+        },
+        {
+          "id": "d",
+          "text": "The mapping file only matters when you forgot to keep `LineNumberTable`, since that attribute alone is what encodes the renamed identifiers"
+        }
+      ],
+      "concept": "r8-mapping-file-retrace",
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/performance/app-optimization/test-and-troubleshoot-the-optimization",
+          "claim": "Android Studio saves the mapping file in /build/outputs/mapping/; the mapping file is overwritten every time you build your project, so you must save a copy each time you publish a new release; use it with Play and Firebase Crashlytics.",
+          "title": "Test and troubleshoot the optimization",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-r8",
+        "android-vitals"
+      ],
+      "explanation": "The mapping file is written to `build/outputs/mapping/<variant>/` and overwritten on every build, so the docs say to save a copy for every release. A rebuild may not reproduce the same obfuscated names, so keep the release's own file (or let Play and Crashlytics store it). `LineNumberTable` gives you line numbers; it does not undo renaming."
+    },
+    {
+      "id": "w11-l03-q04",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w11-l03",
+      "prompt": "Version 7.2 is at a 20% staged rollout when crash rate spikes. You halt the rollout. What happens next?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "No new users get 7.2; the 20% who already have it stay on it until a fixed, higher-versioned release ships"
+        },
+        {
+          "id": "b",
+          "text": "Play silently pushes the previous 7.1 app bundle back down to the 20% of devices that already installed 7.2"
+        },
+        {
+          "id": "c",
+          "text": "The halt removes the 7.2 app bundle from any device that has downloaded but not yet opened it for the first time"
+        },
+        {
+          "id": "d",
+          "text": "Every device already running 7.2 is automatically re-enrolled into the internal testing track until the next release"
+        }
+      ],
+      "concept": "staged-rollout-halt-and-fix-forward",
+      "sources": [
+        {
+          "url": "https://support.google.com/googleplay/android-developer/answer/6346149",
+          "claim": "When you halt a staged rollout, no additional users will receive the app version; users who already received it remain on that version; if you find an issue, create and roll out a new release with a fixed app bundle.",
+          "title": "Release app updates with staged rollouts",
+          "accessed": "2026-09-27",
+          "publisher": "Google Play Console Help"
+        }
+      ],
+      "materials": [
+        "android-vitals"
+      ],
+      "explanation": "Halting stops distribution to additional users, but people who already received the version keep it. Play has no automatic rollback: you create and roll out a new release with the fix. That is why remote kill switches for risky features matter."
+    },
+    {
+      "id": "w11-l03-q05",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w11-l03",
+      "prompt": "A Remote Config flag switches the checkout screen to a redesigned layout. The team calls `fetchAndActivate()` at launch and applies new values whenever they arrive, even mid-session. What does Firebase recommend instead for a visible UI change like this?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Call `fetch()` on a 30-second timer so the whole install base converges on the new layout within one session, avoiding mismatched screenshots"
+        },
+        {
+          "id": "b",
+          "text": "Skip setting in-app default values, so a device that has never fetched shows nothing rather than a possibly wrong layout"
+        },
+        {
+          "id": "c",
+          "text": "Hard-code the checkout layout in the APK and reserve Remote Config for running A/B experiments elsewhere in the app"
+        },
+        {
+          "id": "d",
+          "text": "Activate last session's fetched values at launch, fetch for next startup, or activate behind a timed loading screen"
+        }
+      ],
+      "concept": "remote-config-flag-activation-strategy",
+      "sources": [
+        {
+          "url": "https://firebase.google.com/docs/remote-config/loading",
+          "claim": "Avoid fetch-and-activate in any situation where the UI could change noticeably while users use it; alternatives are activating behind a loading screen or loading new values for the next startup; set in-app defaults; the default minimum fetch interval is 12 hours.",
+          "title": "Remote Config loading strategies",
+          "accessed": "2026-09-27",
+          "publisher": "Firebase (Google)"
+        }
+      ],
+      "materials": [
+        "android-vitals"
+      ],
+      "explanation": "Changing UI while users are looking at it is jarring, so Firebase suggests activating last session's fetched values at launch and fetching for the next startup, or activating behind a loading screen with a timeout. Always set in-app defaults so the app works offline. Very frequent fetches get throttled (the default minimum fetch interval is 12 hours)."
+    },
+    {
+      "id": "w11-l03-q06",
+      "type": "written",
+      "lesson": "w11-l03",
+      "prompt": "Design the pipeline that makes every production crash readable, from the release build to the crash dashboard, for an app with R8 obfuscation and optimization enabled.",
+      "concept": "r8-mapping-file-retrace",
+      "sources": [
+        {
+          "url": "https://developer.android.com/build/shrink-code",
+          "claim": "To keep line number information, add -keepattributes LineNumberTable,SourceFile and -renamesourcefileattribute SourceFile; R8 obfuscation shortens class, field and method names.",
+          "title": "Shrink, obfuscate, and optimize your app",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/topic/performance/app-optimization/test-and-troubleshoot-the-optimization",
+          "claim": "Manually recover stack traces with the retrace tool and the variant's mapping.txt; the mapping file is overwritten each build so save a copy for every release.",
+          "title": "Test and troubleshoot the optimization",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-r8"
+      ],
+      "explanation": "A senior treats symbolication as a release-pipeline requirement owned by CI, not a step someone does by hand after an incident.",
+      "model_answer": {
+        "summary": "Keep the source-file and line-number attributes, and make CI archive or upload each release build's `mapping.txt`, keyed by version, to Play Console and the crash reporter. Retrace with the matching file, using the `retrace` tool for manual cases.",
+        "key_points": [
+          "R8 renames classes and methods and changes line numbers, so obfuscated stack traces need the mapping from that exact build",
+          "Keep line information with `-keepattributes LineNumberTable,SourceFile` and `-renamesourcefileattribute SourceFile`",
+          "The mapping at `build/outputs/mapping/<variant>/mapping.txt` is overwritten on each build, so CI must archive it for every release (keyed by versionCode) and upload it to Play Console or Crashlytics",
+          "For manual cases run `retrace mapping.txt trace.txt`; newer Android Studio/AGP versions also retrace in Logcat",
+          "Test the pipeline before you need it: crash an internal build on purpose and confirm the dashboard shows readable frames"
+        ]
+      }
+    },
+    {
+      "id": "w11-l03-q07",
+      "type": "written",
+      "lesson": "w11-l03",
+      "prompt": "Write the incident runbook you would follow when a new release, at 10% staged rollout, starts crashing on checkout for some users.",
+      "concept": "staged-rollout-halt-and-fix-forward",
+      "sources": [
+        {
+          "url": "https://support.google.com/googleplay/android-developer/answer/6346149",
+          "claim": "Halting stops additional users from receiving the version while users who already received it remain on it; you fix issues by rolling out a new release with a fixed app bundle.",
+          "title": "Release app updates with staged rollouts",
+          "accessed": "2026-09-27",
+          "publisher": "Google Play Console Help"
+        },
+        {
+          "url": "https://developer.android.com/topic/performance/vitals",
+          "claim": "Android vitals tracks user-perceived crash and ANR rates, and Play uses the last 28 days of data to assess quality.",
+          "title": "Android vitals",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-vitals",
+        "android-performance-overview"
+      ],
+      "explanation": "Seniors plan for the fact that halting does not help users who already updated, and build kill switches and staged rollouts in before the incident.",
+      "model_answer": {
+        "summary": "Detect it from crash and vitals data, halt the rollout, contain it with a kill switch if there is one, find the root cause with symbolicated traces, fix forward with a new higher-version release, then run a blameless review.",
+        "key_points": [
+          "Detection: alerts on crash-free rate and ANR rate by release version, and Android vitals compared with the previous version",
+          "Containment: halt the staged rollout. It stops new users getting the release, but users already on it stay on it, so turn off the feature with a remote flag if one exists",
+          "Diagnosis: symbolicated stack traces using that release's mapping file, grouped by device, OS and app version",
+          "Recovery: Play has no rollback, so ship a fixed build with a higher versionCode, again through a staged rollout",
+          "Afterwards: communicate status, write a blameless postmortem, and add the missing test, flag or alert"
+        ]
+      }
+    },
+    {
+      "id": "w11-l03-q08",
+      "type": "written",
+      "lesson": "w11-l03",
+      "prompt": "You are introducing remote feature flags to a large Android app. How would you design flag loading and activation so the flags are safe in production and do not hurt startup or UX?",
+      "concept": "remote-config-flag-activation-strategy",
+      "sources": [
+        {
+          "url": "https://firebase.google.com/docs/remote-config/loading",
+          "claim": "Remote Config strategies are fetch-and-activate on load, activate behind a loading screen (with a timeout), or load new values for next startup; set in-app defaults; the default minimum fetch interval is 12 hours.",
+          "title": "Remote Config loading strategies",
+          "accessed": "2026-09-27",
+          "publisher": "Firebase (Google)"
+        }
+      ],
+      "materials": [
+        "android-performance-overview"
+      ],
+      "explanation": "The senior signal is weighing startup time against how fresh the flags are, and planning flags for incidents rather than only experiments.",
+      "model_answer": {
+        "summary": "Ship in-app defaults, choose an activation strategy per flag type (next startup for visible UI, a loading screen only when needed), avoid fetch storms and throttling, and use flags as kill switches during incidents.",
+        "key_points": [
+          "Set in-app default values for every flag, so the app behaves correctly offline or before the first fetch",
+          "Pick an activation strategy: activate at launch and fetch for next startup for UI flags, and use a loading screen with a short timeout only when you must (for example A/B tests)",
+          "Do not apply visible UI changes mid-session. Real-time updates suit non-visual config",
+          "Respect fetch throttling (12-hour default minimum interval) instead of fetching often. Use real-time listeners when you need fast propagation",
+          "Treat flags as operational tools: wrap risky features in kill switches, log exposure, and remove stale flags"
+        ]
+      }
+    },
+    {
+      "id": "w11-l04-q01",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w11-l04",
+      "prompt": "What does the Android Keystore give you that an AES key stored in an encrypted file inside your app's private storage does not?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Key material never enters your process; a system process does the crypto, optionally bound to the TEE or StrongBox"
+        },
+        {
+          "id": "b",
+          "text": "Every Keystore key is unusable by your own app until the user completes biometric or device-credential authentication first"
+        },
+        {
+          "id": "c",
+          "text": "Generating a Keystore key automatically turns on encryption for every `SharedPreferences` file and Room database in the app"
+        },
+        {
+          "id": "d",
+          "text": "Keystore key material is backed up to the user's Google account, so a device restore or reinstall recovers the same key"
+        }
+      ],
+      "concept": "keystore-non-exportable-key-material",
+      "sources": [
+        {
+          "url": "https://developer.android.com/privacy-and-security/keystore",
+          "claim": "Key material never enters the application process; operations are carried out by a system process, and key material can be bound to secure hardware such as the TEE or Secure Element.",
+          "title": "Android Keystore system",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-keystore",
+        "android-security-tips"
+      ],
+      "explanation": "The Keystore's extraction protection is that plaintext, ciphertext and messages are sent to a system process that does the crypto, so your process never holds the key bytes, and the key can live in the TEE or a secure element. User-authentication binding is optional, set per key. The Keystore does not encrypt your storage by itself."
+    },
+    {
+      "id": "w11-l04-q02",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w11-l04",
+      "prompt": "You protect a high-value \"redeem points\" call with a Play Integrity standard request. How do you stop an attacker from replaying one good token for many redemptions?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Request one token per app start, cache it locally, and attach the cached token to every redemption call made during that session"
+        },
+        {
+          "id": "b",
+          "text": "Hash the request into `requestHash`, and verify server-side that the decrypted verdict's `requestHash` matches"
+        },
+        {
+          "id": "c",
+          "text": "Read the verdict on-device and check that its integrity field is at least `MEETS_BASIC_INTEGRITY` before the app sends the redeem call"
+        },
+        {
+          "id": "d",
+          "text": "Run R8 obfuscation over the Play Integrity call sites so an attacker cannot locate where the token request is built in the APK"
+        }
+      ],
+      "concept": "play-integrity-server-side-verdicts",
+      "sources": [
+        {
+          "url": "https://developer.android.com/google/play/integrity/overview",
+          "claim": "Ensure requestDetails match expected values, in particular verify requestHash or nonce to prevent replay attacks; standard requests use requestHash with a digest of relevant request values; data in requestHash is visible in cleartext, so hash or encrypt it.",
+          "title": "Play Integrity API overview",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "play-integrity"
+      ],
+      "explanation": "For standard requests, you bind the token to the action with `requestHash`, a digest of the relevant request values. The server verifies that `requestDetails` match, which prevents replay. Checks in the app can be bypassed, and caching verdicts invites proxying. Hash or encrypt the data first, because values in these fields are visible to your app and to Google."
+    },
+    {
+      "id": "w11-l04-q03",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w11-l04",
+      "prompt": "Your network security config pins a single SHA-256 key for `api.example.com` with no expiration. The backend team rotates to a new key pair. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The platform falls back to ordinary system-CA validation automatically after the first pinning failure it observes on a connection"
+        },
+        {
+          "id": "b",
+          "text": "Only devices running below API 24 lose connectivity, since later platform versions renegotiate against the network security config"
+        },
+        {
+          "id": "c",
+          "text": "Connections fail on every install until an update ships with the new pin"
+        },
+        {
+          "id": "d",
+          "text": "The app keeps working regardless, because a `<pin-set>` only constrains trust up until the leaf certificate's own expiry date"
+        }
+      ],
+      "concept": "certificate-pinning-backup-pins",
+      "sources": [
+        {
+          "url": "https://developer.android.com/privacy-and-security/security-config",
+          "claim": "When using certificate pinning you should always include a backup key so that if you are forced to switch to new keys or change CAs, connectivity is unaffected; otherwise you must push out an app update to restore connectivity. Setting expiration on pins may enable attackers to bypass pinned certificates.",
+          "title": "Network security configuration",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-security-tips"
+      ],
+      "explanation": "A pin set restricts trust to the listed keys, so a key change without a matching pin breaks connectivity, and the fix requires an app update. Android's guidance is to always include a backup key. An expiration date limits this risk, but after it passes pinning is not enforced, which the docs note can help attackers."
+    },
+    {
+      "id": "w11-l04-q04",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w11-l04",
+      "prompt": "A team reads the Play Integrity verdict inside the app, checks for `MEETS_DEVICE_INTEGRITY`, and caches a passing verdict for 24 hours to save quota. What is wrong with this design?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Verdicts belong on the backend, and caching one for 24 hours makes proxying it to other requests easier"
+        },
+        {
+          "id": "b",
+          "text": "Nothing is wrong here, provided the cached verdict string is stored inside `EncryptedSharedPreferences` rather than plain preferences"
+        },
+        {
+          "id": "c",
+          "text": "The design is backwards: only the deprecated classic API may run inside the app, while standard requests must originate entirely on the server"
+        },
+        {
+          "id": "d",
+          "text": "`MEETS_DEVICE_INTEGRITY` is already the strongest tier Play Integrity reports, so a passing check here can be trusted for any action in the app"
+        }
+      ],
+      "concept": "play-integrity-server-side-verdicts",
+      "sources": [
+        {
+          "url": "https://developer.android.com/google/play/integrity/overview",
+          "claim": "Caching integrity verdicts increases the risk of proxying, where a bad actor reuses a verdict from a good device; the API works best alongside other signals and not as the sole anti-abuse mechanism; MEETS_STRONG_INTEGRITY is the highest device trust tier.",
+          "title": "Play Integrity API overview",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "play-integrity"
+      ],
+      "explanation": "Check the decrypted verdict on your server (request details, `PLAY_RECOGNIZED`, licensing, device labels), because a tampered client can fake a local check. Google warns that caching verdicts increases the risk of proxying, and recommends using the API alongside other anti-abuse signals with tiered responses. `MEETS_STRONG_INTEGRITY` is the highest tier, not `MEETS_DEVICE_INTEGRITY`."
+    },
+    {
+      "id": "w11-l04-q05",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w11-l04",
+      "prompt": "An audit finds a production API secret hard-coded in the APK's `BuildConfig`. Which OWASP Mobile Top 10 (2024) risk is this primarily?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "M9: Insecure Data Storage"
+        },
+        {
+          "id": "b",
+          "text": "M7: Insufficient Binary Protections"
+        },
+        {
+          "id": "c",
+          "text": "M10: Insufficient Cryptography"
+        },
+        {
+          "id": "d",
+          "text": "M1: Improper Credential Usage"
+        }
+      ],
+      "concept": "owasp-mobile-top10-masvs-audit",
+      "sources": [
+        {
+          "url": "https://owasp.github.io/www-project-mobile-top-10/2023-risks",
+          "claim": "The OWASP Mobile Top 10 2024 lists M1 Improper Credential Usage, M7 Insufficient Binary Protections, M9 Insecure Data Storage and M10 Insufficient Cryptography.",
+          "title": "OWASP Mobile Top 10 2024: Final Release",
+          "accessed": "2026-09-27",
+          "publisher": "OWASP Foundation"
+        }
+      ],
+      "materials": [
+        "owasp-mobile-top-10",
+        "owasp-mastg"
+      ],
+      "explanation": "Hard-coded credentials fall under M1 Improper Credential Usage, first in the 2024 list. M7 (obfuscation and anti-tampering) only makes the secret harder to find, not safe. M9 is about data the app stores at runtime. The fix is to keep such secrets on a server and issue short-lived tokens."
+    },
+    {
+      "id": "w11-l04-q06",
+      "type": "written",
+      "lesson": "w11-l04",
+      "prompt": "Where and how would you store a user's OAuth refresh token on Android? Walk through the threats and your choices.",
+      "concept": "keystore-non-exportable-key-material",
+      "sources": [
+        {
+          "url": "https://developer.android.com/privacy-and-security/security-tips",
+          "claim": "Don't store user IDs and passwords on the device; use short-lived, service-specific authorization tokens; use the Android Keystore and encrypt stored keys with Tink; files on external storage are globally readable and writable; don't log PII.",
+          "title": "Security checklist",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        },
+        {
+          "url": "https://developer.android.com/privacy-and-security/keystore",
+          "claim": "Keystore keys can require user authentication for a duration or per operation via BiometricPrompt, and can be invalidated by new biometric enrollment; key material can be bound to the TEE or StrongBox.",
+          "title": "Android Keystore system",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-keystore",
+        "android-security-tips"
+      ],
+      "explanation": "A senior answer names the threat model (another app, a stolen or rooted device, a backup, logs), explains what the Keystore does and does not protect, and pairs client storage with server-side revocation.",
+      "model_answer": {
+        "summary": "Never store the password. Keep short-lived access tokens and a refresh token in app-private storage, encrypted with a key held in the Android Keystore (for example through Tink), never on external storage or in logs. Add user-authentication binding only when the risk justifies it.",
+        "key_points": [
+          "Do not store user passwords. Authenticate once and keep short-lived, service-specific tokens. Prefer Credential Manager (passkeys, federated sign-in) for sign-in",
+          "Store tokens only in internal (app-private) storage. External storage is readable and writable by other apps",
+          "Encrypt at rest with a key generated in the Android Keystore: the key material never enters the app process and can be hardware-backed (TEE/StrongBox). Tink is the recommended library on top",
+          "Optionally bind the key to user authentication (a time window or per-operation `BiometricPrompt`), accepting the UX cost and invalidation on biometric enrollment changes",
+          "Never log tokens or PII, since logs are shared, and let the server revoke and rotate refresh tokens"
+        ]
+      }
+    },
+    {
+      "id": "w11-l04-q07",
+      "type": "written",
+      "lesson": "w11-l04",
+      "prompt": "A product manager asks you to add certificate pinning because \"banks do it\". How do you decide, and if you pin, how do you do it safely?",
+      "concept": "certificate-pinning-backup-pins",
+      "sources": [
+        {
+          "url": "https://developer.android.com/privacy-and-security/security-config",
+          "claim": "Network security config supports custom trust anchors, debug-only overrides, cleartext opt-out, certificate transparency and pinning; always include a backup key or you must push an update to restore connectivity; API 24+ trusts only system CAs by default and API 28+ disables cleartext by default.",
+          "title": "Network security configuration",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "android-security-tips"
+      ],
+      "explanation": "The senior signal is treating pinning as a risk decision with an operational process behind it, not a checkbox.",
+      "model_answer": {
+        "summary": "Pinning protects against a mis-issued or rogue CA, but a key rotation can break every installed version. On API 24+ user-added CAs are already untrusted by default. If you pin, use the network security config with backup pins, an agreed rotation process, and debug overrides.",
+        "key_points": [
+          "Baseline: since API 24 apps trust only system CAs by default, and since API 28 cleartext is off by default, which already stops most user-installed-CA interception",
+          "Pinning narrows trust to specific keys. It defends against compromised or mis-issued CAs, but adds operational risk",
+          "If you pin: use `<pin-set>` in the network security config, always include a backup pin (a spare key or another CA), and agree a rotation process with the backend team",
+          "Expiration trade-off: an expiry avoids bricking old versions, but after it the app accepts any valid certificate, which attackers can wait for. Certificate transparency is a lighter alternative",
+          "Use `debug-overrides` for debugging proxies instead of weakening the release config"
+        ]
+      }
+    },
+    {
+      "id": "w11-l04-q08",
+      "type": "written",
+      "lesson": "w11-l04",
+      "prompt": "You are asked to run a security audit of your team's Android app before a fintech partnership. How do you structure it with OWASP's mobile resources, and where do anti-tampering tools like Play Integrity fit?",
+      "concept": "owasp-mobile-top10-masvs-audit",
+      "sources": [
+        {
+          "url": "https://mas.owasp.org/MASVS/",
+          "claim": "MASVS groups requirements into MASVS-STORAGE, CRYPTO, AUTH, NETWORK, PLATFORM, CODE, RESILIENCE and PRIVACY; MASTG provides how to test them and MASWE catalogs weaknesses mapped to MASVS.",
+          "title": "OWASP MASVS",
+          "accessed": "2026-09-27",
+          "publisher": "OWASP Mobile Application Security"
+        },
+        {
+          "url": "https://developer.android.com/google/play/integrity/overview",
+          "claim": "The Play Integrity API works best when used alongside other signals as part of your overall anti-abuse strategy and not as your sole anti-abuse mechanism.",
+          "title": "Play Integrity API overview",
+          "accessed": "2026-09-27",
+          "publisher": "Android Developers"
+        }
+      ],
+      "materials": [
+        "owasp-mastg",
+        "owasp-mobile-top-10",
+        "play-integrity"
+      ],
+      "explanation": "Weaker answers start with obfuscation and root detection. Seniors start from the real risks (credentials, storage, transport) and use the OWASP standards to be systematic.",
+      "model_answer": {
+        "summary": "Use the MASVS control groups as the checklist, the MASTG for how to test each control, and the Mobile Top 10 to rank risks. Fix storage, credential and network findings first. Treat resilience controls such as Play Integrity as extra layers, checked on the server, not as a replacement.",
+        "key_points": [
+          "MASVS defines what to verify, in groups: STORAGE, CRYPTO, AUTH, NETWORK, PLATFORM, CODE, RESILIENCE, PRIVACY. MASTG describes how to test each control, and MASWE lists the weaknesses",
+          "Use the OWASP Mobile Top 10 (2024) to rank findings, for example M1 Improper Credential Usage, M5 Insecure Communication, M9 Insecure Data Storage",
+          "Typical Android checks: secrets in the APK, token storage and logging, exported components and implicit intents, WebView JavaScript bridges, network security config",
+          "Resilience (MASVS-RESILIENCE, M7) and Play Integrity add cost for attackers, but must be checked on the server and combined with other signals, never trusted as the only control",
+          "Report findings by severity, fix the worst ones first, and add automated checks so they do not come back"
+        ]
+      }
+    }
+  ]
+}
