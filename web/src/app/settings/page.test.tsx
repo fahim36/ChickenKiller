@@ -22,7 +22,7 @@ const NO_KEY: Grading = {
   key: null,
   grader: "server",
   keys_enabled: true,
-  default_model: "gemini-3.5-flash-lite",
+  default_model: "gemini-3.1-flash-lite",
   own_key_required: false,
 };
 
@@ -35,7 +35,7 @@ it("explains grading and offers a key field, never a saved key", async () => {
   expect(screen.getByRole("heading", { name: "Grading" })).toBeTruthy();
   expect(screen.getByLabelText("Gemini API key").getAttribute("type")).toBe("password");
   expect(screen.getByRole("link", { name: "Google AI Studio" })).toBeTruthy();
-  expect(screen.getByText(/graded by the server's Claude Code/)).toBeTruthy();
+  expect(screen.getByText(/Set your own Gemini key/)).toBeTruthy();
   expect(screen.getByRole("link", { name: "your Active Stacks" }).getAttribute("href")).toBe(
     "/stacks",
   );
@@ -52,7 +52,7 @@ it("asks for the Learner's own key when no other grader is used", async () => {
   render(await SettingsPage());
 
   expect(screen.getByText(/without one they can't be graded/)).toBeTruthy();
-  expect(screen.getByText(/graded only with your own key/)).toBeTruthy();
+  expect(screen.getByText(/Set your own Gemini key/)).toBeTruthy();
   expect(screen.queryByText(/server's Claude Code/)).toBeNull();
 });
 
@@ -76,7 +76,34 @@ it("shows only the saved key's last four characters", async () => {
 
   expect(screen.getByText("WXYZ")).toBeTruthy();
   expect(screen.getByRole("button", { name: "Remove key" })).toBeTruthy();
-  expect(screen.getByLabelText("Replace your key with a Gemini API key")).toBeTruthy();
+  expect(screen.getByLabelText("Replace your Gemini API key")).toBeTruthy();
+});
+
+it("hides a key saved for NVIDIA and asks for a Gemini key", async () => {
+  stubApi({
+    "/me": ONBOARDED,
+    "/me/grading": {
+      ...NO_KEY,
+      grader: "own_key",
+      key: {
+        provider: "nvidia",
+        model: "nvidia/nemotron-3.5-lightning-30b-a3b",
+        key_hint: "WXYZ",
+        updated_at: "2026-09-27T10:00:00Z",
+      },
+    },
+    "/me/access-tokens": [],
+  });
+
+  render(await SettingsPage());
+
+  expect(screen.queryByText(/NVIDIA/)).toBeNull();
+  expect(screen.queryByText("WXYZ")).toBeNull();
+  expect(screen.getByText(/Set your own Gemini key/)).toBeTruthy();
+  expect(screen.getByLabelText("Gemini API key")).toBeTruthy();
+  expect((screen.getByLabelText(/^Model/) as HTMLInputElement).value).toBe(
+    "gemini-3.1-flash-lite",
+  );
 });
 
 it("says so when the server can't store keys", async () => {

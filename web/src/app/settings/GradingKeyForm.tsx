@@ -9,18 +9,10 @@ import { Input } from "@/components/ui/input";
 import type { Grading } from "@/lib/api";
 import type { KeyState } from "./actions";
 
-const GRADER_LINE: Record<Grading["grader"], string> = {
-  own_key: "Your written answers are graded with your own key.",
-  admin_key: "You have no key saved, so your written answers are graded with the Admin's key.",
-  server: "No key is saved, so your written answers are graded by the server's Claude Code.",
-  none: "Save your Gemini key below: your written answers are graded only with your own key.",
-};
-
-const PROVIDER_NAME: Record<string, string> = { gemini: "Gemini", nvidia: "NVIDIA" };
-
 /**
  * The Learner's own Gemini key for grading written answers: save, replace or remove it. The key
- * is never shown again after saving, only its last four characters.
+ * is never shown again after saving, only its last four characters. A key saved earlier for
+ * another provider (NVIDIA) isn't shown: the Learner is asked for a Gemini key, which replaces it.
  */
 export function GradingKeyForm({
   grading,
@@ -33,20 +25,22 @@ export function GradingKeyForm({
 }) {
   const [state, formAction, pending] = useActionState(saveAction, null);
   const [removing, startRemoving] = useTransition();
+  const key = grading.key?.provider === "gemini" ? grading.key : null;
 
   return (
     <div className="space-y-4 rounded-2xl border bg-card p-5 shadow-xs">
       <p className="text-sm text-muted-foreground" role="status">
-        {GRADER_LINE[grading.grader]}
+        {key
+          ? "Your written answers are graded with your own Gemini key."
+          : "Set your own Gemini key below to grade your written answers with it."}
       </p>
 
-      {grading.key && (
+      {key && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-muted/40 px-4 py-3 text-sm">
           <span className="flex items-center gap-2">
             <KeyRound aria-hidden className="size-4 text-primary" />
             <span>
-              {PROVIDER_NAME[grading.key.provider] ?? grading.key.provider} key ending{" "}
-              <code>{grading.key.key_hint}</code> · {grading.key.model}
+              Gemini key ending <code>{key.key_hint}</code> · {key.model}
             </span>
           </span>
           <Button
@@ -66,7 +60,7 @@ export function GradingKeyForm({
         <form action={formAction} className="space-y-3">
           <div className="space-y-1.5">
             <label htmlFor="api-key" className="text-sm font-semibold">
-              {grading.key ? "Replace your key with a Gemini API key" : "Gemini API key"}
+              {key ? "Replace your Gemini API key" : "Gemini API key"}
             </label>
             <Input
               id="api-key"
@@ -88,7 +82,7 @@ export function GradingKeyForm({
               autoComplete="off"
               spellCheck={false}
               placeholder={grading.default_model}
-              defaultValue={grading.key?.model === grading.default_model ? "" : grading.key?.model}
+              defaultValue={key?.model ?? grading.default_model}
               className="h-10 bg-background font-mono"
             />
           </div>

@@ -6,13 +6,18 @@ Daily interview prep, modeled on LinkedIn Games. Pick the Stacks you're preparin
 
 This guide shows how to use it. How the app is built and run is in [docs/development.md](docs/development.md).
 
+**Set up first**
+
 - [1. Sign up and pick your Stacks](#1-sign-up-and-pick-your-stacks)
-- [2. Your home screen](#2-your-home-screen)
-- [3. Play the Daily Challenge](#3-play-the-daily-challenge)
-- [4. Study the Syllabus](#4-study-the-syllabus)
-- [5. Practise in Review](#5-practise-in-review)
-- [6. Use your own grading key (optional)](#6-use-your-own-grading-key-optional)
-- [7. Connect your Claude](#7-connect-your-claude)
+- [2. Set up your Gemini key](#2-set-up-your-gemini-key)
+- [3. Connect your Claude](#3-connect-your-claude)
+
+**Then use the app**
+
+- [4. Your home screen](#4-your-home-screen)
+- [5. Play the Daily Challenge](#5-play-the-daily-challenge)
+- [6. Study the Syllabus](#6-study-the-syllabus)
+- [7. Practise in Review](#7-practise-in-review)
 - [8. Ask for a new Stack](#8-ask-for-a-new-stack)
 - [Good to know](#good-to-know)
 
@@ -24,7 +29,34 @@ You can change them any time from **Stacks** in the top bar. A Stack you untick 
 
 ![The Stacks screen: tick the Stacks you want to study](docs/images/02-stacks.jpg)
 
-## 2. Your home screen
+## 2. Set up your Gemini key
+
+Written answers are graded by an AI model, which compares your answer with a Model Answer's key points. Set your own free Google Gemini API key so they're graded on your own account. Until you do, the app's key grades them. If grading fails altogether, nothing is counted and you can submit again.
+
+1. Sign in to [Google AI Studio](https://aistudio.google.com/app/apikey) with your Google account and choose **Create API key**.
+2. In the app, open **Settings**, paste the key (it starts with `AIza`) under **Grading**, and choose **Save key**. The **Model** field is already filled in with `gemini-3.1-flash-lite`; leave it as it is.
+
+The key is stored encrypted and is only used to grade your answers. The app never shows it again, only its last four characters. You can replace or remove it at any time.
+
+![Settings: saving your Gemini key for grading](docs/images/08-grading-key.jpg)
+
+## 3. Connect your Claude
+
+You can connect Claude (Claude Desktop, claude.ai or Claude Code) to the app. Your Claude can then read the Syllabuses, propose new Questions and Daily Challenges, and build new Stacks. Everything it proposes is a draft under your name until the Admin accepts it.
+
+1. In **Settings**, under **Claude connector (MCP)**, type a name for the token and choose **Create token**. Copy the token: it's shown only once.
+2. In your Claude app, add a custom connector with the URL `https://prep.chickenkiller.com/mcp/` and the header `Authorization: Bearer <your token>`.
+   In Claude Code, run this command:
+
+   ```bash
+   claude mcp add --transport http interview-cracker https://prep.chickenkiller.com/mcp/ --header "Authorization: Bearer <your token>"
+   ```
+
+3. Revoke the token in **Settings** as soon as you no longer need it.
+
+![Settings: the Claude connector](docs/images/09-claude-connector.jpg)
+
+## 4. Your home screen
 
 **Home** has a card for each Stack you study. It shows today's Daily Challenge and your Streak on that Stack. Under each card are the Stack's **Week map** and its **Archive** of past Challenges.
 
@@ -32,7 +64,7 @@ Below the cards are **Review**, for practising the Questions you missed, and **C
 
 ![The home screen, with today's Daily Challenge for each Stack](docs/images/01-home.jpg)
 
-## 3. Play the Daily Challenge
+## 5. Play the Daily Challenge
 
 Each Stack releases one numbered Daily Challenge a day: three Questions, two multiple choice and one written. Everyone gets the same one. Choose **Play** on the home screen.
 
@@ -46,7 +78,7 @@ Missed a day? The Stack's **Archive** has every Challenge back to #1. A first pl
 
 ![The Archive of past Daily Challenges](docs/images/11-archive.jpg)
 
-## 4. Study the Syllabus
+## 6. Study the Syllabus
 
 Open a Stack from **Week map** on its home card. The top shows the Stack's summary and your progress through its Lessons.
 
@@ -66,44 +98,17 @@ When you're ready, choose **Start the Lesson Quiz**. You can take it straight aw
 2. **Score 80% or more to pass.** Below that, take a fresh Lesson Quiz; it skips the Questions you've already seen.
 3. **Retake what you missed.** After passing, read the Explanation of each Question you missed, then answer a Retake on the same idea. When every Retake is right, the Lesson is complete and the next one unlocks.
 
-## 5. Practise in Review
+## 7. Practise in Review
 
 **Review** is optional practice, in sets of up to 10 Questions, across all your Stacks. The Questions you missed come first, then repeats from Lessons you've completed and Challenges you've played. A missed Question leaves Review once you've answered it correctly on three different Days. Nothing in Review can lock anything, so use it whenever you like.
 
 ![Review](docs/images/07-review.jpg)
 
-## 6. Use your own grading key (optional)
-
-Written answers are graded by an AI model, which compares your answer with a Model Answer's key points. By default they are graded with the app's key. You can save your own free Google Gemini API key instead, so grading runs on your own account. If your key's provider fails, the app's key grades instead. If grading fails altogether, nothing is counted and you can submit again.
-
-1. Sign in to [Google AI Studio](https://aistudio.google.com/app/apikey) with your Google account and choose **Create API key**.
-2. In the app, open **Settings**, paste the key (it starts with `AIza`) under **Grading**, and choose **Save key**.
-
-The key is stored encrypted and is only used to grade your answers. The app never shows it again, only its last four characters. You can replace or remove it at any time.
-
-![Settings: saving your Gemini key for grading](docs/images/08-grading-key.jpg)
-
-## 7. Connect your Claude
-
-You can connect Claude (Claude Desktop, claude.ai or Claude Code) to the app. Your Claude can then read the Syllabuses, propose new Questions and Daily Challenges, and build new Stacks. Everything it proposes is a draft under your name until the Admin accepts it.
-
-1. In **Settings**, under **Claude connector (MCP)**, type a name for the token and choose **Create token**. Copy the token: it's shown only once.
-2. In your Claude app, add a custom connector with the URL `https://prep.chickenkiller.com/mcp/` and the header `Authorization: Bearer <your token>`.
-   In Claude Code, run this command:
-
-   ```bash
-   claude mcp add --transport http interview-cracker https://prep.chickenkiller.com/mcp/ --header "Authorization: Bearer <your token>"
-   ```
-
-3. Revoke the token in **Settings** as soon as you no longer need it.
-
-![Settings: the Claude connector](docs/images/09-claude-connector.jpg)
-
 ## 8. Ask for a new Stack
 
 Don't see the role you're preparing for? On **Stacks**, choose **Add a Stack**, then say what it's for and who it's for. Add any notes and choose how many Weeks it should last.
 
-With the connector from step 7, ask your Claude to build it. Claude researches the role, drafts the weekly plan, and then writes the Questions for every Lesson. The Admin reviews the drafts and makes the Stack live. Until then, the Stacks screen shows it under **Stacks being built**.
+With the connector from step 3, ask your Claude to build it. Claude researches the role, drafts the weekly plan, and then writes the Questions for every Lesson. The Admin reviews the drafts and makes the Stack live. Until then, the Stacks screen shows it under **Stacks being built**.
 
 ![Add a Stack](docs/images/10-add-a-stack.jpg)
 

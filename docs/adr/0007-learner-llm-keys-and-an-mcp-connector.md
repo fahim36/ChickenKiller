@@ -15,7 +15,7 @@ This amends ADR-0006 and extends ADR-0001.
 
 ## Addendum: Gemini keys
 
-New keys are Google Gemini API keys (free from Google AI Studio), graded by `gemini-3.5-flash-lite` through Gemini's OpenAI-compatible `/chat/completions` endpoint, with `reasoning_effort: low` (Gemini 3 can't turn thinking off, and its thinking counts toward `max_tokens`, so the limit is 2048). Keys saved earlier for NVIDIA keep working. The fallback order is unchanged.
+New keys are Google Gemini API keys (free from Google AI Studio), graded by `gemini-3.1-flash-lite` through Gemini's OpenAI-compatible `/chat/completions` endpoint, with `reasoning_effort: low` (Gemini 3 can't turn thinking off, and its thinking counts toward `max_tokens`, so the limit is 2048). Keys saved earlier for NVIDIA keep working. The fallback order is unchanged.
 
 ## Addendum: own keys only
 

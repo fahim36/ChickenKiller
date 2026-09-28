@@ -293,8 +293,8 @@ def grader_from_config(claude_bin: str) -> Grader:
 
 
 GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai"
-GEMINI_MODEL = "gemini-3.5-flash-lite"
-"""Google's Gemini 3.5 Flash-Lite through its OpenAI-compatible endpoint: the fastest, cheapest
+GEMINI_MODEL = "gemini-3.1-flash-lite"
+"""Google's Gemini 3.1 Flash-Lite through its OpenAI-compatible endpoint: a small, fast, cheap
 stable Gemini, with a free tier. A key comes from https://aistudio.google.com/app/apikey."""
 
 NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1"
