@@ -14,6 +14,8 @@ from sqlalchemy.orm import Session
 
 from app import config, llm_keys
 from app.grading import (
+    GEMINI_BASE_URL,
+    GEMINI_MODEL,
     NVIDIA_MODEL,
     ChatCompletionsGrader,
     FallbackGrader,
@@ -43,7 +45,7 @@ def test_without_a_key_the_server_grades(api: TestClient) -> None:
         "key": None,
         "grader": "server",
         "keys_enabled": True,
-        "default_model": NVIDIA_MODEL,
+        "default_model": GEMINI_MODEL,
         "own_key_required": False,
     }
 
@@ -54,7 +56,8 @@ def test_a_saved_key_is_encrypted_and_never_sent_back(api: TestClient, session: 
     assert saved.status_code == 200, saved.text
     assert KEY not in saved.text
     assert saved.json()["key"]["key_hint"] == "WXYZ"
-    assert saved.json()["key"]["model"] == NVIDIA_MODEL
+    assert saved.json()["key"]["model"] == GEMINI_MODEL
+    assert saved.json()["key"]["provider"] == "gemini"
     assert saved.json()["grader"] == "own_key"
     row = session.get(GradingKey, learner_row(session).id)
     assert row is not None and KEY not in row.key_ciphertext
@@ -200,6 +203,35 @@ def test_the_nvidia_grader_sends_the_prompt_with_the_key_and_thinking_off() -> N
     assert body["model"] == NVIDIA_MODEL
     assert body["chat_template_kwargs"] == {"enable_thinking": False}
     assert "<learner_answer>\nThe answer.\n</learner_answer>" in body["messages"][1]["content"]
+
+
+def test_the_gemini_grader_sends_low_reasoning_to_googles_endpoint() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        reply = '{"passed": false, "feedback": "Misses the fix."}'
+        return httpx.Response(200, json={"choices": [{"message": {"content": reply}}]})
+
+    grader = ChatCompletionsGrader(
+        KEY,
+        base_url=GEMINI_BASE_URL,
+        model=GEMINI_MODEL,
+        provider="gemini",
+        client=httpx.Client(transport=httpx.MockTransport(handler)),
+    )
+
+    assert grader.grade("Explain.", MODEL_ANSWER, "The answer.") == Grade(
+        passed=False, feedback="Misses the fix."
+    )
+    [request] = requests
+    assert str(request.url) == (
+        "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+    )
+    assert request.headers["authorization"] == f"Bearer {KEY}"
+    body = json.loads(request.content)
+    assert (body["model"], body["reasoning_effort"]) == (GEMINI_MODEL, "low")
+    assert "chat_template_kwargs" not in body
 
 
 @pytest.mark.parametrize("status", [401, 429, 500])

@@ -21,7 +21,7 @@ rule was needed, because 80 and 443 were already open.
 `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `CLERK_ISSUER`, `ADMIN_EMAILS`,
 `LLM_KEY_SECRET`, `OPEN_SIGNUP=true` (anyone can sign up),
 `OWN_GRADING_KEY_REQUIRED=false` (a Learner without a key of their own is graded with the
-Admin's NVIDIA key; no `CLAUDE_CODE_OAUTH_TOKEN` is set, so the server's Claude Code never
+Admin's saved key; no `CLAUDE_CODE_OAUTH_TOKEN` is set, so the server's Claude Code never
 grades),
 `PUBLIC_HOST=prep.chickenkiller.com` and `POSTGRES_PASSWORD`. The Clerk instance is a development one, which works on any domain
 (docs/deploy.md).

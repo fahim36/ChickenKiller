@@ -74,14 +74,14 @@ When you're ready, choose **Start the Lesson Quiz**. You can take it straight aw
 
 ## 6. Use your own grading key (optional)
 
-Written answers are graded by an AI model, which compares your answer with a Model Answer's key points. By default they are graded with the app's key. You can save your own free NVIDIA API key instead, so grading runs on your own account. If your key's provider fails, the app's key grades instead. If grading fails altogether, nothing is counted and you can submit again.
+Written answers are graded by an AI model, which compares your answer with a Model Answer's key points. By default they are graded with the app's key. You can save your own free Google Gemini API key instead, so grading runs on your own account. If your key's provider fails, the app's key grades instead. If grading fails altogether, nothing is counted and you can submit again.
 
-1. Sign in at [build.nvidia.com](https://build.nvidia.com/settings/api-keys) and choose **Generate API Key**.
-2. In the app, open **Settings**, paste the key (it starts with `nvapi-`) under **Grading**, and choose **Save key**.
+1. Sign in to [Google AI Studio](https://aistudio.google.com/app/apikey) with your Google account and choose **Create API key**.
+2. In the app, open **Settings**, paste the key (it starts with `AIza`) under **Grading**, and choose **Save key**.
 
 The key is stored encrypted and is only used to grade your answers. The app never shows it again, only its last four characters. You can replace or remove it at any time.
 
-![Settings: saving your NVIDIA key for grading](docs/images/08-grading-key.jpg)
+![Settings: saving your Gemini key for grading](docs/images/08-grading-key.jpg)
 
 ## 7. Connect your Claude
 

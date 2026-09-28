@@ -85,7 +85,7 @@ Creating the Clerk account is a step only a person can do.
 | API | `CLERK_JWKS_URL` | Optional. Overrides the JWKS URL above. |
 | API | `CLERK_AUTHORIZED_PARTIES` | The web app's origins, comma-separated, such as `https://learning-web-abcd.onrender.com`. Tokens must have one of them as `azp`. If it is empty, any `azp` is accepted, so always set it in production. |
 | API | `OPEN_SIGNUP` | Optional. `true` lets anyone who signs up become a Learner, with no invitation. Every Learner's written answers are then graded with the app's default grader unless they save their own LLM key. |
-| API | `OWN_GRADING_KEY_REQUIRED` | Optional. `true` grades each Learner's written answers only with their own saved NVIDIA key: never the Admin's key or the server's Claude Code. A Learner without one is asked to save a key, and nothing is counted. The Admin is graded as before. |
+| API | `OWN_GRADING_KEY_REQUIRED` | Optional. `true` grades each Learner's written answers only with their own saved key: never the Admin's key or the server's Claude Code. A Learner without one is asked to save a key, and nothing is counted. The Admin is graded as before. |
 | API | `ADMIN_EMAILS` | The Admin's email address. Comma-separate several. The Admin is always let in and is the only one who can open **Invitations**. |
 | Web | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | The publishable key. It is built into the page, so set it before the build. |
 | Web | `CLERK_SECRET_KEY` | The secret key. |

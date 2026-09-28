@@ -10,10 +10,10 @@ allows. It only judges an answer; it never creates or changes content.
   with `GradingFailed`, which the API turns into 503 `grading_failed` and the Learner can
   resubmit.
 - `ChatCompletionsGrader` grades with an LLM provider's key instead, through an OpenAI-style
-  `/chat/completions` endpoint (NVIDIA's, for Nemotron). A Learner can save their own key in
-  Settings (app/llm_keys.py, stored encrypted); without one, the Admin's saved key is used, and
-  without that, the CLI. The same prompt and the same `{passed, feedback}` reply, read from the
-  message text.
+  `/chat/completions` endpoint (Google's for Gemini, or NVIDIA's for Nemotron). A Learner can
+  save their own key in Settings (app/llm_keys.py, stored encrypted); without one, the Admin's
+  saved key is used, and without that, the CLI. The same prompt and the same `{passed,
+  feedback}` reply, read from the message text.
 
 The model, the prompt, the command's flags and the limits are the constants below: change them
 here.
@@ -292,6 +292,11 @@ def grader_from_config(claude_bin: str) -> Grader:
     return ClaudeCodeGrader(find_claude(claude_bin))
 
 
+GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai"
+GEMINI_MODEL = "gemini-3.5-flash-lite"
+"""Google's Gemini 3.5 Flash-Lite through its OpenAI-compatible endpoint: the fastest, cheapest
+stable Gemini, with a free tier. A key comes from https://aistudio.google.com/app/apikey."""
+
 NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1"
 NVIDIA_MODEL = "nvidia/nemotron-3.5-lightning-30b-a3b"
 """NVIDIA's hosted Nemotron 3.5 Lightning (30B MoE, 3B active): small and fast, like Haiku."""
@@ -323,6 +328,17 @@ def parse_chat_grade(text: str) -> Grade:
     raise GradingFailed("the reply has no {passed, feedback} object")
 
 
+_PROVIDER_BODY: dict[str, dict[str, Any]] = {
+    # Nemotron thinks at length by default (a minute, and often out of tokens before it
+    # answers); a checklist needs none. Answers then take about a second.
+    "nvidia": {"max_tokens": 300, "chat_template_kwargs": {"enable_thinking": False}},
+    # Gemini 3 can't turn thinking off, only down, and thinking tokens count toward
+    # max_tokens: keep it low and leave room for the reply.
+    "gemini": {"max_tokens": 2048, "reasoning_effort": "low"},
+}
+"""The request fields each provider needs beyond the OpenAI-style basics."""
+
+
 class ChatCompletionsGrader:
     """Grades with one `/chat/completions` call per answer to an OpenAI-style endpoint, with the
     caller's `api_key`. `client` is the seam tests fake (an `httpx.Client` with a mock
@@ -334,9 +350,11 @@ class ChatCompletionsGrader:
         *,
         base_url: str = NVIDIA_BASE_URL,
         model: str = NVIDIA_MODEL,
+        provider: str = "nvidia",
         client: httpx.Client | None = None,
     ) -> None:
         self._api_key = api_key
+        self._extra = _PROVIDER_BODY.get(provider, _PROVIDER_BODY["nvidia"])
         self._url = base_url.rstrip("/") + "/chat/completions"
         self.model = model
         self._client = client or httpx.Client(timeout=CHAT_TIMEOUT_SECONDS)
@@ -349,11 +367,8 @@ class ChatCompletionsGrader:
                 {"role": "user", "content": build_prompt(prompt, model_answer, answer)},
             ],
             "temperature": 0,
-            "max_tokens": 300,
             "stream": False,
-            # Nemotron thinks at length by default (a minute, and often out of tokens before it
-            # answers); a checklist needs none. Answers then take about a second.
-            "chat_template_kwargs": {"enable_thinking": False},
+            **self._extra,
         }
         started = time.monotonic()
         try:

@@ -22,7 +22,7 @@ const NO_KEY: Grading = {
   key: null,
   grader: "server",
   keys_enabled: true,
-  default_model: "nvidia/nemotron-3.5-lightning-30b-a3b",
+  default_model: "gemini-3.5-flash-lite",
   own_key_required: false,
 };
 
@@ -33,8 +33,8 @@ it("explains grading and offers a key field, never a saved key", async () => {
 
   expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Settings");
   expect(screen.getByRole("heading", { name: "Grading" })).toBeTruthy();
-  expect(screen.getByLabelText("NVIDIA API key").getAttribute("type")).toBe("password");
-  expect(screen.getByRole("link", { name: "build.nvidia.com" })).toBeTruthy();
+  expect(screen.getByLabelText("Gemini API key").getAttribute("type")).toBe("password");
+  expect(screen.getByRole("link", { name: "Google AI Studio" })).toBeTruthy();
   expect(screen.getByText(/graded by the server's Claude Code/)).toBeTruthy();
   expect(screen.getByRole("link", { name: "your Active Stacks" }).getAttribute("href")).toBe(
     "/stacks",
@@ -63,7 +63,7 @@ it("shows only the saved key's last four characters", async () => {
       ...NO_KEY,
       grader: "own_key",
       key: {
-        provider: "nvidia",
+        provider: "gemini",
         model: NO_KEY.default_model,
         key_hint: "WXYZ",
         updated_at: "2026-09-27T10:00:00Z",
@@ -76,7 +76,7 @@ it("shows only the saved key's last four characters", async () => {
 
   expect(screen.getByText("WXYZ")).toBeTruthy();
   expect(screen.getByRole("button", { name: "Remove key" })).toBeTruthy();
-  expect(screen.getByLabelText("Replace your NVIDIA API key")).toBeTruthy();
+  expect(screen.getByLabelText("Replace your key with a Gemini API key")).toBeTruthy();
 });
 
 it("says so when the server can't store keys", async () => {
@@ -88,7 +88,7 @@ it("says so when the server can't store keys", async () => {
 
   render(await SettingsPage());
 
-  expect(screen.queryByLabelText("NVIDIA API key")).toBeNull();
+  expect(screen.queryByLabelText("Gemini API key")).toBeNull();
   expect(screen.getByRole("note").textContent).toContain("LLM_KEY_SECRET");
 });
 

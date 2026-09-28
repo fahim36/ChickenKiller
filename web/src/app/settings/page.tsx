@@ -78,8 +78,8 @@ export default async function SettingsPage() {
         <div className="mb-4 space-y-2 text-sm leading-relaxed text-muted-foreground">
           {ownKeyOnly ? (
             <p>
-              Written answers are graded by an LLM against the Model Answer, with your own NVIDIA
-              key and the Nemotron model.{" "}
+              Written answers are graded by an LLM against the Model Answer, with your own Google
+              Gemini key.{" "}
               {me.is_admin
                 ? "Every other Learner uses their own key, never yours."
                 : "Save your key here before you answer written Questions: without one they can't be graded."}
@@ -87,23 +87,22 @@ export default async function SettingsPage() {
           ) : (
             <p>
               Written answers are graded by an LLM against the Model Answer. You can use your own
-              NVIDIA key, with the Nemotron model.{" "}
+              free Google Gemini key.{" "}
               {me.is_admin
                 ? "Learners without a key of their own are graded with yours."
                 : "Without one, the Admin's key is used."}{" "}
-              With no key at all, the server&apos;s Claude Code grades. If a key&apos;s provider
-              fails, the next one in line grades instead.
+              If a key&apos;s provider fails, the next one in line grades instead.
             </p>
           )}
           <ol className="list-decimal space-y-1 pl-5">
             <li>
-              Sign in at{" "}
-              <a href="https://build.nvidia.com/settings/api-keys" target="_blank" rel="noreferrer">
-                build.nvidia.com
+              Sign in to{" "}
+              <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer">
+                Google AI Studio
               </a>{" "}
-              and choose <strong>Generate API Key</strong>.
+              with your Google account and choose <strong>Create API key</strong>.
             </li>
-            <li>Paste the key (it starts with nvapi-) below and save it.</li>
+            <li>Copy the key (it starts with AIza) and paste it below, then save it.</li>
           </ol>
           <p>
             Your key is stored encrypted, is only used to grade your answers

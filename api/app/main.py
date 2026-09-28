@@ -250,7 +250,7 @@ GRADING_FAILED = {
 GRADING_KEY_NEEDED = {
     "code": "grading_failed",
     "message": (
-        "Written answers are graded with your own NVIDIA key. Save one in Settings, then "
+        "Written answers are graded with your own Gemini key. Save one in Settings, then "
         "submit again. Nothing was counted."
     ),
 }
@@ -849,7 +849,7 @@ def _grading(
         key=schemas.GradingKeyOut.model_validate(own) if own else None,
         grader=grader,
         keys_enabled=box.enabled,
-        default_model=grading.NVIDIA_MODEL,
+        default_model=grading.GEMINI_MODEL,
         own_key_required=config.OWN_GRADING_KEY_REQUIRED,
     )
 

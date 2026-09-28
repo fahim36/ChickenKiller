@@ -13,6 +13,10 @@ This amends ADR-0006 and extends ADR-0001.
 - Access tokens (`ica_…`) are stored only as SHA-256 hashes, shown once, and revocable; a revoked token is refused at once. The connector has no cookies, so its DNS-rebinding Host check is off.
 - Anyone signed in may propose drafts; reading the Question Bank is the Admin's only, since it includes Upcoming Challenges' Questions. No tool returns an answer or a Model Answer.
 
+## Addendum: Gemini keys
+
+New keys are Google Gemini API keys (free from Google AI Studio), graded by `gemini-3.5-flash-lite` through Gemini's OpenAI-compatible `/chat/completions` endpoint, with `reasoning_effort: low` (Gemini 3 can't turn thinking off, and its thinking counts toward `max_tokens`, so the limit is 2048). Keys saved earlier for NVIDIA keep working. The fallback order is unchanged.
+
 ## Addendum: own keys only
 
 With `OWN_GRADING_KEY_REQUIRED=true` a Learner's written answers are graded only with their own saved key, so an open sign-up can't spend the Admin's key or the server's Claude Code. Without a key, grading refuses with `grading_failed` and a message to save one; nothing is recorded, not even a Daily Challenge's first try. The Admin keeps the usual fallback order.

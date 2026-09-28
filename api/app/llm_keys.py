@@ -1,6 +1,7 @@
 """Learners' own LLM provider keys for grading written answers.
 
-A Learner may save a key for NVIDIA's API (Nemotron) in Settings. Their written answers are
+A Learner may save a Google Gemini API key in Settings (keys saved earlier for NVIDIA's API,
+Nemotron, still work). Their written answers are
 then graded with it (`grading.ChatCompletionsGrader`). A Learner without a key is graded with
 the Admin's key, when the Admin has saved one, and otherwise by the default grader, the Claude
 Code CLI on the API's machine (ADR-0006). So `grader_for` picks, in order: the Learner's own
@@ -24,6 +25,8 @@ from sqlalchemy.orm import Session
 
 from app import config
 from app.grading import (
+    GEMINI_BASE_URL,
+    GEMINI_MODEL,
     NVIDIA_BASE_URL,
     NVIDIA_MODEL,
     ChatCompletionsGrader,
@@ -35,7 +38,10 @@ from app.models import GradingKey, Learner
 
 logger = logging.getLogger(__name__)
 
-PROVIDERS = {"nvidia": (NVIDIA_BASE_URL, NVIDIA_MODEL)}
+PROVIDERS = {
+    "gemini": (GEMINI_BASE_URL, GEMINI_MODEL),
+    "nvidia": (NVIDIA_BASE_URL, NVIDIA_MODEL),
+}
 """Each provider's endpoint and default model."""
 
 MIN_KEY_CHARS = 20
@@ -100,7 +106,7 @@ def save_key(
     api_key: str,
     now: datetime,
     *,
-    provider: str = "nvidia",
+    provider: str = "gemini",
     model: str | None = None,
 ) -> KeySummary:
     """Save (or replace) the Learner's key, encrypted. Raises KeysDisabled or BadKey."""
@@ -169,7 +175,11 @@ def grader_for(
         if key is None:
             logger.warning("grading_key_unreadable %s", row.learner_id)
             continue
-        graders.append(ChatCompletionsGrader(key, base_url=row.base_url, model=row.model))
+        graders.append(
+            ChatCompletionsGrader(
+                key, base_url=row.base_url, model=row.model, provider=row.provider
+            )
+        )
     if only_own:
         return graders[0] if graders else NoKeyGrader()
     if not graders:

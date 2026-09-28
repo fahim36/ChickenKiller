@@ -531,7 +531,7 @@ class GradingOut(BaseModel):
 
 
 class GradingKeyIn(BaseModel):
-    provider: Literal["nvidia"] = "nvidia"
+    provider: Literal["gemini", "nvidia"] = "gemini"
     api_key: str
     model: str | None = None
 

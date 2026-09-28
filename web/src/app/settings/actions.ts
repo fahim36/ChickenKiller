@@ -6,14 +6,14 @@ import { ApiError, apiDelete, apiPost, apiPut, type Grading, type NewAccessToken
 export type KeyState = { ok: boolean; message: string } | null;
 export type TokenState = { ok: true; token: NewAccessToken } | { ok: false; message: string } | null;
 
-/** Save (or replace) the Learner's NVIDIA key for grading. The API stores it encrypted. */
+/** Save (or replace) the Learner's Gemini key for grading. The API stores it encrypted. */
 export async function saveGradingKey(_previous: KeyState, form: FormData): Promise<KeyState> {
   const apiKey = String(form.get("api_key") ?? "").trim();
   const model = String(form.get("model") ?? "").trim();
   if (!apiKey) return { ok: false, message: "Paste your API key first." };
   try {
     await apiPut<Grading>("/me/grading-key", {
-      provider: "nvidia",
+      provider: "gemini",
       api_key: apiKey,
       model: model || null,
     });

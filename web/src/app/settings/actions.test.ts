@@ -18,14 +18,14 @@ it("sends the key to the API to store, with the default model when none is given
   const fetch = vi.fn(async () => Response.json({}));
   vi.stubGlobal("fetch", fetch);
 
-  const result = await saveGradingKey(null, form({ api_key: "  nvapi-secret  ", model: "" }));
+  const result = await saveGradingKey(null, form({ api_key: "  AIza-secret  ", model: "" }));
 
   expect(result?.ok).toBe(true);
   expect(fetch).toHaveBeenCalledWith(
     "http://localhost:8000/me/grading-key",
     expect.objectContaining({
       method: "PUT",
-      body: JSON.stringify({ provider: "nvidia", api_key: "nvapi-secret", model: null }),
+      body: JSON.stringify({ provider: "gemini", api_key: "AIza-secret", model: null }),
     }),
   );
 });
