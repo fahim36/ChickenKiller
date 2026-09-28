@@ -1,217 +1,115 @@
-# InterviewCrackerAssistant
+# Interview Cracker
 
-Daily interview-prep games, modeled on LinkedIn Games. Every Stack (such as Agentic AI Engineer) releases one numbered Daily Challenge a day: three Questions, the same for everyone, released at 00:00 UTC. Playing it keeps your Streak going, and a Result Card shows how you did. Past Challenges stay playable in the Archive, and Catch-up lists the ones you missed. Next to the Challenges, each Stack has a researched Syllabus of Weekly Lessons. Each Lesson ends with a quiz you must pass before the next one unlocks. An optional Review brings Missed Questions back until they stick.
+Daily interview prep, modeled on LinkedIn Games. Pick the Stacks you're preparing for, such as **Agentic AI Engineer**, **Android Developer** or **Full Stack .NET Developer**. Every day you get a short Daily Challenge, and a researched Syllabus takes you through the field one Lesson at a time.
 
-Claude Code does the content work. In the Admin's terminal it keeps the Syllabus current and writes the Upcoming Challenges as reviewed, version-numbered content files. On the API's machine it grades written answers.
+**Open the app: https://prep.chickenkiller.com**
 
-- Glossary: [CONTEXT.md](CONTEXT.md)
-- Decisions: [docs/adr/](docs/adr/)
-- Where Version 1 stands (progress, known gaps, to do): [docs/status.md](docs/status.md)
-- Plan: [docs/build-plan.md](docs/build-plan.md) (milestones, tests and demos) and [docs/implementation-order.md](docs/implementation-order.md) (ticket order)
+This guide shows how to use it. How the app is built and run is in [docs/development.md](docs/development.md).
 
-```mermaid
-graph LR
-  CC["Claude Code<br/>(Admin terminal)"] -->|"writes + commits"| C["content/stack/version"]
-  C -->|"content-check"| C
-  C -->|"content-import"| DB[("Postgres")]
-  API["FastAPI (api/)"] --> DB
-  WEB["Next.js (web/)"] --> API
-  API -->|"grades written answers<br/>with claude -p"| CL["Claude Code CLI<br/>(on the API machine)"]
-```
+- [1. Sign up and pick your Stacks](#1-sign-up-and-pick-your-stacks)
+- [2. Your home screen](#2-your-home-screen)
+- [3. Play the Daily Challenge](#3-play-the-daily-challenge)
+- [4. Study the Syllabus](#4-study-the-syllabus)
+- [5. Practise in Review](#5-practise-in-review)
+- [6. Save your grading key](#6-save-your-grading-key)
+- [7. Connect your Claude](#7-connect-your-claude)
+- [8. Ask for a new Stack](#8-ask-for-a-new-stack)
+- [Good to know](#good-to-know)
 
-## Repo layout
+## 1. Sign up and pick your Stacks
 
-| Path | What's there |
-|---|---|
-| `content/schema/` | JSON Schema for `syllabus.json`, Question Bank files, `changelog.json` and Daily Challenge files, generated from `api/app/content/format.py` ([format notes](docs/content-format.md)) |
-| `content/<stack>/<version>/` | One Syllabus version: `syllabus.json` and `changelog.json` |
-| `content/<stack>/question-bank/` | The Stack's one Question Bank, append-only, with each Question's Sources ([ADR-0004](docs/adr/0004-append-only-question-bank-with-sources.md)) |
-| `content/<stack>/challenges/` | The Stack's launch Day and its Daily Challenges, one file per Day, frozen once released |
-| `.claude/skills/update-syllabus/` | The `/update-syllabus` command that writes a new Syllabus version ([below](#update-a-syllabus)) |
-| `.claude/skills/write-challenges/` | The `/write-challenges` command that writes the next Upcoming Challenges ([below](#write-upcoming-challenges)) |
-| `api/` | FastAPI app, SQLAlchemy models, Alembic migrations, and the `content-check`, `content-diff`, `content-import`, `content-migrate-bank`, `content-new-version` and `content-schema` commands |
-| `web/` | Next.js 16 front end (App Router, server components) |
-| `run-app.cmd`, `docker-compose.yml`, `web/Dockerfile`, `.env.example` | Running the whole app on this machine ([below](#run-it-locally)) |
-| `render.yaml`, `api/Dockerfile` | Deployment ([docs/deploy.md](docs/deploy.md)) |
+Open the app and choose **Sign up**. Use your email address, or your Google or GitHub account. Your first sign-in takes you to onboarding: tick one or more Stacks and save.
 
-## Run it locally
+You can change them any time from **Stacks** in the top bar. A Stack you untick keeps your progress, so you can pick it up again later where you left off.
 
-### One command (Windows)
+![The Stacks screen: tick the Stacks you want to study](docs/images/02-stacks.jpg)
 
-Needs Docker Desktop (running), [uv](https://docs.astral.sh/uv/), and [Claude Code](https://claude.com/claude-code) installed and signed in (it grades written answers).
+## 2. Your home screen
 
-1. **Set up Clerk once.** Create a Clerk development instance for sign-in, as in [docs/deploy.md](docs/deploy.md#sign-in-with-clerk).
+**Home** has a card for each Stack you study. It shows today's Daily Challenge and your Streak on that Stack. Under each card are the Stack's **Week map** and its **Archive** of past Challenges.
 
-2. **Fill in `.env.local`.** Copy `.env.example` to `.env.local` at the repo root; git ignores it. Fill in the two Clerk keys, `CLERK_ISSUER` (the instance's Frontend API URL) and `ADMIN_EMAILS`, the address you sign in with. That account is the Admin.
+Below the cards are **Review**, for practising the Questions you missed, and **Catch-up**, which lists past Challenges you haven't played.
 
-3. **Start it:**
+![The home screen, with today's Daily Challenge for each Stack](docs/images/01-home.jpg)
 
-   ```bash
-   run-app.cmd
-   ```
+## 3. Play the Daily Challenge
 
-   It does four things:
-   - rebuilds the Docker images;
-   - starts Postgres (host port 5433) and the web app (http://localhost:3000) in Docker;
-   - migrates the database and imports `content/`;
-   - runs the API on this machine at http://localhost:8000.
+Each Stack releases one numbered Daily Challenge a day at 00:00 UTC: three Questions, two multiple choice and one written. Everyone gets the same one. Choose **Play** on the home screen.
 
-   The API runs outside Docker so it can use your signed-in Claude Code ([ADR-0006](docs/adr/0006-grading-runs-the-claude-code-cli.md)). Once it prints "Application startup complete", open http://localhost:3000. Ctrl+C stops the API. `run-app.cmd stop` stops the containers.
+- **Only your first answer to each Question counts.** After you answer, you see the Explanation and the Sources.
+- **Play today's Challenge on its Day to keep your Streak going.** Days follow UTC, so the new Challenge might arrive in your morning, your evening or at night.
+- **Share how you did.** When you finish, you get a Result Card. It shows your score on each Question but not the Questions or your answers, so it's safe to share.
 
-Run it again after pulling changes. It rebuilds the images and imports any new content.
+![A Daily Challenge Question](docs/images/06-daily-challenge.jpg)
 
-| Problem | What to do |
-|---|---|
-| "Port 8000 is already in use" | An API from an earlier run is still going. Stop it, or set `API_PORT` in `.env.local`. |
-| "Your sign-in couldn't be verified" | Sign out and in again. If it keeps happening, check the Clerk setup in [docs/deploy.md](docs/deploy.md#sign-in-with-clerk). |
-| "You haven't been invited yet" | Sign in with the address in `ADMIN_EMAILS`, or fix `ADMIN_EMAILS` and run `run-app.cmd` again. |
-| `content-import` says "already imported with different content" | The local database holds content from an older layout. If it has no progress you want to keep, recreate it: `docker compose exec db psql -U learning -d postgres -c "drop database learning with (force)" -c "create database learning owner learning"`. |
+Missed a day? The Stack's **Archive** has every Challenge back to #1. A first play there is scored, but only today's Challenge counts toward your Streak.
 
-### By hand
+![The Archive of past Daily Challenges](docs/images/11-archive.jpg)
 
-Needs [uv](https://docs.astral.sh/uv/), Node 24, Docker, and a Clerk development instance for sign-in (set it up as in [docs/deploy.md](docs/deploy.md#sign-in-with-clerk)).
+## 4. Study the Syllabus
 
-1. Put the Clerk keys in `web/.env.local`, which git ignores:
+Open a Stack from **Week map** on its home card. The top shows the Stack's summary and your progress through its Lessons.
 
-   ```bash
-   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
-   CLERK_SECRET_KEY=sk_test_...
-   ```
+![A Stack's page with your progress](docs/images/03-stack.jpg)
 
-   Then set the API's sign-in settings in the shell that starts it:
+The Week map shows each Week and its Lessons, in order. The Lesson you can take now is highlighted, and the locked ones after it show a padlock. Drag to pan, and use the **+** and **−** buttons to zoom. **List** shows the same Weeks as a list, with each Week's hands-on Milestones, which you tick off yourself.
 
-   ```bash
-   export CLERK_ISSUER=https://your-app-12.clerk.accounts.dev   # the Frontend API URL
-   export CLERK_AUTHORIZED_PARTIES=http://localhost:3000
-   export ADMIN_EMAILS=you@example.com                          # you, the Admin
-   ```
+![The Week map](docs/images/04-week-map.jpg)
 
-2. Start Postgres 16. It listens on host port **5433**, so it doesn't clash with a local Postgres on 5432.
+Open a Lesson to see its topics, an exercise and its Materials: free courses, docs, books and videos to learn from.
 
-   ```bash
-   docker compose up -d db
-   ```
+![A Lesson: topics, exercise and Materials](docs/images/05-lesson.jpg)
 
-3. Create the tables, then import every committed Stack version. The import is idempotent, so running it again changes nothing.
+When you're ready, choose **Start the Lesson Quiz**. You can take it straight away if you already know the topic.
+
+1. **Answer six Questions**, four multiple choice and two written.
+2. **Score 80% or more to pass.** Below that, take a fresh Lesson Quiz; it skips the Questions you've already seen.
+3. **Retake what you missed.** After passing, read the Explanation of each Question you missed, then answer a Retake on the same idea. When every Retake is right, the Lesson is complete and the next one unlocks.
+
+## 5. Practise in Review
+
+**Review** is optional practice, in sets of up to 10 Questions, across all your Stacks. The Questions you missed come first, then repeats from Lessons you've completed and Challenges you've played. A missed Question leaves Review once you've answered it correctly on three different Days. Nothing in Review can lock anything, so use it whenever you like.
+
+![Review](docs/images/07-review.jpg)
+
+## 6. Save your grading key
+
+Written answers are graded by an AI model, which compares your answer with a Model Answer's key points. Grading uses your own free NVIDIA API key, so **save one before you answer written Questions**. Without it, written answers can't be graded. Nothing is counted in that case, so you can submit again once the key is saved.
+
+1. Sign in at [build.nvidia.com](https://build.nvidia.com/settings/api-keys) and choose **Generate API Key**.
+2. In the app, open **Settings**, paste the key (it starts with `nvapi-`) under **Grading**, and choose **Save key**.
+
+The key is stored encrypted and is only used to grade your answers. The app never shows it again, only its last four characters. You can replace or remove it at any time.
+
+![Settings: saving your NVIDIA key for grading](docs/images/08-grading-key.jpg)
+
+## 7. Connect your Claude
+
+You can connect Claude (Claude Desktop, claude.ai or Claude Code) to the app. Your Claude can then read the Syllabuses, propose new Questions and Daily Challenges, and build new Stacks. Everything it proposes is a draft under your name until the Admin accepts it.
+
+1. In **Settings**, under **Claude connector (MCP)**, type a name for the token and choose **Create token**. Copy the token: it's shown only once.
+2. In your Claude app, add a custom connector with the URL `https://prep.chickenkiller.com/mcp/` and the header `Authorization: Bearer <your token>`.
+   In Claude Code, run this command:
 
    ```bash
-   cd api && uv run alembic upgrade head && uv run content-import ../content
+   claude mcp add --transport http interview-cracker https://prep.chickenkiller.com/mcp/ --header "Authorization: Bearer <your token>"
    ```
 
-4. Start the API on http://localhost:8000:
+3. Revoke the token in **Settings** as soon as you no longer need it.
 
-   ```bash
-   cd api && uv run uvicorn app.main:app --reload --port 8000
-   ```
+![Settings: the Claude connector](docs/images/09-claude-connector.jpg)
 
-5. Start the web app:
+## 8. Ask for a new Stack
 
-   ```bash
-   cd web && npm install && npm run dev
-   ```
+Don't see the role you're preparing for? On **Stacks**, choose **Add a Stack**, then say what it's for and who it's for. Add any notes and choose how many Weeks it should last.
 
-Open http://localhost:3000 and sign in with the `ADMIN_EMAILS` address. A first sign-in goes to onboarding: pick one or more Stacks to study, and land on the home screen with a card for each. **Settings** activates or deactivates Stacks later (a deactivated Stack keeps its progress), and for the Admin it links to **Invitations**, where you invite other people.
+With the connector from step 7, ask your Claude to build it. Claude researches the role, drafts the weekly plan, and then writes the Questions for every Lesson. The Admin reviews the drafts and makes the Stack live. Until then, the Stacks screen shows it under **Stacks being built**.
 
-| Variable | Read by | Default |
-|---|---|---|
-| `API_URL` | web | `http://localhost:8000` |
-| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY` | web | none. Without them `npm run dev` uses Clerk's keyless mode, but the API then needs that temporary instance's `CLERK_ISSUER` |
-| `DATABASE_URL` | API | `postgresql+psycopg://learning:learning@localhost:5433/learning` |
-| `CLERK_ISSUER`, `CLERK_JWKS_URL`, `CLERK_AUTHORIZED_PARTIES`, `ADMIN_EMAILS` | API | none. Without `CLERK_ISSUER`, everything except `/health` answers 503 ([details](docs/deploy.md#environment-variables)) |
-| `CLAUDE_BIN` | API | `claude` on the PATH (on Windows, `claude.exe`). Written answers are graded by running Claude Code headless with Claude Haiku 4.5 (`api/app/grading.py`, ADR-0006), so Claude Code must be installed and signed in on the machine running the API. Without it the app runs, but submitting a quiz with a written answer answers 503 `grading_failed` and the Learner can resubmit later |
+![Add a Stack](docs/images/10-add-a-stack.jpg)
 
-`.claude/launch.json` starts both servers with the local database, the API URL and `CLERK_AUTHORIZED_PARTIES`. The API still needs `CLERK_ISSUER` and `ADMIN_EMAILS` from the environment it is started in.
+## Good to know
 
-## Update a Syllabus
-
-In Claude Code, from the repo root:
-
-```
-/update-syllabus agentic-ai-engineer
-```
-
-It researches the Stack's field against primary sources and writes a new Syllabus version, `content/<stack>/<version>/`, with a `changelog.json` of what changed in the Syllabus, why, and its sources. In the Stack's Question Bank, `content/<stack>/question-bank/`, it adds new Questions (each with the Sources it fetched), retires out-of-date ones with a reason and a replacement, and re-tags Questions to another Lesson; it never edits or deletes a committed Question. It reads the whole bank first, and the whole Stack passes the content check before it finishes. When its research finds nothing to change, it writes nothing and reports "no change". A Stack that doesn't exist yet is created. Review the new version and the bank's diff, then commit and import them. The steps are in [.claude/skills/update-syllabus/SKILL.md](.claude/skills/update-syllabus/SKILL.md).
-
-It never asks questions, so it also runs headless, for example from a scheduled task:
-
-```bash
-claude -p "/update-syllabus agentic-ai-engineer" \
-  --permission-mode acceptEdits \
-  --allowedTools "Read,Write,Edit,Glob,Grep,WebSearch,WebFetch,Agent,Bash(uv run --project api content-new-version *),Bash(uv run --project api content-diff *),Bash(uv run --project api content-check *),Bash(git status *),Bash(git log *),Bash(grep *)"
-```
-
-- `acceptEdits` lets it write files. `--allowedTools` lets it research, start sub-agents and run the content tools, and nothing else.
-- Anything else it tries is denied, not prompted for.
-- Add `--max-budget-usd 20` (or whatever you choose) to cap what one run costs.
-- **In Git Bash**, put `MSYS_NO_PATHCONV=1` in front. Otherwise Git Bash rewrites `/update-syllabus` into a Windows path and the command never runs. PowerShell, macOS and Linux shells don't need it.
-
-The content tools it relies on also work by hand, from the repo root:
-
-| Command | What it does |
-|---|---|
-| `uv run --project api content-new-version <stack>` | Copies the newest version to a new folder named for today, and starts its changelog. Items you don't touch keep their IDs because they are copies. |
-| `uv run --project api content-diff [<old>] <new>` | Lists what the Syllabus added, changed and removed, by permanent ID, per kind. With one folder, it compares with the version before it. Then lists the Questions the Question Bank added, retired and re-tagged since git `HEAD` (`--baseline <ref>` for another). `--json` for scripts. |
-
-## Write Upcoming Challenges
-
-In Claude Code, from the repo root:
-
-```
-/write-challenges agentic-ai-engineer 7
-```
-
-It reads the Stack's whole Question Bank, researches the field, and writes the next 7 Upcoming Challenges: `content/<stack>/challenges/<number>.json`, each with its number, UTC date and three Questions (two multiple choice, one written). New Questions go into the Question Bank with Sources fetched in the run, preferring Concepts the bank doesn't test yet. The first run for a Stack writes its launch Day (tomorrow, UTC). It passes the content check before it finishes. Review the files, then commit and import them. The steps are in [.claude/skills/write-challenges/SKILL.md](.claude/skills/write-challenges/SKILL.md).
-
-A Challenge can be edited until its Day begins; from 00:00 UTC on its Day it is released and frozen, and the content check refuses any change. A Day with no Challenge written has no Challenge, so keep a few Days ahead: the content check and the Admin's **Upcoming Challenges** page (Settings → Admin) show "Challenges written through <date> (<n> Days left)" per Stack, and warn when fewer than three Days are left.
-
-It never asks questions, so it also runs headless, for example from a scheduled task:
-
-```bash
-claude -p "/write-challenges agentic-ai-engineer 7" \
-  --permission-mode acceptEdits \
-  --allowedTools "Read,Write,Edit,Glob,Grep,WebSearch,WebFetch,Agent,Bash(uv run --project api content-check *),Bash(git status *),Bash(git log *),Bash(grep *),Bash(date *)"
-```
-
-The flags work as for `/update-syllabus` above, including `MSYS_NO_PATHCONV=1` in Git Bash.
-
-## Checks
-
-```bash
-cd api && uv run content-check ../content
-```
-
-This checks every Stack version against the format and the Question Bank rules:
-- at least 8 Questions per Lesson that aren't retired, enough for a Lesson Quiz, and at least 2 per Concept;
-- every Question has Sources, and the Question Bank is append-only against git: never edited or deleted, only retired or re-tagged;
-- permanent IDs unique across every kind of item, and never reused as another kind in a later version;
-- every Material reference exists;
-- a version that follows another has a changelog that lists every added, changed and removed Lesson, with sources;
-- Daily Challenges numbered and dated from the launch, with two multiple-choice Questions and one written, and never changed once their Day has begun.
-
-Each error names the file and the item, such as the Question. Add `--links` to also check that every Material URL loads. The rules are in [docs/content-format.md](docs/content-format.md).
-
-**Pre-commit hook.** Install it once, from the repo root:
-
-```bash
-uvx pre-commit install
-```
-
-This needs only `uv`, with no global install and no scripts. From then on, a commit that touches `content/` (or the check itself) runs `uv run --project api content-check content`. The commit is refused if there are errors. To run the hook by hand, use `uvx pre-commit run --all-files`.
-
-**In CI**, the `content` job runs the same command on every committed Stack version, so a pull request with invalid content fails. The **Content links** workflow runs `--links`:
-- weekly, and on demand from the Actions tab, over every Stack version;
-- on pull requests that touch `content/`, over only the Stack versions they change.
-
-A dead link is an error. A site that refuses automated requests is only a warning.
-
-```bash
-cd api && uv run pytest && uv run ruff check && uv run ruff format --check && uv run mypy
-```
-
-The API tests use a real Postgres: the compose `db` service by default, or `TEST_DATABASE_URL`. They create a `learning_test` database and build it from the migrations. They need no Clerk account: they sign their own session tokens with a locally generated RSA key (`api/tests/conftest.py`). After changing the format models, run `uv run content-schema` to regenerate `content/schema/`. After changing the database models, run `uv run alembic revision --autogenerate -m "..."`. A test fails if either one is forgotten.
-
-```bash
-cd web && npm run typecheck && npm run lint && npm test && npm run build
-```
-
-CI runs all of these on every pull request, with Postgres as a service container.
+- **Every Day starts at 00:00 UTC**, for Daily Challenges and Streaks alike.
+- **Replays are for learning only.** Playing a Challenge again changes nothing: not your score, your Streak or your missed Questions.
+- **Every Question has Sources** you can check, and an Explanation shown after you answer.
+- **Light or dark:** switch it under **Settings → Appearance**.
