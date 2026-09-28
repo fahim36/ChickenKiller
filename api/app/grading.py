@@ -97,6 +97,17 @@ class GradingFailed(Exception):
     caller must not count it as missed."""
 
 
+class GradingKeyNeeded(GradingFailed):
+    """The Learner has to save their own grading key first (OWN_GRADING_KEY_REQUIRED)."""
+
+
+class NoKeyGrader:
+    """The grader of a Learner who must use their own key and hasn't saved one."""
+
+    def grade(self, prompt: str, model_answer: Mapping[str, Any], answer: str) -> Grade:
+        raise GradingKeyNeeded("no grading key saved")
+
+
 class Grader(Protocol):
     def grade(self, prompt: str, model_answer: Mapping[str, Any], answer: str) -> Grade:
         """Grade `answer` to the Question `prompt` against its Model Answer (`{summary,

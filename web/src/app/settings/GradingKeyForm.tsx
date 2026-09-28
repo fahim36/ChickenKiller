@@ -13,6 +13,7 @@ const GRADER_LINE: Record<Grading["grader"], string> = {
   own_key: "Your written answers are graded with your own key.",
   admin_key: "You have no key saved, so your written answers are graded with the Admin's key.",
   server: "No key is saved, so your written answers are graded by the server's Claude Code.",
+  none: "Save your NVIDIA key below: your written answers are graded only with your own key.",
 };
 
 /**

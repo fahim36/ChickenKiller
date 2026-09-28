@@ -7,7 +7,7 @@ Daily interview-prep games, modeled on LinkedIn Games. Every Stack releases one 
 ### People
 
 **Learner**:
-A person with an account, joined by the Admin's invitation, who studies one or more Active Stacks.
+A person with an account, who studies one or more Active Stacks.
 _Avoid_: User, student
 
 **Active Stack**:
@@ -19,7 +19,7 @@ The person who writes Syllabus Updates and Upcoming Challenges from their own te
 _Avoid_: Owner, maintainer
 
 **Invitation**:
-The Admin's permission for one email address to join. It is pending until that person first signs in, which makes them a Learner. Anyone signing in without one is refused.
+The Admin's permission for one email address to join. It is pending until that person first signs in, which makes them a Learner. Anyone signing in without one is refused, unless sign-up is open (`OPEN_SIGNUP`), when anyone who signs up becomes a Learner.
 _Avoid_: Invite code, allowlist entry
 
 ### Content

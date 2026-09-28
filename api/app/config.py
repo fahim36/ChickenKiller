@@ -30,11 +30,22 @@ CLERK_JWKS_URL = os.environ.get("CLERK_JWKS_URL") or (
 # The web app's origins, such as https://learning-web-abcd.onrender.com,http://localhost:3000
 CLERK_AUTHORIZED_PARTIES = env_list("CLERK_AUTHORIZED_PARTIES")
 ADMIN_EMAILS = frozenset(email.lower() for email in env_list("ADMIN_EMAILS"))
+# "true" lets anyone who creates an account become a Learner. Otherwise only invited email
+# addresses (and ADMIN_EMAILS) get in.
+OPEN_SIGNUP = os.environ.get("OPEN_SIGNUP", "").strip().lower() in {"1", "true", "yes"}
 
 # Grading written answers runs the Claude Code CLI (app/grading.py, ADR-0006): this path, else
 # `claude` on the PATH. Without it the app still runs, but every written answer fails to grade
 # (503 `grading_failed`) and can be resubmitted later.
 CLAUDE_BIN = os.environ.get("CLAUDE_BIN", "")
+
+# "true": a Learner's written answers are graded only with their own saved key, never the
+# Admin's key or the server's Claude Code. Without one, grading asks them to save a key.
+OWN_GRADING_KEY_REQUIRED = os.environ.get("OWN_GRADING_KEY_REQUIRED", "").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+}
 
 CONTENT_DIR = Path(os.environ.get("CONTENT_DIR", REPO_ROOT / "content"))
 CONTENT_SCHEMA_DIR = Path(os.environ.get("CONTENT_SCHEMA_DIR", CONTENT_DIR / "schema"))

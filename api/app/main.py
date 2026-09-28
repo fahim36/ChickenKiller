@@ -247,6 +247,13 @@ GRADING_FAILED = {
         "submit again in a moment."
     ),
 }
+GRADING_KEY_NEEDED = {
+    "code": "grading_failed",
+    "message": (
+        "Written answers are graded with your own NVIDIA key. Save one in Settings, then "
+        "submit again. Nothing was counted."
+    ),
+}
 RETAKE_DONE = {
     "code": "retake_done",
     "message": "You've already answered this Retake correctly.",
@@ -397,6 +404,8 @@ def submit_lesson_quiz(
         raise _not_a_choice(error) from error
     except marking.AnswerTooLong as error:
         raise _answer_too_long(error) from error
+    except grading.GradingKeyNeeded as error:
+        raise HTTPException(503, GRADING_KEY_NEEDED) from error
     except grading.GradingFailed as error:
         raise HTTPException(503, GRADING_FAILED) from error
     completed, pending = result.lesson_completed, []
@@ -496,6 +505,8 @@ def answer_retake(
         raise _not_a_choice(error) from error
     except marking.AnswerTooLong as error:
         raise _answer_too_long(error) from error
+    except grading.GradingKeyNeeded as error:
+        raise HTTPException(503, GRADING_KEY_NEEDED) from error
     except grading.GradingFailed as error:
         raise HTTPException(503, GRADING_FAILED) from error
     return schemas.RetakeResultOut(
@@ -718,6 +729,8 @@ def answer_challenge_question(
         raise _not_a_choice(error) from error
     except marking.AnswerTooLong as error:
         raise _answer_too_long(error) from error
+    except grading.GradingKeyNeeded as error:
+        raise HTTPException(503, GRADING_KEY_NEEDED) from error
     except grading.GradingFailed as error:
         raise HTTPException(503, CHALLENGE_GRADING_FAILED) from error
     return schemas.ChallengeAnswerOut(
@@ -791,6 +804,8 @@ def answer_review_question(
         raise _not_a_choice(error) from error
     except marking.AnswerTooLong as error:
         raise _answer_too_long(error) from error
+    except grading.GradingKeyNeeded as error:
+        raise HTTPException(503, GRADING_KEY_NEEDED) from error
     except grading.GradingFailed as error:
         raise HTTPException(503, GRADING_FAILED) from error
     return schemas.ReviewAnswerOut(
@@ -824,6 +839,8 @@ def _grading(
     grader = (
         "own_key"
         if own is not None and box.enabled
+        else "none"
+        if llm_keys.own_key_required(learner, admin_emails)
         else "admin_key"
         if box.enabled and llm_keys.admin_has_key(session, admin_emails)
         else "server"
@@ -833,6 +850,7 @@ def _grading(
         grader=grader,
         keys_enabled=box.enabled,
         default_model=grading.NVIDIA_MODEL,
+        own_key_required=config.OWN_GRADING_KEY_REQUIRED,
     )
 
 

@@ -31,6 +31,8 @@ class AuthSettings:
     authorized_parties: frozenset[str]
     # Lower-cased. The Admin is always let in, invited or not.
     admin_emails: frozenset[str]
+    # True lets anyone signed in become a Learner, invited or not.
+    open_signup: bool = False
 
 
 class KeySource(Protocol):
@@ -82,6 +84,7 @@ class TokenVerifier:
             jwks_url=config.CLERK_JWKS_URL,
             authorized_parties=config.CLERK_AUTHORIZED_PARTIES,
             admin_emails=config.ADMIN_EMAILS,
+            open_signup=config.OPEN_SIGNUP,
         )
         return cls(settings, ClerkJwks(settings.jwks_url))
 

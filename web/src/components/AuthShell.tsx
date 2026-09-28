@@ -15,7 +15,7 @@ export function AuthShell({ children }: { children: ReactNode }) {
       <div className="max-w-xl space-y-6">
         <p className="inline-flex items-center gap-2 rounded-full border bg-card px-3 py-1 text-xs font-medium text-muted-foreground shadow-xs">
           <span className="size-1.5 rounded-full bg-success" aria-hidden />
-          Invite-only interview prep
+          Daily interview prep
         </p>
         <h1 className="font-heading text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
           Crack your next interview,{" "}

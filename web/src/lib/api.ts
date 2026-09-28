@@ -408,9 +408,11 @@ export interface GradingKey {
  */
 export interface Grading {
   key: GradingKey | null;
-  grader: "own_key" | "admin_key" | "server";
+  grader: "own_key" | "admin_key" | "server" | "none";
   keys_enabled: boolean;
   default_model: string;
+  /** Every Learner but the Admin is graded only with their own key. */
+  own_key_required: boolean;
 }
 
 /** A personal access token for the MCP connector, without the token itself. */

@@ -518,13 +518,16 @@ class GradingOut(BaseModel):
     """How the Learner's written answers are graded.
 
     `key` is their own saved key, if any. `grader` is what grades them: `own_key`, `admin_key`
-    (they have none, and the Admin saved one) or `server` (the Claude Code CLI on the API's
-    machine). `keys_enabled` is false when the server can't store keys (no LLM_KEY_SECRET)."""
+    (they have none, and the Admin saved one), `server` (the Claude Code CLI on the API's
+    machine) or `none` (they must save their own key first). `keys_enabled` is false when the
+    server can't store keys (no LLM_KEY_SECRET). `own_key_required` is true when every Learner
+    but the Admin is graded only with their own key (OWN_GRADING_KEY_REQUIRED)."""
 
     key: GradingKeyOut | None
-    grader: Literal["own_key", "admin_key", "server"]
+    grader: Literal["own_key", "admin_key", "server", "none"]
     keys_enabled: bool
     default_model: str
+    own_key_required: bool = False
 
 
 class GradingKeyIn(BaseModel):

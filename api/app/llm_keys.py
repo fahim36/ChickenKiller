@@ -22,12 +22,14 @@ from cryptography.fernet import Fernet, InvalidToken, MultiFernet
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app import config
 from app.grading import (
     NVIDIA_BASE_URL,
     NVIDIA_MODEL,
     ChatCompletionsGrader,
     FallbackGrader,
     Grader,
+    NoKeyGrader,
 )
 from app.models import GradingKey, Learner
 
@@ -136,6 +138,12 @@ def admin_has_key(session: Session, admin_emails: Collection[str]) -> bool:
     return _admin_key(session, admin_emails) is not None
 
 
+def own_key_required(learner: Learner, admin_emails: Collection[str]) -> bool:
+    """Whether this Learner is graded only with their own key (OWN_GRADING_KEY_REQUIRED). The
+    Admin never is."""
+    return config.OWN_GRADING_KEY_REQUIRED and learner.email not in admin_emails
+
+
 def grader_for(
     session: Session,
     box: KeyBox,
@@ -145,10 +153,15 @@ def grader_for(
 ) -> Grader:
     """The grader for the Learner's written answers: their own key, else the Admin's, else
     `default`. When a key's provider fails (down, or slow past its timeout), the next in line
-    grades instead (`FallbackGrader`), so a saved key never makes grading less available."""
+    grades instead (`FallbackGrader`), so a saved key never makes grading less available.
+
+    When the Learner must use their own key (`own_key_required`), only that key grades, and
+    without one every grading raises `GradingKeyNeeded`."""
+    own = session.get(GradingKey, learner.id)
+    only_own = own_key_required(learner, admin_emails)
     graders: list[Grader] = []
     seen: set[int] = set()
-    for row in (session.get(GradingKey, learner.id), _admin_key(session, admin_emails)):
+    for row in (own,) if only_own else (own, _admin_key(session, admin_emails)):
         if row is None or row.learner_id in seen:
             continue
         seen.add(row.learner_id)
@@ -157,6 +170,8 @@ def grader_for(
             logger.warning("grading_key_unreadable %s", row.learner_id)
             continue
         graders.append(ChatCompletionsGrader(key, base_url=row.base_url, model=row.model))
+    if only_own:
+        return graders[0] if graders else NoKeyGrader()
     if not graders:
         return default
     return FallbackGrader([*graders, default])

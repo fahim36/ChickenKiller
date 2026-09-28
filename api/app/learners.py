@@ -28,18 +28,23 @@ def normalize_email(email: str) -> str:
 
 
 def sign_in(
-    session: Session, identity: Identity, admin_emails: frozenset[str], now: datetime
+    session: Session,
+    identity: Identity,
+    admin_emails: frozenset[str],
+    now: datetime,
+    open_signup: bool = False,
 ) -> Learner:
     """The signed-in person's Learner, created on their first sign-in if they were invited.
 
-    The Admin is always let in. Accepting marks the invitation as no longer pending, at `now`.
+    The Admin is always let in, and so is everyone when `open_signup` is on. Accepting marks the
+    invitation as no longer pending, at `now`.
     """
     learner = _learner_for(session, identity.clerk_user_id)
     if learner is not None:
         return learner
 
     invitation = session.scalar(select(Invitation).where(Invitation.email == identity.email))
-    if invitation is None and identity.email not in admin_emails:
+    if invitation is None and not open_signup and identity.email not in admin_emails:
         raise NotInvited(identity.email)
 
     learner = Learner(clerk_user_id=identity.clerk_user_id, email=identity.email)

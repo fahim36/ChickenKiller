@@ -26,6 +26,7 @@ export default async function SettingsPage() {
   ]);
   if (!me || me.needs_onboarding) redirect("/onboarding");
   const theme = parseTheme((await cookies()).get(THEME_COOKIE)?.value);
+  const ownKeyOnly = grading?.own_key_required ?? false;
 
   return (
     <main className="mx-auto max-w-3xl">
@@ -75,15 +76,25 @@ export default async function SettingsPage() {
 
       <Section title="Grading" id="grading-heading">
         <div className="mb-4 space-y-2 text-sm leading-relaxed text-muted-foreground">
-          <p>
-            Written answers are graded by an LLM against the Model Answer. You can use your own
-            NVIDIA key, with the Nemotron model.{" "}
-            {me.is_admin
-              ? "Learners without a key of their own are graded with yours."
-              : "Without one, the Admin's key is used."}{" "}
-            With no key at all, the server&apos;s Claude Code grades. If a key&apos;s provider
-            fails, the next one in line grades instead.
-          </p>
+          {ownKeyOnly ? (
+            <p>
+              Written answers are graded by an LLM against the Model Answer, with your own NVIDIA
+              key and the Nemotron model.{" "}
+              {me.is_admin
+                ? "Every other Learner uses their own key, never yours."
+                : "Save your key here before you answer written Questions: without one they can't be graded."}
+            </p>
+          ) : (
+            <p>
+              Written answers are graded by an LLM against the Model Answer. You can use your own
+              NVIDIA key, with the Nemotron model.{" "}
+              {me.is_admin
+                ? "Learners without a key of their own are graded with yours."
+                : "Without one, the Admin's key is used."}{" "}
+              With no key at all, the server&apos;s Claude Code grades. If a key&apos;s provider
+              fails, the next one in line grades instead.
+            </p>
+          )}
           <ol className="list-decimal space-y-1 pl-5">
             <li>
               Sign in at{" "}
@@ -96,8 +107,8 @@ export default async function SettingsPage() {
           </ol>
           <p>
             Your key is stored encrypted, is only used to grade your answers
-            {me.is_admin ? " (and those of Learners without a key)" : ""}, and is never shown again:
-            only its last four characters.
+            {me.is_admin && !ownKeyOnly ? " (and those of Learners without a key)" : ""}, and is
+            never shown again: only its last four characters.
           </p>
         </div>
         {grading && (

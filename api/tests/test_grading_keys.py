@@ -12,13 +12,14 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import llm_keys
+from app import config, llm_keys
 from app.grading import (
     NVIDIA_MODEL,
     ChatCompletionsGrader,
     FallbackGrader,
     Grade,
     GradingFailed,
+    GradingKeyNeeded,
     parse_chat_grade,
 )
 from app.models import GradingKey, Learner
@@ -43,6 +44,7 @@ def test_without_a_key_the_server_grades(api: TestClient) -> None:
         "grader": "server",
         "keys_enabled": True,
         "default_model": NVIDIA_MODEL,
+        "own_key_required": False,
     }
 
 
@@ -83,6 +85,30 @@ def test_a_learner_without_a_key_is_graded_with_the_admins(
 
     assert api.get("/me/grading").json()["grader"] == "admin_key"
     assert api.get("/me/grading").json()["key"] is None
+
+
+def test_when_an_own_key_is_required_a_learner_without_one_isnt_graded(
+    api: TestClient, admin: TestClient, session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(config, "OWN_GRADING_KEY_REQUIRED", True)
+    admin.put("/me/grading-key", json={"api_key": "nvapi-" + "a" * 40}).raise_for_status()
+    box, default = llm_keys.KeyBox([TEST_KEY_SECRET]), FakeGrader()
+    admins = frozenset({ADMIN_EMAIL})
+
+    assert api.get("/me/grading").json()["grader"] == "none"
+    grader = llm_keys.grader_for(session, box, learner_row(session), admins, default)
+    with pytest.raises(GradingKeyNeeded):
+        grader.grade("Q", MODEL_ANSWER, "an answer")
+
+    api.put("/me/grading-key", json={"api_key": KEY}).raise_for_status()
+    assert api.get("/me/grading").json()["grader"] == "own_key"
+    grader = llm_keys.grader_for(session, box, learner_row(session), admins, default)
+    assert isinstance(grader, ChatCompletionsGrader)
+    # The Admin is still graded as before.
+    admin_grader = llm_keys.grader_for(
+        session, box, learner_row(session, ADMIN_EMAIL), admins, default
+    )
+    assert isinstance(admin_grader, FallbackGrader)
 
 
 def test_without_a_secret_no_key_can_be_saved(api: TestClient, app: Any) -> None:

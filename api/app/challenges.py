@@ -49,7 +49,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.content.challenges import ChallengesAhead, is_frozen
 from app.content.challenges import challenges_ahead as days_ahead
-from app.grading import Grader, GradingFailed
+from app.grading import Grader, GradingFailed, GradingKeyNeeded
 from app.marking import mark
 from app.models import Answer, ChallengePlay, DailyChallenge, LearnerStack, Question, Stack
 from app.review import utc_day
@@ -229,6 +229,8 @@ def answer(
     try:
         first = mark(question, response, grader)
         correct, feedback = first.correct, first.feedback
+    except GradingKeyNeeded:
+        raise  # nothing recorded: the first try waits until they save a key
     except GradingFailed:
         correct, feedback = None, None  # ungraded: the first try is spent
 

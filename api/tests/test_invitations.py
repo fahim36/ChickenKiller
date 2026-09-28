@@ -1,8 +1,14 @@
-"""Invite-only sign-in: the Admin invites an email, and that person becomes a Learner."""
+"""Invite-only sign-in: the Admin invites an email, and that person becomes a Learner. With
+OPEN_SIGNUP on, anyone who signs in does."""
 
+from dataclasses import replace
+
+from cryptography.hazmat.primitives.asymmetric import rsa
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from tests.conftest import ADMIN_EMAIL, ClientFactory
+from app.auth import TokenVerifier
+from tests.conftest import ADMIN_EMAIL, AUTH_SETTINGS, ClientFactory, LocalKeys
 
 ADA = "ada@example.com"
 
@@ -71,6 +77,21 @@ def test_a_person_who_was_not_invited_is_refused(signed_in: ClientFactory) -> No
         "code": "not_invited",
         "message": "This email address hasn't been invited. Ask the Admin for an invitation.",
     }
+
+
+def test_with_open_sign_up_anyone_becomes_a_learner(
+    app: FastAPI, signing_key: rsa.RSAPrivateKey, signed_in: ClientFactory
+) -> None:
+    open_settings = replace(AUTH_SETTINGS, open_signup=True)
+    app.state.verifier = TokenVerifier(open_settings, LocalKeys(signing_key))
+
+    response = signed_in("stranger@example.com").get("/me")
+
+    assert response.status_code == 200
+    assert (response.json()["email"], response.json()["is_admin"]) == (
+        "stranger@example.com",
+        False,
+    )
 
 
 def test_a_learner_cannot_see_or_send_invitations(api: TestClient) -> None:

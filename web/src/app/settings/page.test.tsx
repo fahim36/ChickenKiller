@@ -5,7 +5,9 @@ import { NEW_LEARNER, ONBOARDED, stubApi } from "@/test/stubApi";
 import SettingsPage from "./page";
 
 vi.mock("next/server", () => ({ connection: async () => {} }));
-vi.mock("next/headers", () => ({ cookies: async () => ({ get: () => undefined }) }));
+vi.mock("next/headers", () => ({
+  cookies: async () => ({ get: () => undefined }),
+}));
 vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
 vi.mock("@clerk/nextjs/server", () => ({
   auth: async () => ({ getToken: async () => "session-token" }),
@@ -21,6 +23,7 @@ const NO_KEY: Grading = {
   grader: "server",
   keys_enabled: true,
   default_model: "nvidia/nemotron-3.5-lightning-30b-a3b",
+  own_key_required: false,
 };
 
 it("explains grading and offers a key field, never a saved key", async () => {
@@ -37,6 +40,20 @@ it("explains grading and offers a key field, never a saved key", async () => {
     "/stacks",
   );
   expect(screen.queryAllByRole("checkbox")).toEqual([]);
+});
+
+it("asks for the Learner's own key when no other grader is used", async () => {
+  stubApi({
+    "/me": ONBOARDED,
+    "/me/grading": { ...NO_KEY, grader: "none", own_key_required: true },
+    "/me/access-tokens": [],
+  });
+
+  render(await SettingsPage());
+
+  expect(screen.getByText(/without one they can't be graded/)).toBeTruthy();
+  expect(screen.getByText(/graded only with your own key/)).toBeTruthy();
+  expect(screen.queryByText(/server's Claude Code/)).toBeNull();
 });
 
 it("shows only the saved key's last four characters", async () => {
@@ -117,7 +134,11 @@ it("shows the Admin the way to the Admin screens", async () => {
 });
 
 it("sends a Learner who hasn't onboarded to onboarding", async () => {
-  stubApi({ "/me": NEW_LEARNER, "/me/grading": NO_KEY, "/me/access-tokens": [] });
+  stubApi({
+    "/me": NEW_LEARNER,
+    "/me/grading": NO_KEY,
+    "/me/access-tokens": [],
+  });
 
   await expect(SettingsPage()).rejects.toThrow(
     expect.objectContaining({ digest: expect.stringContaining("/onboarding") }),

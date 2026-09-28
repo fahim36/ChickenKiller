@@ -13,6 +13,10 @@ This amends ADR-0006 and extends ADR-0001.
 - Access tokens (`ica_…`) are stored only as SHA-256 hashes, shown once, and revocable; a revoked token is refused at once. The connector has no cookies, so its DNS-rebinding Host check is off.
 - Anyone signed in may propose drafts; reading the Question Bank is the Admin's only, since it includes Upcoming Challenges' Questions. No tool returns an answer or a Model Answer.
 
+## Addendum: own keys only
+
+With `OWN_GRADING_KEY_REQUIRED=true` a Learner's written answers are graded only with their own saved key, so an open sign-up can't spend the Admin's key or the server's Claude Code. Without a key, grading refuses with `grading_failed` and a message to save one; nothing is recorded, not even a Daily Challenge's first try. The Admin keeps the usual fallback order.
+
 ## Addendum: building a new Stack through drafts
 
 Any Learner may request a new Stack, from the Add a Stack button on the Stacks screen (`POST /stack-requests`) or the connector's `request_stack` tool. Claude then builds it through the connector in order, and `get_stack_plan` (or the Stacks screen) says which step it is at:
