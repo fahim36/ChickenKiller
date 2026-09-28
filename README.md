@@ -11,7 +11,7 @@ This guide shows how to use it. How the app is built and run is in [docs/develop
 - [3. Play the Daily Challenge](#3-play-the-daily-challenge)
 - [4. Study the Syllabus](#4-study-the-syllabus)
 - [5. Practise in Review](#5-practise-in-review)
-- [6. Save your grading key](#6-save-your-grading-key)
+- [6. Use your own grading key (optional)](#6-use-your-own-grading-key-optional)
 - [7. Connect your Claude](#7-connect-your-claude)
 - [8. Ask for a new Stack](#8-ask-for-a-new-stack)
 - [Good to know](#good-to-know)
@@ -72,9 +72,9 @@ When you're ready, choose **Start the Lesson Quiz**. You can take it straight aw
 
 ![Review](docs/images/07-review.jpg)
 
-## 6. Save your grading key
+## 6. Use your own grading key (optional)
 
-Written answers are graded by an AI model, which compares your answer with a Model Answer's key points. Grading uses your own free NVIDIA API key, so **save one before you answer written Questions**. Without it, written answers can't be graded. Nothing is counted in that case, so you can submit again once the key is saved.
+Written answers are graded by an AI model, which compares your answer with a Model Answer's key points. By default they are graded with the app's key. You can save your own free NVIDIA API key instead, so grading runs on your own account. If your key's provider fails, the app's key grades instead. If grading fails altogether, nothing is counted and you can submit again.
 
 1. Sign in at [build.nvidia.com](https://build.nvidia.com/settings/api-keys) and choose **Generate API Key**.
 2. In the app, open **Settings**, paste the key (it starts with `nvapi-`) under **Grading**, and choose **Save key**.
