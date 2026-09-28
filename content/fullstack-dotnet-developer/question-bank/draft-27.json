@@ -1,0 +1,1299 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "azure-compute-service-selection",
+      "name": "Choosing between App Service, Container Apps, AKS and Functions"
+    },
+    {
+      "id": "aws-azure-compute-mapping",
+      "name": "Mapping AWS compute and integration services to Azure"
+    },
+    {
+      "id": "managed-identity-assignment-types",
+      "name": "System-assigned vs user-assigned managed identities"
+    },
+    {
+      "id": "serverless-scale-and-time-limits",
+      "name": "Serverless scale to zero, timeouts and cold-start trade-offs"
+    },
+    {
+      "id": "gc-container-memory-limit",
+      "name": ".NET GC heap limits inside memory-limited containers"
+    },
+    {
+      "id": "chiseled-image-tradeoffs",
+      "name": "Chiseled and size-optimized .NET container images"
+    },
+    {
+      "id": "kubernetes-probe-semantics",
+      "name": "Kubernetes liveness, readiness and startup probes"
+    },
+    {
+      "id": "sdk-container-publish-defaults",
+      "name": "SDK container publishing vs Dockerfiles"
+    },
+    {
+      "id": "build-once-promote-artifacts",
+      "name": "Build once, promote the same artifact through gated environments"
+    },
+    {
+      "id": "progressive-exposure-deployments",
+      "name": "Canary, blue-green, bake time and rollback vs roll forward"
+    },
+    {
+      "id": "bicep-terraform-state-model",
+      "name": "Bicep vs Terraform: state, drift and what-if"
+    },
+    {
+      "id": "database-migrations-in-pipelines",
+      "name": "Running EF Core migrations safely in a release pipeline"
+    },
+    {
+      "id": "aspire-publish-vs-deploy",
+      "name": "Aspire publish and deploy, and the artifacts they produce"
+    },
+    {
+      "id": "aspire-service-defaults-health",
+      "name": "Aspire service defaults and health endpoints"
+    },
+    {
+      "id": "aspire-parameters-secrets",
+      "name": "Aspire external parameters and secrets across environments"
+    },
+    {
+      "id": "container-apps-scale-rules",
+      "name": "Azure Container Apps scale rules and KEDA behavior"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w08-l01-q01",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w08-l01",
+      "prompt": "Your platform team wants to deploy a custom operator with its own CRDs and use `kubectl` directly against the cluster, while product teams run ordinary .NET APIs. Which Azure service fits the platform team's requirement, and why not Azure Container Apps?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Azure Container Apps, because it runs on Kubernetes and exposes the full Kubernetes API through a hidden control-plane sidecar"
+        },
+        {
+          "id": "b",
+          "text": "Azure App Service for Containers, because its WebJobs SDK can register custom CRDs and controllers"
+        },
+        {
+          "id": "c",
+          "text": "Azure Kubernetes Service, because Container Apps hides the cluster and doesn't expose the Kubernetes APIs"
+        },
+        {
+          "id": "d",
+          "text": "Azure Container Instances, because each container group runs its own scaled-down kube-apiserver"
+        }
+      ],
+      "concept": "azure-compute-service-selection",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/container-apps/compare-options",
+          "claim": "Azure Container Apps doesn't provide direct access to the underlying Kubernetes APIs; if you require access to the Kubernetes APIs and control plane, use Azure Kubernetes Service.",
+          "title": "Comparing Container Apps with other Azure container options",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "azure-well-architected",
+        "az-204"
+      ],
+      "explanation": "Azure Container Apps runs on Kubernetes (with KEDA, Dapr and Envoy) but hides the cluster: you don't get direct access to the Kubernetes APIs. When you need the Kubernetes API, CRDs or operators, the documentation points to AKS. Choice a is the tempting trap: \"built on Kubernetes\" doesn't mean \"exposes Kubernetes\"."
+    },
+    {
+      "id": "w08-l01-q02",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w08-l01",
+      "prompt": "A team is moving from AWS. Which set of mappings matches Microsoft's AWS-to-Azure compute comparison?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "EKS to Azure Container Apps because both add a serverless control plane, Lambda to App Service via WebJobs triggers, Elastic Beanstalk to AKS for managed clusters"
+        },
+        {
+          "id": "b",
+          "text": "ECS to Azure Container Apps, EKS to AKS, Elastic Beanstalk to App Service, Lambda to Azure Functions"
+        },
+        {
+          "id": "c",
+          "text": "Fargate to Azure Batch for serverless job scheduling, ECR to Azure Artifacts for private feeds, Lambda to Logic Apps for its low-code triggers"
+        },
+        {
+          "id": "d",
+          "text": "ECS to Azure Service Fabric only, since both use a reliable services runtime; EKS to Azure Container Instances for burst capacity; Lambda to WebJobs for background execution"
+        }
+      ],
+      "concept": "aws-azure-compute-mapping",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/aws-professional/compute",
+          "claim": "AWS ECS maps to Azure Container Apps, EKS to AKS, Fargate to Container Instances/Container Apps, ECR to Container Registry, Elastic Beanstalk to App Service, and Lambda to Azure Functions.",
+          "title": "Compare AWS and Azure Compute Services - Azure Architecture Center",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "azure-well-architected",
+        "az-204"
+      ],
+      "explanation": "Microsoft's comparison maps ECS to Container Apps, EKS to AKS, Elastic Beanstalk to App Service and Lambda to Azure Functions. Fargate maps to Container Instances or Container Apps, and ECR to Azure Container Registry. The other choices mix up a managed-Kubernetes offering with a PaaS abstraction."
+    },
+    {
+      "id": "w08-l01-q03",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w08-l01",
+      "prompt": "Twenty Container Apps and Functions share access to one Key Vault and one Service Bus namespace. Apps are often deleted and recreated by the pipeline, and each recreation breaks access until someone reassigns RBAC roles. What does Microsoft recommend?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A user-assigned managed identity, created once and attached to every app, so RBAC role assignments persist across recreation"
+        },
+        {
+          "id": "b",
+          "text": "A system-assigned identity on each app, since Entra ID automatically re-issues the same client ID and secret on every redeploy"
+        },
+        {
+          "id": "c",
+          "text": "A service principal with a client secret stored in each app's settings and rotated every 90 days via Key Vault"
+        },
+        {
+          "id": "d",
+          "text": "A shared storage account access key used as a bearer credential injected into each app's connection string"
+        }
+      ],
+      "concept": "managed-identity-assignment-types",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/entra/identity/managed-identities-azure-resources/overview",
+          "claim": "A user-assigned managed identity is a standalone Azure resource with an independent lifecycle that can be shared across resources; a system-assigned identity is deleted with its resource. Microsoft recommends user-assigned identities for most scenarios.",
+          "title": "Managed identities for Azure resources",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "azure-well-architected",
+        "entra-identity-platform",
+        "az-204"
+      ],
+      "explanation": "A user-assigned identity has its own lifecycle, isn't deleted with the resources that use it, and can be shared by many resources, so role assignments survive app recreation. Microsoft recommends user-assigned identities for most scenarios. A system-assigned identity (b) is deleted with its resource, which is exactly what breaks the RBAC assignments here. Secrets (c, d) bring back the credential management that managed identities remove."
+    },
+    {
+      "id": "w08-l01-q04",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w08-l01",
+      "prompt": "A background worker on Azure Container Apps reads from a queue. It has ingress disabled, no scale rule and no `minReplicas` setting. After deployment it never processes a message. Why?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Container Apps can't read from queues without Dapr bindings configured in the container's sidecar"
+        },
+        {
+          "id": "b",
+          "text": "The default of 10 concurrent HTTP requests per replica throttles the worker until KEDA scales past it"
+        },
+        {
+          "id": "c",
+          "text": "Revisions with ingress disabled are always stopped until a load balancer route is manually attached"
+        },
+        {
+          "id": "d",
+          "text": "The default minimum is 0 replicas; with no ingress and no scale rule, nothing triggers a scale-out"
+        }
+      ],
+      "concept": "serverless-scale-and-time-limits",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/container-apps/scale-app",
+          "claim": "If ingress is disabled and you don't define a minReplicas value or a custom scale rule, the container app scales to zero and has no way of starting back up. Default replicas: minimum 0, maximum 10.",
+          "title": "Scaling in Azure Container Apps",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "azure-well-architected",
+        "az-204"
+      ],
+      "explanation": "Container Apps defaults to a minimum of 0 and a maximum of 10 replicas. With ingress disabled and no `minReplicas` or custom rule (for example a KEDA queue scaler), nothing can wake the app, so it scales to zero and stays there. Add a queue scale rule or set `minReplicas` to at least 1. The HTTP concurrency default (b) only applies to HTTP scaling."
+    },
+    {
+      "id": "w08-l01-q05",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w08-l01",
+      "prompt": "An HTTP-triggered Azure Function on the Flex Consumption plan generates a report that takes about 6 minutes. Clients get a timeout even though the function's configured timeout is 30 minutes. What's happening and what's the fix?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The Flex Consumption plan caps every function at 5 minutes regardless of configuration; move the workload to the Premium plan for longer runs"
+        },
+        {
+          "id": "b",
+          "text": "The HTTP request is limited to about 230 seconds by the Azure load balancer; return `202 Accepted` and finish the work asynchronously with Durable Functions"
+        },
+        {
+          "id": "c",
+          "text": "The function is cold-starting for 6 minutes because of a scale-to-zero delay; enable always-ready instances to keep one instance warm"
+        },
+        {
+          "id": "d",
+          "text": "HTTP triggers can't run longer than 60 seconds on any plan; use a timer trigger to poll for the report instead"
+        }
+      ],
+      "concept": "serverless-scale-and-time-limits",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/azure-functions/functions-scale",
+          "claim": "Regardless of the function app timeout setting, 230 seconds is the maximum time an HTTP-triggered function can take to respond; for longer processing use the Durable Functions async pattern or defer the work and return an immediate response.",
+          "title": "Azure Functions Scale and Hosting",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "azure-well-architected",
+        "az-204"
+      ],
+      "explanation": "Whatever the plan's function timeout, an HTTP-triggered function must respond within 230 seconds because of the Azure Load Balancer's idle timeout. For long work, use the asynchronous pattern: accept the request, return 202 with a status URL, and do the work with Durable Functions or a queue-triggered function. Flex Consumption's default timeout is 30 minutes (a is wrong)."
+    },
+    {
+      "id": "w08-l01-q06",
+      "type": "written",
+      "lesson": "w08-l01",
+      "prompt": "Choose Azure hosting for three workloads and justify each: (1) a public ASP.NET Core API with steady traffic, run by a small team that wants minimal operations; (2) ten microservices with event-driven workers that must scale to zero overnight; (3) a platform that needs service mesh control, custom operators and GPU node pools.",
+      "concept": "azure-compute-service-selection",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/container-apps/compare-options",
+          "claim": "Container Apps is optimized for general-purpose containers and microservices with serverless scaling and doesn't expose the Kubernetes APIs; AKS gives full cluster control; App Service is optimized for web applications; Functions for event-driven serverless code.",
+          "title": "Comparing Container Apps with other Azure container options",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "azure-well-architected",
+        "az-204"
+      ],
+      "explanation": "A senior answer reasons from operational ownership and required control, and names what each choice gives up.",
+      "model_answer": {
+        "summary": "Match the level of abstraction to the control you need. (1) App Service, or Container Apps if you ship containers: managed PaaS with little operational work. (2) Azure Container Apps, which is serverless containers with KEDA scale rules and scale to zero, or Functions for small event handlers. (3) AKS, because only it gives Kubernetes API access, custom node pools and full control, at the cost of running the cluster yourself.",
+        "key_points": [
+          "App Service suits web apps and APIs where the team wants managed infrastructure and deployment slots rather than container orchestration",
+          "Container Apps gives serverless containers with KEDA-based scaling (including to zero), revisions and built-in ingress, but no direct Kubernetes API access",
+          "AKS gives full Kubernetes control (APIs, CRDs, node pools) but the team owns more of the operations: upgrades, scaling and security",
+          "Azure Functions suits short event-driven handlers; watch timeouts and plan choice (Flex Consumption vs Premium)",
+          "Decide on operating model, scaling needs, cost at idle and required control, not on familiarity"
+        ]
+      }
+    },
+    {
+      "id": "w08-l01-q07",
+      "type": "written",
+      "lesson": "w08-l01",
+      "prompt": "Your company runs on AWS with ECS on Fargate, Lambda, Step Functions, EventBridge and ECR, and is adding an Azure footprint. Map each service to its closest Azure equivalent, and point out where the mapping isn't one-to-one and would change your design.",
+      "concept": "aws-azure-compute-mapping",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/aws-professional/compute",
+          "claim": "Microsoft's AWS-to-Azure comparison maps Lambda to Azure Functions, Step Functions to Durable Functions and Logic Apps, EventBridge to Event Grid, ECS to Container Apps and ECR to Azure Container Registry.",
+          "title": "Compare AWS and Azure Compute Services - Azure Architecture Center",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "az-204",
+        "azure-well-architected"
+      ],
+      "explanation": "Strong answers treat the mapping table as a starting point and show where behavior differs: orchestration model, plan limits and identity.",
+      "model_answer": {
+        "summary": "ECS/Fargate maps to Container Apps (or Container Instances for single containers), Lambda to Azure Functions, Step Functions to Durable Functions or Logic Apps, EventBridge to Event Grid, and ECR to Azure Container Registry. The differences are in scaling models, hosting plans, timeouts and identity, so a lift-and-shift of the configuration won't work as-is.",
+        "key_points": [
+          "ECS maps to Container Apps and Fargate to Container Instances or Container Apps; EKS maps to AKS",
+          "Lambda maps to Azure Functions, but Functions has several hosting plans with different timeouts and scaling (Flex Consumption, Premium, Dedicated)",
+          "Step Functions maps to Durable Functions (code-first orchestration) or Logic Apps (designer workflows), which are different programming models",
+          "EventBridge maps to Event Grid, and ECR to Azure Container Registry",
+          "IAM roles map to managed identities plus Azure RBAC, so the identity design has to be redone"
+        ]
+      }
+    },
+    {
+      "id": "w08-l01-q08",
+      "type": "written",
+      "lesson": "w08-l01",
+      "prompt": "A security review finds SQL and Service Bus connection strings with keys in the app settings of a .NET API on Container Apps, and a pipeline that deploys with a long-lived client secret. Describe how you would remove every stored secret, including how the app authenticates, how access is granted, and how the pipeline deploys.",
+      "concept": "managed-identity-assignment-types",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/entra/identity/managed-identities-azure-resources/overview",
+          "claim": "Managed identities eliminate the need to manage credentials; applications use them to obtain Microsoft Entra tokens, and access is granted through Azure RBAC role assignments.",
+          "title": "Managed identities for Azure resources",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/container-apps/scale-app",
+          "claim": "Container Apps scale rules can authenticate to Azure services such as Service Bus with a managed identity instead of a connection-string secret.",
+          "title": "Scaling in Azure Container Apps",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "entra-identity-platform",
+        "azure-well-architected",
+        "az-204"
+      ],
+      "explanation": "The senior signal is covering the whole chain: application runtime, scaling infrastructure and the deployment pipeline, plus shutting off key-based authentication afterwards.",
+      "model_answer": {
+        "summary": "Give the app a managed identity (user-assigned when it's shared or recreated often) and use `DefaultAzureCredential` or `ManagedIdentityCredential` with Entra authentication to SQL and Service Bus. Grant the identity least-privilege RBAC roles, and have scale rules use the managed identity too. Replace the pipeline secret with OIDC workload identity federation, then rotate or disable the old keys.",
+        "key_points": [
+          "Managed identities let the app get Entra tokens without any credentials in code or configuration",
+          "Grant access through Azure RBAC with least-privilege roles (for example Service Bus Data Receiver) instead of shared-access keys",
+          "Use endpoint-only connection settings (the SQL server name, the Service Bus namespace) with `DefaultAzureCredential`",
+          "Container Apps scale rules can authenticate with a managed identity instead of a connection-string secret",
+          "CI/CD: use OIDC federation from GitHub Actions to Entra instead of a stored client secret, then disable local authentication and keys"
+        ]
+      }
+    },
+    {
+      "id": "w08-l02-q01",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w08-l02",
+      "prompt": "A .NET 10 API runs in a container with a 512 MiB memory limit and no GC settings. Roughly how large can the GC heap grow by default?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Unbounded, because the GC reads the host's total physical memory instead of the cgroup limit"
+        },
+        {
+          "id": "b",
+          "text": "512 MiB, the full container limit, since the GC hard-limits the heap to exactly the cgroup memory.max value"
+        },
+        {
+          "id": "c",
+          "text": "About 384 MiB: the default heap hard limit is the greater of 20 MB or 75% of the container memory limit"
+        },
+        {
+          "id": "d",
+          "text": "About 256 MiB, because Server GC reserves half the container limit for the ephemeral generation"
+        }
+      ],
+      "concept": "gc-container-memory-limit",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/runtime-config/garbage-collector",
+          "claim": "If the process runs in a container with a specified memory limit, the default heap hard limit is the greater of 20 MB or 75% of the memory limit on the container.",
+          "title": "Garbage collector config settings - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "dotnet-gc-fundamentals",
+        "kubernetes-concepts"
+      ],
+      "explanation": "When a container memory limit is set, the GC's default heap hard limit is the greater of 20 MB or 75% of that limit (`GCHeapHardLimitPercent`), so here about 384 MiB. The remaining memory is left for native allocations, thread stacks and the runtime itself. The GC does respect cgroup limits, so a is wrong."
+    },
+    {
+      "id": "w08-l02-q02",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w08-l02",
+      "prompt": "After moving to a size-optimized Ubuntu chiseled `aspnet` image, the API fails at startup with a globalization error when it formats dates for `de-DE`. What's the correct fix?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Use the `-extra` chiseled variant (it includes ICU and tzdata), or set invariant globalization mode"
+        },
+        {
+          "id": "b",
+          "text": "Install ICU with `apt-get install -y icu-devtools libicu-dev` in the final container stage"
+        },
+        {
+          "id": "c",
+          "text": "Open a shell in the container with `docker exec` and copy the ICU shared libraries into `/usr/lib`, then restart"
+        },
+        {
+          "id": "d",
+          "text": "Switch the runtime stage to the chiseled SDK image, which bundles ICU and tzdata by default"
+        }
+      ],
+      "concept": "chiseled-image-tradeoffs",
+      "sources": [
+        {
+          "url": "https://github.com/dotnet/dotnet-docker/blob/main/documentation/ubuntu-chiseled.md",
+          "claim": "Ubuntu chiseled images contain no shell or package manager and run as non-root; the -extra variants include ICU and tzdata; there are no chiseled SDK images.",
+          "title": "Ubuntu Chiseled + .NET",
+          "accessed": "2026-09-27",
+          "publisher": ".NET team (dotnet/dotnet-docker on GitHub)"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/docker/container-images",
+          "claim": "Size-optimized images don't include ICU or tzdata, so apps must be configured for globalization-invariant mode or use an -extra variant.",
+          "title": ".NET container images - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "docker-get-started",
+        "kubernetes-concepts"
+      ],
+      "explanation": "The size-optimized chiseled images leave out ICU and tzdata, so apps must either run in invariant globalization mode or use the `-extra` variant, which includes them. Chiseled images have no package manager and no shell, so b and c are impossible, and there is no chiseled SDK image (d)."
+    },
+    {
+      "id": "w08-l02-q03",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w08-l02",
+      "prompt": "A team points the liveness probe of every API pod at `/health`, which also checks the shared SQL database. During a short database failover, what is the most likely outcome?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Kubernetes marks the pods unready via the readiness gate, but keeps them running and serving until the database recovers"
+        },
+        {
+          "id": "b",
+          "text": "Nothing happens, because liveness probes are suspended automatically whenever a readiness probe is also configured"
+        },
+        {
+          "id": "c",
+          "text": "The startup probe takes over and holds every pod in the starting state until the database failover completes"
+        },
+        {
+          "id": "d",
+          "text": "Every pod fails liveness at once, so Kubernetes restarts all of them, turning a brief blip into a full outage"
+        }
+      ],
+      "concept": "kubernetes-probe-semantics",
+      "sources": [
+        {
+          "url": "https://kubernetes.io/docs/concepts/configuration/liveness-readiness-startup-probes/",
+          "claim": "If the liveness probe fails, the kubelet kills the container; incorrect liveness probes can cause cascading failures. Readiness failures remove the pod from EndpointSlices without restarting it; a startup probe disables liveness and readiness checks until it succeeds.",
+          "title": "Liveness, Readiness, and Startup Probes",
+          "accessed": "2026-09-27",
+          "publisher": "The Kubernetes Authors"
+        }
+      ],
+      "materials": [
+        "docker-get-started",
+        "kubernetes-concepts"
+      ],
+      "explanation": "A failing liveness probe restarts the container. If liveness depends on a shared dependency, a dependency outage restarts every replica at once: a cascading failure. Liveness should check only whether the process itself is healthy. Dependency checks belong in readiness, which takes the pod out of Service endpoints without restarting it (that's what a describes)."
+    },
+    {
+      "id": "w08-l02-q04",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w08-l02",
+      "prompt": "A legacy .NET service takes up to 3 minutes to warm caches on start. With a liveness probe of `periodSeconds: 10, failureThreshold: 3`, it's killed in a restart loop. What's the cleanest fix?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Remove the liveness probe entirely and rely on the container orchestrator's separate out-of-memory and crash-loop detection instead"
+        },
+        {
+          "id": "b",
+          "text": "Add a startup probe sized past the warm-up, e.g. `failureThreshold: 30, periodSeconds: 10`; it delays liveness and readiness until it succeeds"
+        },
+        {
+          "id": "c",
+          "text": "Raise the liveness `failureThreshold` to 100 permanently, so slow warm-ups never trip a restart during startup"
+        },
+        {
+          "id": "d",
+          "text": "Use a readiness probe instead of liveness, since readiness failures also restart containers after three failures"
+        }
+      ],
+      "concept": "kubernetes-probe-semantics",
+      "sources": [
+        {
+          "url": "https://kubernetes.io/docs/concepts/configuration/liveness-readiness-startup-probes/",
+          "claim": "Startup probes verify whether the application within a container has started; if configured, they disable liveness and readiness checks until they succeed, so slow-starting containers aren't killed before they're up.",
+          "title": "Liveness, Readiness, and Startup Probes",
+          "accessed": "2026-09-27",
+          "publisher": "The Kubernetes Authors"
+        }
+      ],
+      "materials": [
+        "docker-get-started",
+        "kubernetes-concepts"
+      ],
+      "explanation": "A startup probe exists for slow-starting containers: while it runs, liveness and readiness probes are disabled, so warm-up gets its own budget and liveness keeps its fast detection afterwards. A permanently high threshold (c) makes real deadlocks slow to detect. Readiness failures never restart containers (d)."
+    },
+    {
+      "id": "w08-l02-q05",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w08-l02",
+      "prompt": "`dotnet publish --os linux --arch x64 /t:PublishContainer` runs on a web API project with no Dockerfile. Which statement about the result is correct?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It fails without a running Docker daemon, because the SDK shells out to `docker build` for every layer and tag it produces"
+        },
+        {
+          "id": "b",
+          "text": "It uses the full SDK image as the base and runs as root, matching the container's build-time user"
+        },
+        {
+          "id": "c",
+          "text": "It uses the `aspnet` base image for a web app, runs as the non-root `app` user, and can push to a registry without Docker"
+        },
+        {
+          "id": "d",
+          "text": "It supports `RUN` steps through the `ContainerRunCommand` property, executed during the final publish layer"
+        }
+      ],
+      "concept": "sdk-container-publish-defaults",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/containers/sdk-publish",
+          "claim": "The .NET SDK can create container images without a Dockerfile; pushing to a remote registry or a tar archive doesn't require a local container runtime.",
+          "title": "Containerize an app with dotnet publish - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/containers/publish-configuration",
+          "claim": "The default base image is aspnet for ASP.NET Core apps, runtime-deps for self-contained apps and runtime otherwise; images run as the non-root app user by default; RUN commands aren't supported.",
+          "title": "Containerize a .NET app reference - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "docker-get-started",
+        "kubernetes-concepts"
+      ],
+      "explanation": "SDK container publishing builds the image itself. For ASP.NET Core projects it uses the `aspnet` image (`runtime-deps` for self-contained apps, `runtime` otherwise). Images run as the non-root `app` user by default. A local daemon is needed only when you load the image into the local container runtime, not when you push to a registry or write a tarball. There are no `RUN` commands; for OS packages, use a custom base image."
+    },
+    {
+      "id": "w08-l02-q06",
+      "type": "written",
+      "lesson": "w08-l02",
+      "prompt": "Your team debates a hand-written multi-stage Dockerfile versus `dotnet publish /t:PublishContainer` for 15 .NET services. Compare the two approaches, and state when each is the right choice.",
+      "concept": "sdk-container-publish-defaults",
+      "sources": [
+        {
+          "url": "https://docs.docker.com/build/building/multi-stage/",
+          "claim": "With multi-stage builds you use multiple FROM statements and COPY --from to copy artifacts between stages, leaving everything you don't want out of the final image; BuildKit only builds the stages the target depends on.",
+          "title": "Multi-stage builds | Docker Docs",
+          "accessed": "2026-09-27",
+          "publisher": "Docker"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/containers/publish-configuration",
+          "claim": "SDK container publishing infers the base image from the project, runs as the non-root app user by default, supports ContainerFamily for variants, and doesn't support RUN commands, so customize through a base image.",
+          "title": "Containerize a .NET app reference - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "docker-get-started",
+        "kubernetes-concepts"
+      ],
+      "explanation": "A senior answer knows the concrete limits of each approach and turns them into a team policy instead of a personal preference.",
+      "model_answer": {
+        "summary": "SDK publishing gives secure, consistent defaults (the right base image, a non-root user, no Dockerfile to maintain, no daemon needed to push) and suits standard services. A multi-stage Dockerfile gives full control (`RUN` steps, OS packages, custom build stages) at the cost of maintaining it. Choose by whether a service needs build or OS customization that a custom base image can't provide.",
+        "key_points": [
+          "Multi-stage builds use `FROM ... AS build` and `COPY --from=build` to keep SDK tooling out of the final image; BuildKit builds only the stages the target needs",
+          "SDK publish infers the base image (`aspnet`, `runtime` or `runtime-deps`) and tag from project properties, runs as the non-root `app` user, and can push without Docker",
+          "SDK publish has no `RUN` commands; OS-level changes require a custom base image set with `ContainerBaseImage`",
+          "Variants such as Alpine or chiseled are chosen with `ContainerFamily` or the base image",
+          "At 15 services, consistency and less maintenance usually favor SDK publish, with Dockerfiles kept for the exceptions"
+        ]
+      }
+    },
+    {
+      "id": "w08-l02-q07",
+      "type": "written",
+      "lesson": "w08-l02",
+      "prompt": "Security wants every .NET service on Ubuntu chiseled images. The on-call engineers push back: \"We can't `kubectl exec` into a pod to debug anymore.\" Present the security benefits, the operational trade-offs, and how you would debug in production without a shell.",
+      "concept": "chiseled-image-tradeoffs",
+      "sources": [
+        {
+          "url": "https://github.com/dotnet/dotnet-docker/blob/main/documentation/ubuntu-chiseled.md",
+          "claim": "Ubuntu chiseled images are ultra-small images containing only the minimal packages needed; they have no package manager and no shell and are configured as non-root by default.",
+          "title": "Ubuntu Chiseled + .NET",
+          "accessed": "2026-09-27",
+          "publisher": ".NET team (dotnet/dotnet-docker on GitHub)"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/docker/container-images",
+          "claim": ".NET size-optimized chiseled images omit ICU and tzdata; the -extra variants include them for apps that need globalization.",
+          "title": ".NET container images - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "docker-get-started",
+        "kubernetes-concepts",
+        "dotnet-diagnostics"
+      ],
+      "explanation": "The senior move is to answer the on-call concern with a concrete production debugging workflow, not to dismiss it.",
+      "model_answer": {
+        "summary": "Chiseled images cut the attack surface: no shell, no package manager, a minimal set of packages, and a non-root user by default, so there are fewer CVEs and a compromised process has fewer tools to use. The trade-off is that you can't exec into the container to debug or install tools, and ICU or tzdata may be missing. Debug from outside: ephemeral debug containers, telemetry, and diagnostic tools run from a sidecar or debug image.",
+        "key_points": [
+          "Chiseled images have no shell and no package manager, contain only the needed packages, and run as non-root",
+          "A smaller surface means fewer vulnerabilities to patch and fewer tools for an attacker",
+          "Size-optimized variants lack ICU and tzdata, so use invariant globalization or the `-extra` images",
+          "Debug through observability (logs, metrics, traces), `dotnet-monitor` or diagnostic tools in a separate container, and Kubernetes ephemeral debug containers",
+          "There's no chiseled SDK image; the build stage keeps using a full SDK image"
+        ]
+      }
+    },
+    {
+      "id": "w08-l02-q08",
+      "type": "written",
+      "lesson": "w08-l02",
+      "prompt": "A .NET API on Kubernetes has `requests.memory: 256Mi` and `limits.memory: 512Mi`, and pods get `OOMKilled` under load even though managed-heap metrics look fine. Explain how the .NET GC reads container limits, why the pods can still be killed, and how you would tune the setup.",
+      "concept": "gc-container-memory-limit",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/runtime-config/garbage-collector",
+          "claim": "Default heap hard limit in a container is max(20 MB, 75% of the limit); GCHeapHardLimit and GCHeapHardLimitPercent can override it, with hexadecimal values when set as environment variables; DATAS is enabled by default starting in .NET 9.",
+          "title": "Garbage collector config settings - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://kubernetes.io/docs/concepts/workloads/autoscaling/horizontal-pod-autoscale/",
+          "claim": "For per-pod resource metrics, the HPA controller calculates utilization as a percentage of the container resource request; if requests aren't set, the HPA won't act on that metric.",
+          "title": "Horizontal Pod Autoscaling",
+          "accessed": "2026-09-27",
+          "publisher": "The Kubernetes Authors"
+        }
+      ],
+      "materials": [
+        "dotnet-gc-fundamentals",
+        "kubernetes-concepts"
+      ],
+      "explanation": "Senior candidates separate managed-heap metrics from container memory and know the concrete GC settings and their units.",
+      "model_answer": {
+        "summary": "The GC reads the cgroup memory limit and by default caps the heap at 75% of it; the rest has to fit native memory, thread stacks, the JIT and unmanaged buffers. The pod is killed when total process memory passes the limit, not the heap alone, so native allocations or a low limit relative to real load can trigger it. Measure total working set, then set a right-sized limit, tune `GCHeapHardLimit` or `GCHeapHardLimitPercent` (values in hex when set through environment variables), and consider DATAS and GC mode settings.",
+        "key_points": [
+          "With a container memory limit, the default heap hard limit is the larger of 20 MB or 75% of the limit",
+          "The OOM kill is based on total container memory; native allocations, stacks and unmanaged buffers aren't part of the managed heap",
+          "Settings such as `DOTNET_GCHeapHardLimit` or `DOTNET_GCHeapHardLimitPercent` are hexadecimal when set as environment variables",
+          "DATAS (dynamic adaptation of heap size to application size) is on by default with Server GC in .NET 9 and later, which adapts the heap to the load",
+          "Set requests and limits from measured load; HPA memory or CPU scaling depends on resource requests being set"
+        ]
+      }
+    },
+    {
+      "id": "w08-l03-q01",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w08-l03",
+      "prompt": "The pipeline runs `dotnet publish` and builds a new container image separately in each of the dev, staging and production jobs. Why does the Well-Architected Framework consider this risky?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Building three times is slower and triples the compute minutes billed to the pipeline, but the images are otherwise equivalent"
+        },
+        {
+          "id": "b",
+          "text": "Production then runs an untested artifact: rebuilding can pull different dependencies or base images, so build once and promote the same image everywhere"
+        },
+        {
+          "id": "c",
+          "text": "Container registries enforce a strict one-tag-per-commit limit, so only the last of the three separate builds can ever be pushed"
+        },
+        {
+          "id": "d",
+          "text": "GitHub Actions can't pass build artifacts between separate jobs without configuring a self-hosted runner and a shared volume"
+        }
+      ],
+      "concept": "build-once-promote-artifacts",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/well-architected/operational-excellence/workload-supply-chain",
+          "claim": "Use the same artifacts and deployment process across all environments, promoting the build through each one, and prohibit manual changes in production so environments stay consistent.",
+          "title": "Architecture Strategies for Designing a Workload Development Supply Chain - Azure Well-Architected Framework",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "github-actions",
+        "azure-well-architected"
+      ],
+      "explanation": "The guidance is to build an artifact once and deploy that same artifact to every environment, so what reached production is exactly what was validated. Rebuilding per environment can produce different outputs from floating dependencies or base images, which undermines testing. Speed (a) is secondary to integrity."
+    },
+    {
+      "id": "w08-l03-q02",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w08-l03",
+      "prompt": "What is the main cost of a blue-green deployment compared with a canary rollout, according to the Well-Architected safe deployment guidance?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Blue-green can't be rolled back once traffic fully cuts over, because the old environment is torn down immediately"
+        },
+        {
+          "id": "b",
+          "text": "Blue-green exposes every user to the new version at the same moment, since the router discards the previous environment's configuration on cutover"
+        },
+        {
+          "id": "c",
+          "text": "Blue-green requires feature flags to gate every new code path before the environment swap can happen"
+        },
+        {
+          "id": "d",
+          "text": "Blue-green needs two production environments, each sized for full load, doubling infrastructure while both run"
+        }
+      ],
+      "concept": "progressive-exposure-deployments",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/well-architected/operational-excellence/safe-deployments",
+          "claim": "Blue-green deployment requires two pools of infrastructure that are each capable of handling full production load; canary deployments shift a small portion of traffic first; bake time between phases can be hours or days.",
+          "title": "Architecture strategies for safe deployment practices - Azure Well-Architected Framework",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "github-actions",
+        "azure-well-architected"
+      ],
+      "explanation": "In blue-green, two pools of infrastructure each have to handle the full production load; traffic switches from one to the other, which gives fast rollback but costs a second full environment. Canary shifts traffic gradually on shared capacity. Blue-green's strength is precisely a fast switch back, so a and b are wrong."
+    },
+    {
+      "id": "w08-l03-q03",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w08-l03",
+      "prompt": "Someone changed an Azure SQL firewall rule by hand in the portal. How do Bicep and Terraform deal with this kind of out-of-band change?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Both Bicep and Terraform maintain the exact same shared remote state file format, so both report drift identically every time"
+        },
+        {
+          "id": "b",
+          "text": "Bicep has no state file; ARM compares the template with Azure. Terraform compares against `tfstate`, so out-of-band changes must be imported"
+        },
+        {
+          "id": "c",
+          "text": "Bicep automatically deletes any manually made change every 10 minutes through its own background reconciliation controller process"
+        },
+        {
+          "id": "d",
+          "text": "Terraform can't detect any change made outside itself, since `terraform plan` only ever reads its own local cached state file copy"
+        }
+      ],
+      "concept": "bicep-terraform-state-model",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/developer/terraform/comparing-terraform-and-bicep",
+          "claim": "Bicep doesn't store state; ARM compares the deployment with the current state of Azure resources. Terraform stores state in a file that must be secured, and changes made outside Terraform must be imported into state.",
+          "title": "Comparing Terraform and Bicep",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "github-actions",
+        "azure-well-architected"
+      ],
+      "explanation": "Bicep deploys through ARM and doesn't keep state: ARM compares the template with the resources in Azure, and `what-if` previews changes. Terraform tracks resources in a state file that must be stored and secured, and resources created outside Terraform have to be imported. Terraform plans do refresh and detect drift on resources it manages (d is wrong)."
+    },
+    {
+      "id": "w08-l03-q04",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w08-l03",
+      "prompt": "An API with 6 replicas calls `context.Database.MigrateAsync()` at startup. Which approach does the EF Core documentation recommend for production instead?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Keep migrating at startup but wrap the call in both a distributed lock and a Polly retry policy on every replica"
+        },
+        {
+          "id": "b",
+          "text": "Run `dotnet ef database update` from a developer's own laptop before each release, using their personal Azure AD login"
+        },
+        {
+          "id": "c",
+          "text": "Generate a migration bundle or idempotent SQL script, and run it once as a separate pipeline step under an identity with schema permissions"
+        },
+        {
+          "id": "d",
+          "text": "Have each of the six running replicas apply one migration in turn, ordered alphabetically by pod name to avoid collisions"
+        }
+      ],
+      "concept": "database-migrations-in-pipelines",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/ef/core/managing-schemas/migrations/applying",
+          "claim": "Applying migrations at runtime isn't recommended for production: multiple instances may race, the app needs elevated access, and rollback is hard. Migration bundles are single executables for deployment; SQL scripts can be reviewed and generated with --idempotent.",
+          "title": "Applying Migrations - EF Core",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "github-actions",
+        "efcore-performance",
+        "azure-well-architected"
+      ],
+      "explanation": "The documentation warns against applying migrations at application startup in production: several instances can race, the app needs elevated permissions, and failures are hard to handle. Use a migration bundle (a single executable) or SQL scripts (`--idempotent` for review) run once in deployment. A developer machine (b) isn't a controlled, repeatable deployment."
+    },
+    {
+      "id": "w08-l03-q05",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w08-l03",
+      "prompt": "Production deployments in GitHub Actions must require approval from someone on the release team other than the person who triggered the run, and the production database secret must not be readable by unapproved jobs. What provides both?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Repository secrets plus a branch protection rule on `main` that requires a passing status check and a linear history"
+        },
+        {
+          "id": "b",
+          "text": "A `production` environment with required reviewers and \"prevent self-review\", storing the secret as an environment secret"
+        },
+        {
+          "id": "c",
+          "text": "Organization secrets restricted to private repositories, but still readable by any workflow job in those repos by default"
+        },
+        {
+          "id": "d",
+          "text": "A `CODEOWNERS` file covering the workflow files, requiring a named owner's sign-off on every pull request touching them"
+        }
+      ],
+      "concept": "build-once-promote-artifacts",
+      "sources": [
+        {
+          "url": "https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments",
+          "claim": "Environments can require up to six reviewers (only one must approve) and can prevent self-review; secrets stored in an environment are only available to jobs referencing it after protection rules pass.",
+          "title": "Managing environments for deployment",
+          "accessed": "2026-09-27",
+          "publisher": "GitHub Docs"
+        }
+      ],
+      "materials": [
+        "github-actions",
+        "azure-well-architected"
+      ],
+      "explanation": "GitHub environments support deployment protection rules: up to six required reviewers (only one needs to approve), prevent self-review, wait timers and branch restrictions. A job that references the environment can access environment secrets only after the rules pass. Repository secrets (a) are available to any workflow job without an approval gate."
+    },
+    {
+      "id": "w08-l03-q06",
+      "type": "written",
+      "lesson": "w08-l03",
+      "prompt": "Design the rollout for a high-traffic .NET API that ships weekly. Cover progressive exposure, bake time, health signals, the role of feature flags, and when you would roll back versus roll forward.",
+      "concept": "progressive-exposure-deployments",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/well-architected/operational-excellence/safe-deployments",
+          "claim": "Use progressive exposure with bake time (hours or days) and health checks; feature flags can decouple deployment from release; choose rollback or roll forward, noting that rolling back schema changes can be complex.",
+          "title": "Architecture strategies for safe deployment practices - Azure Well-Architected Framework",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "azure-well-architected",
+        "github-actions"
+      ],
+      "explanation": "Senior answers make the rollback plan a design input, defined before the release, rather than an afterthought.",
+      "model_answer": {
+        "summary": "Release through progressive exposure (canary, or deployment rings) and bake each phase long enough to catch slow-burning problems, gating each step on health signals such as error rate, latency and saturation. Use feature flags to separate deploying from releasing. Roll back quickly when a change is clearly bad and reverting is safe; roll forward when reverting is riskier (for example after schema or data changes) and the fix is small.",
+        "key_points": [
+          "Canary or ring-based exposure limits the blast radius; blue-green gives a fast switch but needs two full-capacity environments",
+          "Bake time between phases can be hours or days, depending on risk and how quickly problems show",
+          "Automate health gates on error rate, latency and business signals, and halt automatically",
+          "Feature flags separate deployment from release, so risky features can be turned off without redeploying",
+          "Rollback is harder after schema or data changes; decide the rollback or roll-forward plan before the release and test it"
+        ]
+      }
+    },
+    {
+      "id": "w08-l03-q07",
+      "type": "written",
+      "lesson": "w08-l03",
+      "prompt": "Release 42 renamed the `Customers.Phone` column to `PhoneNumber` in one EF Core migration, and the new API version is failing in production. The team wants to \"just roll back\". Explain why that's dangerous, and how you would have designed the change so that rolling back is safe.",
+      "concept": "database-migrations-in-pipelines",
+      "sources": [
+        {
+          "url": "https://martinfowler.com/bliki/ParallelChange.html",
+          "claim": "Parallel change, also known as expand and contract, splits a backward-incompatible change into expand, migrate and contract phases so clients can move over gradually.",
+          "title": "Parallel Change",
+          "accessed": "2026-09-27",
+          "publisher": "Martin Fowler"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/well-architected/operational-excellence/safe-deployments",
+          "claim": "Rolling back schema changes can be complex; plan for rollback or roll forward before deployment and consider point-in-time restore for data.",
+          "title": "Architecture strategies for safe deployment practices - Azure Well-Architected Framework",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "efcore-performance",
+        "azure-well-architected",
+        "github-actions"
+      ],
+      "explanation": "The senior signal is designing schema changes so they stay backward compatible across releases, instead of relying on `Down` scripts.",
+      "model_answer": {
+        "summary": "The old code expects `Phone`, so rolling back the app alone breaks it; running the `Down` migration may lose data written since the release and needs care under load. Use parallel change (expand, migrate, contract): add the new column, write to both and backfill, switch reads, and drop the old column only in a later release. With that design, any single release can be rolled back. Keep point-in-time restore as a last resort.",
+        "key_points": [
+          "A rename in a single migration couples the schema and the code, so the old app version can't run against the new schema",
+          "`Down` migrations can lose data; rolling back schema changes under live traffic is complex",
+          "Parallel change: expand (add the new column), migrate (dual-write and backfill, move readers), contract (remove the old column) across releases",
+          "Rolling forward with a small fix is often safer than rolling back after data has changed",
+          "Take backups or use point-in-time restore before migration steps, and apply migrations as a separate, reviewed pipeline step"
+        ]
+      }
+    },
+    {
+      "id": "w08-l03-q08",
+      "type": "written",
+      "lesson": "w08-l03",
+      "prompt": "A team that is Azure-only today, but may add AWS in two years, must choose between Bicep and Terraform. Compare the state models, drift handling, preview tools, and multi-cloud trade-offs, and give a recommendation.",
+      "concept": "bicep-terraform-state-model",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/developer/terraform/comparing-terraform-and-bicep",
+          "claim": "Bicep doesn't store state and uses ARM plus what-if; Terraform stores state that must be secured and supports multiple cloud providers, while Bicep supports new Azure features immediately.",
+          "title": "Comparing Terraform and Bicep",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "azure-well-architected",
+        "github-actions"
+      ],
+      "explanation": "A senior answer compares the real operational consequences, especially the state management burden, and doesn't pick Terraform for \"multi-cloud\" by reflex.",
+      "model_answer": {
+        "summary": "Bicep is Azure-native and stateless: ARM compares the template with the live resources, `what-if` previews changes, and new Azure features are available right away. Terraform works across clouds through providers but depends on a state file that must be stored remotely, locked and secured, and resources changed outside it have to be imported. Choose by where you really run: Bicep for Azure-only teams, Terraform when multi-cloud is a concrete plan.",
+        "key_points": [
+          "Bicep has no state file; ARM handles incremental deployment and `what-if` previews changes",
+          "Terraform keeps a `tfstate` file that must be stored securely and shared with locking; `terraform plan` previews changes",
+          "Changes made outside Terraform must be imported into its state; manual changes should be prohibited either way",
+          "Terraform spans clouds through providers; Bicep covers Azure only but supports new Azure features on day one",
+          "A speculative future cloud move is weak justification; factor in team skills and the existing tooling"
+        ]
+      }
+    },
+    {
+      "id": "w08-l04-q01",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w08-l04",
+      "prompt": "What is the difference between `aspire publish` and `aspire deploy`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "They're aliases for the same command, both driven by the `--publisher` flag on the AppHost"
+        },
+        {
+          "id": "b",
+          "text": "`publish` deploys straight to production infrastructure immediately, while `deploy` only targets a local Docker Compose sandbox environment"
+        },
+        {
+          "id": "c",
+          "text": "`publish` only builds and pushes container images to the configured registry, and `deploy` separately generates the matching Bicep templates"
+        },
+        {
+          "id": "d",
+          "text": "`publish` emits deployment artifacts with parameters left as placeholders; `deploy` resolves them and applies the change to the environment"
+        }
+      ],
+      "concept": "aspire-publish-vs-deploy",
+      "sources": [
+        {
+          "url": "https://aspire.dev/deployment/deploy-with-aspire/",
+          "claim": "aspire publish generates deployment artifacts with parameters as placeholders; aspire deploy resolves parameters and applies changes to the target environment.",
+          "title": "How Aspire deployment works | Aspire",
+          "accessed": "2026-09-27",
+          "publisher": "Aspire (Microsoft)"
+        }
+      ],
+      "materials": [
+        "aspire"
+      ],
+      "explanation": "Publishing turns the app model into artifacts for a target, leaving parameters unresolved so another tool (or a person) can fill them in later. Deploying resolves the parameter values and applies the resources directly. That split lets a platform team review or version the generated artifacts before anything is applied."
+    },
+    {
+      "id": "w08-l04-q02",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w08-l04",
+      "prompt": "An Aspire service uses the standard `ServiceDefaults` project and calls `app.MapDefaultEndpoints()`. `/health` works locally but returns 404 in production. Why?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The template maps health endpoints only when `IsDevelopment()` is true, so production exposure must be added deliberately and secured"
+        },
+        {
+          "id": "b",
+          "text": "Health checks need a Redis resource registered in the AppHost to back a distributed health-check cache in every environment"
+        },
+        {
+          "id": "c",
+          "text": "`/health` is automatically renamed to `/healthz` whenever the process runs outside the Aspire AppHost orchestration entirely"
+        },
+        {
+          "id": "d",
+          "text": "Service defaults are ignored whenever the app runs inside a container, since `AddServiceDefaults` only wires up local dev hosting and telemetry"
+        }
+      ],
+      "concept": "aspire-service-defaults-health",
+      "sources": [
+        {
+          "url": "https://aspire.dev/get-started/csharp-service-defaults/",
+          "claim": "The template's MapDefaultEndpoints maps /health and /alive only when app.Environment.IsDevelopment(); exposing health endpoints in other environments has security implications.",
+          "title": "C# service defaults | Aspire",
+          "accessed": "2026-09-27",
+          "publisher": "Aspire (Microsoft)"
+        }
+      ],
+      "materials": [
+        "aspire"
+      ],
+      "explanation": "The generated `MapDefaultEndpoints` maps `/health` and `/alive` only in Development. Exposing health endpoints publicly can leak information, so the template makes production exposure a conscious choice: map them with authorization, host filtering or a separate port. Service defaults are regular code that runs everywhere (d is wrong)."
+    },
+    {
+      "id": "w08-l04-q03",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w08-l04",
+      "prompt": "An AppHost declares `var apiKey = builder.AddParameter(\"apiKey\", secret: true);`. In a GitHub Actions deployment job, how should its value be supplied?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Hard-code it in `appsettings.json` of the AppHost project and rely on file-system permissions to protect it"
+        },
+        {
+          "id": "b",
+          "text": "Set it via an environment variable like `Parameters__apiKey` from a GitHub secret, or user secrets locally"
+        },
+        {
+          "id": "c",
+          "text": "`secret: true` encrypts the value with DPAPI and embeds the ciphertext inside the compiled AppHost assembly"
+        },
+        {
+          "id": "d",
+          "text": "Parameters can only ever be entered manually through the Aspire dashboard's runtime configuration panel"
+        }
+      ],
+      "concept": "aspire-parameters-secrets",
+      "sources": [
+        {
+          "url": "https://aspire.dev/fundamentals/external-parameters/",
+          "claim": "Parameter values are read from the Parameters configuration section (for example user secrets or Parameters__ environment variables) and can be prompted for; secret: true marks a parameter as sensitive for deployment tooling.",
+          "title": "External parameters | Aspire",
+          "accessed": "2026-09-27",
+          "publisher": "Aspire (Microsoft)"
+        }
+      ],
+      "materials": [
+        "aspire"
+      ],
+      "explanation": "Parameter values are read from configuration: in CI, environment variables with the `Parameters__` prefix; locally, the `Parameters` section of user secrets or config; and missing values can be prompted for interactively. `secret: true` marks the value as sensitive so tools and deployment targets treat it as a secret; it doesn't encrypt anything by itself (c)."
+    },
+    {
+      "id": "w08-l04-q04",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w08-l04",
+      "prompt": "A worker on Azure Container Apps has a Service Bus scale rule with `messageCount: 5`. The app is at 1 replica when 50 messages arrive. What happens at the next scaling decision?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It jumps straight to 10 replicas in one step, because KEDA applies the full desired count of 50 / 5 = 10 immediately"
+        },
+        {
+          "id": "b",
+          "text": "It stays at 1 replica until the 300-second scale-to-zero cooldown ends, regardless of queue depth"
+        },
+        {
+          "id": "c",
+          "text": "It scales to 4 replicas: each step is capped at `max(4, 2 × current)`, reaching 10 over later polls"
+        },
+        {
+          "id": "d",
+          "text": "It scales to 50 replicas, one per message, since `messageCount: 5` sets a floor of 5 messages per pod"
+        }
+      ],
+      "concept": "container-apps-scale-rules",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/container-apps/scale-app",
+          "claim": "Scale-up per step is min(maxReplicaCount, desiredReplicas, max(4, 2 × currentReplicaCount)); KEDA polls every 30 seconds, with a 300-second cooldown for scaling to zero and a 300-second scale-down stabilization window.",
+          "title": "Scaling in Azure Container Apps",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "aspire"
+      ],
+      "explanation": "KEDA computes a desired count of 10 (50 messages / 5 per replica), but Container Apps limits each scale-up step to the smallest of the max replica count, the desired count, and `max(4, 2 × current)`. From 1 replica the first step is 4, and later polls (every 30 seconds) approach 10. The 300-second cooldown applies to scaling in, not out (b)."
+    },
+    {
+      "id": "w08-l04-q05",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w08-l04",
+      "prompt": "You publish an Aspire app model to Kubernetes. How do the app model's pieces appear in the generated output?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Everything is packed into one pod running the AppHost, which proxies traffic to in-process services"
+        },
+        {
+          "id": "b",
+          "text": "Project resources become Helm Deployments (StatefulSets if stateful), endpoints become Services, and config becomes ConfigMaps and Secrets"
+        },
+        {
+          "id": "c",
+          "text": "Aspire produces only a Bicep template, and the cluster built-in ARM extension controller applies it to create every needed resource properly"
+        },
+        {
+          "id": "d",
+          "text": "Resources become custom Kubernetes CRDs that a cluster-installed Aspire operator continuously reconciles"
+        }
+      ],
+      "concept": "aspire-publish-vs-deploy",
+      "sources": [
+        {
+          "url": "https://aspire.dev/deployment/kubernetes/",
+          "claim": "Aspire's Kubernetes publishing generates Helm charts: projects become Deployments or StatefulSets, endpoints become Services, and connection strings and environment variables become ConfigMaps and Secrets.",
+          "title": "Deploy to Kubernetes | Aspire",
+          "accessed": "2026-09-27",
+          "publisher": "Aspire (Microsoft)"
+        }
+      ],
+      "materials": [
+        "aspire"
+      ],
+      "explanation": "The Kubernetes publisher generates Helm charts: project and container resources become Deployments (or StatefulSets), endpoints become Services, and configuration becomes ConfigMaps and Secrets. The AppHost describes the model; it doesn't run in production (a)."
+    },
+    {
+      "id": "w08-l04-q06",
+      "type": "written",
+      "lesson": "w08-l04",
+      "prompt": "Explain what the Aspire `ServiceDefaults` project gives every service, what you should change before production, and why health endpoints need special care.",
+      "concept": "aspire-service-defaults-health",
+      "sources": [
+        {
+          "url": "https://aspire.dev/get-started/csharp-service-defaults/",
+          "claim": "AddServiceDefaults configures OpenTelemetry, default health checks, service discovery and HttpClient resilience; MapDefaultEndpoints maps /health and /alive only in the Development environment.",
+          "title": "C# service defaults | Aspire",
+          "accessed": "2026-09-27",
+          "publisher": "Aspire (Microsoft)"
+        }
+      ],
+      "materials": [
+        "aspire",
+        "kubernetes-concepts"
+      ],
+      "explanation": "A strong answer knows service defaults are owned code, and links health endpoints to probe design and security.",
+      "model_answer": {
+        "summary": "Service defaults are one shared extension (`AddServiceDefaults`) that wires OpenTelemetry logging, metrics and tracing, health checks, service discovery and standard HTTP resilience into each service. Before production, review the exporters, the resilience settings and which health checks run. The template exposes `/health` and `/alive` only in Development, because public health endpoints can leak information and add load, so expose them deliberately and protected.",
+        "key_points": [
+          "`AddServiceDefaults` configures OpenTelemetry (logs, metrics, traces), health checks, service discovery and the HTTP client resilience handler",
+          "`MapDefaultEndpoints` maps `/health` (all checks) and `/alive` (liveness) only in Development in the template",
+          "Exposing health endpoints publicly has security and availability implications: restrict them with authorization, host filtering or internal ports",
+          "Map `/alive` to the liveness probe and `/health` to readiness, and keep dependency checks out of liveness",
+          "It's ordinary source code you own and can change, not a hidden framework"
+        ]
+      }
+    },
+    {
+      "id": "w08-l04-q07",
+      "type": "written",
+      "lesson": "w08-l04",
+      "prompt": "Design how configuration and secrets flow for an Aspire app across a developer laptop, a CI pipeline, and Azure production. Cover `AddParameter`, what `publish` emits for secrets, and how the pipeline authenticates to Azure.",
+      "concept": "aspire-parameters-secrets",
+      "sources": [
+        {
+          "url": "https://aspire.dev/fundamentals/external-parameters/",
+          "claim": "Parameters are resolved from Parameters__ environment variables, configuration or user secrets, or an interactive prompt; secret parameters are treated as sensitive.",
+          "title": "External parameters | Aspire",
+          "accessed": "2026-09-27",
+          "publisher": "Aspire (Microsoft)"
+        },
+        {
+          "url": "https://aspire.dev/deployment/azure/",
+          "claim": "In CI/CD, aspire deploy reads Azure settings such as Azure__SubscriptionId and parameter values from environment variables, and pipelines should authenticate with workload identity or OIDC.",
+          "title": "Deploy to Azure | Aspire",
+          "accessed": "2026-09-27",
+          "publisher": "Aspire (Microsoft)"
+        }
+      ],
+      "materials": [
+        "aspire",
+        "github-actions"
+      ],
+      "explanation": "The senior signal is keeping secrets out of generated artifacts and source control at every stage, and explaining publish placeholders versus deploy-time resolution.",
+      "model_answer": {
+        "summary": "Model every environment-specific value as a parameter. Locally, values come from user secrets or prompts. `publish` emits artifacts with placeholders (for example a Compose file referencing a `.env` variable), so secrets never land in generated files. In CI, supply `Parameters__*` environment variables from the secret store, set `Azure__SubscriptionId` and similar settings, and authenticate to Azure with OIDC workload identity rather than stored credentials.",
+        "key_points": [
+          "`AddParameter(name, secret: true)` declares a value the environment must supply and marks it as sensitive",
+          "Resolution order: `Parameters__*` environment variables and configuration or user secrets, then interactive prompts for missing values",
+          "`aspire publish` keeps parameters unresolved as placeholders (for example `${APIKEY}` in Compose with a `.env` file)",
+          "In CI, `aspire deploy` reads settings such as `Azure__SubscriptionId` and `Parameters__*` from environment variables",
+          "Authenticate the pipeline with OIDC federation (workload identity) instead of long-lived secrets"
+        ]
+      }
+    },
+    {
+      "id": "w08-l04-q08",
+      "type": "written",
+      "lesson": "w08-l04",
+      "prompt": "Finance says your Container Apps bill is too high, and ops says queue backlogs clear too slowly after bursts. Review the scaling configuration of a queue-driven worker: explain how KEDA-based scaling decides replica counts, and which settings you would tune for each complaint.",
+      "concept": "container-apps-scale-rules",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/container-apps/scale-app",
+          "claim": "Defaults: min 0, max 10 replicas; KEDA polls every 30 seconds, cooldown 300 seconds, scale-down stabilization 300 seconds; scale-up per step is min(maxReplicaCount, desiredReplicas, max(4, 2 × currentReplicaCount)); no usage charges when scaled to zero.",
+          "title": "Scaling in Azure Container Apps",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "aspire",
+        "azure-well-architected"
+      ],
+      "explanation": "Senior answers explain the scaling mechanics behind both complaints and name the specific settings, with their cost and latency trade-offs.",
+      "model_answer": {
+        "summary": "KEDA polls every 30 seconds and computes desired replicas from the metric (for example queue length divided by `messageCount`), but scale-up per step is capped at `max(4, 2 × current)` and scale-in waits for a 300-second stabilization window. For cost: allow scale to zero (`minReplicas: 0`), since idle apps at zero aren't billed for usage, and tune the target. For backlog speed: lower `messageCount`, raise `maxReplicas`, or keep a warm minimum.",
+        "key_points": [
+          "Default replicas are min 0 and max 10; there's no usage charge when an app is scaled to zero",
+          "Desired replicas come from the scaler metric against the target (for example `messageCount`), polled every 30 seconds",
+          "Scale-up is stepped (`max(4, 2 × current)` per step); scale-in uses a 300-second stabilization window and a 300-second cooldown to zero",
+          "Replica counts are targets, not guarantees; capacity and startup time also affect how fast the backlog drains",
+          "Trade-off: `minReplicas > 0` removes cold starts but costs money; a lower `messageCount` or higher `maxReplicas` drains faster but uses more replicas"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,1309 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "boxing-hidden-interface-conversion",
+      "name": "Boxing, including hidden boxing through interface conversions"
+    },
+    {
+      "id": "value-type-copy-semantics",
+      "name": "Value-type copy semantics and shallow copies of reference fields"
+    },
+    {
+      "id": "record-shallow-value-equality",
+      "name": "Record value equality: synthesized, shallow and type-sensitive"
+    },
+    {
+      "id": "nullable-reference-types-compile-time-only",
+      "name": "Nullable reference types are a compile-time-only analysis"
+    },
+    {
+      "id": "csharp12-constructor-and-collection-lowering",
+      "name": "What the compiler generates for primary constructors and collection expressions"
+    },
+    {
+      "id": "csharp14-upgrade-binding-changes",
+      "name": "Binding changes when upgrading to C# 14 (span conversions, field keyword)"
+    },
+    {
+      "id": "csharp14-extension-members",
+      "name": "C# 14 extension members and extension blocks"
+    },
+    {
+      "id": "closed-set-switch-exhaustiveness",
+      "name": "Switch exhaustiveness over closed hierarchies and union types"
+    },
+    {
+      "id": "generic-variance-and-constraint-semantics",
+      "name": "Generic variance rules and what constraints change at compile time"
+    },
+    {
+      "id": "linq-deferred-multiple-enumeration",
+      "name": "LINQ deferred execution and multiple enumeration"
+    },
+    {
+      "id": "iqueryable-expression-tree-translation",
+      "name": "IQueryable, expression trees and provider translation"
+    },
+    {
+      "id": "source-generators-replace-reflection",
+      "name": "Source generators as a replacement for runtime reflection"
+    },
+    {
+      "id": "dotnet-lts-sts-support-windows",
+      "name": ".NET LTS and STS support windows and patch policy"
+    },
+    {
+      "id": "framework-to-core-incremental-migration",
+      "name": "Migrating from .NET Framework: incremental strategy and removed technologies"
+    },
+    {
+      "id": "dotnet10-upgrade-breaking-changes",
+      "name": "Breaking changes that bite a .NET 8 to .NET 10 upgrade"
+    },
+    {
+      "id": "native-aot-trimming-constraints",
+      "name": "Native AOT and trimming constraints"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w01-l01-q01",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w01-l01",
+      "prompt": "Given `int x = 5;`, which statement boxes `x` (allocates a heap object holding a copy of it)?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`long y = x;`"
+        },
+        {
+          "id": "b",
+          "text": "`IComparable c = x;`"
+        },
+        {
+          "id": "c",
+          "text": "`var list = new List<int>(); list.Add(x);`"
+        },
+        {
+          "id": "d",
+          "text": "`Span<int> s = stackalloc int[1]; s[0] = x;`"
+        }
+      ],
+      "concept": "boxing-hidden-interface-conversion",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/csharp/programming-guide/types/boxing-and-unboxing",
+          "claim": "Boxing is the process of converting a value type to the type object or to any interface type implemented by this value type; it allocates an object on the heap and copies the value into it.",
+          "title": "Boxing and Unboxing - C#",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "csharp-docs",
+        "csharp-in-depth"
+      ],
+      "explanation": "Boxing is the conversion of a value type to `object` or to any interface type it implements, so assigning `x` to `IComparable` allocates a box and copies the value. The tempting wrong choice is `List<int>.Add`: the generic list stores `int` directly, so no box is created (boxing happens with `List<object>` or non-generic collections). The widening conversion to `long` and writing into a span are plain value copies."
+    },
+    {
+      "id": "w01-l01-q02",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w01-l01",
+      "prompt": "What does this code do?\n\n```csharp\nint i = 123;\nobject o = i;\ni = 456;\nConsole.WriteLine(o);\nshort s = (short)o;\n```",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Prints `456`, then `s` is `456`"
+        },
+        {
+          "id": "b",
+          "text": "Prints `123`, then `s` is `123`"
+        },
+        {
+          "id": "c",
+          "text": "Prints `123`, then throws `InvalidCastException`"
+        },
+        {
+          "id": "d",
+          "text": "Prints `456`, then throws `InvalidCastException`"
+        }
+      ],
+      "concept": "boxing-hidden-interface-conversion",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/csharp/programming-guide/types/boxing-and-unboxing",
+          "claim": "After boxing, changing the original value type does not change the boxed copy; unboxing to an incompatible type such as (short)o on a boxed int throws InvalidCastException.",
+          "title": "Boxing and Unboxing - C#",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "csharp-docs",
+        "csharp-in-depth"
+      ],
+      "explanation": "Boxing copies the value, so the box keeps `123` after `i` changes. Unboxing must target the exact boxed value type: `(short)o` on a boxed `int` throws `InvalidCastException`. The tempting wrong answer is that `(short)o` works like the numeric conversion `(short)i`; it does not, because an unbox is a type check followed by a copy, not a numeric conversion."
+    },
+    {
+      "id": "w01-l01-q03",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w01-l01",
+      "prompt": "```csharp\npublic struct TaggedInteger\n{\n    public int Number;\n    private List<string> tags;\n    public TaggedInteger(int n) { Number = n; tags = new List<string>(); }\n    public void AddTag(string t) => tags.Add(t);\n    public override string ToString() => $\"{Number} [{string.Join(\", \", tags)}]\";\n}\n\nvar n1 = new TaggedInteger(0);\nn1.AddTag(\"A\");\nvar n2 = n1;\nn2.Number = 7;\nn2.AddTag(\"B\");\nConsole.WriteLine(n1);\nConsole.WriteLine(n2);\n```\n\nWhat is printed?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "n1: `0 [A]`, n2: `7 [A, B]`"
+        },
+        {
+          "id": "b",
+          "text": "n1: `7 [A, B]`, n2: `7 [A, B]`"
+        },
+        {
+          "id": "c",
+          "text": "n1: `0 [A]`, n2: `7 [B]`"
+        },
+        {
+          "id": "d",
+          "text": "n1: `0 [A, B]`, n2: `7 [A, B]`"
+        }
+      ],
+      "concept": "value-type-copy-semantics",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/builtin-types/value-types",
+          "claim": "If a value type contains a data member of a reference type, only the reference is copied when the value type instance is copied; the TaggedInteger example prints 0 [A, B] and 7 [A, B].",
+          "title": "Value types - C# reference",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "csharp-docs",
+        "csharp-in-depth"
+      ],
+      "explanation": "Assigning a struct copies its fields. `Number` is copied by value, so `n1.Number` stays `0`. The `tags` field is a reference, so only the reference is copied and both structs share one list, which is why `B` shows up in `n1` too. The tempting answer `0 [A]` assumes a struct copy is a deep copy; it is not."
+    },
+    {
+      "id": "w01-l01-q04",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w01-l01",
+      "prompt": "```csharp\npublic abstract record Person(string FirstName, string LastName);\npublic record Teacher(string FirstName, string LastName, int Grade) : Person(FirstName, LastName);\npublic record Student(string FirstName, string LastName, int Grade) : Person(FirstName, LastName);\n\nPerson teacher = new Teacher(\"Nancy\", \"Davolio\", 3);\nPerson student = new Student(\"Nancy\", \"Davolio\", 3);\nConsole.WriteLine(teacher == student);\n```\n\nWhat is printed, and why?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`False`, because synthesized equality also compares the runtime type (`EqualityContract`)"
+        },
+        {
+          "id": "b",
+          "text": "`True`, because both variables are statically typed `Person` and every declared property value matches between them"
+        },
+        {
+          "id": "c",
+          "text": "`False`, because records silently fall back to reference equality as soon as any inheritance is involved in the hierarchy"
+        },
+        {
+          "id": "d",
+          "text": "It does not compile, because the compiler never defines `==` between two different derived record types"
+        }
+      ],
+      "concept": "record-shallow-value-equality",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/builtin-types/record",
+          "claim": "For records to be equal their run-time types must be equal; the Teacher/Student example with identical values compares False, and the compiler synthesizes an EqualityContract property.",
+          "title": "Records - C# reference",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "csharp-docs"
+      ],
+      "explanation": "For records, the compiler synthesizes `Equals`, `==` and an `EqualityContract` property; two records are equal only if their runtime types match and all members are equal. A `Teacher` and a `Student` differ in runtime type, so the result is `False` even though every value matches. It is still value equality (not reference equality): two `Teacher` instances with the same values would compare equal."
+    },
+    {
+      "id": "w01-l01-q05",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w01-l01",
+      "prompt": "A library built with `<Nullable>enable</Nullable>` exposes `public int Len(string name) => name.Length;` and compiles with no warnings. A caller in a project with nullable disabled calls `Len(null)`. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The caller fails to compile, because the parameter is declared non-nullable"
+        },
+        {
+          "id": "b",
+          "text": "The compiler injected a null check, so `ArgumentNullException` is thrown on entry"
+        },
+        {
+          "id": "c",
+          "text": "A `NullReferenceException` is thrown at `name.Length`; nothing checks for null at run time"
+        },
+        {
+          "id": "d",
+          "text": "The runtime substitutes `string.Empty`, so `Len` returns `0`"
+        }
+      ],
+      "concept": "nullable-reference-types-compile-time-only",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/csharp/nullable-references",
+          "claim": "The runtime behavior of your program is unchanged; nullable reference types are entirely a compile-time feature, and string and string? are both represented by System.String.",
+          "title": "Nullable reference types - C#",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "csharp-docs"
+      ],
+      "explanation": "Nullable reference types are entirely a compile-time analysis: `string` and `string?` are the same runtime type and no checks are emitted. A caller in a disabled context gets no warnings and can pass `null`, which fails at `name.Length`. The tempting belief that the annotation adds an argument check is wrong; if you need one at a public boundary, write `ArgumentNullException.ThrowIfNull(name)` yourself."
+    },
+    {
+      "id": "w01-l01-q06",
+      "type": "written",
+      "lesson": "w01-l01",
+      "prompt": "A team models an order as `public record Order(string Id, List<OrderLine> Lines);`, uses it as a value object, a dictionary key and in a `HashSet<Order>`, and copies it with `with` before editing lines. Explain what goes wrong and how you would fix it.",
+      "concept": "record-shallow-value-equality",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/builtin-types/record",
+          "claim": "Init-only positional properties give shallow immutability; two records sharing the same array stay equal after the array is mutated, and with expressions produce a shallow copy.",
+          "title": "Records - C# reference",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/builtin-types/record",
+          "claim": "Record types are not appropriate as entity types in EF Core, which depends on reference equality.",
+          "title": "Records - C# reference",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "csharp-docs",
+        "csharp-in-depth"
+      ],
+      "explanation": "A senior answer names the mechanism (synthesized member-wise equality plus shallow copying), shows the shared-mutation bug with `with`, and proposes a fix that keeps hash codes stable for keys, instead of just saying 'records are immutable'.",
+      "model_answer": {
+        "summary": "Record equality is synthesized per member and is shallow, so a `List<T>` member is compared by reference, mutations through shared lists go undetected, and `with` shares the list; use an immutable collection with custom equality or a different model.",
+        "key_points": [
+          "Synthesized `Equals`/`GetHashCode` compare each member with its own equality, so two orders with identical line contents but different `List` instances are not equal.",
+          "Positional properties of a `record class` are init-only, but immutability is shallow: the list contents can still be mutated, and two records sharing one list stay equal after a mutation.",
+          "`with` makes a shallow copy, so the copy and the original share the same `List`; editing the copy's lines silently edits the original, including any instance already used as a key.",
+          "Fix: expose an immutable collection and override `Equals`/`GetHashCode` to compare sequences, or keep collections out of the equality members; do not use such records as EF Core entities, which rely on reference equality."
+        ]
+      }
+    },
+    {
+      "id": "w01-l01-q07",
+      "type": "written",
+      "lesson": "w01-l01",
+      "prompt": "On a hot path, someone proposes turning a small mutable `class Point { public int X, Y; }` into a `struct` to avoid allocations. Explain the trade-offs and describe two bugs that copy semantics can introduce.",
+      "concept": "value-type-copy-semantics",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/builtin-types/value-types",
+          "claim": "A variable of a value type contains an instance of the type; on assignment, passing an argument to a method, and returning a method result, variable values are copied.",
+          "title": "Value types - C# reference",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/csharp/programming-guide/types/boxing-and-unboxing",
+          "claim": "Boxing allocates an object instance on the heap and copies the value into the new object.",
+          "title": "Boxing and Unboxing - C#",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "csharp-docs",
+        "csharp-in-depth"
+      ],
+      "explanation": "Strong answers connect the performance win (no allocation) to the correctness risks (lost mutations, shared reference fields, boxing copies) and conclude that mutable structs should be avoided.",
+      "model_answer": {
+        "summary": "A struct variable holds the instance itself, so assignment, argument passing and returns copy it; that avoids heap allocations but means mutations apply to copies, reference fields are shared, and interface/`object` use boxes a separate copy.",
+        "key_points": [
+          "A value-type variable contains the instance; assignment, passing as an argument and returning from a method all copy it, which removes heap allocation and GC pressure for small types.",
+          "Bug 1: mutating a copy (a local copy, a method parameter, a value returned from a property or collection) does not change the original, so updates are silently lost.",
+          "Bug 2: a struct holding a reference field copies only the reference, so 'copies' share the referenced object and mutations leak between them.",
+          "Converting the struct to `object` or an interface boxes it: the box is a separate copy, and it costs an allocation, which can erase the benefit.",
+          "Prefer small, immutable (`readonly`) structs; large structs cost more to copy than a reference."
+        ]
+      }
+    },
+    {
+      "id": "w01-l01-q08",
+      "type": "written",
+      "lesson": "w01-l01",
+      "prompt": "After enabling `<Nullable>enable</Nullable>` and clearing every warning, a lead says `NullReferenceException` is now impossible in the codebase. Diagnose why that is wrong and say what you would still do.",
+      "concept": "nullable-reference-types-compile-time-only",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/csharp/nullable-references",
+          "claim": "Nullable reference types are entirely a compile-time feature; the ! operator suppresses warnings; default structs and new arrays of reference types can contain null without warnings; attributes such as NotNullWhen inform the analysis.",
+          "title": "Nullable reference types - C#",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "csharp-docs"
+      ],
+      "explanation": "A senior answer treats the annotations as documentation plus static analysis, lists concrete holes, and keeps runtime guards where untrusted callers enter.",
+      "model_answer": {
+        "summary": "Nullable reference types are a compile-time analysis with no runtime enforcement, and there are known holes, so nulls still flow in and public boundaries still need checks.",
+        "key_points": [
+          "The feature is compile-time only: `string` and `string?` are the same runtime type and the program's runtime behavior is unchanged.",
+          "The null-forgiving operator `!` suppresses warnings without adding checks, and callers compiled with nullable disabled get no warnings at all.",
+          "Known holes: a `default` struct whose non-nullable reference fields are null, and arrays such as `new string[3]` whose elements start as null, produce no warnings.",
+          "Analysis does not look inside called method bodies, so helpers need attributes such as `[NotNullWhen(true)]` to be understood correctly.",
+          "Still validate arguments at public API boundaries (for example `ArgumentNullException.ThrowIfNull`)."
+        ]
+      }
+    },
+    {
+      "id": "w01-l02-q01",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w01-l02",
+      "prompt": "```csharp\npublic class NamedItem(string name)\n{\n    public string Name => name;\n}\n\npublic class Widget(string name, int width, int height, int depth) : NamedItem(name)\n{\n    public int Volume => width * height * depth;\n}\n```\n\nWhich statement about `Widget` is true?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "All four parameters, including `name`, are captured as private fields of `Widget` itself, alongside the copy already held by `NamedItem`"
+        },
+        {
+          "id": "b",
+          "text": "`width`, `height` and `depth` become fields of `Widget`; `name` does not, since it only goes to the base constructor"
+        },
+        {
+          "id": "c",
+          "text": "`Widget` gets public `Width`, `Height` and `Depth` properties generated for it automatically, exactly the way a positional record type would"
+        },
+        {
+          "id": "d",
+          "text": "The parameters are in scope only inside field initializers and the base-constructor call, so referencing `width` from `Volume` fails to compile"
+        }
+      ],
+      "concept": "csharp12-constructor-and-collection-lowering",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/csharp/programming-guide/classes-and-structs/instance-constructors",
+          "claim": "Primary constructor parameters are captured in private fields only when they are used in members; a parameter used only to initialize fields or call a base constructor is not captured, and only records create public properties from them.",
+          "title": "Instance constructors - C#",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "csharp-docs"
+      ],
+      "explanation": "A primary constructor parameter is in scope in the whole type, but the compiler captures it as private state only when a member uses it. `name` is only used in the base constructor call, so `Widget` does not store it (the base class does). Only `record` types turn primary constructor parameters into public properties; a plain class does not, which is the tempting wrong choice."
+    },
+    {
+      "id": "w01-l02-q02",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w01-l02",
+      "prompt": "```csharp\nstatic class C\n{\n    public static void R<T>(IEnumerable<T> e) => Console.Write(1);\n    public static void R<T>(Span<T> s) => Console.Write(2);\n}\n\nstring[] s = [\"x\"];\nobject[] o = s;\nC.R(o);\n```\n\nThe project moves from C# 13 to C# 14. What happens now?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Prints `1`, exactly as before"
+        },
+        {
+          "id": "b",
+          "text": "Prints `2`"
+        },
+        {
+          "id": "c",
+          "text": "Throws `ArrayTypeMismatchException` at run time"
+        },
+        {
+          "id": "d",
+          "text": "Fails to compile with an ambiguity error"
+        }
+      ],
+      "concept": "csharp14-upgrade-binding-changes",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/csharp/whats-new/breaking-changes/compiler%20breaking%20changes%20-%20dotnet%2010",
+          "claim": "With C# 14, a covariant array passed to overloads taking IEnumerable<T> and Span<T> now binds to Span<T> and throws ArrayTypeMismatchException; workarounds are AsEnumerable() or a ReadOnlySpan overload.",
+          "title": "C# compiler breaking changes since C# 13",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "csharp-14-whats-new",
+        "csharp-docs"
+      ],
+      "explanation": "C# 14 adds implicit span conversions, so `object[]` now converts to `Span<object>` and the `Span<T>` overload wins. Constructing a writable `Span<object>` over an array whose runtime type is `string[]` (array covariance) throws `ArrayTypeMismatchException`. The tempting answer 'prints 2' misses the covariance check. Workarounds: call `o.AsEnumerable()`, or add a `ReadOnlySpan<T>` overload, which is preferred and safe."
+    },
+    {
+      "id": "w01-l02-q03",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w01-l02",
+      "prompt": "```csharp\npublic static class SequenceExtensions\n{\n    extension(IEnumerable<int>)\n    {\n        public static IEnumerable<int> Generate(int low, int count, int increment)\n        {\n            for (int i = 0; i < count; i++) yield return low + i * increment;\n        }\n    }\n}\n```\n\nHow is `Generate` called?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`IEnumerable<int>.Generate(0, 10, 2)`"
+        },
+        {
+          "id": "b",
+          "text": "`new List<int>().Generate(0, 10, 2)`"
+        },
+        {
+          "id": "c",
+          "text": "Only as `SequenceExtensions.Generate(0, 10, 2)`; static extension members are not reachable through the extended type"
+        },
+        {
+          "id": "d",
+          "text": "It does not compile: an extension block must name its receiver parameter"
+        }
+      ],
+      "concept": "csharp14-extension-members",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/keywords/extension",
+          "claim": "An extension block with only a receiver type declares static extension members, which are called like static members of the receiver type, for example IEnumerable<int>.Generate(...).",
+          "title": "Extension member declarations - C# reference",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "csharp-14-whats-new",
+        "csharp-docs"
+      ],
+      "explanation": "A receiver-only extension block (no parameter name) can declare static extension members, which are called as if they were static members of the extended type: `IEnumerable<int>.Generate(...)`. Instance-style calls need a named receiver, so `list.Generate(...)` is wrong. Naming the receiver is only required for instance members (and, in C# 15, extension indexers)."
+    },
+    {
+      "id": "w01-l02-q04",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w01-l02",
+      "prompt": "A library team wants to rewrite its classic `this`-parameter extension methods as C# 14 `extension(...)` blocks. Which statement is correct?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It is a binary breaking change, since the two syntaxes compile to different metadata shapes, so every downstream consumer must recompile"
+        },
+        {
+          "id": "b",
+          "text": "Extension blocks may be declared inside a generic static class, so the receiver's type parameters can simply move up onto the containing class"
+        },
+        {
+          "id": "c",
+          "text": "Each extension block introduces its own scope, so two separate blocks in the same class may declare members that share a signature"
+        },
+        {
+          "id": "d",
+          "text": "Both forms generate the same IL, so the move is binary and source compatible, but signatures must stay unique within the class"
+        }
+      ],
+      "concept": "csharp14-extension-members",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/keywords/extension",
+          "claim": "Both extension syntaxes generate the same IL, so moving between them is binary and source compatible; an extension block does not introduce a scope, and it must be declared in a top-level non-generic static class.",
+          "title": "Extension member declarations - C# reference",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "csharp-14-whats-new"
+      ],
+      "explanation": "The compiler emits the same metadata for both syntaxes, so migrating is neither a binary nor a source breaking change. An extension block does not introduce a scope: all members in the containing class, across blocks, must have unique signatures. Blocks must live in a top-level, non-generic static class, which rules out the generic-class option."
+    },
+    {
+      "id": "w01-l02-q05",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w01-l02",
+      "prompt": "Assembly A defines a C# 15 closed hierarchy: base class `Shape` with public derived types `Circle` and `Square`, and an `internal` derived type `Triangle`. Assembly B writes `shape switch { Circle c => ..., Square q => ... }` with no default arm. What does the compiler do in B?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Treats the switch as exhaustive, since the internal `Triangle` type is not visible from assembly B at all"
+        },
+        {
+          "id": "b",
+          "text": "Reports error CS8510, since the compiler considers the two handled arms unreachable given the closed hierarchy"
+        },
+        {
+          "id": "c",
+          "text": "Reports warning CS8509: not exhaustive, since an internal direct descendant can't be handled"
+        },
+        {
+          "id": "d",
+          "text": "Compiles silently in B; the compiler only checks exhaustiveness for closed types once the program is actually running"
+        }
+      ],
+      "concept": "closed-set-switch-exhaustiveness",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/operators/patterns",
+          "claim": "A switch on a closed type is exhaustive when all direct descendants are handled; if a descendant is internal and not visible in another assembly, that assembly gets warning CS8509.",
+          "title": "Patterns - Pattern matching using the is and switch expressions. - C# reference",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "dotnet-11-whats-new",
+        "csharp-docs"
+      ],
+      "explanation": "A switch over a closed type is exhaustive without a default arm only when every direct descendant is handled. B cannot see or match the internal `Triangle`, so it gets warning CS8509 (and a runtime exception if a `Triangle` reaches the switch). The tempting idea that invisible types are ignored is wrong: they still exist at run time."
+    },
+    {
+      "id": "w01-l02-q06",
+      "type": "written",
+      "lesson": "w01-l02",
+      "prompt": "Explain what the compiler generates for (1) a class primary constructor parameter that a method uses, and (2) a collection expression assigned to `IEnumerable<int>`, to `ReadOnlySpan<int>`, and an empty `[]`. What surprises follow in code review?",
+      "concept": "csharp12-constructor-and-collection-lowering",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/csharp/programming-guide/classes-and-structs/instance-constructors",
+          "claim": "Primary constructor parameters are captured only when used in members; explicit constructors must call this(...); a class with a primary constructor has no implicit parameterless constructor.",
+          "title": "Instance constructors - C#",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/operators/collection-expressions",
+          "claim": "A collection expression always creates all its elements eagerly even when the target is IEnumerable<T>, distinct from LINQ; [] may use Array.Empty and a span target may be stack allocated.",
+          "title": "Collection expressions (Collection literals) - C# reference",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "csharp-docs",
+        "csharp-14-whats-new"
+      ],
+      "explanation": "Senior answers explain the lowering (hidden fields, eager materialization, per-target storage) and turn it into review guidance, such as not using `[..query]` for lazy or huge sequences.",
+      "model_answer": {
+        "summary": "Primary constructor parameters become hidden private fields only when members use them; collection expressions are always built eagerly and the compiler chooses a storage strategy per target type.",
+        "key_points": [
+          "A primary constructor parameter is in scope in the whole type and is captured as a hidden private field only when a member uses it; classes get no public properties from it (records do).",
+          "Once a class has a primary constructor, other constructors must chain to it with `this(...)`, and the class has no implicit parameterless constructor.",
+          "A collection expression always creates all its elements eagerly, even when the target is `IEnumerable<T>`; unlike a LINQ query it is not lazy and cannot be infinite.",
+          "The compiler may use `Array.Empty<T>()` for `[]` and may stack-allocate for a span target, so identity and mutability of the result should not be assumed.",
+          "Collection expressions cannot be constants or default parameter values."
+        ]
+      }
+    },
+    {
+      "id": "w01-l02-q07",
+      "type": "written",
+      "lesson": "w01-l02",
+      "prompt": "After moving a solution from `net8.0`/C# 12 to `net10.0`/C# 14: a test `Assert.Equal([2], x)` no longer compiles as ambiguous, a helper passing an `object[]` built from a `string[]` throws `ArrayTypeMismatchException`, and a property accessor that declares a local named `field` fails to build. Diagnose each and give fixes.",
+      "concept": "csharp14-upgrade-binding-changes",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/csharp/whats-new/breaking-changes/compiler%20breaking%20changes%20-%20dotnet%2010",
+          "claim": "C# 14 span conversions make more overloads applicable and can cause ambiguity; covariant arrays can throw ArrayTypeMismatchException; field in an accessor binds to the synthesized field (CS9258) and a local named field is an error (CS9272).",
+          "title": "C# compiler breaking changes since C# 13",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/csharp/whats-new/csharp-14",
+          "claim": "Using field in an accessor can clash with an existing member named field; disambiguate with @field or this.field.",
+          "title": "What's new in C# 14",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "csharp-14-whats-new",
+        "csharp-docs"
+      ],
+      "explanation": "A strong answer traces each failure to the language change rather than patching symptoms, and knows the safe workaround (`ReadOnlySpan<T>` overloads, `@field`).",
+      "model_answer": {
+        "summary": "C# 14 adds implicit span conversions that change overload resolution, and makes `field` a contextual keyword inside accessors; each symptom follows from one of these.",
+        "key_points": [
+          "C# 14 adds implicit conversions from arrays to `Span<T>`/`ReadOnlySpan<T>`, so span overloads now apply in more calls; the collection expression in `Assert.Equal` can now match several overloads, so make the target explicit (for example a typed array).",
+          "A covariant `object[]` over a `string[]` now binds to a `Span<T>` overload and throws `ArrayTypeMismatchException`; call `.AsEnumerable()` or add a `ReadOnlySpan<T>` overload.",
+          "Inside an accessor `field` now means the synthesized backing field: a local named `field` is error CS9272, and a reference to a member named `field` binds to the backing field with warning CS9258; rename it or use `@field` / `this.field`.",
+          "Also check array `Reverse()` calls: when targeting below `net10.0`, `x.Reverse()` can now bind to the in-place `MemoryExtensions.Reverse` instead of LINQ."
+        ]
+      }
+    },
+    {
+      "id": "w01-l02-q08",
+      "type": "written",
+      "lesson": "w01-l02",
+      "prompt": "Compare three ways to model a payment result so that `switch` expressions stay correct as cases are added: (a) an abstract base class with a `_` discard arm, (b) a C# 15 closed hierarchy, (c) a C# 15 union type `union PaymentResult(Approved, Declined, Pending)`. What does the compiler guarantee for each, and what traps remain?",
+      "concept": "closed-set-switch-exhaustiveness",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/operators/patterns",
+          "claim": "A non-exhaustive switch expression gives a warning and a runtime exception; closed hierarchies are exhaustive when all direct descendants are handled; not has higher precedence than and, which is higher than or.",
+          "title": "Patterns - Pattern matching using the is and switch expressions. - C# reference",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/builtin-types/union",
+          "claim": "A union compiles to a struct with object? Value; value-type cases are boxed; a switch is exhaustive over the case types but needs a null arm when Value can be null, such as a default union.",
+          "title": "Union types - C# reference",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "dotnet-11-whats-new",
+        "csharp-docs"
+      ],
+      "explanation": "Senior answers weigh compile-time guarantees against runtime cost (boxing) and API evolution across assemblies, not just syntax.",
+      "model_answer": {
+        "summary": "A discard arm compiles but hides new cases; a closed hierarchy lets the compiler prove exhaustiveness over direct descendants; a union is exhaustive over its case types but is a struct wrapper that boxes value-type cases and can be default.",
+        "key_points": [
+          "Abstract base + `_`: always compiles, but a newly added subtype silently falls into the discard; without the discard the compiler warns and an unhandled value throws at run time.",
+          "Closed hierarchy: the switch is exhaustive without a default arm when every direct descendant is handled; derivation is not transitive, so matching a base arm before a derived arm is flagged unreachable (CS8510), and an internal descendant in another assembly triggers CS8509.",
+          "Union: compiles to a struct exposing `object? Value`; patterns unwrap `Value`, value-type cases are boxed, and a `default` union has a null `Value`, so a `null` arm is needed for exhaustiveness.",
+          "Pattern precedence traps apply to all three: `not` binds tighter than `and`/`or`, so write `not (>= 'a' and <= 'z')` rather than `not >= 'a' and <= 'z'`."
+        ]
+      }
+    },
+    {
+      "id": "w01-l03-q01",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w01-l03",
+      "prompt": "Which assignment compiles?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`IEnumerable<object> a = new List<int>();`"
+        },
+        {
+          "id": "b",
+          "text": "`List<object> b = new List<string>();`"
+        },
+        {
+          "id": "c",
+          "text": "`IComparer<string> c = Comparer<object>.Default;`"
+        },
+        {
+          "id": "d",
+          "text": "`Action<object> d = (Action<string>)(x => Console.WriteLine(x));`"
+        }
+      ],
+      "concept": "generic-variance-and-constraint-semantics",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/standard/generics/covariance-and-contravariance",
+          "claim": "Variance applies only to generic interfaces and delegates and only to reference types; IComparer<T> and Action<T> are contravariant, and a value type argument makes the type parameter invariant.",
+          "title": "Covariance and Contravariance in Generics - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "csharp-in-depth",
+        "csharp-docs"
+      ],
+      "explanation": "`IComparer<in T>` is contravariant, so a comparer of the base type `object` can be used where `IComparer<string>` is needed. Variance applies only to interfaces and delegates and only for reference type arguments: `List<T>` is a class (invariant), `int` is a value type so `IEnumerable<int>` is not an `IEnumerable<object>`, and `Action<in T>` only converts from `Action<Base>` to `Action<Derived>`, not the reverse."
+    },
+    {
+      "id": "w01-l03-q02",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w01-l03",
+      "prompt": "```csharp\nstatic bool Same<T>(T a, T b) where T : class => a == b;\n\nstring s1 = \"target\";\nstring s2 = new StringBuilder(\"target\").ToString();\nConsole.WriteLine(Same(s1, s2));\n```\n\nWhat is printed?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`True`, because the `class` constraint lets the compiler call `string`'s overloaded `==`"
+        },
+        {
+          "id": "b",
+          "text": "It does not compile, because `==` cannot be applied to a type parameter"
+        },
+        {
+          "id": "c",
+          "text": "`True`, because all equal strings are interned"
+        },
+        {
+          "id": "d",
+          "text": "`False`, because `==` on a `class`-constrained `T` tests reference identity"
+        }
+      ],
+      "concept": "generic-variance-and-constraint-semantics",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/csharp/programming-guide/generics/constraints-on-type-parameters",
+          "claim": "With where T : class, the == and != operators on T test reference identity, not value equality, even if the type overloads them; the OpEqualsTest string example prints false.",
+          "title": "Constraints on type parameters - C#",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "csharp-in-depth",
+        "csharp-docs"
+      ],
+      "explanation": "Operators are bound at compile time. With `where T : class`, `==` is reference equality, even if the actual type overloads `==`. `s2` is a different string instance, so the result is `False`. Strings built at run time are not automatically interned, so the interning choice is wrong, and without the constraint `==` would not compile at all (except comparisons to `null`). Use `EqualityComparer<T>.Default` or `IEquatable<T>` for value equality in generic code."
+    },
+    {
+      "id": "w01-l03-q03",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w01-l03",
+      "prompt": "```csharp\nvar nums = new List<int> { 1, 2, 3 };\nvar big = nums.Where(n => n > 1);\nnums.Add(4);\nConsole.WriteLine(big.Count());\n```\n\nWhat is printed?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`2`"
+        },
+        {
+          "id": "b",
+          "text": "`4`"
+        },
+        {
+          "id": "c",
+          "text": "`3`"
+        },
+        {
+          "id": "d",
+          "text": "It throws `InvalidOperationException` because the collection was modified"
+        }
+      ],
+      "concept": "linq-deferred-multiple-enumeration",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/csharp/linq/get-started/introduction-to-linq-queries",
+          "claim": "A query variable stores the query, not the results; results depend on the data source at the time the query executes, and ToList or ToArray force immediate execution and cache the results.",
+          "title": "Introduction to LINQ Queries - C#",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "csharp-in-depth",
+        "csharp-docs"
+      ],
+      "explanation": "`big` stores the query, not its results. It runs when `Count()` enumerates it, so it sees `{1, 2, 3, 4}` and counts `2, 3, 4`. The tempting answer `2` assumes `Where` ran on the first line. There is no 'collection modified' error because nothing was being enumerated when `Add` ran. Call `ToList()` to capture results at a point in time."
+    },
+    {
+      "id": "w01-l03-q04",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w01-l03",
+      "prompt": "With EF Core, `StandardizeUrl` is an ordinary C# method:\n\n```csharp\nvar blogs = ctx.Blogs\n    .Where(b => StandardizeUrl(b.Url).Contains(\"dotnet\"))\n    .ToList();\n```\n\nWhat happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It throws at run time: EF Core can't translate the method in `Where`, and client evaluation is only allowed in the final `Select`"
+        },
+        {
+          "id": "b",
+          "text": "EF Core silently loads the entire `Blogs` table into memory first and applies the `StandardizeUrl` filter there instead"
+        },
+        {
+          "id": "c",
+          "text": "It fails to compile, because an ordinary method call is not a legal node inside a lambda converted to an expression tree"
+        },
+        {
+          "id": "d",
+          "text": "EF Core inspects the method body at run time and translates `StandardizeUrl` into an equivalent user-defined SQL function"
+        }
+      ],
+      "concept": "iqueryable-expression-tree-translation",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/ef/core/querying/client-eval",
+          "claim": "EF Core only supports client evaluation in the top-level projection; a Where with an untranslatable method such as StandardizeUrl throws at run time, and AsEnumerable or ToList explicitly opt into client evaluation.",
+          "title": "Client vs. Server Evaluation - EF Core",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "csharp-docs"
+      ],
+      "explanation": "The lambda becomes an expression tree, which the provider must translate to SQL. EF Core only evaluates untranslatable code on the client in the final projection (top-level `Select`); elsewhere it throws, to avoid silently pulling whole tables. Silent in-memory filtering was old EF Core 2.x behavior and is the tempting wrong choice. To do it on purpose, call `AsEnumerable()` or `ToList()` first and accept that the data is pulled to the client."
+    },
+    {
+      "id": "w01-l03-q05",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w01-l03",
+      "prompt": "A service published with `PublishTrimmed=true` calls `JsonSerializer.Serialize(order)` with no `JsonSerializerContext`. What happens by default?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It works fine, because the trimmer statically detects every type reachable through `JsonSerializer.Serialize` and always keeps it"
+        },
+        {
+          "id": "b",
+          "text": "It throws `InvalidOperationException`, since reflection-based serialization is disabled by default in trimmed apps"
+        },
+        {
+          "id": "c",
+          "text": "It writes `{}`, because the trimmer removed `Order`'s properties but left the type itself and the serializer intact"
+        },
+        {
+          "id": "d",
+          "text": "It fails at compile time, because the build requires a source generator context for every serialized type once trimming is enabled"
+        }
+      ],
+      "concept": "source-generators-replace-reflection",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/standard/serialization/system-text-json/source-generation",
+          "claim": "Reflection-based serialization is disabled by default when PublishTrimmed is enabled; with JsonSerializerIsReflectionEnabledByDefault false, using reflection-based serialization throws InvalidOperationException.",
+          "title": "How to use source generation in System.Text.Json - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "csharp-docs"
+      ],
+      "explanation": "Reflection-based System.Text.Json needs metadata the trimmer may remove, so it is turned off by default when trimming is enabled; calls that rely on it throw `InvalidOperationException`. The fix is a source-generated `JsonSerializerContext` with `[JsonSerializable(typeof(Order))]`, passed to the serializer. Believing the trimmer 'keeps what is used' is the misconception: reflection targets are not statically visible."
+    },
+    {
+      "id": "w01-l03-q06",
+      "type": "written",
+      "lesson": "w01-l03",
+      "prompt": "`IEnumerable<Order> GetPending()` returns a LINQ query over a data source that makes a network call per enumeration. A caller writes `if (orders.Any()) { log.Info(orders.Count()); foreach (var o in orders) ... }`. Diagnose the problems and describe the fix.",
+      "concept": "linq-deferred-multiple-enumeration",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/csharp/linq/get-started/introduction-to-linq-queries",
+          "claim": "Deferred queries may return different results each time they are enumerated; Count, Max and First execute immediately; OrderBy and GroupBy are nonstreaming operators; ToList and ToArray cache results.",
+          "title": "Introduction to LINQ Queries - C#",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "csharp-in-depth",
+        "csharp-docs"
+      ],
+      "explanation": "A senior answer points out both the cost (repeated execution) and the correctness risk (inconsistent snapshots), and fixes the API contract, not just the call site.",
+      "model_answer": {
+        "summary": "The query is deferred, so each of `Any`, `Count` and `foreach` re-executes it, costing three round trips and risking inconsistent results; materialize once and return a collection type.",
+        "key_points": [
+          "A query variable stores the query, not results; every enumeration re-runs it against the source.",
+          "`Any()` and `Count()` execute immediately and each enumerate again, so this code runs the query three times, with three network calls.",
+          "Results can differ between enumerations if the source changes, so the logged count may not match what the loop sees.",
+          "Nonstreaming operators such as `OrderBy` and `GroupBy` must read the whole source on every enumeration, which multiplies the cost.",
+          "Fix: materialize once with `ToList()`/`ToArray()` at the boundary and return `IReadOnlyList<Order>`, or make laziness explicit in the API."
+        ]
+      }
+    },
+    {
+      "id": "w01-l03-q07",
+      "type": "written",
+      "lesson": "w01-l03",
+      "prompt": "A repository method is `IEnumerable<Order> Find(Func<Order, bool> filter) => _ctx.Orders.Where(filter);`. After launch, database CPU and network traffic spike. Explain why, and compare it with taking an `Expression<Func<Order, bool>>`.",
+      "concept": "iqueryable-expression-tree-translation",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/csharp/advanced-topics/expression-trees/",
+          "claim": "When a lambda is assigned to an Expression<TDelegate>, the compiler builds an expression tree that providers such as EF translate to SQL; statement lambdas and many constructs such as ?. and pattern matching cannot be used.",
+          "title": "Expression Trees - C#",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/ef/core/querying/client-eval",
+          "claim": "Untranslatable expressions outside the top-level projection throw; captured instance methods or constants in client evaluation can cause memory leaks.",
+          "title": "Client vs. Server Evaluation - EF Core",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "csharp-docs",
+        "csharp-in-depth"
+      ],
+      "explanation": "Strong candidates explain the overload resolution (Enumerable vs Queryable) that causes the silent client-side filter, and know the practical limits of expression trees.",
+      "model_answer": {
+        "summary": "A `Func` binds to `Enumerable.Where`, so EF sends an unfiltered query and filters in memory; an `Expression<Func<...>>` keeps `Queryable.Where`, so the provider translates the filter to SQL, within the limits of expression trees.",
+        "key_points": [
+          "`Func<Order,bool>` can only bind to `Enumerable.Where`, so the `IQueryable` is treated as `IEnumerable`: the whole table is read and filtered on the client.",
+          "Assigning a lambda to `Expression<TDelegate>` builds an expression tree that `Queryable.Where` passes to the provider, which translates it to SQL.",
+          "Only expression lambdas become trees: statement lambdas and constructs such as `?.`, pattern matching and interpolated strings are not allowed in expression trees.",
+          "Untranslatable method calls outside the final `Select` throw at run time, so expression-based filters must stick to translatable operations.",
+          "Capturing instance members or constants in cached queries can cause memory leaks; prefer simple captured locals."
+        ]
+      }
+    },
+    {
+      "id": "w01-l03-q08",
+      "type": "written",
+      "lesson": "w01-l03",
+      "prompt": "Your team wants to publish a service with Native AOT. It uses reflection-based System.Text.Json serialization everywhere. Explain what source generators change, how you would convert the JSON code, and the trade-offs.",
+      "concept": "source-generators-replace-reflection",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/csharp/roslyn-sdk/",
+          "claim": "Source generators let code inspect the compilation and add new source files to it at compile time.",
+          "title": "The .NET Compiler Platform SDK (Roslyn APIs) - C#",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/standard/serialization/system-text-json/source-generation",
+          "claim": "Source generation uses a JsonSerializerContext with JsonSerializable attributes; it offers metadata and serialization modes, the fast path isn't used for async serialization, and reflection-based serialization isn't compatible with Native AOT.",
+          "title": "How to use source generation in System.Text.Json - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "csharp-docs"
+      ],
+      "explanation": "A senior answer explains why reflection breaks with trimming/AOT (it isn't statically visible), and knows the concrete migration steps and gotchas, not just 'use source generators'.",
+      "model_answer": {
+        "summary": "Source generators run in the compiler and add code, moving the metadata work from runtime reflection to build time; System.Text.Json's `JsonSerializerContext` does this for JSON, with some rules and limits.",
+        "key_points": [
+          "Source generators run during compilation, read the compilation (and additional files) and add new source to it, so work that reflection did at run time is done at build time.",
+          "For System.Text.Json, declare a `partial` class deriving from `JsonSerializerContext` with `[JsonSerializable(typeof(T))]` for each root type, and pass the context (or its type info) to the serializer.",
+          "Types that only appear at run time (for example through `object` properties) must also be declared, or serialization fails.",
+          "There are two modes: metadata-based and serialization-optimized (fast path); the fast path is not used for async serialization.",
+          "Reflection-based serialization is incompatible with Native AOT and trimming; for enums only the generic `JsonStringEnumConverter<TEnum>` works under AOT."
+        ]
+      }
+    },
+    {
+      "id": "w01-l04-q01",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w01-l04",
+      "prompt": "It is September 2026. One service runs on .NET 8 (LTS) and another on .NET 9 (STS). When does support end for each?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Both on November 10, 2026"
+        },
+        {
+          "id": "b",
+          "text": ".NET 8 in November 2027, .NET 9 in November 2026"
+        },
+        {
+          "id": "c",
+          "text": ".NET 9 in May 2026 (18 months), .NET 8 in November 2026"
+        },
+        {
+          "id": "d",
+          "text": ".NET 9 in November 2026, .NET 8 in November 2028"
+        }
+      ],
+      "concept": "dotnet-lts-sts-support-windows",
+      "sources": [
+        {
+          "url": "https://dotnet.microsoft.com/en-us/platform/support/policy/dotnet-core",
+          "claim": "LTS releases are supported for three years and STS releases for two years; .NET 8 (LTS) and .NET 9 (STS) both end support on November 10, 2026, and .NET 10 (LTS) ends November 14, 2028.",
+          "title": ".NET and .NET Core Support Policy",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft (dotnet.microsoft.com)"
+        }
+      ],
+      "materials": [
+        "dotnet-support-policy"
+      ],
+      "explanation": "Under the current policy LTS releases get 3 years and STS releases get 2 years. .NET 8 shipped November 2023 and .NET 9 in November 2024, so both reach end of support on November 10, 2026. The '18 months for STS' figure is the outdated trap. November 2028 is the end date for .NET 10, the next LTS."
+    },
+    {
+      "id": "w01-l04-q02",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w01-l04",
+      "prompt": "A team's container image pins .NET runtime 10.0.2. Microsoft has since shipped 10.0.5. Is the team on a supported runtime?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Yes, because .NET 10 as a whole major version is LTS and stays supported all the way until November 2028, regardless of the patch"
+        },
+        {
+          "id": "b",
+          "text": "Yes, but only for a grace period of six months after each new patch release ships, after which the older patch drops out of support"
+        },
+        {
+          "id": "c",
+          "text": "Yes, as long as the image comes from Microsoft's own official container registry rather than a third-party rebuild"
+        },
+        {
+          "id": "d",
+          "text": "No: support requires the latest patch, and patches are cumulative, so move to 10.0.5"
+        }
+      ],
+      "concept": "dotnet-lts-sts-support-windows",
+      "sources": [
+        {
+          "url": "https://dotnet.microsoft.com/en-us/platform/support/policy/dotnet-core",
+          "claim": "You need to stay current with the latest patch update to remain supported; patches are released on Patch Tuesday and are cumulative.",
+          "title": ".NET and .NET Core Support Policy",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft (dotnet.microsoft.com)"
+        }
+      ],
+      "materials": [
+        "dotnet-support-policy"
+      ],
+      "explanation": "Support applies to the latest patch of a supported major version. Patches ship monthly on Patch Tuesday and are cumulative, so moving to 10.0.5 includes 10.0.3 and 10.0.4 fixes. The tempting answer confuses 'the major version is in support' with 'my runtime is supported'."
+    },
+    {
+      "id": "w01-l04-q03",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w01-l04",
+      "prompt": "A .NET Framework 4.8 app saves session blobs with `BinaryFormatter` and runs plugins in separate `AppDomain`s. What happens when it is ported to .NET 10?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Both keep working unchanged if the project sets the old compatibility switch `EnableUnsafeBinaryFormatterSerialization` in its project file"
+        },
+        {
+          "id": "b",
+          "text": "`BinaryFormatter` throws on use with no opt-in switch, and `CreateDomain` throws `PlatformNotSupportedException`; use a safe serializer and processes for isolation"
+        },
+        {
+          "id": "c",
+          "text": "`BinaryFormatter` becomes safe once a `SerializationBinder` restricts which types it can construct, and `AppDomain`s are replaced automatically and transparently by `AssemblyLoadContext` with no code changes"
+        },
+        {
+          "id": "d",
+          "text": "Both fail to compile, because the `BinaryFormatter` and `AppDomain` APIs were removed entirely from the .NET 10 reference assemblies"
+        }
+      ],
+      "concept": "framework-to-core-incremental-migration",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/standard/serialization/binaryformatter-security-guide",
+          "claim": "BinaryFormatter is insecure and can't be made secure; starting in .NET 9 it throws on use and the compatibility settings were removed; SerializationBinder doesn't mitigate the risks.",
+          "title": "Deserialization risks in use of BinaryFormatter and related types - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/porting/net-framework-tech-unavailable",
+          "claim": "AppDomain creation isn't supported on .NET 6+ (CreateDomain throws PlatformNotSupportedException); use separate processes or containers for isolation and AssemblyLoadContext for dynamic loading.",
+          "title": ".NET Framework technologies unavailable on .NET 6+",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "dotnet-porting"
+      ],
+      "explanation": "Starting with .NET 9, `BinaryFormatter` throws when used, and the old compatibility switches were removed. `AppDomain` creation is not supported on modern .NET: `AssemblyLoadContext` covers dynamic loading but is not a security or isolation boundary, so isolation needs separate processes or containers. A `SerializationBinder` does not make `BinaryFormatter` safe, which is the tempting half-truth in option c."
+    },
+    {
+      "id": "w01-l04-q04",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w01-l04",
+      "prompt": "A `BackgroundService` runs a synchronous database migration at the top of `ExecuteAsync`, before its first `await`, and the team relied on this finishing before other hosted services started. What changes on .NET 10?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Nothing changes: the synchronous prefix before the first `await` still runs on the host's main startup thread, exactly as before"
+        },
+        {
+          "id": "b",
+          "text": "`ExecuteAsync` is now only invoked once the app has already started listening for requests, so the migration always runs too late to block anything meaningful"
+        },
+        {
+          "id": "c",
+          "text": "All of `ExecuteAsync` runs as a background `Task`; move the migration to `StartAsync` (before `base.StartAsync`) or `IHostedLifecycleService`"
+        },
+        {
+          "id": "d",
+          "text": "The host now throws a startup exception whenever `ExecuteAsync` blocks synchronously before reaching its first `await` expression"
+        }
+      ],
+      "concept": "dotnet10-upgrade-breaking-changes",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/compatibility/extensions/10.0/backgroundservice-executeasync-task",
+          "claim": "In .NET 10, BackgroundService runs all of ExecuteAsync on a background thread; previously the synchronous part before the first await ran on the main thread and blocked other services; move startup work to StartAsync before base.StartAsync or use IHostedLifecycleService.",
+          "title": "Breaking change: BackgroundService runs all of ExecuteAsync as a Task - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "dotnet-10-whats-new"
+      ],
+      "explanation": "Before .NET 10 the synchronous prefix of `ExecuteAsync` ran on the startup thread and blocked the other services, which some apps relied on. In .NET 10 the whole method runs on a background thread. Work that must finish first belongs in the constructor, in an overridden `StartAsync` before calling the base, in `IHostedLifecycleService`, or in a plain `IHostedService`."
+    },
+    {
+      "id": "w01-l04-q05",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w01-l04",
+      "prompt": "Which ASP.NET Core app is the best fit for `PublishAot=true`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "An MVC app that renders server-side Razor views and authenticates users with cookie-based authentication"
+        },
+        {
+          "id": "b",
+          "text": "A Blazor Server app that keeps its component state on the server over a persistent SignalR connection"
+        },
+        {
+          "id": "c",
+          "text": "An extensible app that loads third-party plugin assemblies at run time with `Assembly.LoadFile`"
+        },
+        {
+          "id": "d",
+          "text": "A minimal API using JWT bearer auth and a source-generated `JsonSerializerContext`"
+        }
+      ],
+      "concept": "native-aot-trimming-constraints",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/native-aot",
+          "claim": "MVC, Blazor Server, Session and authentication other than JWT are not supported with Native AOT; minimal APIs are partially supported and JWT authentication is supported.",
+          "title": "ASP.NET Core support for Native AOT",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/deploying/native-aot/",
+          "claim": "Native AOT apps have no dynamic loading, for example Assembly.LoadFile.",
+          "title": "Native AOT deployment overview - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "aspnetcore-native-aot"
+      ],
+      "explanation": "Native AOT supports minimal APIs (partially), JWT authentication, gRPC, CORS and similar features; the `webapiaot` template uses a `JsonSerializerContext`. MVC, Blazor Server, session and authentication schemes other than JWT are not supported. Native AOT also cannot load assemblies dynamically, so plugin loading with `Assembly.LoadFile` is out."
+    },
+    {
+      "id": "w01-l04-q06",
+      "type": "written",
+      "lesson": "w01-l04",
+      "prompt": "You inherit a large ASP.NET MVC 5 app on .NET Framework 4.8: heavy `System.Web` use, several shared class libraries, WCF services and in-process session state. Leadership wants it on .NET 10 without a feature freeze. Outline your migration plan.",
+      "concept": "framework-to-core-incremental-migration",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/migration/fx-to-core/",
+          "claim": "Incremental migration follows the Strangler Fig pattern and is recommended for large production apps with heavy System.Web use; libraries are upgraded in postorder depth-first order and multi-targeted; session and authentication are cross-cutting concerns to plan.",
+          "title": "Migrate from ASP.NET Framework to ASP.NET Core",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/porting/net-framework-tech-unavailable",
+          "claim": "Remoting, AppDomains, Code Access Security and WCF server are not available on .NET 6+; CoreWCF provides WCF server support.",
+          "title": ".NET Framework technologies unavailable on .NET 6+",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "dotnet-porting"
+      ],
+      "explanation": "A senior answer is incremental and risk-aware (ship value while migrating), orders the dependency graph, and identifies blockers early instead of a big-bang rewrite.",
+      "model_answer": {
+        "summary": "Use an incremental (Strangler Fig) migration: stand up ASP.NET Core in front, move routes over gradually, upgrade libraries bottom-up with multi-targeting, and replace technologies that don't exist on modern .NET.",
+        "key_points": [
+          "Choose incremental migration (Strangler Fig) for a large production app with heavy `System.Web` use; in-place migration only suits small apps.",
+          "Upgrade shared libraries in postorder depth-first order (leaves first), multi-targeting so both the old and new apps can consume them during the transition.",
+          "Plan cross-cutting concerns that both apps must share during the transition, such as session and authentication.",
+          "Replace unavailable technologies: WCF server through CoreWCF or another RPC stack, `AppDomain`/Remoting through processes and IPC, and `BinaryFormatter` through a safe serializer.",
+          "Use the current tooling (the GitHub Copilot app modernization agent); the .NET Upgrade Assistant is deprecated."
+        ]
+      }
+    },
+    {
+      "id": "w01-l04-q07",
+      "type": "written",
+      "lesson": "w01-l04",
+      "prompt": "You are leading a .NET 8 to .NET 10 upgrade of a solution with a web API, worker services and CI builds in containers. The build breaks with ambiguous-call errors on `Where`/`Select` over `IAsyncEnumerable<T>`. Explain that break and list other .NET 10 changes you would check before shipping.",
+      "concept": "dotnet10-upgrade-breaking-changes",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/compatibility/core-libraries/10.0/asyncenumerable",
+          "claim": "System.Linq.AsyncEnumerable in .NET 10 is source incompatible with the System.Linq.Async package; remove it or upgrade to 7.0.0, use ExcludeAssets compile for transitive references, and SelectAwait becomes Select with an async lambda.",
+          "title": "Breaking change - System.Linq.AsyncEnumerable in .NET 10 - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/compatibility/10",
+          "claim": "Breaking changes in .NET 10 include Ubuntu default container images, BackgroundService.ExecuteAsync running as a Task, dotnet restore auditing transitive packages, SLNX as the default solution format, and W3C as the default trace propagator.",
+          "title": "Breaking changes in .NET 10",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "dotnet-10-whats-new"
+      ],
+      "explanation": "Strong answers group changes by risk (compile breaks, silent behavior changes, pipeline changes) and verify with tests rather than relying on the compiler alone.",
+      "model_answer": {
+        "summary": "The ambiguity comes from `System.Linq.AsyncEnumerable` moving into the core libraries and clashing with the community `System.Linq.Async` package; several other behavioral and tooling changes also need checking.",
+        "key_points": [
+          "`System.Linq.AsyncEnumerable` is now in the core libraries and conflicts with the `System.Linq.Async` package: remove the package (or upgrade to 7.0.0), exclude a transitive reference with `<ExcludeAssets>compile</ExcludeAssets>`, and replace `SelectAwait` with `Select` using an async lambda.",
+          "C# 14 span conversions can change overload resolution in existing code.",
+          "`BackgroundService.ExecuteAsync` now runs entirely on a background thread, which changes startup ordering.",
+          "Default container images use Ubuntu, and `dotnet restore` now audits transitive packages, which can fail builds that treat warnings as errors.",
+          "Other defaults to check: `dotnet new sln` creates SLNX files, the default trace propagator is W3C, and configuration preserves null values."
+        ]
+      }
+    },
+    {
+      "id": "w01-l04-q08",
+      "type": "written",
+      "lesson": "w01-l04",
+      "prompt": "A team wants to publish an existing ASP.NET Core service with Native AOT to cut cold-start time in serverless containers. How do you evaluate feasibility, and what will break?",
+      "concept": "native-aot-trimming-constraints",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/deploying/native-aot/",
+          "claim": "Native AOT limitations: no dynamic loading, no Reflection.Emit, trimming required, System.Linq.Expressions always interpreted, builds are per runtime identifier, and IsAotCompatible enables the analyzers.",
+          "title": "Native AOT deployment overview - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/native-aot",
+          "claim": "Native AOT gives faster startup and smaller footprint; MVC, Blazor Server and Session aren't supported; CreateSlimBuilder omits HTTPS and HTTP/3; if there are no AOT warnings the app should behave like the JIT app.",
+          "title": "ASP.NET Core support for Native AOT",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "aspnetcore-native-aot",
+        "dotnet-10-whats-new"
+      ],
+      "explanation": "A senior answer quantifies the benefit, audits dependencies for reflection, and uses the analyzers to make risks visible before production.",
+      "model_answer": {
+        "summary": "Native AOT gives faster startup and a smaller footprint but requires trimming and removes dynamic code; find problems with the AOT analyzers and treat every warning as a potential runtime failure.",
+        "key_points": [
+          "Benefits: faster startup, smaller disk footprint and lower memory use, which suit scale-to-zero hosting.",
+          "Limits: no dynamic assembly loading, no `Reflection.Emit`, trimming is mandatory, and `System.Linq.Expressions` runs interpreted (slower).",
+          "ASP.NET Core limits: MVC, Blazor Server, session and non-JWT authentication are unsupported; minimal APIs need source-generated JSON; `CreateSlimBuilder` omits HTTPS and HTTP/3 by default.",
+          "Turn on `IsAotCompatible` / the AOT analyzers and fix every warning: warnings mean the app might not work, while a warning-free app should behave like the JIT version.",
+          "Builds are per runtime identifier, and a Linux binary only runs on the same or a newer distro version than the build machine."
+        ]
+      }
+    }
+  ]
+}

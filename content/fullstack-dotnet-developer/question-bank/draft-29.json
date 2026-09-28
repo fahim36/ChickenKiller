@@ -1,0 +1,1301 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "system-design-delivery-framework",
+      "name": "A time-boxed delivery framework for design rounds"
+    },
+    {
+      "id": "rate-limiter-algorithm-choice",
+      "name": "Choosing and keying a rate-limiting algorithm"
+    },
+    {
+      "id": "distributed-rate-limit-capacity-leasing",
+      "name": "Sharing a rate limit across instances with capacity leases"
+    },
+    {
+      "id": "notification-fanout-queue-design",
+      "name": "Queues, priorities and idempotency for notification fan-out"
+    },
+    {
+      "id": "capacity-estimation-arithmetic",
+      "name": "Back-of-the-envelope traffic and availability math"
+    },
+    {
+      "id": "shard-key-selection-multitenant",
+      "name": "Shard keys and strategies for multi-tenant data"
+    },
+    {
+      "id": "replication-and-cache-consistency",
+      "name": "Staleness from replication lag and cache-aside"
+    },
+    {
+      "id": "graceful-degradation-under-failure",
+      "name": "Circuit breakers, degradation modes and noisy neighbours"
+    },
+    {
+      "id": "starr-story-with-reflection",
+      "name": "STARR stories with ownership, results and reflection"
+    },
+    {
+      "id": "senior-scope-influence-signals",
+      "name": "Showing senior scope and influence in behavioral answers"
+    },
+    {
+      "id": "dotnet-collection-choice-for-algorithms",
+      "name": "Choosing .NET collections for algorithm problems"
+    },
+    {
+      "id": "deep-dive-measure-then-decide",
+      "name": "Measure-then-decide answers in .NET deep dives"
+    },
+    {
+      "id": "design-round-time-budget",
+      "name": "Spending the design-round clock"
+    },
+    {
+      "id": "feedback-driven-interview-iteration",
+      "name": "Improving through mock feedback and failure stories"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w12-l01-q01",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w12-l01",
+      "prompt": "Early in a design round for a notification service, which statement is the strongest non-functional requirement to write down?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "\"The system should be fast, reliable, and scale smoothly as our user base keeps growing.\""
+        },
+        {
+          "id": "b",
+          "text": "\"We will use Kafka for the event bus and Redis for caching per-user notification state.\""
+        },
+        {
+          "id": "c",
+          "text": "\"Users should be able to mute a channel and set custom notification preferences for each type they receive.\""
+        },
+        {
+          "id": "d",
+          "text": "\"In-app notifications should reach online users within 2 seconds at p99, favouring availability.\""
+        }
+      ],
+      "concept": "system-design-delivery-framework",
+      "sources": [
+        {
+          "url": "https://www.hellointerview.com/learn/system-design/in-a-hurry/delivery",
+          "claim": "Non-functional requirements should be specific to the system and quantified where possible, e.g. 'the system should have low latency for feed loading (under 200ms)' rather than 'low latency'; requirements take about 5 minutes.",
+          "title": "System Design Interview Delivery Framework",
+          "accessed": "2026-09-27",
+          "publisher": "Hello Interview"
+        }
+      ],
+      "materials": [
+        "hellointerview-system-design"
+      ],
+      "explanation": "Hello Interview's delivery framework asks for non-functional requirements that are quantified and specific to the system, such as \"feeds in under 200ms\", not generic words like \"scalable\". A measurable latency target and a stated trade-off (availability over ordering) will drive later design decisions. Naming technologies is a design choice, not a requirement. Muting a channel is a functional requirement."
+    },
+    {
+      "id": "w12-l01-q02",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w12-l01",
+      "prompt": "Your public API should let each API key make short bursts of up to 100 requests, then sustain 10 requests per second. Which ASP.NET Core rate limiter fits best?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Token bucket sized at 100, refilled 10 tokens per second, so saved-up tokens allow a burst"
+        },
+        {
+          "id": "b",
+          "text": "Fixed window with a 1-second window and a limit of 10, which rejects any burst above 10 outright"
+        },
+        {
+          "id": "c",
+          "text": "Concurrency limiter capped at 100 simultaneous in-flight requests, with no cap on requests per second"
+        },
+        {
+          "id": "d",
+          "text": "No limiter at all: rely on Kestrel's own connection-count limits to protect the API"
+        }
+      ],
+      "concept": "rate-limiter-algorithm-choice",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/performance/rate-limit",
+          "claim": "Token bucket limiter: a set number of tokens are added each replenishment period up to the token limit, each request removes a token; allows bursts. Concurrency limiter limits concurrent requests only and has no cap on requests per time period. Fixed window uses a fixed time window with a request limit.",
+          "title": "Rate limiting middleware in ASP.NET Core",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "aspnetcore-rate-limit",
+        "azure-cloud-design-patterns"
+      ],
+      "explanation": "The token bucket limiter adds a fixed number of tokens each replenishment period, capped at the bucket limit, and each request takes a token, so saved-up tokens allow a burst and the refill rate sets the steady rate. A 1-second fixed window at 10 can't allow the 100-request burst. A concurrency limiter caps simultaneous requests and has no per-period cap. Partition the limiter by API key so each client gets its own bucket."
+    },
+    {
+      "id": "w12-l01-q03",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w12-l01",
+      "prompt": "A teammate partitions the ASP.NET Core rate limiter on the value of an `X-Client-Id` request header, creating a new limiter for every distinct value, without authentication. What is the main risk the docs warn about?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Headers are case-sensitive, so two different-case spellings of the same client value count as separate partitions"
+        },
+        {
+          "id": "b",
+          "text": "None: partitioning per client is recommended no matter where the key value comes from"
+        },
+        {
+          "id": "c",
+          "text": "Clients can send arbitrary header values, so each gets a fresh limit and unbounded partitions can exhaust memory"
+        },
+        {
+          "id": "d",
+          "text": "The limiter only accepts IP addresses as keys, so a header-based key throws at startup"
+        }
+      ],
+      "concept": "rate-limiter-algorithm-choice",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/performance/rate-limit",
+          "claim": "Creating partitions with user input makes the app vulnerable to Denial of Service attacks, e.g. partitions on client IP addresses are vulnerable to IP address spoofing; unbounded partition keys can exhaust memory; rate limiting is not a complete DDoS defence.",
+          "title": "Rate limiting middleware in ASP.NET Core",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "aspnetcore-rate-limit",
+        "azure-cloud-design-patterns"
+      ],
+      "explanation": "The ASP.NET Core rate-limiting docs warn that partitions keyed on user input open the app to denial-of-service. Attackers can rotate values (or spoof IPs) to get fresh limits, and an unbounded set of partition keys can exhaust memory. Key partitions on something the client can't forge, such as the authenticated user or a validated API key. The docs also note rate limiting alone is not a full DDoS defence."
+    },
+    {
+      "id": "w12-l01-q04",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w12-l01",
+      "prompt": "Twenty worker instances all write to a downstream service limited to 500 requests per second. Each worker throttling itself locally still produces 429 storms. What does the Azure Rate Limiting pattern suggest?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Let each worker just retry immediately on every single 429 response it gets until the call finally succeeds"
+        },
+        {
+          "id": "b",
+          "text": "Split capacity into partitions (e.g. 20 × 25 rps) leased via a distributed mutex such as blob leases"
+        },
+        {
+          "id": "c",
+          "text": "Raise the downstream service's limit by opening more parallel connections to it"
+        },
+        {
+          "id": "d",
+          "text": "Pin all traffic to a single worker so only one process ever calls the service"
+        }
+      ],
+      "concept": "distributed-rate-limit-capacity-leasing",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/rate-limiting-pattern",
+          "claim": "For multiple processes, capacity can be partitioned (e.g. 500 requests per second as 20 partitions of 25 rps) and leased using a distributed mutex such as Azure Storage blob leases; uncoordinated retries on throttling cause retry storms.",
+          "title": "Rate Limiting pattern - Azure Architecture Center",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "azure-cloud-design-patterns",
+        "aspnetcore-rate-limit"
+      ],
+      "explanation": "The Rate Limiting pattern says to control your own sending rate to stay within the throttled service's limits. Across many processes, it describes splitting capacity into partitions (its example is 500 rps as 20 partitions of 25 rps) that processes lease with a distributed mutex such as blob leases, optionally reserving a little exclusive capacity per process. Immediate retries on 429 add to a retry storm, which the pattern says to coordinate using Retry-After. One worker throws away the parallelism."
+    },
+    {
+      "id": "w12-l01-q05",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w12-l01",
+      "prompt": "In your notification pipeline, some users occasionally get the same push notification twice after a worker crash. The queue is working as designed. What is the correct fix?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Make the consumer idempotent by recording sent notification ids and skipping duplicates"
+        },
+        {
+          "id": "b",
+          "text": "Switch to a different message queue technology that guarantees exactly-once delivery everywhere"
+        },
+        {
+          "id": "c",
+          "text": "Delete the message from the queue before processing it, so it can never be delivered again"
+        },
+        {
+          "id": "d",
+          "text": "Add more worker instances so that individual worker crashes matter less overall"
+        }
+      ],
+      "concept": "notification-fanout-queue-design",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/queue-based-load-leveling",
+          "claim": "Message queues are typically at-least-once delivery, so consumers must be idempotent; use a dead-letter queue for messages that repeatedly fail; ordering isn't guaranteed across competing consumers.",
+          "title": "Queue-Based Load Leveling pattern - Azure Architecture Center",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "azure-cloud-design-patterns",
+        "system-design-primer"
+      ],
+      "explanation": "The Queue-Based Load Leveling pattern notes that message queues usually deliver at least once. After a consumer crash, a message can be redelivered, so consumers must be idempotent. Deleting before processing turns duplicates into lost notifications. More workers change nothing about redelivery. Messages that keep failing should go to a dead-letter queue instead of looping."
+    },
+    {
+      "id": "w12-l01-q06",
+      "type": "written",
+      "lesson": "w12-l01",
+      "prompt": "You have 45 minutes to design a notification service (in-app, push and email) for a large SaaS product. Walk through how you would spend the time and what you'd produce at each stage.",
+      "concept": "system-design-delivery-framework",
+      "sources": [
+        {
+          "url": "https://www.hellointerview.com/learn/system-design/in-a-hurry/delivery",
+          "claim": "Framework steps and times: Requirements (~5 min), Core Entities (~2 min), API (~5 min), optional Data Flow (~5 min), High-Level Design (~10-15 min), Deep Dives (~10 min); build a simple design that meets functional requirements first, then use deep dives for non-functional requirements; perform calculations only if they directly influence your design.",
+          "title": "System Design Interview Delivery Framework",
+          "accessed": "2026-09-27",
+          "publisher": "Hello Interview"
+        }
+      ],
+      "materials": [
+        "hellointerview-system-design",
+        "azure-cloud-design-patterns"
+      ],
+      "explanation": "Senior candidates control the clock and resist deep dives before a working end-to-end design exists. They do estimation only when it changes a decision, and they tie every deep dive back to a stated non-functional requirement.",
+      "model_answer": {
+        "summary": "Follow a delivery framework. Agree functional and quantified non-functional requirements (about 5 minutes), list core entities (about 2), define the API (about 5), and optionally sketch the data flow. Build a simple high-level design that meets the functional requirements (10-15 minutes). Then spend about 10 minutes on deep dives into the hard non-functional parts: fan-out, retries, rate limits and idempotency.",
+        "key_points": [
+          "Requirements first: the core functional features and quantified non-functional ones (latency, delivery guarantees, scale), prioritised",
+          "Core entities (user, notification, preference, channel) and an API such as `POST /notifications`, keeping calculations only where they change the design",
+          "High-level design that satisfies the functional requirements simply: API, queue, channel workers, preference store, provider adapters",
+          "Deep dives on the non-functional requirements: fan-out with queues and priorities, idempotent consumers, retries and a DLQ, per-provider rate limiting",
+          "Drive the conversation, make assumptions explicit and check in with the interviewer at each stage"
+        ]
+      }
+    },
+    {
+      "id": "w12-l01-q07",
+      "type": "written",
+      "lesson": "w12-l01",
+      "prompt": "Design rate limiting for a multi-region public API with per-customer quotas, where instances in several regions serve the same customer. How do you keep per-customer limits roughly correct without a global lock on every request?",
+      "concept": "distributed-rate-limit-capacity-leasing",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/rate-limiting-pattern",
+          "claim": "Partition capacity into leases coordinated through a distributed mutex such as blob leases so processes don't exceed the throttled service's limit; use a durable messaging system with job processors running at a controlled rate; coordinate retries using 429 and Retry-After.",
+          "title": "Rate Limiting pattern - Azure Architecture Center",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/performance/rate-limit",
+          "claim": "Partitioned rate limiters can be keyed by user, API key or IP; RejectionStatusCode can be set to 429 and OnRejected can add a Retry-After header; the token bucket limiter allows bursts.",
+          "title": "Rate limiting middleware in ASP.NET Core",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "azure-cloud-design-patterns",
+        "aspnetcore-rate-limit"
+      ],
+      "explanation": "The senior signal is naming the consistency trade-off explicitly: exact global limits cost latency and add a single point of failure, while leased or approximate budgets scale. Tie the choice to the business impact of overshoot.",
+      "model_answer": {
+        "summary": "Enforce limits per instance with a partitioned limiter keyed on the authenticated customer, and share the customer's budget across instances. Either lease slices of the quota from a central store, or keep approximate shared counters and accept small overshoot. Return 429 with Retry-After, and use queues for work that doesn't need to finish during the request.",
+        "key_points": [
+          "Key partitions on an authenticated customer id, not client-supplied values, and use token bucket for bursty traffic",
+          "Avoid a global lock per request: lease capacity partitions from a shared store (for example, blob or Redis leases) so each instance spends its slice locally, and renew leases periodically",
+          "Accept approximate enforcement and state the trade-off: short-lived overshoot versus the latency and availability cost of strict global coordination",
+          "Reject with 429 and a Retry-After header, and ask clients to back off so retries don't pile up",
+          "Move non-interactive work behind a durable queue whose consumers run at a controlled rate"
+        ]
+      }
+    },
+    {
+      "id": "w12-l01-q08",
+      "type": "written",
+      "lesson": "w12-l01",
+      "prompt": "An \"announcement to all users\" can create 20 million notifications at once, while password-reset emails must still go out within seconds. Design the queuing so the bulk send doesn't starve urgent messages or overload email providers.",
+      "concept": "notification-fanout-queue-design",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/queue-based-load-leveling",
+          "claim": "A queue acts as a buffer so services can be sized for average rather than peak load; control the consumer rate; if producers outpace consumers the queue grows, so monitor depth or shed load; delivery is at-least-once so consumers must be idempotent; ordering isn't guaranteed.",
+          "title": "Queue-Based Load Leveling pattern - Azure Architecture Center",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/priority-queue",
+          "claim": "Use multiple queues with separate consumer pools per priority; a single pool can starve lower-priority messages; combine with queue-based load leveling; use a dead-letter queue.",
+          "title": "Priority Queue pattern - Azure Architecture Center",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "azure-cloud-design-patterns",
+        "system-design-primer"
+      ],
+      "explanation": "A senior design names the failure mode (starvation, provider throttling, redelivery) behind each queue decision and includes monitoring, not just boxes and arrows.",
+      "model_answer": {
+        "summary": "Put a durable queue between producers and channel workers to level the load, and separate priorities with separate queues and consumer pools so bulk traffic can't starve urgent traffic. Run consumers at a controlled rate within provider limits. Make consumers idempotent with a DLQ, and watch queue depth to apply back pressure or shed load.",
+        "key_points": [
+          "Queue-based load leveling lets services be sized for average load rather than peak; consumers control their own rate so downstream providers aren't overwhelmed",
+          "Use separate queues (or priority queues) with dedicated consumer pools for urgent versus bulk messages, because one shared pool can starve low-priority work or delay high-priority work",
+          "Consumers must be idempotent because delivery is at least once, and poison messages go to a dead-letter queue",
+          "Watch queue depth and age; if producers keep outpacing consumers, apply back pressure (for example, 503 or deferring bulk sends) or shed load",
+          "Ordering across competing consumers isn't guaranteed; use sessions or partition keys where per-user ordering matters"
+        ]
+      }
+    },
+    {
+      "id": "w12-l02-q01",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w12-l02",
+      "prompt": "A service expects 100 million write requests per month, spread fairly evenly. About how many requests per second is that on average?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "About 4 requests per second"
+        },
+        {
+          "id": "b",
+          "text": "About 400 requests per second"
+        },
+        {
+          "id": "c",
+          "text": "About 40 requests per second"
+        },
+        {
+          "id": "d",
+          "text": "About 4,000 requests per second"
+        }
+      ],
+      "concept": "capacity-estimation-arithmetic",
+      "sources": [
+        {
+          "url": "https://github.com/donnemartin/system-design-primer",
+          "claim": "Handy conversion guide: 2.5 million seconds per month; 1 request per second = 2.5 million requests per month; 40 requests per second = 100 million requests per month; 400 requests per second = 1 billion requests per month.",
+          "title": "The System Design Primer",
+          "accessed": "2026-09-27",
+          "publisher": "donnemartin (GitHub)"
+        }
+      ],
+      "materials": [
+        "system-design-primer",
+        "ddia"
+      ],
+      "explanation": "The System Design Primer's rule of thumb is about 2.5 million seconds in a month. So 1 request per second is about 2.5 million per month, and 100 million per month is about 40 per second (400 per second is about 1 billion per month). A senior candidate then applies a peak factor, because traffic is rarely flat, and checks whether the number changes the design."
+    },
+    {
+      "id": "w12-l02-q02",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w12-l02",
+      "prompt": "A request must pass through an API tier and a database, each at 99.9% availability, and fails if either fails. What is the overall availability, and what changes if you instead run two independent 99.9% replicas where either can serve?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "In sequence about 99.8%; in parallel about 99.9999%"
+        },
+        {
+          "id": "b",
+          "text": "In sequence 99.9%; in parallel 99.99%"
+        },
+        {
+          "id": "c",
+          "text": "In sequence about 99.7%; in parallel about 99.8%"
+        },
+        {
+          "id": "d",
+          "text": "In sequence about 99.8%; in parallel still 99.9%, because the replicas share a region"
+        }
+      ],
+      "concept": "capacity-estimation-arithmetic",
+      "sources": [
+        {
+          "url": "https://github.com/donnemartin/system-design-primer",
+          "claim": "If a service consists of multiple components prone to failure, availability in sequence is Availability (A) * Availability (B), e.g. two 99.9% = 99.8%; in parallel it is 1 - (1 - A) * (1 - B), e.g. two 99.9% = 99.9999%.",
+          "title": "The System Design Primer",
+          "accessed": "2026-09-27",
+          "publisher": "donnemartin (GitHub)"
+        }
+      ],
+      "materials": [
+        "system-design-primer",
+        "ddia"
+      ],
+      "explanation": "The System Design Primer multiplies availabilities for components in sequence: 99.9% × 99.9% ≈ 99.8%. For parallel components, availability is 1 − (1 − A)(1 − B): two 99.9% replicas give 99.9999%. The parallel formula assumes the replicas fail independently; shared regions or dependencies break that assumption, which is the kind of caveat seniors add out loud."
+    },
+    {
+      "id": "w12-l02-q03",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w12-l02",
+      "prompt": "Tenant data is sharded with `hash(tenantId) mod N` across 8 databases. You need to add 4 more. What is the main problem, and a common fix?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "None of this matters: mod-N hashing only ever moves the new shards' own share of the data"
+        },
+        {
+          "id": "b",
+          "text": "Hashing can't spread tenants evenly, so switch entirely to range sharding by tenant creation date"
+        },
+        {
+          "id": "c",
+          "text": "Adding shards requires reassigning and rewriting every tenant's stable identifier"
+        },
+        {
+          "id": "d",
+          "text": "Changing N remaps most keys; use consistent hashing or virtual shards so only a fraction move"
+        }
+      ],
+      "concept": "shard-key-selection-multitenant",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/sharding",
+          "claim": "Hash-based sharding with hash(key) mod N reassigns most keys when shards are added, causing large data movement; consistent hashing reduces this; lookup strategies can use virtual shards mapped to physical partitions; avoid auto-incrementing and timestamp-based shard keys, which create hotspots.",
+          "title": "Sharding pattern - Azure Architecture Center",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "ddia",
+        "system-design-primer"
+      ],
+      "explanation": "The Azure Sharding pattern warns that with hash sharding, `hash(key) mod N` reassigns most keys when N changes, so rebalancing moves most of the data. Consistent hashing, or a lookup strategy that maps virtual shards to physical ones, limits movement to a fraction of keys. Range sharding by creation date creates hotspots on recent tenants, and the pattern discourages timestamp and auto-increment keys."
+    },
+    {
+      "id": "w12-l02-q04",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w12-l02",
+      "prompt": "With cache-aside for product prices, the update code first deletes the cache entry, then updates the database. Users sometimes see an old price long after the update. Why?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Cache-aside can never be used correctly for data that changes over time"
+        },
+        {
+          "id": "b",
+          "text": "A concurrent request can re-cache the stale price before the write lands; update the store first, then invalidate"
+        },
+        {
+          "id": "c",
+          "text": "The cache's eviction policy is LRU, which specifically keeps stale prices around longer"
+        },
+        {
+          "id": "d",
+          "text": "Deleting a cache entry is asynchronous in every possible cache implementation, so it never actually takes effect at all"
+        }
+      ],
+      "concept": "replication-and-cache-consistency",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/cache-aside",
+          "claim": "When updating, the order matters: update the data store first, then remove the cached item; if you invalidate first, a client might fetch the item before the store is updated and re-cache stale data; cache-aside doesn't guarantee consistency between the store and the cache.",
+          "title": "Cache-Aside pattern - Azure Architecture Center",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "ddia",
+        "system-design-primer"
+      ],
+      "explanation": "The Cache-Aside pattern says the order of operations matters: update the data store first, then invalidate the cached item. If you invalidate first, a concurrent reader can reload the old value from the database into the cache before the write lands. Even in the right order, cache-aside doesn't guarantee consistency, so set expiration times and decide how much staleness the business can accept."
+    },
+    {
+      "id": "w12-l02-q05",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w12-l02",
+      "prompt": "A circuit breaker around a payment provider has been Open for its timeout period and moves to Half-Open. What happens next, according to the Azure Circuit Breaker pattern?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "All traffic is immediately let through at once, to test the recovery as fast as possible"
+        },
+        {
+          "id": "b",
+          "text": "The breaker closes automatically and fully the moment its timeout timer expires, with no further checks at all"
+        },
+        {
+          "id": "c",
+          "text": "A few trial requests decide it: success returns to Closed, any failure reopens it and restarts the timer"
+        },
+        {
+          "id": "d",
+          "text": "The breaker stays Half-Open indefinitely until a human operator manually resets it"
+        }
+      ],
+      "concept": "graceful-degradation-under-failure",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/circuit-breaker",
+          "claim": "Half-Open: a limited number of requests are allowed to pass through; if they're successful the breaker switches to Closed; if any request fails it reverts to Open and restarts the timeout timer; retry logic should be sensitive to exceptions returned by the circuit breaker.",
+          "title": "Circuit Breaker pattern - Azure Architecture Center",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "ddia",
+        "azure-well-architected"
+      ],
+      "explanation": "In the Azure pattern, the Half-Open state lets a limited number of requests through. If they succeed (up to a success threshold), the breaker assumes the fault is fixed and returns to Closed. If any trial request fails, it returns to Open and restarts the timer. This stops a recovering service from being flooded right away. Retry logic must respect the breaker's state rather than hammering an open circuit."
+    },
+    {
+      "id": "w12-l02-q06",
+      "type": "written",
+      "lesson": "w12-l02",
+      "prompt": "Your multi-tenant SaaS database has outgrown one server. Tenants range from tiny to one that makes 30% of all traffic. How do you choose a shard key and strategy, and what problems do you plan for?",
+      "concept": "shard-key-selection-multitenant",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/sharding",
+          "claim": "The shard key should be immutable, have high cardinality and align with the most common queries; lookup, range, hash and geographic strategies each have trade-offs; hash mod N reassigns most keys on resize; volatile or high-value tenants can get dedicated shards; fan-out queries are limited by the slowest shard; avoid cross-shard transactions.",
+          "title": "Sharding pattern - Azure Architecture Center",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "ddia",
+        "system-design-primer"
+      ],
+      "explanation": "A senior answer argues from access patterns and tenant skew, not from a favourite algorithm, and names the operational cost of each choice.",
+      "model_answer": {
+        "summary": "Shard by tenant id, which is stable, high-cardinality and matches most queries. Use a lookup (virtual-shard) map, or consistent hashing, so tenants can be rebalanced without mass rehashing. Give the very large or volatile tenant its own shard. Plan for cross-shard queries and transactions, rebalancing, and hotspots.",
+        "key_points": [
+          "A good shard key is immutable, high-cardinality and aligned with the most common queries; tenant id usually fits, while timestamps or auto-increment ids create hotspots",
+          "Lookup sharding with virtual shards allows moving tenants between physical databases; hash sharding spreads data evenly but `mod N` resizing moves most keys, and consistent hashing reduces that",
+          "Place high-value or volatile tenants on dedicated shards so they don't become noisy neighbours",
+          "Fan-out queries across shards run at the speed of the slowest shard, and cross-shard transactions should be avoided, so design queries to stay within one shard",
+          "Plan for rebalancing and monitoring per shard, and keep reference data replicated where needed"
+        ]
+      }
+    },
+    {
+      "id": "w12-l02-q07",
+      "type": "written",
+      "lesson": "w12-l02",
+      "prompt": "Your read-heavy catalogue API uses a primary database with read replicas and a Redis cache-aside layer. A product manager reports that price changes sometimes appear late. Explain every place staleness can come from and how you would bound it.",
+      "concept": "replication-and-cache-consistency",
+      "sources": [
+        {
+          "url": "https://github.com/donnemartin/system-design-primer",
+          "claim": "Master-slave replication risks data loss if the master fails before newly written data is replicated; replication lag grows with writes; cache invalidation is hard; cache-aside, write-through and write-behind trade off consistency.",
+          "title": "The System Design Primer",
+          "accessed": "2026-09-27",
+          "publisher": "donnemartin (GitHub)"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/cache-aside",
+          "claim": "Update the data store first, then invalidate the cache; cache-aside doesn't guarantee consistency; set expiration policies; local private caches in multiple instances can diverge.",
+          "title": "Cache-Aside pattern - Azure Architecture Center",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "ddia",
+        "system-design-primer"
+      ],
+      "explanation": "The senior move is to treat consistency as a per-data requirement with a number attached, and to trace each lag source instead of reaching for \"disable the cache\".",
+      "model_answer": {
+        "summary": "Staleness comes from replication lag (reads served by replicas behind the primary), from the cache (entries kept until they expire, or re-cached from a stale read), and from the order of invalidation. Bound it by updating the database before invalidating, adding a TTL, reading your own writes from the primary where needed, and stating the consistency the business accepts.",
+        "key_points": [
+          "Asynchronous replication means replicas can lag the primary, and a primary failure before replication can lose writes",
+          "Cache-aside has no consistency guarantee: update the store, then invalidate the entry (not the reverse), and set expiration times",
+          "A cache fill from a lagging replica can re-cache the old value, so combine invalidation with reading the primary, or a short delay, for recently changed keys",
+          "Local in-memory caches on each instance diverge from each other, so prefer a shared cache for data that must agree",
+          "Agree on a staleness budget for each kind of data (seconds for prices, longer for descriptions) and monitor replication lag"
+        ]
+      }
+    },
+    {
+      "id": "w12-l02-q08",
+      "type": "written",
+      "lesson": "w12-l02",
+      "prompt": "Your e-commerce API depends on a product DB, a payments provider and a recommendations service. One large tenant's batch job also sometimes saturates the shared database. Describe how the system should behave when each dependency fails or is overloaded.",
+      "concept": "graceful-degradation-under-failure",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/well-architected/reliability/self-preservation",
+          "claim": "Graceful degradation: if the database is down the app can run read-only from cache; if payment is down save the cart for later; use bulkhead and deployment stamps to isolate; automate detection and switching to degraded modes.",
+          "title": "Architecture strategies for designing for self-preservation",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/antipatterns/noisy-neighbor/noisy-neighbor",
+          "claim": "Monitor resource use per tenant; apply resource governance through throttling and rate-limit quotas; rebalance tenants across stamps; restrict expensive operations; consider quality of service.",
+          "title": "Noisy Neighbor antipattern - Azure Architecture Center",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "azure-well-architected",
+        "azure-cloud-design-patterns",
+        "ddia"
+      ],
+      "explanation": "Senior candidates describe the user experience in each failure mode and the automatic switch, not just \"add retries\". They name which features are optional so they can be turned off.",
+      "model_answer": {
+        "summary": "Design explicit degradation modes: serve catalogue reads from cache in read-only mode if the DB is down, save carts and queue orders if payments are down, and hide recommendations if that service fails. Protect each dependency with timeouts and a circuit breaker. Contain noisy tenants with per-tenant quotas, throttling and isolation.",
+        "key_points": [
+          "Define graceful degradation modes per dependency, for example read-only from cache when the database is unavailable, or saving the cart when payments are down",
+          "Wrap calls in circuit breakers that fail fast when a dependency is failing, and make retries respect the breaker's state",
+          "Isolate failure domains with bulkheads (separate pools or stamps), so one dependency or tenant can't exhaust shared resources",
+          "Monitor usage per tenant and govern resources with throttling and quotas for noisy neighbours, restrict expensive operations, or move heavy tenants to other stamps",
+          "Detect the failure automatically and switch modes without manual steps, then tell users clearly what is reduced"
+        ]
+      }
+    },
+    {
+      "id": "w12-l03-q01",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w12-l03",
+      "prompt": "In a mock behavioral round, your \"hardest project\" answer spends three minutes on background, says \"we\" throughout, and ends with \"and it shipped.\" What is the most useful change?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Add even more technical detail about the system's architecture and components"
+        },
+        {
+          "id": "b",
+          "text": "Retell the story chronologically in far more depth, so absolutely nothing gets missed out"
+        },
+        {
+          "id": "c",
+          "text": "Say \"I\" in every sentence, even to describe work that teammates actually did"
+        },
+        {
+          "id": "d",
+          "text": "Shorten the situation, focus on your actions, quantify results, and add a reflection"
+        }
+      ],
+      "concept": "starr-story-with-reflection",
+      "sources": [
+        {
+          "url": "https://www.techinterviewhandbook.org/behavioral-interview/",
+          "claim": "Use STAR or STARR (Situation, Task, Action, Result, Reflection); focus on your own contribution and quantify outcomes; choose 3-5 high-impact, high-complexity projects with high personal involvement.",
+          "title": "Behavioral interviews for software engineers",
+          "accessed": "2026-09-27",
+          "publisher": "Tech Interview Handbook"
+        }
+      ],
+      "materials": [
+        "tech-interview-handbook-behavioral",
+        "staff-engineer"
+      ],
+      "explanation": "Tech Interview Handbook's STAR/STARR guidance keeps the situation short, focuses on your own contribution, and quantifies the result, with a Reflection step on what you learned. \"We\" hides your role, but claiming others' work is dishonest; say what you did and credit the team. More architecture detail doesn't address the missing ownership and outcome."
+    },
+    {
+      "id": "w12-l03-q02",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w12-l03",
+      "prompt": "Using Tech Interview Handbook's behavioral rubrics, which story best shows senior-level (rather than mid-level) scope?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "\"I fixed a bug that a customer reported, closing the ticket the same afternoon.\""
+        },
+        {
+          "id": "b",
+          "text": "\"I proposed a canary process, persuaded my team of five, and halved rollback incidents.\""
+        },
+        {
+          "id": "c",
+          "text": "\"I completed every single ticket assigned to me in the sprint, on time and completely without help.\""
+        },
+        {
+          "id": "d",
+          "text": "\"I learned a new frontend framework on my own time over a single weekend.\""
+        }
+      ],
+      "concept": "senior-scope-influence-signals",
+      "sources": [
+        {
+          "url": "https://www.techinterviewhandbook.org/behavioral-interview-rubrics/",
+          "claim": "Rubric dimensions include proactivity, handling ambiguity, perseverance, conflict resolution and growth; a senior-level answer shows a change proactively driven with team-wide impact (usually 3+ people), and a staff-level answer shows org-wide impact (usually 2+ teams).",
+          "title": "Behavioral interview rubrics",
+          "accessed": "2026-09-27",
+          "publisher": "Tech Interview Handbook"
+        }
+      ],
+      "materials": [
+        "tech-interview-handbook-behavioral",
+        "staff-engineer"
+      ],
+      "explanation": "The handbook's rubrics describe senior-level stories as changes you drove proactively, with impact on the team (usually three or more people); staff-level stories reach across the organisation (usually two or more teams). The canary story shows proactivity, influence, and a measured team-wide result. The others show individual execution or learning, which count, but at a lower scope."
+    },
+    {
+      "id": "w12-l03-q03",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w12-l03",
+      "prompt": "You're implementing an LRU cache in C# with O(1) `Get` and `Put`. Which combination of built-in collections fits?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`Dictionary<TKey, LinkedListNode<Entry>>` plus `LinkedList<Entry>`: O(1) lookup, and O(1) move or removal given a node"
+        },
+        {
+          "id": "b",
+          "text": "`SortedDictionary<long, TKey>` keyed by the last-access timestamp, which incorrectly claims O(1) removal of the oldest entry"
+        },
+        {
+          "id": "c",
+          "text": "`List<Entry>` where each access does a linear `Remove` followed by a re-`Add` at the end"
+        },
+        {
+          "id": "d",
+          "text": "`PriorityQueue<TKey, long>` keyed by last access time, with priorities updated in place after every access"
+        }
+      ],
+      "concept": "dotnet-collection-choice-for-algorithms",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/api/system.collections.generic.linkedlist-1",
+          "claim": "LinkedList<T> is a doubly linked list; insertion and removal are O(1) operations; nodes can be removed and reinserted in the same or another list without allocating; Count is O(1).",
+          "title": "LinkedList<T> Class (System.Collections.Generic)",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/api/system.collections.generic.dictionary-2",
+          "claim": "Retrieving a value by its key in Dictionary<TKey,TValue> is very fast, close to O(1), because it is implemented as a hash table; speed depends on the quality of the hashing algorithm.",
+          "title": "Dictionary<TKey,TValue> Class (System.Collections.Generic)",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "neetcode-roadmap"
+      ],
+      "explanation": "`Dictionary<TKey,TValue>` retrieval is close to O(1), and `LinkedList<T>` is a doubly linked list where insert and remove given a node are O(1). Nodes can also be moved without allocating. Together they give O(1) LRU. `SortedDictionary` is a binary search tree with O(log n) operations. `List.Remove` is O(n). `PriorityQueue` has no API to update an element's priority in place."
+    },
+    {
+      "id": "w12-l03-q04",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w12-l03",
+      "prompt": "You use `PriorityQueue<Job, int>` to schedule jobs by priority, and jobs with the same priority must come out in the order they were added. Tests show tied jobs coming out in a different order. Why, and what's the fix?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`PriorityQueue` actually dequeues the highest priority value first here; simply negate the priorities"
+        },
+        {
+          "id": "b",
+          "text": "`PriorityQueue` is thread-safe internally but slow under load; switch entirely to `ConcurrentQueue`"
+        },
+        {
+          "id": "c",
+          "text": "`PriorityQueue` makes no FIFO guarantee among equal priorities; add a sequence number to the priority tuple"
+        },
+        {
+          "id": "d",
+          "text": "`PriorityQueue` needs an explicit capacity set in its constructor, or else it silently reorders items"
+        }
+      ],
+      "concept": "dotnet-collection-choice-for-algorithms",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/api/system.collections.generic.priorityqueue-2",
+          "claim": "PriorityQueue is implemented as an array-backed quaternary min-heap; elements with the lowest priority are dequeued first; elements with equal priority are dequeued in no particular order, with no FIFO guarantee.",
+          "title": "PriorityQueue<TElement,TPriority> Class (System.Collections.Generic)",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "neetcode-roadmap"
+      ],
+      "explanation": "`PriorityQueue<TElement,TPriority>` is an array-backed quaternary min-heap that dequeues the lowest priority first. Its docs say elements with equal priority are dequeued in no particular order: it doesn't guarantee first-in, first-out. A tiebreaker such as a monotonically increasing sequence number in the priority tuple makes order deterministic. Negating priorities changes direction, not tie behaviour."
+    },
+    {
+      "id": "w12-l03-q05",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w12-l03",
+      "prompt": "You're preparing for a Microsoft senior (L63-L64) loop. Based on Hello Interview's guide, how is behavior assessed, and what does that mean for your preparation?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "There's a separate 60-minute behavioral round, so prepare your stories entirely apart from technical rounds"
+        },
+        {
+          "id": "b",
+          "text": "There's no dedicated behavioral round until L64; behavior gets assessed inside the technical rounds themselves"
+        },
+        {
+          "id": "c",
+          "text": "Behavior isn't assessed at all at senior level, since the whole loop is purely technical"
+        },
+        {
+          "id": "d",
+          "text": "Behavior is judged solely from a written questionnaire candidates submit before the loop begins"
+        }
+      ],
+      "concept": "senior-scope-influence-signals",
+      "sources": [
+        {
+          "url": "https://www.hellointerview.com/guides/microsoft/senior",
+          "claim": "Microsoft L63-64 loop: recruiter screen, online assessment or phone screen, 2-3 coding rounds and a 60-minute system design round; until L64 there's no dedicated behavioral round, and behavior is assessed within technical rounds; make reasonable assumptions under ambiguity.",
+          "title": "Microsoft Senior Software Engineer Interview Guide",
+          "accessed": "2026-09-27",
+          "publisher": "Hello Interview"
+        }
+      ],
+      "materials": [
+        "tech-interview-handbook-behavioral",
+        "staff-engineer"
+      ],
+      "explanation": "Hello Interview's Microsoft senior guide says there's no dedicated behavioral round until L64: interviewers weave behavioral questions into the technical rounds. The loop includes coding rounds and a system design round (for example, a rate limiter or distributed cache), and interviewers watch how you handle ambiguity with reasonable assumptions. So your stories need to be short enough to fit around code and design."
+    },
+    {
+      "id": "w12-l03-q06",
+      "type": "written",
+      "lesson": "w12-l03",
+      "prompt": "Tell a STARR story about a production incident you were involved in, and explain what makes it a strong senior answer. Include how you handled the postmortem.",
+      "concept": "starr-story-with-reflection",
+      "sources": [
+        {
+          "url": "https://www.techinterviewhandbook.org/behavioral-interview/",
+          "claim": "Use STAR or STARR (with Reflection); focus on your own contribution and quantified outcomes; senior candidates should demonstrate leadership, influence, conflict resolution and anticipating risks.",
+          "title": "Behavioral interviews for software engineers",
+          "accessed": "2026-09-27",
+          "publisher": "Tech Interview Handbook"
+        },
+        {
+          "url": "https://sre.google/sre-book/postmortem-culture/",
+          "claim": "Blameless postmortems focus on identifying contributing causes without indicting individuals; goals are documenting the incident, understanding root causes and putting preventive actions in place; you can't fix people, but you can fix systems and processes.",
+          "title": "Postmortem Culture: Learning from Failure",
+          "accessed": "2026-09-27",
+          "publisher": "Google SRE Book"
+        }
+      ],
+      "materials": [
+        "tech-interview-handbook-behavioral",
+        "staff-engineer"
+      ],
+      "explanation": "Seniors show ownership under pressure and turn the incident into system improvements. \"You can't fix people, but you can fix systems and processes\" is the mindset interviewers look for.",
+      "model_answer": {
+        "summary": "A strong answer gives brief context and your role, then your specific actions during mitigation and diagnosis, and a quantified result (time to recover, customers affected). It covers the blameless postmortem you led or contributed to, with system-level preventive actions, and ends with a reflection on what you now do differently.",
+        "key_points": [
+          "Situation and task in a few sentences: impact, scale and your role (for example, incident lead or the engineer who found the cause)",
+          "Actions you personally took: mitigation first, then diagnosis with data, then clear updates to stakeholders",
+          "Quantified results: time to recover, customers or requests affected, follow-up incidents avoided",
+          "A blameless postmortem that finds contributing causes without blaming individuals, and preventive actions that fix systems and processes",
+          "Reflection: what you learned and what you changed in how you work or what the team does"
+        ]
+      }
+    },
+    {
+      "id": "w12-l03-q07",
+      "type": "written",
+      "lesson": "w12-l03",
+      "prompt": "\"Tell me about a time you helped a struggling teammate, or disagreed with a technical decision.\" Explain how you would structure the answer so it shows senior-level influence rather than individual heroics.",
+      "concept": "senior-scope-influence-signals",
+      "sources": [
+        {
+          "url": "https://www.techinterviewhandbook.org/behavioral-interview-rubrics/",
+          "claim": "Rubric dimensions include proactivity, conflict resolution and empathy, growth mindset and communication; senior answers show proactively driven change with team-wide impact; staff answers show org-wide impact across 2+ teams.",
+          "title": "Behavioral interview rubrics",
+          "accessed": "2026-09-27",
+          "publisher": "Tech Interview Handbook"
+        },
+        {
+          "url": "https://www.techinterviewhandbook.org/behavioral-interview-questions/",
+          "claim": "Common behavioral questions include times you had a conflict, disagreed with your manager, received constructive feedback, and faced a challenge and what you learned; answers should demonstrate a growth mindset.",
+          "title": "Behavioral interview questions",
+          "accessed": "2026-09-27",
+          "publisher": "Tech Interview Handbook"
+        }
+      ],
+      "materials": [
+        "tech-interview-handbook-behavioral",
+        "staff-engineer"
+      ],
+      "explanation": "Interviewers look for influence, empathy and outcomes. Strong candidates avoid stories where they were right and everyone else was wrong, and they credit the teammate's growth.",
+      "model_answer": {
+        "summary": "Choose a story where you influenced others without authority. Describe how you understood the other person's view, the data or options you brought, how you agreed a decision (or disagreed and committed), and the measurable outcome for the team. Close with what you learned.",
+        "key_points": [
+          "Pick a story with team-wide impact that you drove proactively; rubrics treat that as a senior signal",
+          "Show empathy and conflict resolution: understand the teammate's constraints or the other side's reasons before pushing your own",
+          "Describe concrete actions such as pairing, a written proposal, a spike or data, and how the decision was made",
+          "Give a quantified outcome and a growth-mindset reflection, including what you'd do differently",
+          "Match the level you're interviewing for: staff-level stories extend across several teams"
+        ]
+      }
+    },
+    {
+      "id": "w12-l03-q08",
+      "type": "written",
+      "lesson": "w12-l03",
+      "prompt": "Implement (in outline) an LRU cache in C# with O(1) `Get` and `Put`, then discuss thread safety and when a `SortedDictionary`-based design would be better.",
+      "concept": "dotnet-collection-choice-for-algorithms",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/api/system.collections.generic.linkedlist-1",
+          "claim": "LinkedList<T> is doubly linked; insert and remove given a node are O(1); nodes can be moved without allocation; LinkedList is not thread-safe.",
+          "title": "LinkedList<T> Class (System.Collections.Generic)",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/api/system.collections.generic.sorteddictionary-2",
+          "claim": "SortedDictionary<TKey,TValue> is a binary search tree with O(log n) retrieval; SortedList uses less memory; SortedDictionary has faster insertion and removal for unsorted data (O(log n) versus O(n)).",
+          "title": "SortedDictionary<TKey,TValue> Class (System.Collections.Generic)",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "neetcode-roadmap"
+      ],
+      "explanation": "Senior candidates explain why each structure is there, point out the invariant tying the two structures together (which is why a single lock is needed), and know the complexities of the alternatives.",
+      "model_answer": {
+        "summary": "Keep a `Dictionary<TKey, LinkedListNode<(TKey Key, TValue Value)>>` and a `LinkedList` ordered by recency. On `Get`, move the node to the front. On `Put`, update or add at the front, and evict the tail when over capacity. Neither collection is thread-safe for writes, so guard it with a lock. Use a `SortedDictionary` (O(log n)) when you need ordered keys or range queries rather than recency.",
+        "key_points": [
+          "`Get`: look up the node in the dictionary (about O(1)), move it to the head of the linked list (O(1) given a node) and return the value",
+          "`Put`: if the key exists, update and move to head; otherwise add at the head, and if over capacity remove the tail node and its dictionary entry",
+          "Neither `Dictionary` nor `LinkedList` supports concurrent writes, so use a lock around the whole operation (both structures must change together)",
+          "`SortedDictionary` is a binary search tree with O(log n) operations, which suits ordered or range access but not O(1) recency updates; `SortedList` uses less memory but has O(n) inserts",
+          "Keys used in the dictionary must not change their hash while stored"
+        ]
+      }
+    },
+    {
+      "id": "w12-l04-q01",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w12-l04",
+      "prompt": "In a mock deep-dive, the interviewer says: \"The ASP.NET Core API got slow under load, but CPU is almost idle.\" What's the strongest first answer?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "\"I'd add more instances right away, before looking at what's actually happening.\""
+        },
+        {
+          "id": "b",
+          "text": "\"It must be the garbage collector pausing everything; I'd switch to Workstation GC.\""
+        },
+        {
+          "id": "c",
+          "text": "\"I'd just rewrite the entire hot path in a faster, lower-level language.\""
+        },
+        {
+          "id": "d",
+          "text": "\"That's likely thread-pool starvation from sync-over-async; I'd confirm with `dotnet-counters` first.\""
+        }
+      ],
+      "concept": "deep-dive-measure-then-decide",
+      "sources": [
+        {
+          "url": "https://www.codewithmukesh.com/blog/senior-dotnet-developer-interview-questions/",
+          "claim": "Thread-pool starvation shows as slow responses with idle CPU, usually from sync-over-async; escalate tools from dotnet-counters to dotnet-stack, dotnet-trace, dotnet-gcdump and dotnet-dump; senior answers follow 'I'd measure X. If Y, then Z.'",
+          "title": "Senior .NET Developer Interview Questions",
+          "accessed": "2026-09-27",
+          "publisher": "codewithmukesh"
+        }
+      ],
+      "materials": [
+        "codewithmukesh-senior-questions",
+        "dotnet-diagnostics"
+      ],
+      "explanation": "codewithmukesh's senior .NET guide describes slow responses with idle CPU as the classic sign of thread-pool starvation caused by sync-over-async, and it escalates tools from `dotnet-counters` to `dotnet-stack` and `dotnet-trace`. The strong answer names a hypothesis, the measurement that confirms it, and the next step. Scaling out or changing the GC without measuring treats symptoms and costs money."
+    },
+    {
+      "id": "w12-l04-q02",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w12-l04",
+      "prompt": "An interviewer asks why memory use in your containerised .NET 9 service changed after upgrading, even though you didn't touch GC settings. Which fact from recent .NET releases is most relevant?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "DATAS became the default for Server GC in .NET 9, so the heap now adapts dynamically to load"
+        },
+        {
+          "id": "b",
+          "text": "Server GC was entirely removed as an available option starting in .NET 9"
+        },
+        {
+          "id": "c",
+          "text": "`BinaryFormatter` became the default serializer for all types in .NET 9"
+        },
+        {
+          "id": "d",
+          "text": "The .NET Upgrade Assistant now automatically tunes garbage collector settings during every project migration"
+        }
+      ],
+      "concept": "deep-dive-measure-then-decide",
+      "sources": [
+        {
+          "url": "https://www.codewithmukesh.com/blog/senior-dotnet-developer-interview-questions/",
+          "claim": "DATAS is the Server GC default since .NET 9; BinaryFormatter was removed in .NET 9; the .NET Upgrade Assistant is deprecated.",
+          "title": "Senior .NET Developer Interview Questions",
+          "accessed": "2026-09-27",
+          "publisher": "codewithmukesh"
+        }
+      ],
+      "materials": [
+        "codewithmukesh-senior-questions",
+        "dotnet-diagnostics"
+      ],
+      "explanation": "codewithmukesh's senior .NET guide notes that DATAS is the Server GC default since .NET 9, changing heap sizing behaviour, and that BinaryFormatter was removed in .NET 9 (not made default). The Upgrade Assistant is deprecated, and it never tuned the GC. A strong answer still measures with `dotnet-counters` or GC events before deciding whether to change settings."
+    },
+    {
+      "id": "w12-l04-q03",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w12-l04",
+      "prompt": "Ten minutes into a 45-minute design round you're still computing storage for five years of data at three replication factors. According to Hello Interview's delivery framework, what should you do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Keep going: complete, precise estimates are what interviewers grade most heavily"
+        },
+        {
+          "id": "b",
+          "text": "Skip the API design and high-level design steps entirely to make up the time"
+        },
+        {
+          "id": "c",
+          "text": "Stop the estimation, do only calculations that change a decision, then move to API and design"
+        },
+        {
+          "id": "d",
+          "text": "Ask the interviewer directly if the round can be extended past 45 minutes"
+        }
+      ],
+      "concept": "design-round-time-budget",
+      "sources": [
+        {
+          "url": "https://www.hellointerview.com/learn/system-design/in-a-hurry/delivery",
+          "claim": "Perform calculations only if they will directly influence your design; suggested timings are Requirements ~5 min, Core Entities ~2 min, API ~5 min, High-Level Design ~10-15 min, Deep Dives ~10 min.",
+          "title": "System Design Interview Delivery Framework",
+          "accessed": "2026-09-27",
+          "publisher": "Hello Interview"
+        }
+      ],
+      "materials": [
+        "hellointerview-system-design",
+        "codewithmukesh-senior-questions"
+      ],
+      "explanation": "Hello Interview's framework says to perform calculations only if they will directly influence your design, and gives rough time budgets (requirements about 5 minutes, high-level design 10-15, deep dives about 10). Long up-front estimation eats the time for the design and deep dives, where most of the signal is. Skipping the API or design would leave nothing to deep-dive."
+    },
+    {
+      "id": "w12-l04-q04",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w12-l04",
+      "prompt": "\"What's the most constructive feedback you've received?\" Which answer best fits what Tech Interview Handbook says interviewers are looking for?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "\"I honestly don't really get much negative feedback from anyone.\""
+        },
+        {
+          "id": "b",
+          "text": "A specific piece of feedback, the change you made, and evidence it worked"
+        },
+        {
+          "id": "c",
+          "text": "A story where the feedback was unfair and you ultimately proved the reviewer wrong"
+        },
+        {
+          "id": "d",
+          "text": "A long list of every piece of feedback from your last three performance reviews"
+        }
+      ],
+      "concept": "feedback-driven-interview-iteration",
+      "sources": [
+        {
+          "url": "https://www.techinterviewhandbook.org/behavioral-interview-questions/",
+          "claim": "Common behavioral questions include 'What is the most constructive feedback you have received?'; answers should demonstrate a growth mindset.",
+          "title": "Behavioral interview questions",
+          "accessed": "2026-09-27",
+          "publisher": "Tech Interview Handbook"
+        }
+      ],
+      "materials": [
+        "tech-interview-handbook-behavioral",
+        "codewithmukesh-senior-questions"
+      ],
+      "explanation": "The handbook lists \"most constructive feedback\" among common behavioral questions and says answers should show a growth mindset. The strong answer is specific, owns the change, and shows the result. Claiming never to get criticism signals low self-awareness. \"Proving them wrong\" signals defensiveness. A list has no story or learning."
+    },
+    {
+      "id": "w12-l04-q05",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w12-l04",
+      "prompt": "In a mock design of a URL shortener, you start by explaining how you'd shard the database and cache hot keys before you've shown how a URL gets created and resolved. What does the framework recommend?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Build a simple design that satisfies the functional requirements first, then layer on scaling"
+        },
+        {
+          "id": "b",
+          "text": "Start with the scaling deep dive first, since that's specifically what seniors are graded on"
+        },
+        {
+          "id": "c",
+          "text": "Skip the high-level design step entirely; interviewers will just infer it from context"
+        },
+        {
+          "id": "d",
+          "text": "Draw every component you might conceivably ever need, all up front before anything else"
+        }
+      ],
+      "concept": "design-round-time-budget",
+      "sources": [
+        {
+          "url": "https://www.hellointerview.com/learn/system-design/in-a-hurry/delivery",
+          "claim": "Build a simple, high-level design that meets the functional requirements first, then layer on complexity and use deep dives to satisfy non-functional requirements.",
+          "title": "System Design Interview Delivery Framework",
+          "accessed": "2026-09-27",
+          "publisher": "Hello Interview"
+        }
+      ],
+      "materials": [
+        "hellointerview-system-design",
+        "codewithmukesh-senior-questions"
+      ],
+      "explanation": "Hello Interview's delivery framework says to build a simple design that meets the functional requirements first, and then use the deep dives to meet the non-functional requirements and add complexity. Jumping to sharding before the basic flow exists risks running out of time with no working design. It also makes it harder to explain why each scaling piece is needed."
+    },
+    {
+      "id": "w12-l04-q06",
+      "type": "written",
+      "lesson": "w12-l04",
+      "prompt": "Mock deep-dive: \"After yesterday's deploy, p99 latency on our .NET API doubled, while p50 is unchanged.\" Talk through how you would investigate and what you'd decide, as you would in a senior interview.",
+      "concept": "deep-dive-measure-then-decide",
+      "sources": [
+        {
+          "url": "https://www.codewithmukesh.com/blog/senior-dotnet-developer-interview-questions/",
+          "claim": "Senior questions ask what you would do when something is on fire; measure before asserting; escalate from dotnet-counters to dotnet-stack, dotnet-trace, dotnet-gcdump and dotnet-dump; answer with 'I'd measure X. If Y, then Z.' and name the costs.",
+          "title": "Senior .NET Developer Interview Questions",
+          "accessed": "2026-09-27",
+          "publisher": "codewithmukesh"
+        }
+      ],
+      "materials": [
+        "codewithmukesh-senior-questions",
+        "dotnet-diagnostics"
+      ],
+      "explanation": "What stands out at senior level is a hypothesis-driven, measure-first approach that starts with protecting users, rather than guessing at a fix.",
+      "model_answer": {
+        "summary": "Stabilise first (consider rolling back if the impact is serious), then measure. Compare the deploy's changes and metrics. Use `dotnet-counters` for thread-pool, GC and exception rates, and traces or stacks for the slow requests, to form and test hypotheses. Decide based on the evidence and name the cost of each fix.",
+        "key_points": [
+          "Mitigate first: compare the timing with the deploy, and roll back or turn off a feature flag if users are hurt",
+          "Tail-only regressions point to things like GC pauses, lock contention, thread-pool starvation, cold caches or a slow dependency on some requests",
+          "Measure with the diagnostics tools in order: `dotnet-counters`, then `dotnet-stack` or `dotnet-trace`, then `dotnet-gcdump` or `dotnet-dump` for memory",
+          "Use the pattern \"I'd measure X. If Y, then Z\" and state the trade-off of each fix",
+          "Follow up with a regression test or alert on p99 so it's caught before the next release"
+        ]
+      }
+    },
+    {
+      "id": "w12-l04-q07",
+      "type": "written",
+      "lesson": "w12-l04",
+      "prompt": "\"Tell me about a time you failed.\" Structure an answer that is honest and still leaves a strong senior impression.",
+      "concept": "feedback-driven-interview-iteration",
+      "sources": [
+        {
+          "url": "https://www.techinterviewhandbook.org/behavioral-interview/",
+          "claim": "Use STAR or STARR, where Reflection covers what you learned; focus on your own contribution.",
+          "title": "Behavioral interviews for software engineers",
+          "accessed": "2026-09-27",
+          "publisher": "Tech Interview Handbook"
+        },
+        {
+          "url": "https://www.techinterviewhandbook.org/behavioral-interview-questions/",
+          "claim": "Common behavioral questions include facing a challenge and what you learned from it; answers should demonstrate a growth mindset.",
+          "title": "Behavioral interview questions",
+          "accessed": "2026-09-27",
+          "publisher": "Tech Interview Handbook"
+        }
+      ],
+      "materials": [
+        "tech-interview-handbook-behavioral",
+        "codewithmukesh-senior-questions"
+      ],
+      "explanation": "Interviewers test self-awareness and learning. A failure story that ends with a durable change in process shows senior maturity.",
+      "model_answer": {
+        "summary": "Pick a real failure with real stakes, and own your part without blaming others. Give the context briefly, then what you did wrong or missed, the impact, and how you fixed it. Spend the most time on the reflection: what you learned and the concrete change in how you or the team work.",
+        "key_points": [
+          "Choose a real failure with real consequences, not a humble-brag",
+          "Use STARR: keep the situation short, then your actions, the result (including the damage) and a reflection",
+          "Own your part directly; talk about contributing causes and system fixes rather than blaming individuals",
+          "Show the change you made afterwards and evidence it worked, demonstrating a growth mindset"
+        ]
+      }
+    },
+    {
+      "id": "w12-l04-q08",
+      "type": "written",
+      "lesson": "w12-l04",
+      "prompt": "After a full mock loop, your feedback says: coding was solid, the system design ran out of time before any deep dive, and behavioral answers lacked results. Turn this into a two-week improvement plan.",
+      "concept": "feedback-driven-interview-iteration",
+      "sources": [
+        {
+          "url": "https://www.techinterviewhandbook.org/mock-interviews/",
+          "claim": "Interviewing is a skill that you can get better at; mock interviews let you practise and get feedback, and mutual feedback helps both sides improve.",
+          "title": "Mock interviews for software engineers",
+          "accessed": "2026-09-27",
+          "publisher": "Tech Interview Handbook"
+        },
+        {
+          "url": "https://www.techinterviewhandbook.org/behavioral-interview-rubrics/",
+          "claim": "Behavioral rubrics score dimensions such as proactivity, handling ambiguity, conflict resolution, growth mindset and communication, and scope expectations rise with level.",
+          "title": "Behavioral interview rubrics",
+          "accessed": "2026-09-27",
+          "publisher": "Tech Interview Handbook"
+        }
+      ],
+      "materials": [
+        "tech-interview-handbook-behavioral",
+        "codewithmukesh-senior-questions"
+      ],
+      "explanation": "A senior candidate responds to feedback with a targeted, measurable plan rather than practising everything equally.",
+      "model_answer": {
+        "summary": "Treat interviewing as a skill to practise. Timebox the framework stages in timed design mocks, rewrite 3-5 stories in STARR form with quantified results, keep coding practice light to maintain it, and run more mocks with written feedback to check progress.",
+        "key_points": [
+          "Interviewing is a skill you can improve through practice; run repeated mocks and ask for concrete, mutual feedback",
+          "Design: rehearse the delivery framework with a timer (requirements about 5 minutes, high-level design 10-15, deep dives about 10) and only calculate what changes the design",
+          "Behavioral: prepare 3-5 high-impact stories and rewrite them with your own actions and quantified results, scored against a rubric",
+          "Coding: keep a smaller daily set of problems to stay sharp, since it was already solid",
+          "Re-run a full mock at the end and compare the feedback with the first one"
+        ]
+      }
+    }
+  ]
+}

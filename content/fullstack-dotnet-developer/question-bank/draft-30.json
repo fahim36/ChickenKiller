@@ -1,0 +1,1315 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "sql-clustered-and-filtered-index-design",
+      "name": "Clustered, filtered and partial index design"
+    },
+    {
+      "id": "sql-key-lookup-and-covering-index",
+      "name": "Key lookups in execution plans and covering indexes"
+    },
+    {
+      "id": "sql-isolation-levels-row-versioning",
+      "name": "Isolation levels, locking and row versioning (SQL Server vs PostgreSQL)"
+    },
+    {
+      "id": "sql-deadlock-victim-and-retry",
+      "name": "Deadlock victims and retry"
+    },
+    {
+      "id": "ef-change-tracking-and-no-tracking",
+      "name": "EF Core change tracking vs no-tracking"
+    },
+    {
+      "id": "ef-n-plus-one-and-cartesian-explosion",
+      "name": "N+1 queries, cartesian explosion and split queries"
+    },
+    {
+      "id": "ef-client-evaluation-and-query-filters",
+      "name": "Client evaluation limits and global query filters"
+    },
+    {
+      "id": "ef-raw-sql-and-compiled-queries",
+      "name": "Raw SQL safety and compiled query caching"
+    },
+    {
+      "id": "ef-optimistic-concurrency-tokens",
+      "name": "Optimistic concurrency tokens in EF Core"
+    },
+    {
+      "id": "ef-savechanges-transactions-savepoints",
+      "name": "SaveChanges atomicity, explicit transactions and savepoints"
+    },
+    {
+      "id": "ef-executeupdate-bypasses-tracker",
+      "name": "ExecuteUpdate/ExecuteDelete and the change tracker"
+    },
+    {
+      "id": "ef-migrations-production-deployment",
+      "name": "Applying EF Core migrations in production"
+    },
+    {
+      "id": "read-replica-lag-read-your-writes",
+      "name": "Read replicas, lag and read-your-own-writes"
+    },
+    {
+      "id": "cache-aside-invalidation-consistency",
+      "name": "Cache-aside invalidation and consistency"
+    },
+    {
+      "id": "multitenant-data-isolation-models",
+      "name": "Multitenant data isolation models"
+    },
+    {
+      "id": "document-vs-key-value-store-fit",
+      "name": "Choosing document, key-value or relational stores"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w04-l01-q01",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w04-l01",
+      "prompt": "A high-insert SQL Server table uses a `uniqueidentifier` primary key filled with `NEWID()` as its clustered index, and it has six nonclustered indexes. Which statement best explains why this is a poor clustered key?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Nonclustered indexes point at a physical row ID here, so the clustered key type has no effect on them at all; the only real cost is the 16 extra bytes stored in the base table itself."
+        },
+        {
+          "id": "b",
+          "text": "Every nonclustered index row stores the clustered key as its locator, widening all six indexes, and random inserts scatter across pages."
+        },
+        {
+          "id": "c",
+          "text": "A clustered key doesn't need to be unique; SQL Server handles duplicates with no extra storage, so uniqueness is irrelevant here."
+        },
+        {
+          "id": "d",
+          "text": "Random GUIDs are ideal clustered keys because spreading inserts across pages always improves throughput."
+        }
+      ],
+      "concept": "sql-clustered-and-filtered-index-design",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/sql/relational-databases/sql-server-index-design-guide",
+          "claim": "A nonclustered index's row locator is the clustered index key (or a RID for a heap); clustered keys should be narrow, unique, static and ever-increasing; a GUID is 16 bytes and isn't ever-increasing unless generated sequentially; non-unique keys get a 4-byte uniqueifier.",
+          "title": "Index Architecture and Design Guide - SQL Server",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "use-the-index-luke",
+        "postgresql-docs"
+      ],
+      "explanation": "On a table with a clustered index, each nonclustered index row carries the clustered key as its locator, so key width multiplies across indexes. The design guide recommends clustered keys that are narrow, unique, unchanging and ever-increasing; a random GUID is wide and not increasing unless generated sequentially. The RID answer only applies to heaps."
+    },
+    {
+      "id": "w04-l01-q02",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w04-l01",
+      "prompt": "In PostgreSQL you create `CREATE INDEX ix_open ON orders (created_at) WHERE status = 'open';`. The ORM sends `SELECT ... FROM orders WHERE status = $1 AND created_at > $2` as a generic prepared statement, and the plan never uses `ix_open`. Why?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Partial indexes are used only by `VACUUM` and never considered by ordinary queries."
+        },
+        {
+          "id": "b",
+          "text": "The `status` column would also need to be added to the index key itself, or the planner refuses to use it."
+        },
+        {
+          "id": "c",
+          "text": "`CLUSTER` must first be run on the partial index before the query planner is able to use it."
+        },
+        {
+          "id": "d",
+          "text": "The planner needs to prove `WHERE` implies the predicate; a parameter's value is unknown at plan time."
+        }
+      ],
+      "concept": "sql-clustered-and-filtered-index-design",
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/indexes-partial.html",
+          "claim": "A partial index can be used in a query only if the system can recognize that the query's WHERE condition mathematically implies the index predicate; parameterized conditions such as x < ? can't be matched.",
+          "title": "11.8. Partial Indexes",
+          "accessed": "2026-09-27",
+          "publisher": "PostgreSQL Global Development Group"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/sql/relational-databases/sql-server-index-design-guide",
+          "claim": "A filtered index is an optimized nonclustered index with a predicate; it is smaller, has more accurate statistics and lower maintenance cost, and supports only simple comparison operators.",
+          "title": "Index Architecture and Design Guide - SQL Server",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "use-the-index-luke",
+        "postgresql-docs"
+      ],
+      "explanation": "PostgreSQL uses a partial index only if the query's conditions provably imply the index predicate, and that proof happens at plan time. A parameterized comparison can't be proven to match, so generic plans skip it; write the literal condition (`status = 'open'`) in the query. SQL Server filtered indexes have a similar constraint: they support only simple comparison predicates."
+    },
+    {
+      "id": "w04-l01-q03",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w04-l01",
+      "prompt": "`SELECT OrderDate, Total FROM Orders WHERE CustomerId = @c` is slow for large customers. The plan shows an Index Seek on `IX_Orders_CustomerId` feeding a Key Lookup (Clustered) that executes 50,000 times. What is the most targeted fix?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Add `OrderDate` and `Total` as `INCLUDE` columns on `IX_Orders_CustomerId` to cover the query."
+        },
+        {
+          "id": "b",
+          "text": "Rebuild the clustered index to remove fragmentation, since key lookups are caused entirely by fragmentation."
+        },
+        {
+          "id": "c",
+          "text": "Put `OrderDate` and `Total` in as leading key columns before `CustomerId` in the index."
+        },
+        {
+          "id": "d",
+          "text": "Nothing: a key lookup is just a seek, so its cost stays negligible no matter the row count."
+        }
+      ],
+      "concept": "sql-key-lookup-and-covering-index",
+      "sources": [
+        {
+          "url": "https://use-the-index-luke.com/sql/explain-plan/sql-server/operations",
+          "claim": "Key Lookup (Clustered) and RID Lookup fetch rows from the table for each match found in a nonclustered index; this table access can dominate the cost.",
+          "title": "SQL Server Execution Plan Operations",
+          "accessed": "2026-09-27",
+          "publisher": "Use The Index, Luke (Markus Winand)"
+        },
+        {
+          "url": "https://use-the-index-luke.com/sql/clustering/index-only-scan-covering-index",
+          "claim": "An index-only scan avoids table access entirely when the index covers all needed columns; SQL Server and PostgreSQL 11+ support INCLUDE for non-key columns.",
+          "title": "Index-Only Scan: Avoiding Table Access",
+          "accessed": "2026-09-27",
+          "publisher": "Use The Index, Luke (Markus Winand)"
+        }
+      ],
+      "materials": [
+        "use-the-index-luke",
+        "postgresql-docs"
+      ],
+      "explanation": "A Key Lookup fetches each matching row from the clustered index to get columns the nonclustered index lacks, a per-row cost that grows with the number of rows. Keeping the searched column in the key and adding the other selected columns with `INCLUDE` makes a covering index and removes table access. Putting them first in the key would break the seek on `CustomerId`."
+    },
+    {
+      "id": "w04-l01-q04",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w04-l01",
+      "prompt": "A long reporting query is regularly blocked by writers on an on-premises SQL Server database, but the same app on Azure SQL Database rarely blocks. Both use the default isolation level. What best explains the difference?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Azure SQL Database defaults every session to READ UNCOMMITTED, so its reads simply ignore locks."
+        },
+        {
+          "id": "b",
+          "text": "Writers running in Azure SQL Database specifically never take exclusive locks on rows."
+        },
+        {
+          "id": "c",
+          "text": "`READ_COMMITTED_SNAPSHOT` is ON by default there, so reads use row versions, not shared locks."
+        },
+        {
+          "id": "d",
+          "text": "Azure SQL Database runs every single transaction under SERIALIZABLE, which prevents any blocking."
+        }
+      ],
+      "concept": "sql-isolation-levels-row-versioning",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/sql/t-sql/statements/set-transaction-isolation-level-transact-sql",
+          "claim": "READ COMMITTED is the default; READ_COMMITTED_SNAPSHOT is OFF by default in SQL Server and ON by default in Azure SQL Database, in which case row versioning gives each statement a consistent snapshot; writers always take exclusive locks.",
+          "title": "SET TRANSACTION ISOLATION LEVEL (Transact-SQL)",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "use-the-index-luke",
+        "postgresql-docs"
+      ],
+      "explanation": "Both default to READ COMMITTED, but with `READ_COMMITTED_SNAPSHOT` ON each statement reads a versioned snapshot and doesn't take shared locks that wait on writers. It is OFF by default in SQL Server and ON in Azure SQL Database. Writers still take exclusive locks at every isolation level, which rules out that answer."
+    },
+    {
+      "id": "w04-l01-q05",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w04-l01",
+      "prompt": "A service intermittently gets SQL Server error 1205 (\"chosen as the deadlock victim\"). What is the correct application-side handling?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Increase the command timeout; 1205 means the query waited too long."
+        },
+        {
+          "id": "b",
+          "text": "Retry only the single statement that failed, since the rest of the transaction is still open."
+        },
+        {
+          "id": "c",
+          "text": "Catch it and switch the connection to READ UNCOMMITTED for all future work."
+        },
+        {
+          "id": "d",
+          "text": "Treat the transaction as rolled back; catch 1205 and retry after a short randomized delay."
+        }
+      ],
+      "concept": "sql-deadlock-victim-and-retry",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/sql/relational-databases/sql-server-deadlocks-guide",
+          "claim": "The deadlock monitor chooses a victim (the least expensive to roll back unless DEADLOCK_PRIORITY is set), rolls back its transaction and returns error 1205; applications should catch 1205 and retry after a short randomized pause; access objects in the same order and keep transactions short and in one batch.",
+          "title": "Deadlocks Guide - SQL Server",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "use-the-index-luke",
+        "postgresql-docs"
+      ],
+      "explanation": "The deadlock monitor breaks a cycle by choosing a victim (the cheapest to roll back unless `DEADLOCK_PRIORITY` says otherwise), rolling back its transaction and raising 1205. The app should retry the whole transaction after a short randomized pause. Retrying only the statement is wrong because its transaction no longer exists."
+    },
+    {
+      "id": "w04-l01-q06",
+      "type": "written",
+      "lesson": "w04-l01",
+      "prompt": "An endpoint's query plan shows an Index Seek plus a Key Lookup executing 200,000 times. A teammate proposes adding every selected column to the index key \"to make it covering\". Explain what the plan is telling you, the right covering-index design, its trade-offs, and how the same idea applies in PostgreSQL.",
+      "concept": "sql-key-lookup-and-covering-index",
+      "sources": [
+        {
+          "url": "https://use-the-index-luke.com/sql/explain-plan/sql-server/operations",
+          "claim": "Index Seek traverses the B-tree; Key Lookup and RID Lookup access the table row by row for columns not in the index.",
+          "title": "SQL Server Execution Plan Operations",
+          "accessed": "2026-09-27",
+          "publisher": "Use The Index, Luke (Markus Winand)"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/sql/relational-databases/sql-server-index-design-guide",
+          "claim": "In a covering index, SARGable columns go in the key and other columns in INCLUDE; avoid covering indexes with too many columns because of storage and maintenance cost.",
+          "title": "Index Architecture and Design Guide - SQL Server",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "use-the-index-luke",
+        "postgresql-docs"
+      ],
+      "explanation": "Senior engineers read plans for row counts on lookups, not just operator names, and balance read speed against write cost instead of indexing everything.",
+      "model_answer": {
+        "summary": "The seek finds rows cheaply, but each match needs a lookup into the clustered index (or heap) for missing columns, and that per-row cost dominates. Cover the query by keeping searchable columns in the key and adding the rest with `INCLUDE`, while keeping indexes lean because every extra column costs writes and storage.",
+        "key_points": [
+          "Distinguishes seek from scan and explains that Key Lookup (or RID Lookup on a heap) is a hidden per-row trip back to the table.",
+          "Designs the index with the searched (SARGable) columns in the key and non-searched selected columns in `INCLUDE`, rather than all in the key.",
+          "Names the trade-off: wide covering indexes cost storage and slow inserts and updates, so avoid covering indexes with too many columns.",
+          "Notes that the benefit is fragile: adding a column to the select list or `WHERE` later can bring back the table access.",
+          "For PostgreSQL: index-only scans with `INCLUDE` (PostgreSQL 11+) give the same benefit."
+        ]
+      }
+    },
+    {
+      "id": "w04-l01-q07",
+      "type": "written",
+      "lesson": "w04-l01",
+      "prompt": "A transaction reads an account balance and then updates it based on what it read. Compare what can go wrong, and what the database does, under SQL Server's isolation levels (with and without row versioning) and PostgreSQL's isolation levels. What must the application be prepared to handle in each case?",
+      "concept": "sql-isolation-levels-row-versioning",
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/transaction-iso.html",
+          "claim": "Read Committed is the default; Repeatable Read sees a snapshot as of the first statement and prevents phantoms; concurrent updates raise 'could not serialize access due to concurrent update', and applications must retry the whole transaction; Serializable is implemented with SSI.",
+          "title": "13.2. Transaction Isolation",
+          "accessed": "2026-09-27",
+          "publisher": "PostgreSQL Global Development Group"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/sql/t-sql/statements/set-transaction-isolation-level-transact-sql",
+          "claim": "REPEATABLE READ holds shared locks until the end but allows phantoms; SNAPSHOT requires ALLOW_SNAPSHOT_ISOLATION and reads a transaction-level snapshot without locks; SERIALIZABLE uses range locks; writers always take exclusive locks.",
+          "title": "SET TRANSACTION ISOLATION LEVEL (Transact-SQL)",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "use-the-index-luke",
+        "postgresql-docs"
+      ],
+      "explanation": "The senior distinction is between pessimistic (blocking) and optimistic (fail and retry) behaviour for the same isolation name across engines. For example, PostgreSQL's Repeatable Read behaves like SQL Server SNAPSHOT, not like SQL Server REPEATABLE READ.",
+      "model_answer": {
+        "summary": "Under locking isolation, concurrent transactions block or deadlock; under snapshot-style isolation they proceed and the loser gets a serialization error. Either way the application needs a strategy (a higher isolation level, an optimistic token or an atomic update) and must retry the whole transaction on the documented errors.",
+        "key_points": [
+          "SQL Server: READ COMMITTED (default) with locking lets another writer change the row between read and update (lost update); REPEATABLE READ holds shared locks to the end but allows phantoms; SERIALIZABLE uses range locks.",
+          "SQL Server row versioning: `READ_COMMITTED_SNAPSHOT` gives statement-level snapshots; SNAPSHOT (requires `ALLOW_SNAPSHOT_ISOLATION`) gives a transaction-level snapshot without read locks, and conflicting updates fail instead of blocking.",
+          "PostgreSQL: Read Committed is the default (Read Uncommitted behaves like it); Repeatable Read uses a snapshot from the first statement and has no phantoms; concurrent updates fail with \"could not serialize access due to concurrent update\"; Serializable uses SSI.",
+          "States that the application must retry the entire transaction on serialization failures (and on deadlocks), not just the failed statement.",
+          "Notes that writers always take exclusive locks, so isolation choices mainly change how readers behave and how conflicts surface."
+        ]
+      }
+    },
+    {
+      "id": "w04-l01-q08",
+      "type": "written",
+      "lesson": "w04-l01",
+      "prompt": "Endpoint A updates `Orders` then `Inventory` in one transaction; endpoint B updates `Inventory` then `Orders`. Under load, production logs show error 1205. Explain the deadlock, how SQL Server resolves it, and what you would change in code and in the transaction design.",
+      "concept": "sql-deadlock-victim-and-retry",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/sql/relational-databases/sql-server-deadlocks-guide",
+          "claim": "Deadlocks occur when tasks permanently block each other; the monitor chooses a victim, the least expensive to roll back unless DEADLOCK_PRIORITY is set, and returns error 1205; minimize deadlocks by accessing objects in the same order and keeping transactions short and in one batch; applications should retry after a short randomized pause.",
+          "title": "Deadlocks Guide - SQL Server",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "use-the-index-luke",
+        "postgresql-docs"
+      ],
+      "explanation": "Seniors fix the cause (lock order and transaction length) and add a retry as the safety net. Adding only a retry, or only raising timeouts, is the weak answer.",
+      "model_answer": {
+        "summary": "A and B lock the same resources in opposite order and each waits for the other, forming a cycle. The deadlock monitor rolls back a victim, which gets 1205. Fix it with a consistent access order and short transactions, and handle 1205 with a randomized retry of the whole transaction.",
+        "key_points": [
+          "Explains the cycle: each transaction holds a lock the other needs, so neither can proceed.",
+          "Explains that the deadlock monitor detects the cycle and chooses a victim, by default the transaction least expensive to roll back unless `DEADLOCK_PRIORITY` is set, and rolls it back with error 1205.",
+          "Fixes the design by making both code paths access `Orders` and `Inventory` in the same order, and keeping transactions short and in one batch (no user interaction or remote calls inside).",
+          "Adds a retry around the whole unit of work that catches 1205 and retries after a short randomized delay, with a retry limit.",
+          "Mentions capturing the deadlock graph to confirm which resources and statements are involved before and after the fix."
+        ]
+      }
+    },
+    {
+      "id": "w04-l02-q01",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w04-l02",
+      "prompt": "In one `DbContext`, code loads blog 1 with a normal (tracking) query. Another process then updates that blog's `Title` in the database. The same context runs `context.Blogs.Single(b => b.Id == 1)` again. What does it return?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A brand new instance populated fully with the updated `Title` value from the database."
+        },
+        {
+          "id": "b",
+          "text": "It throws `DbUpdateConcurrencyException` immediately, because the underlying row changed."
+        },
+        {
+          "id": "c",
+          "text": "The already-tracked instance with the old `Title`: EF returns the tracked entity, not fresh values."
+        },
+        {
+          "id": "d",
+          "text": "The same tracked instance, but with its `Title` silently refreshed from the database."
+        }
+      ],
+      "concept": "ef-change-tracking-and-no-tracking",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/ef/core/querying/tracking",
+          "claim": "If the entity is already tracked, EF Core returns the same instance and doesn't overwrite current and original values with database values.",
+          "title": "Tracking vs. No-Tracking Queries - EF Core",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "efcore-performance",
+        "efcore-split-queries"
+      ],
+      "explanation": "With tracking queries, if an entity with the same key is already tracked, EF returns that instance and doesn't overwrite its values with the results. This identity resolution is why long-lived contexts serve stale data. Concurrency exceptions only arise on `SaveChanges`."
+    },
+    {
+      "id": "w04-l02-q02",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w04-l02",
+      "prompt": "`context.Blogs.Include(b => b.Posts).Include(b => b.Contributors).ToList()` returns far more rows from the database than there are posts plus contributors. What's happening, and what is the documented trade-off of the usual fix?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Cartesian explosion: two sibling collection includes in one JOIN multiply rows; `AsSplitQuery()` fixes it, with extra round trips."
+        },
+        {
+          "id": "b",
+          "text": "N+1 queries here: EF actually runs one separate query per blog loaded. `AsNoTracking()` removes those extra queries."
+        },
+        {
+          "id": "c",
+          "text": "The ThenInclude chain is duplicating rows here in this exact case. Switching to `ThenInclude` for `Contributors` fixes it at zero cost."
+        },
+        {
+          "id": "d",
+          "text": "EF is simply buffering all the results in memory here. `AsAsyncEnumerable()` fixes it by streaming instead."
+        }
+      ],
+      "concept": "ef-n-plus-one-and-cartesian-explosion",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/ef/core/querying/single-split-queries",
+          "claim": "Loading two sibling collection navigations in one query causes cartesian explosion; split queries avoid it but data may change between queries unless a serializable or snapshot transaction is used, and each query is an extra round trip.",
+          "title": "Single vs. Split Queries - EF Core",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "efcore-performance",
+        "efcore-split-queries"
+      ],
+      "explanation": "Including two sibling collections in a single query multiplies rows (for example, 10 posts times 10 contributors gives 100 rows per blog). This doesn't happen for a single ThenInclude chain. Split queries avoid it but cost extra round trips and can see data change between the queries."
+    },
+    {
+      "id": "w04-l02-q03",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w04-l02",
+      "prompt": "EF Core 8 runs `context.Blogs.Where(b => StandardizeUrl(b.Url).Contains(\"dotnet\")).ToList()`, where `StandardizeUrl` is a normal C# method. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "EF silently downloads the entire table here and filters everything in memory afterward."
+        },
+        {
+          "id": "b",
+          "text": "The code fails to compile entirely, because LINQ to Entities flatly rejects custom methods."
+        },
+        {
+          "id": "c",
+          "text": "EF translates `StandardizeUrl` directly to SQL by decompiling the method body at runtime."
+        },
+        {
+          "id": "d",
+          "text": "It throws at runtime: client evaluation is allowed only in the top-level projection."
+        }
+      ],
+      "concept": "ef-client-evaluation-and-query-filters",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/ef/core/querying/client-eval",
+          "claim": "Client evaluation is supported only in the top-level projection; if an expression elsewhere can't be translated, EF Core throws a runtime exception; use AsEnumerable or AsAsyncEnumerable to explicitly evaluate on the client.",
+          "title": "Client vs. Server Evaluation - EF Core",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "efcore-performance",
+        "efcore-split-queries"
+      ],
+      "explanation": "Since EF Core 3.0, EF only evaluates on the client in the final projection; an untranslatable expression anywhere else throws a runtime exception. Silent in-memory filtering was old EF Core 2.x behaviour. If client-side filtering is acceptable, make it explicit with `AsEnumerable` or `AsAsyncEnumerable`."
+    },
+    {
+      "id": "w04-l02-q04",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w04-l02",
+      "prompt": "`Blog` has a global query filter `HasQueryFilter(b => !b.IsDeleted)`. `Post` has a required navigation to `Blog`. A query `context.Posts.Include(p => p.Blog).ToList()` unexpectedly drops every post whose blog is soft-deleted. Why?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Global query filters are applied to every entity type in the model automatically."
+        },
+        {
+          "id": "b",
+          "text": "Because the navigation is required, EF uses an INNER JOIN, and the blog filter removes those joined rows."
+        },
+        {
+          "id": "c",
+          "text": "`Include` always ignores query filters, so the posts must have been deleted too."
+        },
+        {
+          "id": "d",
+          "text": "Query filters can only ever be defined on the root of an inheritance hierarchy, so the filter simply misfires."
+        }
+      ],
+      "concept": "ef-client-evaluation-and-query-filters",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/ef/core/querying/filters",
+          "claim": "Using required navigation with global query filters can cause unexpected results: the INNER JOIN filters out dependents whose principal is filtered; make the navigation optional or add matching filters. Filters can only be defined on the root entity of an inheritance hierarchy.",
+          "title": "Global Query Filters - EF Core",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "efcore-performance",
+        "efcore-split-queries"
+      ],
+      "explanation": "With a required navigation EF uses an INNER JOIN, so filtering out the principal also filters out its dependents. The docs recommend making the navigation optional or defining consistent filters on both sides. The inheritance-root rule is real but unrelated to this case."
+    },
+    {
+      "id": "w04-l02-q05",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w04-l02",
+      "prompt": "Which of these EF Core calls is vulnerable to SQL injection when `name` comes from the user?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`context.Blogs.FromSql($\"SELECT * FROM Blogs WHERE Name = {name}\")`"
+        },
+        {
+          "id": "b",
+          "text": "`context.Blogs.FromSqlInterpolated($\"SELECT * FROM Blogs WHERE Name = {name}\")`"
+        },
+        {
+          "id": "c",
+          "text": "`context.Blogs.FromSqlRaw($\"SELECT * FROM Blogs WHERE Name = '{name}'\")`"
+        },
+        {
+          "id": "d",
+          "text": "`context.Blogs.FromSqlRaw(\"SELECT * FROM Blogs WHERE Name = @name\", new SqlParameter(\"@name\", name))`"
+        }
+      ],
+      "concept": "ef-raw-sql-and-compiled-queries",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/ef/core/querying/sql-queries",
+          "claim": "FromSql and FromSqlInterpolated are safe against SQL injection because interpolated values are converted to DbParameters; FromSqlRaw with a concatenated or interpolated string is vulnerable; parameters can be passed explicitly as DbParameter.",
+          "title": "SQL Queries - EF Core",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "efcore-performance",
+        "efcore-split-queries"
+      ],
+      "explanation": "`FromSql` and `FromSqlInterpolated` turn interpolated holes into `DbParameter`s. Passing an interpolated string to `FromSqlRaw` builds a plain string first, so the user value is concatenated into the SQL. `FromSqlRaw` with an explicit `DbParameter` is safe. The trap is that choices a and c look almost identical."
+    },
+    {
+      "id": "w04-l02-q06",
+      "type": "written",
+      "lesson": "w04-l02",
+      "prompt": "A read-only endpoint returns 5,000 products with their category names, and profiling shows most CPU and memory going to EF Core's change tracker. Explain the options for reducing the tracking cost, what each one changes semantically, and how you would choose.",
+      "concept": "ef-change-tracking-and-no-tracking",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/ef/core/querying/tracking",
+          "claim": "No-tracking queries are quicker because change tracking info isn't set up; they don't do identity resolution, so duplicate instances can appear; AsNoTrackingWithIdentityResolution uses a stand-alone change tracker; entity types in anonymous projections are tracked, scalar projections aren't.",
+          "title": "Tracking vs. No-Tracking Queries - EF Core",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/ef/core/performance/efficient-querying",
+          "claim": "Project only the properties you need; use AsNoTracking for read-only queries; ToList buffers results while AsAsyncEnumerable streams them.",
+          "title": "Efficient Querying - EF Core",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "efcore-performance",
+        "efcore-split-queries"
+      ],
+      "explanation": "The senior answer knows the semantic cost of no-tracking (identity resolution) and prefers projections over loading whole entities, rather than just saying 'add AsNoTracking'.",
+      "model_answer": {
+        "summary": "Read-only queries don't need tracking. Use no-tracking queries or projections, but understand that no-tracking drops identity resolution (duplicate instances for shared related rows) unless you use `AsNoTrackingWithIdentityResolution`, and prefer projecting only the needed columns.",
+        "key_points": [
+          "Explains that queries track by default and that no-tracking queries are faster because they skip change-tracker setup (the docs' benchmark shows a large speedup).",
+          "Explains that `AsNoTracking` does no identity resolution, so the same category appears as separate instances; `AsNoTrackingWithIdentityResolution` restores it with a stand-alone tracker.",
+          "Recommends projecting with `Select` to only the fields needed; projections of scalar values aren't tracked, but entity instances inside an anonymous projection still are.",
+          "Mentions setting the default with `UseQueryTrackingBehavior` for read-heavy contexts and opting into tracking only where updates happen.",
+          "Mentions streaming with `AsAsyncEnumerable` instead of buffering large results with `ToList` when the consumer can process rows incrementally."
+        ]
+      }
+    },
+    {
+      "id": "w04-l02-q07",
+      "type": "written",
+      "lesson": "w04-l02",
+      "prompt": "A page lists 50 blogs and, for each, shows its posts and tags. With lazy loading enabled it issues about 101 queries. A teammate \"fixes\" it with `.Include(b => b.Posts).Include(b => b.Tags)`, and now one query returns hundreds of thousands of rows. Explain both problems and design a proper loading strategy, with its trade-offs.",
+      "concept": "ef-n-plus-one-and-cartesian-explosion",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/ef/core/performance/efficient-querying",
+          "claim": "Lazy loading can cause N+1 problems, where a separate query runs for each related entity; eager loading or projection avoids this.",
+          "title": "Efficient Querying - EF Core",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/ef/core/querying/single-split-queries",
+          "claim": "Sibling collection includes cause cartesian explosion; AsSplitQuery and UseQuerySplittingBehavior split queries; drawbacks are consistency, extra round trips, buffering without MARS and repeated joins; EF warns when multiple collections are loaded without a configured splitting behavior.",
+          "title": "Single vs. Split Queries - EF Core",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "efcore-performance",
+        "efcore-split-queries"
+      ],
+      "explanation": "Seniors can name both failure modes and choose deliberately between single and split queries. They know split queries trade consistency and round trips for fewer rows.",
+      "model_answer": {
+        "summary": "Lazy loading produces N+1 round trips. Eager loading two sibling collections in one query produces a cartesian explosion. Use projection or split queries, and understand what split queries give up.",
+        "key_points": [
+          "Explains N+1: lazy loading triggers a query per navigation access in the loop, and the docs recommend avoiding it for this reason.",
+          "Explains the cartesian explosion from sibling collection includes in a single JOIN (rows multiply per blog), which doesn't happen for a ThenInclude chain.",
+          "Proposes `AsSplitQuery()` (or `UseQuerySplittingBehavior` as a default) and/or projecting only the needed fields with `Select`; notes EF warns when a query loads multiple collections without a splitting behaviour configured.",
+          "Names split-query trade-offs: no consistency across queries unless in a serializable or snapshot transaction, extra round trips, buffering unless MARS is enabled, and reference-navigation joins repeated in each query.",
+          "Mentions that paging with `Skip`/`Take` plus split queries needs a fully unique ordering (before EF 10) to avoid wrong results."
+        ]
+      }
+    },
+    {
+      "id": "w04-l02-q08",
+      "type": "written",
+      "lesson": "w04-l02",
+      "prompt": "A search endpoint builds LINQ queries dynamically with `Expression.Constant(userValue)`. The database's plan cache is bloated and EF spends noticeable time compiling queries. The team debates hand-written SQL. Explain the root cause, the EF-native fixes, and when (and how safely) to drop to raw SQL.",
+      "concept": "ef-raw-sql-and-compiled-queries",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/ef/core/performance/advanced-performance-topics",
+          "claim": "EF caches compiled queries keyed by expression-tree shape; constants cause recompilation and database plan-cache pollution while variables are parameterized; dynamic queries built with Expression.Constant make every call a new query; EF.CompileAsyncQuery bypasses the cache lookup.",
+          "title": "Advanced Performance Topics - EF Core",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/ef/core/querying/sql-queries",
+          "claim": "Composing LINQ over FromSql treats the SQL as a subquery that must be composable; column names can't be parameterized; SqlQuery<T> returns scalar and unmapped types.",
+          "title": "SQL Queries - EF Core",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "efcore-performance",
+        "efcore-split-queries"
+      ],
+      "explanation": "The senior insight is recognizing constants in the expression tree as the cause, and knowing raw SQL is parameterized and composed under specific rules rather than being a free escape hatch.",
+      "model_answer": {
+        "summary": "EF caches compiled queries by expression-tree shape, and constants become part of the shape and the SQL text, so every distinct value causes a new compile and a new plan. Parameterize (captured variables), consider compiled queries for hot paths, and use raw SQL only through parameterized, composable APIs.",
+        "key_points": [
+          "Explains that EF caches query compilation by expression-tree shape; constants embedded in the tree cause recompilation and pollute the database plan cache, while captured variables become parameters.",
+          "Fixes dynamic expression building by using parameters instead of `Expression.Constant` (for example, closing over a variable).",
+          "Mentions `EF.CompileAsyncQuery` for hot queries to bypass the cache lookup, with limits: a single model and scalar parameters.",
+          "For raw SQL: use `FromSql` / `FromSqlInterpolated` or explicit `DbParameter`s, never concatenation; identifiers such as column names can't be parameterized, so whitelist them.",
+          "Knows the composition rules: LINQ over `FromSql` treats the SQL as a subquery, so it must be composable (no trailing semicolon, no composing over a stored procedure); `SqlQuery<T>` returns scalar or unmapped types; raw SQL is a last resort."
+        ]
+      }
+    },
+    {
+      "id": "w04-l03-q01",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w04-l03",
+      "prompt": "`Person` has `[Timestamp] public byte[] Version { get; set; }` on SQL Server. Users A and B load the same person. A saves a change first. B then changes `FirstName` and calls `SaveChangesAsync()`. What happens to B's save?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "B's change silently and completely overwrites A's (last writer wins), because tokens are only checked on deletes."
+        },
+        {
+          "id": "b",
+          "text": "EF's UPDATE includes the original `Version`; it affects 0 rows since A changed it, so EF throws."
+        },
+        {
+          "id": "c",
+          "text": "SQL Server blocks B until A's transaction commits, then applies B's change."
+        },
+        {
+          "id": "d",
+          "text": "EF throws `DbUpdateException` for a unique constraint violation on `Version`."
+        }
+      ],
+      "concept": "ef-optimistic-concurrency-tokens",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/ef/core/saving/concurrency",
+          "claim": "EF adds the concurrency token to the WHERE clause; if a concurrent update occurred, zero rows are affected and SaveChanges throws DbUpdateConcurrencyException; [Timestamp] maps to a SQL Server rowversion that changes automatically on every update.",
+          "title": "Handling Concurrency Conflicts - EF Core",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "efcore-concurrency"
+      ],
+      "explanation": "A concurrency token is added to the `WHERE` clause of `UPDATE` and `DELETE`. `rowversion` changes automatically on every update, so B's original token no longer matches, zero rows are affected, and EF raises `DbUpdateConcurrencyException`. No locks are taken; that's what makes it optimistic."
+    },
+    {
+      "id": "w04-l03-q02",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w04-l03",
+      "prompt": "Code calls `BeginTransactionAsync()`, saves some changes, and then a second `SaveChangesAsync()` fails with `DbUpdateConcurrencyException`. SQL Server MARS is not enabled. What state is the transaction in?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It has been rolled back entirely, so the first save is lost and the transaction can't be used."
+        },
+        {
+          "id": "b",
+          "text": "It has committed the first save automatically and closed."
+        },
+        {
+          "id": "c",
+          "text": "EF created a savepoint before the second save and rolled back to it, so you can fix the conflict and retry."
+        },
+        {
+          "id": "d",
+          "text": "It's in an unknown state; EF never uses savepoints."
+        }
+      ],
+      "concept": "ef-savechanges-transactions-savepoints",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/ef/core/saving/transactions",
+          "claim": "When SaveChanges is invoked and a transaction is already in progress, EF automatically creates a savepoint and rolls back to it on error, e.g. for optimistic concurrency retries; savepoints aren't created when MARS is enabled.",
+          "title": "Transactions - EF Core",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "efcore-concurrency"
+      ],
+      "explanation": "When `SaveChanges` runs inside an existing transaction, EF creates a savepoint first and rolls back to it on error, which makes resolving conflicts and retrying possible. Savepoints aren't created when MARS is enabled; that is the case where the transaction can be left in an unknown state, so the last choice describes the MARS exception, not the general rule."
+    },
+    {
+      "id": "w04-l03-q03",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w04-l03",
+      "prompt": "A blog with `Rating = 5` is loaded with a tracking query. Then `await context.Blogs.ExecuteUpdateAsync(s => s.SetProperty(b => b.Rating, b => b.Rating + 1));` runs, then `blog.Rating += 2;` and `await context.SaveChangesAsync();`. What is the blog's rating in the database afterwards?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "7: `ExecuteUpdate` bypasses the tracker, which still thinks the original was 5, so `SaveChanges` writes 7."
+        },
+        {
+          "id": "b",
+          "text": "8, because EF carefully applies both of these separate changes in the correct order."
+        },
+        {
+          "id": "c",
+          "text": "6, because `SaveChanges` automatically detects the bulk update and skips the tracked change."
+        },
+        {
+          "id": "d",
+          "text": "EF throws an exception here, because mixing `ExecuteUpdate` together with tracked changes is explicitly detected."
+        }
+      ],
+      "concept": "ef-executeupdate-bypasses-tracker",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/ef/core/saving/execute-insert-update-delete",
+          "claim": "ExecuteUpdate and ExecuteDelete have no interaction with the change tracker; in the documented example the tracked rating stays at its original value and SaveChanges overwrites the ExecuteUpdate change, so avoid mixing both styles.",
+          "title": "ExecuteUpdate and ExecuteDelete - EF Core",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "efcore-10-whats-new",
+        "efcore-performance"
+      ],
+      "explanation": "`ExecuteUpdate` runs immediately in the database and doesn't touch the change tracker. The tracked instance keeps `Rating = 5` as its original value, becomes 7 in memory, and `SaveChanges` persists 7, silently discarding the +1. The docs advise not to mix the two styles."
+    },
+    {
+      "id": "w04-l03-q04",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w04-l03",
+      "prompt": "A cleanup job calls `ExecuteUpdateAsync` to archive orders and then `ExecuteDeleteAsync` to remove their lines. The second call fails with a timeout. Which statement is correct?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Both are rolled back, because EF wraps consecutive `Execute*` calls in one implicit transaction."
+        },
+        {
+          "id": "b",
+          "text": "Neither ran, because `Execute*` calls are batched and sent at the next `SaveChanges`."
+        },
+        {
+          "id": "c",
+          "text": "The archive is rolled back too, because EF automatically compares concurrency tokens for every `Execute*` call made."
+        },
+        {
+          "id": "d",
+          "text": "The archive update stays committed: each `Execute*` runs in its own statement with no implicit transaction."
+        }
+      ],
+      "concept": "ef-executeupdate-bypasses-tracker",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/ef/core/saving/execute-insert-update-delete",
+          "claim": "ExecuteUpdate/ExecuteDelete don't implicitly start a transaction; each call is its own roundtrip and can't be batched; they can't apply concurrency control automatically but return rows affected, which can be used to implement it.",
+          "title": "ExecuteUpdate and ExecuteDelete - EF Core",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "efcore-10-whats-new",
+        "efcore-performance"
+      ],
+      "explanation": "`ExecuteUpdate` and `ExecuteDelete` run immediately, one round trip each, aren't batched, don't start an implicit transaction and don't apply concurrency tokens. They do return the number of rows affected, which you can use to detect a concurrent change."
+    },
+    {
+      "id": "w04-l03-q05",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w04-l03",
+      "prompt": "An EF Core 9 app runs as 10 Kubernetes replicas, and each replica calls `context.Database.MigrateAsync()` at startup. Which statement is correct?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Runtime migration is the recommended production approach, because every replica needs the latest schema."
+        },
+        {
+          "id": "b",
+          "text": "EF Core 9+ takes a database-wide migration lock, but guidance still prefers a one-shot deployment job instead."
+        },
+        {
+          "id": "c",
+          "text": "SQL scripts generated with `dotnet ef migrations script` also fully acquire the EF migration lock whenever applied."
+        },
+        {
+          "id": "d",
+          "text": "Wrapping `MigrateAsync()` in an explicit transaction is the supported way to make runtime migration safe."
+        }
+      ],
+      "concept": "ef-migrations-production-deployment",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/ef/core/managing-schemas/migrations/applying",
+          "claim": "EF Core 9 and later protect migration execution with a database-wide lock; a separate deployment step is preferred for review, least privilege and high availability; use a bundle as a one-shot deployment job; SQL scripts aren't affected by migration locking; wrapping MigrateAsync in an explicit transaction isn't supported.",
+          "title": "Applying Migrations - EF Core",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "efcore-10-whats-new"
+      ],
+      "explanation": "Since EF Core 9, `Migrate`/`MigrateAsync`, the CLI tools and bundles acquire a database-wide lock. Runtime migration still needs the app identity to have schema permissions and gives no review step, so the guidance is a bundle run once as a job, or a SQL script where review is needed. SQL scripts don't use the EF lock, and wrapping `MigrateAsync` in an explicit transaction isn't supported."
+    },
+    {
+      "id": "w04-l03-q06",
+      "type": "written",
+      "lesson": "w04-l03",
+      "prompt": "Design optimistic concurrency for an \"edit product\" HTTP API backed by EF Core. It must work on SQL Server and on a database with no auto-updating row version. Cover how the token is generated, how EF detects conflicts, how you resolve them, and how the token travels over HTTP.",
+      "concept": "ef-optimistic-concurrency-tokens",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/ef/core/saving/concurrency",
+          "claim": "Native rowversion tokens change automatically; application-managed tokens such as a Guid with [ConcurrencyCheck] must be assigned on every save and give control over when conflicts occur; resolve conflicts with current, original and database values and refresh original values before retrying.",
+          "title": "Handling Concurrency Conflicts - EF Core",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc9110.html",
+          "claim": "A server responds 412 Precondition Failed when a condition such as If-Match evaluates to false.",
+          "title": "RFC 9110: HTTP Semantics",
+          "accessed": "2026-09-27",
+          "publisher": "RFC Editor (IETF)"
+        }
+      ],
+      "materials": [
+        "efcore-concurrency"
+      ],
+      "explanation": "Seniors connect the database token, EF's detection and resolution loop, and the HTTP contract into one end-to-end design rather than stopping at `[Timestamp]`.",
+      "model_answer": {
+        "summary": "Use a concurrency token: a SQL Server `rowversion` via `[Timestamp]`/`IsRowVersion`, or an application-managed token such as a GUID marked `[ConcurrencyCheck]` and regenerated on each save. EF adds it to `UPDATE`/`DELETE` `WHERE` clauses and throws `DbUpdateConcurrencyException` when no row matches. Expose it as an ETag and use `If-Match` so stale clients get 412.",
+        "key_points": [
+          "SQL Server: `[Timestamp]` or `IsRowVersion()` maps to `rowversion`, which the database changes on every update and which protects the whole row.",
+          "Other databases: an application-managed token (`[ConcurrencyCheck]` or `IsConcurrencyToken()` on a `Guid`) that the app sets on every save, which also lets you control which property changes count as conflicts.",
+          "Detection: EF includes the original token in the `WHERE` clause; zero affected rows makes `SaveChanges` throw `DbUpdateConcurrencyException`, for deletes as well as updates.",
+          "Resolution: use current, original and database values (`GetDatabaseValuesAsync`), merge or report to the user, refresh `OriginalValues` and retry; or reload and ask the user to reapply.",
+          "HTTP: return the token as an `ETag`, require `If-Match` on updates, and answer 412 Precondition Failed when it doesn't match."
+        ]
+      }
+    },
+    {
+      "id": "w04-l03-q07",
+      "type": "written",
+      "lesson": "w04-l03",
+      "prompt": "A checkout flow calls `SaveChangesAsync()` to create the order, then `ExecuteDeleteAsync()` to clear the cart, then `SaveChangesAsync()` again to record a payment. The context uses a retrying execution strategy. A failure in the last step leaves an order with no payment and an empty cart. Explain the atomicity you actually had and how to make the flow atomic.",
+      "concept": "ef-savechanges-transactions-savepoints",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/ef/core/saving/transactions",
+          "claim": "By default all changes in a single SaveChanges call are applied in a transaction; BeginTransaction spans multiple operations; manually controlled transactions are incompatible with implicitly invoked retrying execution strategies; AutoTransactionBehavior.Never can leave partial changes; TransactionScope needs TransactionScopeAsyncFlowOption.Enabled for async.",
+          "title": "Transactions - EF Core",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/ef/core/saving/execute-insert-update-delete",
+          "claim": "ExecuteUpdate and ExecuteDelete don't implicitly start a transaction; each executes within its own transaction unless an explicit transaction is started.",
+          "title": "ExecuteUpdate and ExecuteDelete - EF Core",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "efcore-concurrency",
+        "efcore-performance"
+      ],
+      "explanation": "The senior answer knows the atomicity boundary of each API and the interaction between explicit transactions and retrying strategies, which is where many 'we wrapped it in a transaction' fixes still break.",
+      "model_answer": {
+        "summary": "Each `SaveChanges` is atomic on its own, and `ExecuteDelete` runs in its own implicit statement transaction, so three separate commits happened. Wrap the unit of work in one explicit transaction, and because a retrying strategy is on, run that transaction as a single retriable unit rather than relying on the implicit strategy.",
+        "key_points": [
+          "States that a single `SaveChanges` applies all its changes in one transaction by default (all or nothing), but separate calls are separate transactions.",
+          "States that `ExecuteUpdate`/`ExecuteDelete` don't start an implicit transaction and take effect immediately, so they commit on their own.",
+          "Fixes by wrapping all three in `BeginTransactionAsync()` ... `CommitAsync()`, with savepoints allowing a failed `SaveChanges` to be rolled back and retried inside it.",
+          "Notes that manually controlled transactions are incompatible with implicitly invoked retrying execution strategies, so the whole transactional block must be executed as one retriable unit through the execution strategy.",
+          "Mentions the pitfalls: `AutoTransactionBehavior.Never` can leave partial changes, and `TransactionScope` needs `TransactionScopeAsyncFlowOption.Enabled` with async code."
+        ]
+      }
+    },
+    {
+      "id": "w04-l03-q08",
+      "type": "written",
+      "lesson": "w04-l03",
+      "prompt": "You must rename column `Customers.FullName` to `DisplayName` on a large production table with zero downtime, while old and new app versions run side by side during a rolling deploy. Describe how you'd author, review and deploy the EF Core migrations, and how you'd sequence the schema and code changes.",
+      "concept": "ef-migrations-production-deployment",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/ef/core/managing-schemas/migrations/applying",
+          "claim": "Always inspect generated migrations; a migration may drop a column when the intent was to rename it; use a bundle for automated deployment or an (idempotent) SQL script when review is needed; use a separate deployment identity; rollbacks can lose data; check pending model changes in CI.",
+          "title": "Applying Migrations - EF Core",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/guide/multitenant/approaches/storage-data",
+          "claim": "Avoid depending on a single schema version: keep the application backwards-compatible with at least one previous schema version and sequence destructive schema changes across multiple versions to support rollbacks.",
+          "title": "Architectural Approaches for Storage and Data in Multitenant Solutions",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "efcore-10-whats-new"
+      ],
+      "explanation": "Seniors treat schema changes as a multi-release protocol with compatibility at every step, not as a single migration file applied on startup.",
+      "model_answer": {
+        "summary": "Use an expand/contract sequence: add the new column, deploy code that works with both schemas and backfill, switch reads, and only later drop the old column. Review generated migrations (a rename can come out as drop plus add), ship them as a bundle or reviewed idempotent script run once by a privileged deployment job, and keep every app version compatible with the previous schema.",
+        "key_points": [
+          "Inspects the generated migration, because EF may emit a drop and add instead of a rename, which loses data; tests migrations before production.",
+          "Sequences expand/contract: add `DisplayName`, deploy code that writes both (or reads the new with a fallback) and backfill, then remove `FullName` in a later release, so each app version is backwards-compatible with the previous schema and destructive changes are spread across releases.",
+          "Deploys with a migration bundle built in CI and run once as a one-shot job (not from every replica), or an idempotent SQL script when a DBA must review it.",
+          "Uses a separate deployment identity with schema permissions; the app's runtime identity keeps only data permissions; supplies connection strings from a secret store.",
+          "Mentions rollback risk (`Down` migrations can lose data) and checking `dotnet ef migrations has-pending-model-changes` in CI."
+        ]
+      }
+    },
+    {
+      "id": "w04-l04-q01",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w04-l04",
+      "prompt": "An app on Azure SQL Database (Business Critical) sends writes on the primary connection and reads on a second connection with `ApplicationIntent=ReadOnly`. A user updates their profile and the next page, read from the replica, shows the old values. What's going on?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The read-only replica runs READ UNCOMMITTED, so it shows old row versions."
+        },
+        {
+          "id": "b",
+          "text": "`ApplicationIntent=ReadOnly` routes each and every statement to a random replica, so the user simply hit a stale one by chance."
+        },
+        {
+          "id": "c",
+          "text": "Replica reads are async relative to the primary, with no fixed latency bound, so route read-your-writes to primary."
+        },
+        {
+          "id": "d",
+          "text": "Replicas are refreshed from backups nightly, so they're always up to a day behind."
+        }
+      ],
+      "concept": "read-replica-lag-read-your-writes",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/azure-sql/database/read-scale-out",
+          "claim": "Reads from a read-only replica are asynchronous with respect to the primary; data changed on the primary may not be immediately visible on a read-only session; latency ranges from tens of milliseconds to single-digit seconds with no fixed upper bound; apps needing committed data to be readable immediately should use the primary; replica transactions use snapshot isolation.",
+          "title": "Read Queries on Replicas - Azure SQL Database & Azure SQL Managed Instance",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "ddia",
+        "azure-architecture-styles"
+      ],
+      "explanation": "Changes are replicated, but reads from a read-only replica are always asynchronous relative to the primary, and latency varies with no upper bound. Read-your-own-writes therefore needs routing to the primary (at least for that user, right after a write). Transactions on replicas actually use snapshot isolation, not READ UNCOMMITTED."
+    },
+    {
+      "id": "w04-l04-q02",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w04-l04",
+      "prompt": "With the cache-aside pattern, an update handler does `await cache.KeyDeleteAsync(key); await db.UpdateAsync(entity);`. Occasionally the cache holds the old value for its whole TTL. Why?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Removing the key first opens a window where a concurrent reader misses and re-caches the not-yet-updated row."
+        },
+        {
+          "id": "b",
+          "text": "Redis `KeyDeleteAsync` is asynchronous and sometimes never completes."
+        },
+        {
+          "id": "c",
+          "text": "Cache-aside requires write-through; you must write the new value into the cache before the database."
+        },
+        {
+          "id": "d",
+          "text": "The TTL resets on delete, so the key can't be repopulated until it expires."
+        }
+      ],
+      "concept": "cache-aside-invalidation-consistency",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/cache-aside",
+          "claim": "Update the data store before removing the item from the cache; if you remove the cached item first, a client might fetch the item before the store is updated, miss, and add the outdated item back to the cache.",
+          "title": "Cache-Aside Pattern",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "azure-cloud-design-patterns",
+        "ddia"
+      ],
+      "explanation": "Order matters: delete the cache entry after updating the data store. Deleting first allows a read in between to repopulate the cache with stale data, which then lives until expiry. Write-through is a different pattern with different trade-offs, not a requirement of cache-aside."
+    },
+    {
+      "id": "w04-l04-q03",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w04-l04",
+      "prompt": "Four API instances each keep an in-memory cache of product prices loaded with cache-aside. After a price change, some instances return the new price and others the old one for several minutes. Which statement is correct?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Cache-aside guarantees consistency between the cache and the store, so this must be a bug in the loader."
+        },
+        {
+          "id": "b",
+          "text": "Private per-instance caches are the recommended way to share data consistently across instances."
+        },
+        {
+          "id": "c",
+          "text": "Increasing the expiration period will make the instances converge faster."
+        },
+        {
+          "id": "d",
+          "text": "Cache-aside doesn't guarantee consistency; private caches drift apart, so expire sooner or use a shared cache."
+        }
+      ],
+      "concept": "cache-aside-invalidation-consistency",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/cache-aside",
+          "claim": "Cache-aside doesn't guarantee consistency between the store and the cache; local private caches on different instances can quickly become inconsistent, so expire them more frequently or use a shared or distributed cache.",
+          "title": "Cache-Aside Pattern",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "azure-cloud-design-patterns",
+        "ddia"
+      ],
+      "explanation": "The pattern itself doesn't guarantee consistency, and a local in-memory cache is private to each instance, so copies drift. The guidance is to refresh private caches more often or move to a shared cache. A longer expiration makes staleness worse, not better."
+    },
+    {
+      "id": "w04-l04-q04",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w04-l04",
+      "prompt": "You are designing storage for a multitenant SaaS app on a relational database. Which approach does the Azure Architecture Center call an antipattern?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A single set of shared tables with a tenant identifier column."
+        },
+        {
+          "id": "b",
+          "text": "Separate tables for each tenant inside one shared database."
+        },
+        {
+          "id": "c",
+          "text": "A dedicated database per tenant, with costs shared through elastic pools."
+        },
+        {
+          "id": "d",
+          "text": "Sharding tenants across several databases using a shard map."
+        }
+      ],
+      "concept": "multitenant-data-isolation-models",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/guide/multitenant/approaches/storage-data",
+          "claim": "Avoid table-based isolation: don't create individual tables for each tenant in a single database; instead use a single set of multitenant tables with a tenant identifier column, or separate databases per tenant.",
+          "title": "Architectural Approaches for Storage and Data in Multitenant Solutions",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "ddia",
+        "azure-architecture-styles"
+      ],
+      "explanation": "Table-based isolation (per-tenant tables in one database) doesn't scale to many tenants and makes querying, management and updates hard. The recommended options are shared multitenant tables with a tenant ID, or dedicated or sharded databases. Each of the other three choices is a documented pattern with trade-offs."
+    },
+    {
+      "id": "w04-l04-q05",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w04-l04",
+      "prompt": "A product catalog is stored in a key-value store keyed by SKU. The business now needs to filter products by brand and price range and to update individual attributes frequently. What is the best assessment?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Key-value stores are ideal here; they support rich secondary queries on fields inside the value."
+        },
+        {
+          "id": "b",
+          "text": "Move to a graph database, because filtering by attribute is a relationship traversal."
+        },
+        {
+          "id": "c",
+          "text": "Key-value stores mostly support lookup by key, and changing part of a value overwrites the whole value; a document store fits attribute filtering better."
+        },
+        {
+          "id": "d",
+          "text": "Keep the key-value store and add more keys, since key-value stores have linear scalability that removes any need for queries."
+        }
+      ],
+      "concept": "document-vs-key-value-store-fit",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/data-guide/technology-choices/understand-data-store-models",
+          "claim": "Key-value stores support simple query, insert and delete; to modify a value an application must overwrite the whole value; considerations include limited query expressiveness. Document stores offer multi-field indexing and denormalized aggregates and suit product catalogs.",
+          "title": "Understand Data Models - Azure Architecture Center",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "ddia",
+        "azure-architecture-styles"
+      ],
+      "explanation": "Key-value stores excel at low-latency point lookups but offer limited query expressiveness: value-based lookups need a redesign, and partial updates overwrite the whole value. Document stores give flexible aggregates with primary and secondary indexing, which suits a catalog. Graph stores are for relationship traversal, not attribute filters."
+    },
+    {
+      "id": "w04-l04-q06",
+      "type": "written",
+      "lesson": "w04-l04",
+      "prompt": "You're adding read scale-out (a read-only replica) to an ASP.NET Core + EF Core app to offload reporting and product browsing. Product requires that users always see their own changes immediately. Design the routing and describe the failure modes you must handle.",
+      "concept": "read-replica-lag-read-your-writes",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/azure-sql/database/read-scale-out",
+          "claim": "Within a session connected to a read-only replica reads are transactionally consistent; a reconnect may reach a replica at a different point in time; there's no fixed upper bound on propagation latency; long-running queries may be terminated with errors 1219, 3947 or 3948 and should be retried; replica transactions always use snapshot isolation.",
+          "title": "Read Queries on Replicas - Azure SQL Database & Azure SQL Managed Instance",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "ddia",
+        "azure-architecture-styles"
+      ],
+      "explanation": "Seniors design explicit routing rules around consistency requirements instead of sending 'all reads to the replica'. They know replication lag has no guaranteed bound.",
+      "model_answer": {
+        "summary": "Send analytics and tolerant reads to the replica with a separate read-only connection or context, and route reads that must reflect a user's recent writes to the primary. Replication lag is variable with no upper bound, and replica sessions can be terminated or reconnect to a different point in time.",
+        "key_points": [
+          "Uses a separate connection string with `ApplicationIntent=ReadOnly` (for example, a separate read-only `DbContext`) for reports and browsing, and the primary for writes.",
+          "Explains that replica reads are asynchronous relative to the primary, with lag from milliseconds to seconds and no fixed upper bound, so read-your-own-writes must be routed to the primary (for example, for a user for some time after they write).",
+          "Notes that consistency holds only within a session on one replica; after a reconnect a session may land on a replica at a different point in time, so there are no monotonic reads across connections.",
+          "Handles replica-specific errors: long-running queries can be terminated (errors 1219, 3947, 3948), so retry them; transactions on replicas always use snapshot isolation.",
+          "Mentions that the feature targets logically separated read workloads such as analytics, and that long replica queries can delay cleanup on the primary."
+        ]
+      }
+    },
+    {
+      "id": "w04-l04-q07",
+      "type": "written",
+      "lesson": "w04-l04",
+      "prompt": "A B2B SaaS has 2,000 small tenants and 5 enterprise tenants who require their own encryption keys and data kept in a specific region. Choose a data isolation model (or a mix) and describe how you'd implement tenant isolation in EF Core, including the operational concerns.",
+      "concept": "multitenant-data-isolation-models",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/guide/multitenant/approaches/storage-data",
+          "claim": "Shared multitenant databases offer the lowest cost but have scale limits and noisy neighbors; dedicated databases per tenant give isolation and can share cost via elastic pools; tenants needing their own keys or regions may need isolation; row-level security is available but complex; automate schema updates across the estate.",
+          "title": "Architectural Approaches for Storage and Data in Multitenant Solutions",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/ef/core/miscellaneous/multitenancy",
+          "claim": "EF Core supports a discriminator column via global query filters and database-per-tenant via configuration; schema-per-tenant isn't supported; the context factory lifetime should be scoped, or transient if users can switch tenants.",
+          "title": "Multi-tenancy - EF Core",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "ddia",
+        "azure-architecture-styles"
+      ],
+      "explanation": "Seniors choose isolation by tenant requirements and cost, often mixing models, and know the EF mechanics and fleet-wide operations that make each model workable.",
+      "model_answer": {
+        "summary": "Mix models: a shared multitenant database (tenant ID column plus EF global query filters) for small tenants, and dedicated databases or stamps for enterprise tenants who need their own keys and regions, with automated provisioning and schema rollout across the fleet.",
+        "key_points": [
+          "Compares models: shared database (cheapest and densest, but noisy neighbours, scale limits and no per-tenant keys or regions) versus database per tenant (isolation and per-tenant backup, keys and region, but higher cost, mitigated with elastic pools) versus sharding.",
+          "Proposes a mix: shared for small tenants, dedicated databases or deployment stamps for enterprise tenants with their own encryption keys and geography.",
+          "EF shared-database implementation: a tenant ID column with `HasQueryFilter(e => e.TenantId == _tenant)`, the tenant resolved per request, and a scoped context or factory (transient if a user can switch tenants); schema-per-tenant isn't supported by EF Core.",
+          "EF database-per-tenant: choose the connection string per tenant in the context or factory; remember that pooled contexts run `OnConfiguring` only once, so tenant state needs care.",
+          "Operations: automate onboarding and schema migrations across all databases, track schema versions per tenant, and consider row-level security as defence in depth (noting it's complex to get right)."
+        ]
+      }
+    },
+    {
+      "id": "w04-l04-q08",
+      "type": "written",
+      "lesson": "w04-l04",
+      "prompt": "An e-commerce platform has order processing with inventory reservation, a product catalog whose attributes differ widely by category and change often, and shopping carts and sessions read on every request. Propose which data store model fits each workload and justify it, including when you would not split into multiple stores.",
+      "concept": "document-vs-key-value-store-fit",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/data-guide/technology-choices/understand-data-store-models",
+          "claim": "Prefer relational for strict multi-entity transactions, document for evolving aggregate shape and JSON-centric APIs, key-value for low-latency key lookups or caching; key-value values are overwritten in full; avoid premature fragmentation and add models only when access patterns diverge.",
+          "title": "Understand Data Models - Azure Architecture Center",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "ddia",
+        "azure-architecture-styles"
+      ],
+      "explanation": "The senior answer maps access patterns and transaction scope to models and treats polyglot persistence as a cost to justify, not a default.",
+      "model_answer": {
+        "summary": "Relational for orders and inventory (multi-entity ACID transactions and joins), a document store for the evolving catalog (flexible, denormalized aggregates with secondary indexes), and a key-value store for sessions and carts (low-latency point lookups). Add models only where access patterns clearly diverge.",
+        "key_points": [
+          "Orders and inventory: relational, for multi-row ACID transactions, joins and constraints; horizontal scale needs sharding or partitioning.",
+          "Catalog: a document store with schema-on-read, denormalized aggregates and multi-field indexing; the atomicity scope is a single document, and document size and shape need careful design.",
+          "Sessions and carts: a key-value store for low-latency lookups by key; queries are limited, and updates overwrite the whole value.",
+          "Avoids premature fragmentation: stay on one service while it meets performance, scale and governance needs, and don't add a model without the operational maturity (monitoring, backups) to run it.",
+          "Names signals to re-evaluate, such as growing ad-hoc joins on a document store (add a relational read model) and antipatterns such as multiple microservices sharing one database."
+        ]
+      }
+    }
+  ]
+}

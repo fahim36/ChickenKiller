@@ -1,0 +1,1329 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "typescript-structural-typing",
+      "name": "Structural typing and excess property checks in TypeScript"
+    },
+    {
+      "id": "discriminated-union-exhaustiveness",
+      "name": "Discriminated unions and exhaustiveness with never"
+    },
+    {
+      "id": "unknown-vs-any-at-api-boundaries",
+      "name": "unknown vs any at API boundaries and generated API types"
+    },
+    {
+      "id": "typescript-conditional-and-mapped-types",
+      "name": "Conditional, mapped and keyof types"
+    },
+    {
+      "id": "react-rerender-triggers-and-memoization",
+      "name": "What triggers React re-renders and how to avoid unnecessary ones"
+    },
+    {
+      "id": "react-list-keys-and-state-identity",
+      "name": "List keys and component state identity in React"
+    },
+    {
+      "id": "react-stale-closures-in-effects",
+      "name": "Stale closures in React effects"
+    },
+    {
+      "id": "react-concurrent-transitions",
+      "name": "useTransition and useDeferredValue"
+    },
+    {
+      "id": "tanstack-query-server-state-cache",
+      "name": "Server-state caching with TanStack Query"
+    },
+    {
+      "id": "optimistic-mutation-rollback",
+      "name": "Optimistic updates with rollback and validation"
+    },
+    {
+      "id": "bff-browser-token-handling",
+      "name": "Backend-for-frontend auth for browser apps"
+    },
+    {
+      "id": "user-centric-accessible-ui-tests",
+      "name": "User-centric, accessible UI tests with Testing Library and Playwright"
+    },
+    {
+      "id": "angular-signals-zoneless-change-detection",
+      "name": "Angular signals and zoneless change detection"
+    },
+    {
+      "id": "rxjs-flattening-operator-choice",
+      "name": "Choosing an RxJS flattening operator"
+    },
+    {
+      "id": "angular-lazy-route-loading",
+      "name": "Lazy-loaded Angular routes and bundle size"
+    },
+    {
+      "id": "blazor-render-mode-selection",
+      "name": "Choosing Blazor render modes"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w10-l01-q01",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w10-l01",
+      "prompt": "Given `interface Pet { name: string }` and `class Dog { name: string = \"Rex\"; bark() {} }`, which does not declare `implements Pet`, what does `let p: Pet = new Dog();` do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Compiles: TypeScript checks compatibility structurally, and `Dog` has at least the members `Pet` requires"
+        },
+        {
+          "id": "b",
+          "text": "Fails, because `Dog` doesn't declare `implements Pet` anywhere, which C# or Java would strictly require before allowing it"
+        },
+        {
+          "id": "c",
+          "text": "Fails, because `Dog` has an extra member, `bark`, that isn't part of the `Pet` interface's shape"
+        },
+        {
+          "id": "d",
+          "text": "Compiles only with an explicit type assertion, `new Dog() as Pet`, to force the compiler to accept it"
+        }
+      ],
+      "concept": "typescript-structural-typing",
+      "sources": [
+        {
+          "url": "https://www.typescriptlang.org/docs/handbook/type-compatibility.html",
+          "claim": "TypeScript uses structural typing; x is compatible with y if y has at least the same members as x; the Pet/Dog example compiles though Dog doesn't declare that it implements Pet, unlike in C# or Java.",
+          "title": "TypeScript: Documentation - Type Compatibility",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft (TypeScript)"
+        }
+      ],
+      "materials": [
+        "typescript-handbook"
+      ],
+      "explanation": "TypeScript is structurally typed: `x` is compatible with `y` if `y` has at least the same members as `x`. Extra members on the source are fine when assigning a variable or instance. C# developers expect nominal typing, where the missing `implements` clause would be an error."
+    },
+    {
+      "id": "w10-l01-q02",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w10-l01",
+      "prompt": "With `interface Pet { name: string }`, why does `const dog = { name: \"Lassie\", owner: \"Rudd\" }; const p: Pet = dog;` compile, while `const p: Pet = { name: \"Lassie\", owner: \"Rudd\" };` is an error?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The second form infers `owner` as `any`, silencing the compiler's structural checks for that property entirely"
+        },
+        {
+          "id": "b",
+          "text": "Interfaces can only be assigned from variables declared with an explicit type, never from object literals directly"
+        },
+        {
+          "id": "c",
+          "text": "Fresh object literals get excess property checks that reject unknown keys; assigning from a variable is just a structural match"
+        },
+        {
+          "id": "d",
+          "text": "The first form is also an error, but the compiler only reports excess-property errors whenever `strict` mode is explicitly enabled"
+        }
+      ],
+      "concept": "typescript-structural-typing",
+      "sources": [
+        {
+          "url": "https://www.typescriptlang.org/docs/handbook/type-compatibility.html",
+          "claim": "Only members of the target type are checked, so extra properties on a variable are fine, but object literals may only specify known properties (excess property checks).",
+          "title": "TypeScript: Documentation - Type Compatibility",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft (TypeScript)"
+        }
+      ],
+      "materials": [
+        "typescript-handbook"
+      ],
+      "explanation": "The structural rule only requires the target's members, so `dog` is assignable. Fresh object literals are an exception: they may only specify known properties, which catches typos such as `nmae`. That is why a mismatched DTO literal errors while the same object in a variable passes."
+    },
+    {
+      "id": "w10-l01-q03",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w10-l01",
+      "prompt": "`type Shape = Circle | Square`, each with a literal `kind`. `getArea` switches on `shape.kind` and ends with `default: const _check: never = shape; return _check;`. A developer adds `Triangle` to `Shape`. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Nothing until runtime, when `getArea` silently returns `undefined` for every triangle passed to it"
+        },
+        {
+          "id": "b",
+          "text": "`getArea` fails to compile: in `default`, `shape` narrows to `Triangle`, which isn't assignable to `never`"
+        },
+        {
+          "id": "c",
+          "text": "The compiler automatically synthesizes and adds a matching `Triangle` case to the switch statement for you"
+        },
+        {
+          "id": "d",
+          "text": "Only a lint warning appears in the editor, because the `never` type is fully erased at runtime"
+        }
+      ],
+      "concept": "discriminated-union-exhaustiveness",
+      "sources": [
+        {
+          "url": "https://www.typescriptlang.org/docs/handbook/2/narrowing.html",
+          "claim": "Discriminated unions use a common literal property to narrow; assigning the value to a never-typed variable in the default case makes adding a new Shape member cause a compile error.",
+          "title": "TypeScript: Documentation - Narrowing",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft (TypeScript)"
+        }
+      ],
+      "materials": [
+        "typescript-handbook"
+      ],
+      "explanation": "Each `case` narrows the union through its discriminant. When every member is handled, the remaining type in `default` is `never`. A new member flows into `default`, and assigning it to a `never` variable is a compile error, so the compiler points to every switch that must be updated."
+    },
+    {
+      "id": "w10-l01-q04",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w10-l01",
+      "prompt": "A fetch helper returns `await res.json()`. Why type the result as `unknown` rather than `any` before using it?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`unknown` actually performs runtime JSON schema validation on the parsed payload before you can use it"
+        },
+        {
+          "id": "b",
+          "text": "`unknown` is faster than `any` at runtime, because the compiler erases its type checks much earlier during the compilation of the module"
+        },
+        {
+          "id": "c",
+          "text": "`any` can't hold arrays or objects, only primitive values such as strings and numbers"
+        },
+        {
+          "id": "d",
+          "text": "With `unknown`, property access and calls are blocked until narrowed by a type guard or schema check; `any` disables checking entirely"
+        }
+      ],
+      "concept": "unknown-vs-any-at-api-boundaries",
+      "sources": [
+        {
+          "url": "https://www.typescriptlang.org/docs/handbook/2/functions.html",
+          "claim": "unknown represents any value but is safer than any because it's not legal to do anything with an unknown value; the handbook's safeParse example returns unknown from JSON.parse.",
+          "title": "TypeScript: Documentation - More on Functions",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft (TypeScript)"
+        }
+      ],
+      "materials": [
+        "typescript-handbook"
+      ],
+      "explanation": "`unknown` represents any value, but it is not legal to do anything with it without narrowing, while `any` allows everything, such as `a.b()`, with no checks. Neither performs runtime validation: types are erased, so a runtime check or schema is what actually proves the payload's shape."
+    },
+    {
+      "id": "w10-l01-q05",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w10-l01",
+      "prompt": "Given `type ToArray<T> = T extends any ? T[] : never;`, what is `ToArray<string | number>`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`string[] | number[]`: a conditional type on a naked type parameter distributes over each union member"
+        },
+        {
+          "id": "b",
+          "text": "`(string | number)[]`, since TypeScript always applies a conditional type to the whole union type at once"
+        },
+        {
+          "id": "c",
+          "text": "`never`, because the union `string | number` as a whole doesn't extend the naked type parameter `any`"
+        },
+        {
+          "id": "d",
+          "text": "`any[]`, because a union distributed through a conditional type always collapses to `any` before mapping"
+        }
+      ],
+      "concept": "typescript-conditional-and-mapped-types",
+      "sources": [
+        {
+          "url": "https://www.typescriptlang.org/docs/handbook/2/conditional-types.html",
+          "claim": "A conditional type acting on a naked generic type becomes distributive when given a union: ToArray<string | number> gives string[] | number[]; wrapping each side in square brackets avoids distribution.",
+          "title": "TypeScript: Documentation - Conditional Types",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft (TypeScript)"
+        }
+      ],
+      "materials": [
+        "typescript-handbook"
+      ],
+      "explanation": "Conditional types that check a naked type parameter are distributive: `ToArray<string> | ToArray<number>`. To get `(string | number)[]`, prevent distribution by wrapping both sides of `extends` in brackets: `[T] extends [any]`. This behaviour surprises people writing utility types for API unions."
+    },
+    {
+      "id": "w10-l01-q06",
+      "type": "written",
+      "lesson": "w10-l01",
+      "prompt": "In C# the API returns `200` with an order, `404`, or a `422` with validation errors. Model this result on the React client as a TypeScript type and describe a render function that the compiler forces to handle every case. Compare the approach with C#.",
+      "concept": "discriminated-union-exhaustiveness",
+      "sources": [
+        {
+          "url": "https://www.typescriptlang.org/docs/handbook/2/narrowing.html",
+          "claim": "Discriminated unions narrow on a common literal property such as kind; exhaustiveness checking assigns the narrowed value to never in the default case so a new member causes a compile error.",
+          "title": "TypeScript: Documentation - Narrowing",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft (TypeScript)"
+        }
+      ],
+      "materials": [
+        "typescript-handbook"
+      ],
+      "explanation": "Senior candidates explain that this 'make illegal states unrepresentable' model beats a bag of optional properties, and they know that it relies on compile-time narrowing, so the runtime mapping must be trustworthy.",
+      "model_answer": {
+        "summary": "Use a discriminated union such as `{ kind: \"ok\"; order: Order } | { kind: \"notFound\" } | { kind: \"invalid\"; errors: Record<string, string[]> }`. Switch on `kind` so each branch narrows to its payload, and end with a `never` check so a new variant fails to compile. It resembles a C# closed hierarchy matched with a switch expression, but here it is purely structural and erased at runtime.",
+        "key_points": [
+          "A literal discriminant property (`kind` or `status`) shared by every variant enables narrowing",
+          "Inside each `case`, only that variant's fields are accessible, so `errors` can't be read on success",
+          "A `default` branch assigning to `never` (or an `assertNever` helper) turns a missing case into a compile error",
+          "The discriminant must be set when mapping the raw response; types don't exist at runtime, so the mapping or validation code produces the union",
+          "This is safer than optional fields (`order?`, `errors?`), where impossible combinations are representable"
+        ]
+      }
+    },
+    {
+      "id": "w10-l01-q07",
+      "type": "written",
+      "lesson": "w10-l01",
+      "prompt": "Your ASP.NET Core API publishes an OpenAPI document. How would you keep the React client's types in sync with it, and what do generated types not protect you from?",
+      "concept": "unknown-vs-any-at-api-boundaries",
+      "sources": [
+        {
+          "url": "https://openapi-ts.dev/introduction",
+          "claim": "openapi-typescript turns OpenAPI 3.0 and 3.1 schemas into runtime-free TypeScript types, used by importing the generated paths and components types.",
+          "title": "openapi-typescript",
+          "accessed": "2026-09-27",
+          "publisher": "OpenAPI TypeScript"
+        },
+        {
+          "url": "https://www.typescriptlang.org/docs/handbook/2/functions.html",
+          "claim": "unknown is like any but safer: nothing can be done with an unknown value until its type is checked.",
+          "title": "TypeScript: Documentation - More on Functions",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft (TypeScript)"
+        }
+      ],
+      "materials": [
+        "typescript-handbook"
+      ],
+      "explanation": "The senior insight is where the guarantee ends: generated types give you contract drift detection at compile time, not runtime safety. That's why `unknown` plus validation still matters at trust boundaries.",
+      "model_answer": {
+        "summary": "Generate TypeScript types from the OpenAPI document at build time with a tool such as openapi-typescript, and use them through a typed client (for example openapi-fetch keyed by the `paths` type). Regenerate in CI so drift breaks the build. Generated types are compile-time only, so treat untrusted input as `unknown` and validate at runtime where it matters.",
+        "key_points": [
+          "Generate types from the OpenAPI 3.0/3.1 schema (for example `npx openapi-typescript schema.json -o schema.d.ts`) rather than hand-writing DTOs",
+          "Reference response types through the generated `paths` type, so a renamed field or changed status code is a compile error",
+          "Run generation in CI against the current API document to catch contract drift early",
+          "The types are erased and don't validate responses; a misconfigured server or proxy can still send another shape",
+          "Keep `any` out of the client: type raw JSON as `unknown` and narrow or validate it before use"
+        ]
+      }
+    },
+    {
+      "id": "w10-l01-q08",
+      "type": "written",
+      "lesson": "w10-l01",
+      "prompt": "Explain what this type produces and where you would use such types in a client for a .NET API: `type Getters<T> = { [K in keyof T as `get${Capitalize<string & K>}`]: () => T[K] }`. Then show how you would derive an all-optional, mutable `Patch<T>` from a readonly DTO.",
+      "concept": "typescript-conditional-and-mapped-types",
+      "sources": [
+        {
+          "url": "https://www.typescriptlang.org/docs/handbook/2/mapped-types.html",
+          "claim": "Mapped types iterate keyof; modifiers can be removed with -readonly and -?; TypeScript 4.1+ remaps keys with as, for example Getters using a template literal with Capitalize, and never filters keys.",
+          "title": "TypeScript: Documentation - Mapped Types",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft (TypeScript)"
+        },
+        {
+          "url": "https://www.typescriptlang.org/docs/handbook/2/keyof-types.html",
+          "claim": "keyof takes an object type and produces a string or numeric literal union of its keys.",
+          "title": "TypeScript: Documentation - Keyof Type Operator",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft (TypeScript)"
+        }
+      ],
+      "materials": [
+        "typescript-handbook"
+      ],
+      "explanation": "Strong answers explain the mechanics precisely (keyof, remapping, modifiers, indexed access) and give a real motivation: one source of truth, the generated DTO, from which every derived shape stays consistent.",
+      "model_answer": {
+        "summary": "`Getters<Order>` maps every key of `Order` to a method named `getX` that returns that property's type, using key remapping with a template literal type. `Patch<T>` would be `{ -readonly [K in keyof T]?: T[K] }`. Mapped and conditional types let you derive request and patch shapes from generated DTOs instead of copying them by hand.",
+        "key_points": [
+          "`keyof T` gives the union of T's property names; mapped types iterate it with `[K in keyof T]`",
+          "`as` remaps keys (here through a template literal and `Capitalize`); mapping a key to `never` filters it out",
+          "Modifiers can be added or removed: `-readonly` makes properties mutable, `?` or `-?` adds or removes optionality",
+          "`T[K]` looks up each property's type, so derived types stay in sync when the DTO changes",
+          "Conditional types (with `infer`) can pick or transform members, for example extracting a response body type"
+        ]
+      }
+    },
+    {
+      "id": "w10-l02-q01",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w10-l02",
+      "prompt": "`App` renders `<ThemeContext value={{ mode, toggle }}>` and a `memo`-wrapped `Toolbar` that calls `useContext(ThemeContext)`. Whenever `App` re-renders for an unrelated state change, `Toolbar` re-renders too. Why?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`memo` is a legacy API that only works on class components, not function components using hooks"
+        },
+        {
+          "id": "b",
+          "text": "A new object is created for `value` every render, differing under `Object.is`; `memo` doesn't stop context-driven re-renders"
+        },
+        {
+          "id": "c",
+          "text": "Context consumers always re-render whenever any ancestor component renders, no matter what the context value actually turns out to be"
+        },
+        {
+          "id": "d",
+          "text": "`useContext` must be passed an explicit selector function as a second argument to avoid unnecessary re-renders"
+        }
+      ],
+      "concept": "react-rerender-triggers-and-memoization",
+      "sources": [
+        {
+          "url": "https://react.dev/reference/react/useContext",
+          "claim": "React re-renders all children that use a context starting from the provider that receives a different value, compared with Object.is; memo does not prevent children receiving fresh context values; wrap objects and functions in useMemo/useCallback.",
+          "title": "useContext",
+          "accessed": "2026-09-27",
+          "publisher": "React (Meta)"
+        }
+      ],
+      "materials": [
+        "react-learn",
+        "react-reference",
+        "greatfrontend"
+      ],
+      "explanation": "React compares context values with `Object.is` and re-renders every consumer below a provider whose value changed. An inline object literal is a new value on each render. `memo` skips re-renders from props, but not from fresh context values. Wrapping the value in `useMemo` (and `toggle` in `useCallback`), or letting React Compiler memoize, fixes it."
+    },
+    {
+      "id": "w10-l02-q02",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w10-l02",
+      "prompt": "A todo list renders `items.map((t, i) => <TodoRow key={i} todo={t} />)`, and each `TodoRow` holds an uncontrolled text input. After the user deletes the first item, the draft text they typed into row 2 appears in the wrong row. What is the cause and the fix?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "React batches multiple state updates from the deletion together; wrap the deletion handler's call in `flushSync` to force a sync update"
+        },
+        {
+          "id": "b",
+          "text": "`TodoRow` must be wrapped in `memo` so React can detect which rows changed and preserve their draft state"
+        },
+        {
+          "id": "c",
+          "text": "Keys must be unique globally across the entire page, not just within the list; prefix each one with the component's name"
+        },
+        {
+          "id": "d",
+          "text": "With index keys, deleting an item shifts every index, so React matches rows to the wrong old state; use a stable id, `key={t.id}`"
+        }
+      ],
+      "concept": "react-list-keys-and-state-identity",
+      "sources": [
+        {
+          "url": "https://react.dev/learn/rendering-lists",
+          "claim": "Keys match array items to components; index as a key often leads to subtle and confusing bugs when items are inserted, deleted or reordered; don't generate keys on the fly with Math.random(), use a stable ID from the data.",
+          "title": "Rendering Lists",
+          "accessed": "2026-09-27",
+          "publisher": "React (Meta)"
+        }
+      ],
+      "materials": [
+        "react-learn",
+        "react-reference",
+        "greatfrontend"
+      ],
+      "explanation": "Keys tell React which array item each component corresponds to. With index keys, after a deletion item 2 gets key 0, and React reuses the old row-0 component, with its DOM and state, for it. React's docs warn that index keys often cause subtle bugs when items are inserted, deleted or reordered. Generating keys with `Math.random()` is the opposite mistake: it recreates everything and loses input."
+    },
+    {
+      "id": "w10-l02-q03",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w10-l02",
+      "prompt": "Inside `SearchPage`, a developer defines `function FilterBox() { const [text, setText] = useState(\"\"); ... }` and renders `<FilterBox />`. The box clears itself every time `SearchPage` re-renders. Why?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The inner function is redefined each render, so React sees a new type at that position and resets its state; define components at the top level"
+        },
+        {
+          "id": "b",
+          "text": "`useState` must not be used inside components that don't accept any props from their parent component"
+        },
+        {
+          "id": "c",
+          "text": "`SearchPage` itself is missing a `key` prop, so React can't preserve any of its children's identity"
+        },
+        {
+          "id": "d",
+          "text": "React's Strict Mode intentionally runs every component function twice in development mode and resets its component state between those two runs"
+        }
+      ],
+      "concept": "react-list-keys-and-state-identity",
+      "sources": [
+        {
+          "url": "https://react.dev/learn/preserving-and-resetting-state",
+          "claim": "State is tied to a position in the render tree; a different component type at the same position resets its state; never nest component definitions, since that creates a new type on every render.",
+          "title": "Preserving and Resetting State",
+          "accessed": "2026-09-27",
+          "publisher": "React (Meta)"
+        }
+      ],
+      "materials": [
+        "react-learn",
+        "react-reference",
+        "greatfrontend"
+      ],
+      "explanation": "React ties state to a component's position and type in the tree. A component defined inside another is recreated on each render, so the type at that position changes and React resets the subtree. The same rule makes `key` useful: changing it on purpose resets state, for example a chat form when the recipient changes."
+    },
+    {
+      "id": "w10-l02-q04",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w10-l02",
+      "prompt": "What does this counter show after five seconds?\n\n```js\nconst [count, setCount] = useState(0);\nuseEffect(() => {\n  const id = setInterval(() => setCount(count + 1), 1000);\n  return () => clearInterval(id);\n}, []);\n```",
+      "choices": [
+        {
+          "id": "a",
+          "text": "5, because the effect re-subscribes to the latest `count` value on every render automatically"
+        },
+        {
+          "id": "b",
+          "text": "0, because an effect with an empty dependency array never actually starts its `setInterval` timer at all"
+        },
+        {
+          "id": "c",
+          "text": "1: the interval callback closes over `count` from the first render (0), so it keeps setting `0 + 1`"
+        },
+        {
+          "id": "d",
+          "text": "It keeps increasing correctly but skips some values, because React batches the state updates from `setInterval`"
+        }
+      ],
+      "concept": "react-stale-closures-in-effects",
+      "sources": [
+        {
+          "url": "https://react.dev/reference/react/useEffect",
+          "claim": "To update state from previous state in an effect, use an updater such as setCount(c => c + 1) with setInterval so count need not be a dependency; the interval example uses an empty dependency array.",
+          "title": "useEffect",
+          "accessed": "2026-09-27",
+          "publisher": "React (Meta)"
+        },
+        {
+          "url": "https://react.dev/learn/state-as-a-snapshot",
+          "claim": "State behaves like a snapshot: a state variable's value never changes within a render, and callbacks created during a render see that render's values.",
+          "title": "State as a Snapshot",
+          "accessed": "2026-09-27",
+          "publisher": "React (Meta)"
+        }
+      ],
+      "materials": [
+        "react-learn",
+        "react-reference"
+      ],
+      "explanation": "The effect runs once, and its callback captures `count` from that render's snapshot, which is 0. Every tick sets `0 + 1`. The fix is the updater form `setCount(c => c + 1)`, which needs no `count` dependency, rather than silencing the exhaustive-deps lint rule."
+    },
+    {
+      "id": "w10-l02-q05",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w10-l02",
+      "prompt": "A search box drives a slow `<ResultsList query={deferredQuery} />`, where `deferredQuery = useDeferredValue(query)`. Typing is still janky. What is the most likely missing piece?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`useDeferredValue` needs an explicit delay argument, such as 300 ms, to know how long to defer"
+        },
+        {
+          "id": "b",
+          "text": "The input's own `onChange` handler must be wrapped in `startTransition` so its update becomes non-blocking"
+        },
+        {
+          "id": "c",
+          "text": "`useDeferredValue` only works when the tree is wrapped in a `Suspense` boundary somewhere above it"
+        },
+        {
+          "id": "d",
+          "text": "`ResultsList` isn't wrapped in `memo`, so it still re-renders synchronously with the parent on every keystroke"
+        }
+      ],
+      "concept": "react-concurrent-transitions",
+      "sources": [
+        {
+          "url": "https://react.dev/reference/react/useDeferredValue",
+          "claim": "For the optimization to work the slow child must be wrapped in memo; useDeferredValue has no fixed delay, unlike debouncing, and its background re-render is interruptible.",
+          "title": "useDeferredValue",
+          "accessed": "2026-09-27",
+          "publisher": "React (Meta)"
+        },
+        {
+          "url": "https://react.dev/reference/react/useTransition",
+          "claim": "Transition updates can't be used to control text inputs; useDeferredValue defers a value while useTransition marks specific state updates as Transitions.",
+          "title": "useTransition",
+          "accessed": "2026-09-27",
+          "publisher": "React (Meta)"
+        }
+      ],
+      "materials": [
+        "react-learn",
+        "react-reference"
+      ],
+      "explanation": "`useDeferredValue` first re-renders with the old value and then renders the new one in the background, interruptibly. That only helps if the slow child can skip the urgent render, which requires `memo`. There is no fixed delay (it adapts to the device, unlike debouncing), and controlled input updates must not be put inside a Transition."
+    },
+    {
+      "id": "w10-l02-q06",
+      "type": "written",
+      "lesson": "w10-l02",
+      "prompt": "Write out, in words or code, a `useInterval(callback, delayMs)` hook that always calls the latest `callback` without resetting the timer on every render. Explain what goes wrong with the naive versions.",
+      "concept": "react-stale-closures-in-effects",
+      "sources": [
+        {
+          "url": "https://react.dev/learn/separating-events-from-effects",
+          "claim": "Effect Events read the latest props and state without being reactive; suppressing the dependency linter causes the effect to keep seeing stale initial values.",
+          "title": "Separating Events from Effects",
+          "accessed": "2026-09-27",
+          "publisher": "React (Meta)"
+        },
+        {
+          "url": "https://react.dev/reference/react/useEffect",
+          "claim": "All reactive values must be declared as dependencies; cleanup runs before re-running and on unmount, and Strict Mode runs setup and cleanup one extra time in development.",
+          "title": "useEffect",
+          "accessed": "2026-09-27",
+          "publisher": "React (Meta)"
+        }
+      ],
+      "materials": [
+        "react-learn",
+        "react-reference"
+      ],
+      "explanation": "This is the classic senior React question. Strong answers separate reactive logic (the delay) from non-reactive logic (what the tick does), and explain why suppressing the linter is the wrong fix.",
+      "model_answer": {
+        "summary": "The naive version with `[]` dependencies captures the first render's callback, which is a stale closure. Adding `callback` to the dependencies restarts the interval on every render, because a new function arrives each time. Keep the effect reactive only to `delayMs`, and read the latest callback through an Effect Event (`useEffectEvent`) or a ref updated on each render. Always return a cleanup that clears the interval.",
+        "key_points": [
+          "Each render has its own snapshot of props and state; an effect callback created once keeps seeing old values",
+          "Effect dependencies must list every reactive value; silencing the lint rule produces stale-value bugs",
+          "Listing an inline callback as a dependency re-creates the interval on every render",
+          "`useEffectEvent` (or a ref holding the latest callback) reads current values without making the effect re-run; depend only on `delayMs`",
+          "Cleanup (`clearInterval`) runs before the effect re-runs and on unmount; Strict Mode runs setup and cleanup one extra time in development to expose missing cleanup"
+        ]
+      }
+    },
+    {
+      "id": "w10-l02-q07",
+      "type": "written",
+      "lesson": "w10-l02",
+      "prompt": "An interviewer asks: \"What triggers a React re-render, and how do you avoid unnecessary ones?\" Answer for a product list of 2,000 rows where typing in a filter box makes the whole page slow, and say how React Compiler changes your answer.",
+      "concept": "react-rerender-triggers-and-memoization",
+      "sources": [
+        {
+          "url": "https://react.dev/learn/render-and-commit",
+          "claim": "A render is triggered by the initial render or a state update in the component or an ancestor; rendering is React calling your components recursively, and React only changes DOM nodes that differ between renders.",
+          "title": "Render and Commit",
+          "accessed": "2026-09-27",
+          "publisher": "React (Meta)"
+        },
+        {
+          "url": "https://react.dev/learn/react-compiler/introduction",
+          "claim": "React Compiler is a build-time tool that automatically memoizes components and values, skipping cascading re-renders and expensive calculations; rollout depends on how well code follows the Rules of React.",
+          "title": "Introduction - React Compiler",
+          "accessed": "2026-09-27",
+          "publisher": "React (Meta)"
+        }
+      ],
+      "materials": [
+        "react-learn",
+        "react-reference",
+        "greatfrontend"
+      ],
+      "explanation": "Seniors distinguish rendering (cheap, calling functions) from committing (touching the DOM), measure before memoizing, and know the Compiler's precondition: code that follows the Rules of React.",
+      "model_answer": {
+        "summary": "Renders are triggered by a state update in the component or an ancestor (plus a changed context value). A re-rendering component re-renders its children by default, but React commits only the DOM differences. Avoid wasted work by keeping the filter state low in the tree, keeping props stable and memoizing the expensive list. React Compiler now applies that memoization automatically for code that follows the Rules of React.",
+        "key_points": [
+          "Triggers: the initial render, a state update (`set` function) in the component or an ancestor, and a change in a consumed context value",
+          "Rendering means calling components; children re-render recursively by default, but only changed DOM nodes are committed",
+          "Move state down or lift content up so typing doesn't re-render the list's parent; give rows stable keys",
+          "Use `memo` on rows or the list with stable props (`useMemo` or `useCallback` for objects and functions); consider `useDeferredValue` or virtualisation for very large lists",
+          "React Compiler memoizes components and values at build time, making most manual `memo`, `useMemo` and `useCallback` unnecessary, provided the code follows the Rules of React"
+        ]
+      }
+    },
+    {
+      "id": "w10-l02-q08",
+      "type": "written",
+      "lesson": "w10-l02",
+      "prompt": "Compare `useTransition` and `useDeferredValue`. Give a case where each is the right tool, and explain how both differ from debouncing.",
+      "concept": "react-concurrent-transitions",
+      "sources": [
+        {
+          "url": "https://react.dev/reference/react/useTransition",
+          "claim": "useTransition marks state updates as non-blocking Transitions with isPending; transitions are interruptible; they can't be used to control text inputs.",
+          "title": "useTransition",
+          "accessed": "2026-09-27",
+          "publisher": "React (Meta)"
+        },
+        {
+          "url": "https://react.dev/reference/react/useDeferredValue",
+          "claim": "useDeferredValue re-renders first with the old value, then in the background with the new value; unlike debouncing or throttling it doesn't require choosing a fixed delay.",
+          "title": "useDeferredValue",
+          "accessed": "2026-09-27",
+          "publisher": "React (Meta)"
+        }
+      ],
+      "materials": [
+        "react-learn",
+        "react-reference"
+      ],
+      "explanation": "Senior answers pick the hook by who owns the update (you own the setter, so use a transition; you receive a value, so defer it), and they know the traps: text inputs and the memo requirement.",
+      "model_answer": {
+        "summary": "`useTransition` marks the state updates you control as non-blocking and gives you `isPending`, for example switching to a heavy tab. `useDeferredValue` defers a value you receive, for example a query prop feeding a slow memoized list. Both render in the background and can be interrupted by urgent updates. Neither uses a fixed delay: they adapt to the device, whereas debouncing always waits a fixed time and then blocks.",
+        "key_points": [
+          "`useTransition` wraps the setter calls in `startTransition`; `isPending` drives a pending indicator",
+          "`useDeferredValue` suits values you don't set yourself (props, or the output of a hook) and needs the slow child in `memo`",
+          "Transition renders are interruptible: urgent updates such as typing go first, and the background work restarts",
+          "A controlled input's own state update must stay urgent; defer the expensive derived UI instead",
+          "Unlike debouncing, there is no fixed delay: fast devices update almost immediately, slow ones lag proportionally"
+        ]
+      }
+    },
+    {
+      "id": "w10-l03-q01",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w10-l03",
+      "prompt": "With TanStack Query's default options, a user opens the orders page, switches to another browser tab, and comes back a minute later. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Nothing happens at all, since cached query data stays fresh for a full 5 minutes by default"
+        },
+        {
+          "id": "b",
+          "text": "The cached orders show immediately, and a stale background refetch runs on window refocus"
+        },
+        {
+          "id": "c",
+          "text": "The query is garbage-collected immediately, the instant the browser tab itself loses focus"
+        },
+        {
+          "id": "d",
+          "text": "The page shows a blocking loading spinner until an entirely new network request completes"
+        }
+      ],
+      "concept": "tanstack-query-server-state-cache",
+      "sources": [
+        {
+          "url": "https://tanstack.com/query/latest/docs/framework/react/guides/important-defaults",
+          "claim": "useQuery considers cached data stale by default; stale queries refetch in the background on mount, window refocus and reconnect; inactive queries are garbage collected after 5 minutes; failures are retried 3 times with exponential backoff.",
+          "title": "Important Defaults | TanStack Query React Docs",
+          "accessed": "2026-09-27",
+          "publisher": "TanStack"
+        }
+      ],
+      "materials": [
+        "tanstack-query",
+        "patterns-dev"
+      ],
+      "explanation": "By default query data is stale immediately, and stale queries are refetched in the background when a new instance mounts, the window is refocused or the network reconnects, while cached data is still shown. The 5 minutes is `gcTime` for inactive queries, not freshness. That is a common mix-up."
+    },
+    {
+      "id": "w10-l03-q02",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w10-l03",
+      "prompt": "In TanStack Query's cache-based optimistic update recipe, why does `onMutate` call `cancelQueries` for the todos key before `setQueryData`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "So an outgoing refetch can't finish afterwards and overwrite the optimistic write with older data"
+        },
+        {
+          "id": "b",
+          "text": "Because `setQueryData` throws an exception whenever it's called while a query is actively fetching"
+        },
+        {
+          "id": "c",
+          "text": "To remove the query entirely from the cache so that `onError` has nothing left to roll back to"
+        },
+        {
+          "id": "d",
+          "text": "To stop the mutation itself from being automatically retried by TanStack Query's retry logic"
+        }
+      ],
+      "concept": "optimistic-mutation-rollback",
+      "sources": [
+        {
+          "url": "https://tanstack.com/query/latest/docs/framework/react/guides/optimistic-updates",
+          "claim": "onMutate cancels outgoing refetches so they don't overwrite the optimistic update, snapshots the previous value, and sets the new value; onError rolls back with the snapshot; onSettled invalidates the query.",
+          "title": "Optimistic Updates | TanStack Query React Docs",
+          "accessed": "2026-09-27",
+          "publisher": "TanStack"
+        }
+      ],
+      "materials": [
+        "tanstack-query",
+        "patterns-dev"
+      ],
+      "explanation": "An in-flight refetch that started before the mutation can resolve after you have written the optimistic value, clobbering it with a stale snapshot. The recipe cancels those fetches, saves the previous value with `getQueryData` for rollback in `onError`, and invalidates in `onSettled` so the cache ends up matching the server."
+    },
+    {
+      "id": "w10-l03-q03",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w10-l03",
+      "prompt": "A form adds an item optimistically. The ASP.NET Core API rejects the request with `422` because server-side validation fails, even though the client-side validation passed. What should the client do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Keep the optimistic item displayed anyway, since the client already validated the same input successfully"
+        },
+        {
+          "id": "b",
+          "text": "Retry the mutation automatically and repeatedly until the server eventually accepts the same payload"
+        },
+        {
+          "id": "c",
+          "text": "Roll back to the snapshot in `onError`, show the server's errors, and invalidate in `onSettled`; the server has final authority"
+        },
+        {
+          "id": "d",
+          "text": "Remove the server-side validation entirely, since it just duplicates the client-side validation rules that were already run here"
+        }
+      ],
+      "concept": "optimistic-mutation-rollback",
+      "sources": [
+        {
+          "url": "https://tanstack.com/query/latest/docs/framework/react/guides/optimistic-updates",
+          "claim": "In the cache-based approach, onError restores the previous state from the snapshot returned by onMutate, and onSettled invalidates the query regardless of success or failure.",
+          "title": "Optimistic Updates | TanStack Query React Docs",
+          "accessed": "2026-09-27",
+          "publisher": "TanStack"
+        },
+        {
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/Input_Validation_Cheat_Sheet.html",
+          "claim": "Input validation must be implemented on the server side, because client-side JavaScript validation can be circumvented by disabling JavaScript or using a web proxy.",
+          "title": "Input Validation Cheat Sheet",
+          "accessed": "2026-09-27",
+          "publisher": "OWASP"
+        }
+      ],
+      "materials": [
+        "tanstack-query",
+        "patterns-dev"
+      ],
+      "explanation": "Client-side validation is for user experience. It can be bypassed, so the server must validate, and when it disagrees the server wins. The optimistic recipe exists for this case: restore the snapshot on error, then invalidate so the cache is re-synced with the server's truth. Retrying a validation failure just repeats it."
+    },
+    {
+      "id": "w10-l03-q04",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w10-l03",
+      "prompt": "A React SPA talks to an ASP.NET Core API. With the backend-for-frontend (BFF) pattern from the IETF's browser-based apps best practice, where does the access token live?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "In `localStorage`, attached by the SPA itself as a bearer header on every outgoing request"
+        },
+        {
+          "id": "b",
+          "text": "In a JavaScript-readable cookie so the SPA's own code can read and refresh it as needed"
+        },
+        {
+          "id": "c",
+          "text": "In `sessionStorage`, which malicious injected JavaScript running on the page can never read"
+        },
+        {
+          "id": "d",
+          "text": "Only on the BFF: the browser gets a `Secure`, `HttpOnly` cookie, and the BFF attaches the token when forwarding"
+        }
+      ],
+      "concept": "bff-browser-token-handling",
+      "sources": [
+        {
+          "url": "https://datatracker.ietf.org/doc/draft-ietf-oauth-browser-based-apps/",
+          "claim": "The BFF must act as a confidential client, use Secure and HttpOnly cookies, forward requests to the resource server with the access token, and implement CSRF defence; malicious JavaScript can steal data from origin storage such as localStorage.",
+          "title": "OAuth 2.0 for Browser-Based Applications",
+          "accessed": "2026-09-27",
+          "publisher": "IETF"
+        }
+      ],
+      "materials": [
+        "tanstack-query",
+        "patterns-dev"
+      ],
+      "explanation": "In the BFF pattern the server-side component handles OAuth as a confidential client, so tokens are never exposed to browser JavaScript. The browser session uses `Secure` and `HttpOnly` cookies, and the BFF must defend against CSRF (SameSite, CORS checks or anti-forgery tokens). Tokens in origin storage such as `localStorage` or `sessionStorage` can be stolen by injected script."
+    },
+    {
+      "id": "w10-l03-q05",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w10-l03",
+      "prompt": "A Playwright for .NET test clicks the Save button with `Page.Locator(\"div.toolbar > div:nth-child(3)\")` after `await Task.Delay(2000)`, and it is flaky. Which change best follows Playwright's guidance?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Increase the fixed delay to 5 seconds instead of 2, giving the button more time to become ready"
+        },
+        {
+          "id": "b",
+          "text": "Use an equivalent XPath expression to locate the same element, which is considered more stable"
+        },
+        {
+          "id": "c",
+          "text": "Use `GetByRole` for the button and a web-first assertion, relying on auto-waiting instead of fixed sleeps"
+        },
+        {
+          "id": "d",
+          "text": "Call `ClickAsync(new() { Force = true })` to bypass Playwright's actionability checks entirely"
+        }
+      ],
+      "concept": "user-centric-accessible-ui-tests",
+      "sources": [
+        {
+          "url": "https://playwright.dev/dotnet/docs/locators",
+          "claim": "Prefer user-facing locators such as GetByRole; long CSS or XPath chains lead to unstable tests; locators are strict and re-resolve the element each time an action runs.",
+          "title": "Locators | Playwright .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft (Playwright)"
+        },
+        {
+          "url": "https://playwright.dev/dotnet/docs/actionability",
+          "claim": "Before actions such as ClickAsync, Playwright checks that the element is visible, stable, receives events and is enabled; assertions such as ToBeVisibleAsync retry until the condition passes or times out.",
+          "title": "Auto-waiting | Playwright .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft (Playwright)"
+        }
+      ],
+      "materials": [
+        "playwright-dotnet",
+        "patterns-dev"
+      ],
+      "explanation": "Playwright's actions wait for actionability checks (visible, stable, receives events, enabled), and web-first assertions retry until a timeout, so fixed sleeps are unnecessary and flaky. Locators based on roles reflect what users perceive and survive DOM changes, while long CSS or XPath chains are brittle. `Force` removes the very checks that prevent flakiness."
+    },
+    {
+      "id": "w10-l03-q06",
+      "type": "written",
+      "lesson": "w10-l03",
+      "prompt": "An interviewer asks: \"What does TanStack Query do that `useEffect` plus `fetch` does not?\" Give a senior-level answer, including what should stay out of it.",
+      "concept": "tanstack-query-server-state-cache",
+      "sources": [
+        {
+          "url": "https://tanstack.com/query/latest/docs/framework/react/guides/important-defaults",
+          "claim": "Defaults: cached data is stale by default, refetched on mount, window refocus and reconnect; inactive queries are garbage collected after 5 minutes; failed queries retry 3 times with exponential backoff; results are structurally shared.",
+          "title": "Important Defaults | TanStack Query React Docs",
+          "accessed": "2026-09-27",
+          "publisher": "TanStack"
+        },
+        {
+          "url": "https://tanstack.com/query/latest/docs/framework/react/guides/does-this-replace-client-state",
+          "claim": "TanStack Query is a server-state library; after migrating async code to it, the truly global client state left over is usually very small, such as theme mode and sidebar status.",
+          "title": "Does TanStack Query replace Redux, MobX or other global state managers?",
+          "accessed": "2026-09-27",
+          "publisher": "TanStack"
+        }
+      ],
+      "materials": [
+        "tanstack-query",
+        "patterns-dev"
+      ],
+      "explanation": "Strong answers frame the library as a cache with a policy (staleness, refetch triggers, garbage collection) rather than a 'data fetching hook', and draw the line between server and client state clearly.",
+      "model_answer": {
+        "summary": "It is a server-state cache: it deduplicates and caches requests by query key, shows cached data while refetching stale data in the background (on mount, focus and reconnect), retries with backoff, garbage-collects unused data, and offers invalidation and mutations with optimistic updates. Hand-written effects re-implement all of that badly, with race conditions. Purely client state such as theme or sidebar state stays in local or global state.",
+        "key_points": [
+          "Query keys identify cached server data; components that share a key share one cache entry and request",
+          "Stale-while-revalidate defaults: `staleTime` 0, background refetch on mount, focus and reconnect, 3 retries with exponential backoff, `gcTime` 5 minutes",
+          "Mutations plus `invalidateQueries` (prefix matching on keys) keep related views consistent after writes; optimistic updates can roll back",
+          "Effect-based fetching needs its own loading, error, cancellation and race handling, and caches nothing between components",
+          "Server state is not client state: after moving async data into TanStack Query, little global client state remains (theme, UI toggles)"
+        ]
+      }
+    },
+    {
+      "id": "w10-l03-q07",
+      "type": "written",
+      "lesson": "w10-l03",
+      "prompt": "Your team plans to keep OAuth access and refresh tokens in `localStorage` in the React SPA \"because it's simple\". Argue for a BFF instead, describe the request flow with an ASP.NET Core BFF, and name what the BFF must defend against.",
+      "concept": "bff-browser-token-handling",
+      "sources": [
+        {
+          "url": "https://datatracker.ietf.org/doc/draft-ietf-oauth-browser-based-apps/",
+          "claim": "In the BFF architecture tokens are only available to the BFF; the BFF must be a confidential client, set Secure and HttpOnly on its cookies, forward requests with the access token and implement proper CSRF defence.",
+          "title": "OAuth 2.0 for Browser-Based Applications",
+          "accessed": "2026-09-27",
+          "publisher": "IETF"
+        }
+      ],
+      "materials": [
+        "tanstack-query",
+        "patterns-dev"
+      ],
+      "explanation": "A senior answer names the threat model precisely (XSS exfiltration versus acting within the session), knows that the BFF shifts the problem to CSRF, and cites the IETF best practice rather than folklore.",
+      "model_answer": {
+        "summary": "Tokens in browser storage can be read by any injected script, so an XSS bug turns into token theft. With a BFF, the ASP.NET Core host signs the user in as a confidential client, keeps tokens server-side, and gives the browser only a `Secure`, `HttpOnly`, SameSite session cookie. The SPA calls same-origin `/api` routes, and the BFF forwards them with the access token. The BFF must still defend against CSRF.",
+        "key_points": [
+          "Script running in the page can read `localStorage` and IndexedDB, so tokens there are exposed by any XSS",
+          "The BFF is a confidential client with its own credentials; it runs the code flow and stores the tokens server-side",
+          "The browser receives only a session cookie with the `Secure` and `HttpOnly` flags (plus SameSite); JavaScript never sees tokens",
+          "API calls go through the BFF, which attaches the access token and refreshes it as needed",
+          "Cookies bring CSRF risk, so the BFF needs SameSite, origin or CORS checks, or anti-forgery tokens; XSS is still dangerous but can no longer exfiltrate tokens"
+        ]
+      }
+    },
+    {
+      "id": "w10-l03-q08",
+      "type": "written",
+      "lesson": "w10-l03",
+      "prompt": "A component test finds the Save button with `getByTestId(\"save\")`, and the button is a `<div onClick>`. Screen-reader users report they can't use it. How would you change the component and the tests, and how would you cover the whole flow end to end?",
+      "concept": "user-centric-accessible-ui-tests",
+      "sources": [
+        {
+          "url": "https://www.w3.org/WAI/WCAG22/Understanding/name-role-value.html",
+          "claim": "Success Criterion 4.1.2 Name, Role, Value (Level A): for all UI components the name and role can be programmatically determined; custom controls need extra measures to expose this to assistive technologies.",
+          "title": "Understanding Success Criterion 4.1.2: Name, Role, Value",
+          "accessed": "2026-09-27",
+          "publisher": "W3C WAI"
+        },
+        {
+          "url": "https://testing-library.com/docs/queries/about/",
+          "claim": "Queries should resemble how users interact: getByRole is the top priority and getByTestId is a last resort; findBy returns a promise that resolves when the element appears.",
+          "title": "About Queries | Testing Library",
+          "accessed": "2026-09-27",
+          "publisher": "Testing Library"
+        }
+      ],
+      "materials": [
+        "playwright-dotnet",
+        "patterns-dev"
+      ],
+      "explanation": "The senior insight is that accessible queries are both better tests and an accessibility guard: if you can't find the control by its role and name, neither can assistive technology.",
+      "model_answer": {
+        "summary": "Use a real `<button>` (or give a custom control its role, accessible name and keyboard support) so it satisfies WCAG 4.1.2. Query it in Testing Library with `getByRole(\"button\", { name: \"Save\" })`, which fails if the control isn't exposed accessibly. Cover the flow in Playwright with role-based locators and web-first assertions.",
+        "key_points": [
+          "WCAG 2.2 success criterion 4.1.2 (Level A) requires that a UI component's name and role can be programmatically determined; a bare `div` exposes neither",
+          "Prefer native elements; custom widgets must expose role, name, state and keyboard operation",
+          "Testing Library's priority puts `getByRole` first and `getByTestId` last, because tests should resemble how users interact",
+          "`findBy` queries wait for asynchronous UI; `queryBy` asserts absence",
+          "In Playwright, `GetByRole` locators are strict and actions auto-wait; the same role queries double as an accessibility check"
+        ]
+      }
+    },
+    {
+      "id": "w10-l04-q01",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w10-l04",
+      "prompt": "`const showTotal = signal(false); const total = computed(() => showTotal() ? expensiveSum(items()) : 0);` Which statement about `total` is correct?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`expensiveSum` runs eagerly whenever `items` changes, regardless of whether anything actually reads `total`"
+        },
+        {
+          "id": "b",
+          "text": "`total` can be directly updated at any time by calling `total.set(newValue)` like a writable signal"
+        },
+        {
+          "id": "c",
+          "text": "`total` depends on `items` permanently and irrevocably from the moment the computed signal is created"
+        },
+        {
+          "id": "d",
+          "text": "It's computed lazily and memoized; while `showTotal()` is false, `items` isn't read, so it can't invalidate `total`"
+        }
+      ],
+      "concept": "angular-signals-zoneless-change-detection",
+      "sources": [
+        {
+          "url": "https://angular.dev/guide/signals",
+          "claim": "Computed signals are read-only, lazily evaluated and memoized, with dynamic dependency tracking: only the signals actually read during the derivation are tracked.",
+          "title": "Signals - Angular",
+          "accessed": "2026-09-27",
+          "publisher": "Google (Angular)"
+        }
+      ],
+      "materials": [
+        "angular-signals"
+      ],
+      "explanation": "Computed signals are read-only, lazily evaluated and memoized, and they track dependencies dynamically: only the signals actually read during the last derivation are dependencies. While `showTotal()` is false, `items()` is never read, so it isn't tracked. Once `showTotal` becomes true, the next evaluation starts tracking `items`."
+    },
+    {
+      "id": "w10-l04-q02",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w10-l04",
+      "prompt": "In an Angular 21 app (zoneless by default), a component sets a plain class field `this.status = \"done\"` inside a `setTimeout` callback, and the template doesn't update. Why, and what is the idiomatic fix?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Zoneless CD reacts only to notifications: a signal read in the template, `markForCheck`, or bound listeners; make `status` a signal"
+        },
+        {
+          "id": "b",
+          "text": "`setTimeout` and other native async APIs are entirely disallowed inside zoneless Angular 21 components"
+        },
+        {
+          "id": "c",
+          "text": "Re-add `zone.js` globally via `provideZoneChangeDetection`, scoped narrowly to just that one problematic component's own module"
+        },
+        {
+          "id": "d",
+          "text": "The class field must be declared `public` rather than private for the template binding to read its value"
+        }
+      ],
+      "concept": "angular-signals-zoneless-change-detection",
+      "sources": [
+        {
+          "url": "https://angular.dev/guide/zoneless",
+          "claim": "Zoneless is the default in Angular v21+; change detection is triggered by updating a signal read in a template, markForCheck (called by AsyncPipe), bound listeners, ComponentRef.setInput; OnPush is recommended for zoneless compatibility.",
+          "title": "Angular without ZoneJS (Zoneless)",
+          "accessed": "2026-09-27",
+          "publisher": "Google (Angular)"
+        }
+      ],
+      "materials": [
+        "angular-signals"
+      ],
+      "explanation": "Without ZoneJS, Angular no longer learns about every async callback by monkey-patching. It schedules change detection when notified, for example when a signal read in a template is updated, when `markForCheck` is called (as `AsyncPipe` does), or when a bound listener fires. A plain field mutated in a timer sends no notification. Signals are the intended model, and OnPush components are the recommended step towards zoneless compatibility."
+    },
+    {
+      "id": "w10-l04-q03",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w10-l04",
+      "prompt": "Which pairing of RxJS operators is right for (1) a typeahead that calls a search API on each keystroke, and (2) a Pay button whose repeated clicks must not start duplicate payments?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "(1) `concatMap`, which queues every keystroke's request, and (2) `mergeMap`, which runs all clicks concurrently"
+        },
+        {
+          "id": "b",
+          "text": "(1) `switchMap`, canceling in-flight searches, and (2) `exhaustMap`, ignoring clicks mid-payment"
+        },
+        {
+          "id": "c",
+          "text": "(1) `exhaustMap`, which ignores keystrokes while a search is in flight, and (2) `switchMap`, which cancels prior payments"
+        },
+        {
+          "id": "d",
+          "text": "(1) `mergeMap`, running every request concurrently, and (2) `concatMap`, which queues and executes every single click"
+        }
+      ],
+      "concept": "rxjs-flattening-operator-choice",
+      "sources": [
+        {
+          "url": "https://rxjs.dev/api/operators/switchMap",
+          "claim": "switchMap: each new source value cancels (unsubscribes from) the previous inner observable, and only values from the most recent inner observable are emitted.",
+          "title": "switchMap - RxJS",
+          "accessed": "2026-09-27",
+          "publisher": "RxJS"
+        },
+        {
+          "url": "https://rxjs.dev/api/operators/exhaustMap",
+          "claim": "exhaustMap ignores new source values while the previous inner observable has not completed.",
+          "title": "exhaustMap - RxJS",
+          "accessed": "2026-09-27",
+          "publisher": "RxJS"
+        }
+      ],
+      "materials": [
+        "angular-signals"
+      ],
+      "explanation": "`switchMap` unsubscribes from the previous inner observable when a new value arrives, so stale search results never land. `exhaustMap` ignores new source values until the current inner observable completes, which is ideal for preventing double submits. `switchMap` on a payment would cancel the first payment's HTTP subscription, and `concatMap` would queue and execute duplicate payments."
+    },
+    {
+      "id": "w10-l04-q04",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w10-l04",
+      "prompt": "An Angular app's initial bundle is large because every feature page is imported eagerly in the route config. What does Angular's routing guide recommend?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Lazy-load every single route, including the landing page itself, to minimize the initial JavaScript bundle"
+        },
+        {
+          "id": "b",
+          "text": "Keep everything eager and skip lazy loading entirely, since lazy loading always slows down navigation"
+        },
+        {
+          "id": "c",
+          "text": "Nest lazy-loaded modules several levels deep inside each other for the absolute finest possible code splitting available"
+        },
+        {
+          "id": "d",
+          "text": "Eager-load the landing page(s) and lazy-load the rest with `loadComponent`/`loadChildren`, split into chunks fetched on visit"
+        }
+      ],
+      "concept": "angular-lazy-route-loading",
+      "sources": [
+        {
+          "url": "https://angular.dev/guide/routing/loading-strategies",
+          "claim": "loadComponent and loadChildren with dynamic imports create separate chunks requested only on visit; in general eager-load the primary landing page(s) and lazy-load other pages; deeply nested lazy loading can hurt performance.",
+          "title": "Route Loading Strategies - Angular",
+          "accessed": "2026-09-27",
+          "publisher": "Google (Angular)"
+        }
+      ],
+      "materials": [
+        "angular-signals"
+      ],
+      "explanation": "Lazy routes compile into separate JavaScript chunks that are requested only when a user visits the route, which removes code from the initial bundle. The cost is an extra request on first navigation, which is why the guide recommends eager loading for primary landing pages and warns that deeply nested lazy loading can hurt performance."
+    },
+    {
+      "id": "w10-l04-q05",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w10-l04",
+      "prompt": "In a .NET 10 Blazor Web App, what does the Interactive Auto render mode do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It chooses between static SSR or WebAssembly permanently at build time, based on each component's code size"
+        },
+        {
+          "id": "b",
+          "text": "It renders only on the client via WebAssembly, falling back to full server rendering whenever WebAssembly isn't supported"
+        },
+        {
+          "id": "c",
+          "text": "It renders on the server via a SignalR circuit first, while WebAssembly downloads and caches; later visits render client-side instead"
+        },
+        {
+          "id": "d",
+          "text": "It is purely static server-side rendering with absolutely no interactivity added to any component"
+        }
+      ],
+      "concept": "blazor-render-mode-selection",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/blazor/components/render-modes",
+          "claim": "Interactive Auto uses interactive SSR with Blazor Server initially and then CSR on subsequent visits after the Blazor bundle is downloaded; prerendering is enabled by default for interactive components.",
+          "title": "ASP.NET Core Blazor render modes",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "blazor-docs"
+      ],
+      "explanation": "Auto starts with interactive SSR (Blazor Server) for a fast first interaction, downloads the WebAssembly runtime and bundle in the background, and uses client-side rendering on subsequent visits. It combines Server's small initial payload with WebAssembly's offloading of work. Prerendering is on by default for interactive modes."
+    },
+    {
+      "id": "w10-l04-q06",
+      "type": "written",
+      "lesson": "w10-l04",
+      "prompt": "In a modern Angular app, when do you reach for signals and when for RxJS? Use a search page with a typeahead, filters and a results list as the example.",
+      "concept": "rxjs-flattening-operator-choice",
+      "sources": [
+        {
+          "url": "https://angular.dev/guide/signals",
+          "claim": "Computed signals are lazily evaluated and memoized with dynamic dependency tracking; linkedSignal and resource support dependent and async state; reactive contexts are synchronous, so read signals before await.",
+          "title": "Signals - Angular",
+          "accessed": "2026-09-27",
+          "publisher": "Google (Angular)"
+        },
+        {
+          "url": "https://rxjs.dev/api/operators/concatMap",
+          "claim": "concatMap subscribes to each inner observable only after the previous one completes, preserving order; values queue up if the source emits faster than inner observables complete.",
+          "title": "concatMap - RxJS",
+          "accessed": "2026-09-27",
+          "publisher": "RxJS"
+        }
+      ],
+      "materials": [
+        "angular-signals"
+      ],
+      "explanation": "Senior Angular candidates don't treat this as either/or. They place signals at the state and template edge and RxJS at the event and async-orchestration edge, and they justify each operator choice by its concurrency semantics.",
+      "model_answer": {
+        "summary": "Use signals for synchronous state and derived values that templates read, such as filters, the selected item and computed counts. Use RxJS for event streams over time that need operators such as debounce, cancellation and retry, like the typeahead's `switchMap` to the search API. Bridge the two at the edges (for example turning a signal into an observable and the result back into a signal).",
+        "key_points": [
+          "Signals hold values; `computed` gives memoized derived state, and templates that read signals are updated precisely, including in zoneless and OnPush components",
+          "Signal reactive contexts are synchronous: signals read after an `await` aren't tracked",
+          "RxJS models streams of events over time: debouncing keystrokes, cancelling stale requests with `switchMap`, preventing duplicate submits with `exhaustMap`, retries",
+          "Choose the flattening operator deliberately: `switchMap` cancels, `exhaustMap` ignores, `concatMap` queues (and can buffer), `mergeMap` runs concurrently",
+          "Newer signal APIs (`linkedSignal`, `resource`) cover simple async loading; complex orchestration is still clearer in RxJS"
+        ]
+      }
+    },
+    {
+      "id": "w10-l04-q07",
+      "type": "written",
+      "lesson": "w10-l04",
+      "prompt": "Lighthouse shows a slow first load for your Angular admin app: a 2.5 MB initial bundle containing reporting, settings and a charting library that most users never open. How would you fix it, and what trade-offs do you watch?",
+      "concept": "angular-lazy-route-loading",
+      "sources": [
+        {
+          "url": "https://angular.dev/guide/routing/loading-strategies",
+          "claim": "Lazy routes become separate JavaScript chunks requested only when visited, removing large portions of JavaScript from the initial bundle, at the cost of future requests; eager loading is recommended for primary landing pages.",
+          "title": "Route Loading Strategies - Angular",
+          "accessed": "2026-09-27",
+          "publisher": "Google (Angular)"
+        }
+      ],
+      "materials": [
+        "angular-signals"
+      ],
+      "explanation": "Strong answers treat bundle size as a dependency-graph problem, not just a routing setting, and are candid that lazy loading moves cost to later navigations.",
+      "model_answer": {
+        "summary": "Split the app by route: keep the landing route eager and move reporting, settings and anything that imports the charting library behind `loadComponent` or `loadChildren` dynamic imports, so they become separate chunks loaded on first visit. Check that nothing in the eager graph still imports those modules, and measure again. Watch the extra latency on first navigation and avoid deep lazy nesting.",
+        "key_points": [
+          "Lazy routes compile into separate chunks that are requested only when the route is visited, shrinking the initial bundle",
+          "Eager-load the primary landing page(s) for smooth first navigation; lazy-load the rest",
+          "A single static import of a heavy library from eager code pulls it back into the main bundle, so audit the imports",
+          "Lazy loading adds a request on first navigation; nested lazy loading across several levels can hurt performance",
+          "Measure before and after (bundle analysis, Core Web Vitals) instead of assuming"
+        ]
+      }
+    },
+    {
+      "id": "w10-l04-q08",
+      "type": "written",
+      "lesson": "w10-l04",
+      "prompt": "A .NET-only team is building an internal line-of-business app and asks whether to use Blazor instead of React. When is Blazor a good fit, and which render mode would you choose for which pages?",
+      "concept": "blazor-render-mode-selection",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/blazor/hosting-models",
+          "claim": "Blazor Server has a smaller download and keeps code on the server but has higher latency (a network hop per interaction), no offline support, and needs server resources per client connection; WebAssembly offloads work and runs offline but has a larger download and code that can't be protected.",
+          "title": "ASP.NET Core Blazor hosting models",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/blazor/components/render-modes",
+          "claim": "Render modes are Static Server (no interactivity), Interactive Server over a real-time circuit, Interactive WebAssembly (client) and Interactive Auto (server first, then client).",
+          "title": "ASP.NET Core Blazor render modes",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "blazor-docs"
+      ],
+      "explanation": "A senior answer ties render modes to concrete constraints (network, scale, secrecy, offline) and treats the Blazor-or-React choice as a team and ecosystem trade-off, not a matter of taste.",
+      "model_answer": {
+        "summary": "Blazor fits when the team is .NET-only, the users are internal, and sharing C# models and validation matters more than the React ecosystem or hiring pool. Use static SSR for mostly read-only pages, Interactive Server for data-heavy internal screens on a reliable network (fast load, code stays on the server, but a circuit per user and a network hop per interaction), and WebAssembly or Auto where offline use, client offloading or scale matter.",
+        "key_points": [
+          "Static SSR: rendered on the server with no interactivity; the most efficient choice for pages that don't need it",
+          "Interactive Server: small payload and fast initial load, full .NET API access and code private on the server; but higher latency per interaction, no offline support, and a SignalR circuit with state per browser tab to scale",
+          "Interactive WebAssembly: offloads work to the client and supports static hosting and offline (PWA), but has a larger download, browser-limited APIs and code that users can inspect",
+          "Interactive Auto: server first, WebAssembly on later visits after the bundle is cached",
+          "Consider the team and market: Blazor keeps one language, while React offers a larger ecosystem and talent pool, so the decision is organisational as well as technical"
+        ]
+      }
+    }
+  ]
+}

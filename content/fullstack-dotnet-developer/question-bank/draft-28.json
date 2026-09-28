@@ -1,0 +1,1408 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "clean-architecture-dependency-inversion",
+      "name": "Clean Architecture: dependencies point inward toward the Application Core"
+    },
+    {
+      "id": "vertical-slice-feature-cohesion",
+      "name": "Vertical slice architecture: organizing by feature and its trade-offs"
+    },
+    {
+      "id": "modular-monolith-module-boundaries",
+      "name": "Modular monolith: module APIs, data ownership and enforced boundaries"
+    },
+    {
+      "id": "thin-application-layer",
+      "name": "Thin application layer: handlers orchestrate, pipeline behaviors handle cross-cutting concerns"
+    },
+    {
+      "id": "aggregate-consistency-boundary",
+      "name": "Aggregates as small transactional consistency boundaries"
+    },
+    {
+      "id": "domain-event-dispatch-timing",
+      "name": "Domain vs integration events and when they are dispatched"
+    },
+    {
+      "id": "bounded-context-model-divergence",
+      "name": "Bounded contexts, divergent models and translation between them"
+    },
+    {
+      "id": "anemic-vs-rich-domain-model",
+      "name": "Anemic vs rich domain models and value objects"
+    },
+    {
+      "id": "cqrs-read-write-separation",
+      "name": "CQRS: separating reads and writes, with or without separate stores"
+    },
+    {
+      "id": "mediatr-usage-and-licensing",
+      "name": "MediatR in practice: pipeline behaviors and its commercial license"
+    },
+    {
+      "id": "event-sourcing-tradeoffs",
+      "name": "When event sourcing is and isn't worth it"
+    },
+    {
+      "id": "projection-read-model-rebuild",
+      "name": "Projections and materialized views: idempotency, staleness and rebuilds"
+    },
+    {
+      "id": "adr-append-only-decision-log",
+      "name": "Architecture decision records as an append-only decision log"
+    },
+    {
+      "id": "technical-debt-interest-prioritization",
+      "name": "Prioritizing technical debt by where interest is actually paid"
+    },
+    {
+      "id": "incremental-legacy-migration",
+      "name": "Incremental migration of legacy code (Strangler Fig, anti-corruption layer)"
+    },
+    {
+      "id": "technical-quality-leverage-points",
+      "name": "Managing technical quality: cheapest effective tool and leverage points"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w06-l01-q01",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w06-l01",
+      "prompt": "What is the key structural difference between a traditional N-layer application and Clean Architecture in .NET?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "N-layer has the business logic layer depend on the data access layer at compile time; Clean Architecture inverts this, so the Application Core defines interfaces (repositories) that Infrastructure implements."
+        },
+        {
+          "id": "b",
+          "text": "Clean Architecture only adds more class library projects to the solution, but the compile-time dependency still flows from the UI, through Business Logic, down to the Data Access layer, exactly the same as it did before, in the old N-layer solution."
+        },
+        {
+          "id": "c",
+          "text": "Clean Architecture forbids defining any interfaces inside the domain project, so domain code must reference and directly instantiate concrete Infrastructure classes such as `SqlRepository`."
+        },
+        {
+          "id": "d",
+          "text": "N-layer moves business rules into stored procedures in the database, while Clean Architecture instead puts all business rules directly inside the ASP.NET Core MVC controllers."
+        }
+      ],
+      "concept": "clean-architecture-dependency-inversion",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/architecture/modern-web-apps-azure/common-web-application-architectures",
+          "claim": "In N-layer the BLL depends on the DAL at compile time; Clean Architecture has the Application Core define abstractions such as interfaces that Infrastructure implements, so dependencies point toward the core.",
+          "title": "Common web application architectures",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "azure-architecture-styles",
+        "milan-jovanovic-blog",
+        "dotnet-microservices-ebook"
+      ],
+      "explanation": "Microsoft's guide shows that in N-layer the BLL depends on the DAL, so the domain cannot be tested or compiled without data-access concerns. Clean (onion, hexagonal) architecture puts the business logic and model at the centre, with abstractions defined in the core and implemented by outer layers. Answer (b) is the tempting misunderstanding that it is only \"more folders\"."
+    },
+    {
+      "id": "w06-l01-q02",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w06-l01",
+      "prompt": "In a Clean Architecture ASP.NET Core solution, the Web project references the Infrastructure project. A reviewer objects. Which response matches Microsoft's reference guidance?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The reference is forbidden; the Web project must not know Infrastructure exists, so remove the project reference and load every implementation dynamically through `Assembly.LoadFrom` reflection instead."
+        },
+        {
+          "id": "b",
+          "text": "The reference is fine for any use, including injecting `DbContext` directly into controllers and calling `SqlConnection` APIs from Razor Pages code-behind."
+        },
+        {
+          "id": "c",
+          "text": "The UI may reference Infrastructure to wire implementations in the composition root at startup, but its code should otherwise depend on Application Core interfaces, not Infrastructure types."
+        },
+        {
+          "id": "d",
+          "text": "The reference proves the solution is really N-layer in disguise, and it should be converted into separately deployed microservices communicating over gRPC."
+        }
+      ],
+      "concept": "clean-architecture-dependency-inversion",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/architecture/modern-web-apps-azure/common-web-application-architectures",
+          "claim": "The UI layer shouldn't depend directly on Infrastructure types except for wiring them up; referencing the Infrastructure project from the UI is allowed so implementations can be registered in the composition root at startup.",
+          "title": "Common web application architectures",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "azure-architecture-styles",
+        "milan-jovanovic-blog",
+        "dotnet-microservices-ebook"
+      ],
+      "explanation": "Microsoft's guide says the UI project can reference the Infrastructure project for convenience, most easily to configure the concrete implementations in the DI container at startup, while UI classes should otherwise use only core interfaces. Answer (a) over-applies the rule; (b) throws away the benefit of the inversion."
+    },
+    {
+      "id": "w06-l01-q03",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w06-l01",
+      "prompt": "A team is moving from layered folders (Controllers, Services, Repositories) to vertical slices (`Features/Orders/PlaceOrder.cs` holding request, handler, validation and endpoint). What is the main trade-off they are accepting?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Features become harder to find, because each `Features/Orders/PlaceOrder.cs` file is now spread thinly across many separate class library projects instead of one folder."
+        },
+        {
+          "id": "b",
+          "text": "Every slice must call through one shared generic repository interface, such as `IRepository<T>`, which recouples all the features to a common data-access abstraction."
+        },
+        {
+          "id": "c",
+          "text": "Vertical slices remove the need for any unit or integration tests, because each handler is considered self-verifying by construction."
+        },
+        {
+          "id": "d",
+          "text": "High cohesion within a feature, low coupling between features, in exchange for possible duplication and judging when to pull out shared logic."
+        }
+      ],
+      "concept": "vertical-slice-feature-cohesion",
+      "sources": [
+        {
+          "url": "https://www.milanjovanovic.tech/blog/vertical-slice-architecture",
+          "claim": "Vertical slice architecture organizes code by feature for high cohesion within a slice and low coupling between slices; drawbacks include potential code duplication and deciding how to handle shared logic.",
+          "title": "Vertical Slice Architecture",
+          "accessed": "2026-09-27",
+          "publisher": "Milan Jovanović"
+        }
+      ],
+      "materials": [
+        "azure-architecture-styles",
+        "milan-jovanovic-blog",
+        "dotnet-microservices-ebook"
+      ],
+      "explanation": "Milan Jovanović describes vertical slices as organizing code by feature, so a change touches one place and slices stay independent. The cost is that similar code may be repeated across slices, and the team has to decide deliberately when to extract shared domain logic. Answer (a) describes the layered style it replaces."
+    },
+    {
+      "id": "w06-l01-q04",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w06-l01",
+      "prompt": "In a modular monolith, the Orders module needs a customer's credit limit, which the Customers module owns. Which approach keeps the module boundary intact?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Write a SQL join directly from the Orders query to the Customers tables, because both modules currently sit in the same physical database."
+        },
+        {
+          "id": "b",
+          "text": "Call the Customers module's public API, or keep a local read copy updated from its published events; each module owns its data and never queries another module's tables."
+        },
+        {
+          "id": "c",
+          "text": "Inject and reference the Customers module's own `DbContext` type directly from Orders' repository classes to load the credit limit."
+        },
+        {
+          "id": "d",
+          "text": "Split both modules into separately deployed microservices, each with its own database and its own deployment pipeline, before any credit-limit data is ever shared between the two teams."
+        }
+      ],
+      "concept": "modular-monolith-module-boundaries",
+      "sources": [
+        {
+          "url": "https://www.milanjovanovic.tech/blog/modular-monolith-data-isolation",
+          "claim": "Each module should only access its own tables and database joins are only allowed within a module; start with a separate schema per module and use multiple DbContexts; communicate through public APIs.",
+          "title": "Modular Monolith Data Isolation",
+          "accessed": "2026-09-27",
+          "publisher": "Milan Jovanović"
+        },
+        {
+          "url": "https://www.milanjovanovic.tech/blog/what-is-a-modular-monolith",
+          "claim": "A modular monolith groups code into modules with well-defined interfaces that own their data, deployed as one unit, with in-process communication between modules.",
+          "title": "What Is a Modular Monolith?",
+          "accessed": "2026-09-27",
+          "publisher": "Milan Jovanović"
+        }
+      ],
+      "materials": [
+        "azure-architecture-styles",
+        "milan-jovanovic-blog",
+        "dotnet-microservices-ebook"
+      ],
+      "explanation": "A modular monolith gets its value from modules with well-defined interfaces that own their data. Milan's isolation guidance says a module accesses only its own tables and joins only within its own module, with a schema per module as the usual starting point. Cross-module joins (a) and shared DbContexts (c) quietly turn it back into a big ball of mud."
+    },
+    {
+      "id": "w06-l01-q05",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w06-l01",
+      "prompt": "Every command handler in your API repeats the same logging, FluentValidation calls and `try/catch` blocks, and some handlers also compute order discounts. What does Microsoft's eShopOnContainers guidance recommend?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Put logging and validation into a shared `BaseApiController` class that every controller inherits from, and keep the discount rules inline inside each handler method."
+        },
+        {
+          "id": "b",
+          "text": "Move all logic, including the discount calculation rules, into MediatR pipeline behaviors so handlers become empty pass-through methods."
+        },
+        {
+          "id": "c",
+          "text": "Handle logging and validation with MediatR pipeline behaviors, keep discount rules in the domain aggregates, and keep handlers thin: load, call, persist."
+        },
+        {
+          "id": "d",
+          "text": "Move the discount rules into a SQL Server stored procedure called from each handler, so the calculation runs faster on the database server."
+        }
+      ],
+      "concept": "thin-application-layer",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/architecture/microservices/microservice-ddd-cqrs-patterns/microservice-application-layer-implementation-web-api",
+          "claim": "MediatR pipeline behaviors such as LoggingBehavior and ValidatorBehavior handle cross-cutting concerns as explicit decorators; the command handler loads the aggregate, invokes its methods and persists it, while domain logic lives in the aggregates.",
+          "title": "Implementing the microservice application layer using the Web API",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/architecture/microservices/microservice-ddd-cqrs-patterns/ddd-oriented-microservice",
+          "claim": "The application layer must be kept thin and holds no business rules or knowledge; it coordinates tasks and delegates work to domain objects.",
+          "title": "Designing a DDD-oriented microservice",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "azure-architecture-styles",
+        "milan-jovanovic-blog",
+        "dotnet-microservices-ebook"
+      ],
+      "explanation": "Microsoft describes the application layer as thin, coordinating tasks without holding business rules, and uses MediatR behaviors such as `LoggingBehavior` and `ValidatorBehavior` to apply cross-cutting concerns around every command. Answer (b) is the tempting over-use: behaviors are for concerns that apply to all requests, not domain rules."
+    },
+    {
+      "id": "w06-l01-q06",
+      "type": "written",
+      "lesson": "w06-l01",
+      "prompt": "You are starting a new .NET back end for a mid-sized product. Compare Clean Architecture, vertical slice architecture and a modular monolith, and say how you would choose between them (they can be combined).",
+      "concept": "vertical-slice-feature-cohesion",
+      "sources": [
+        {
+          "url": "https://www.milanjovanovic.tech/blog/vertical-slice-architecture",
+          "claim": "Vertical slice architecture organizes by feature and contrasts with Clean Architecture's rigid layers; drawbacks include duplication and handling shared logic.",
+          "title": "Vertical Slice Architecture",
+          "accessed": "2026-09-27",
+          "publisher": "Milan Jovanović"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/guide/architecture-styles/",
+          "claim": "Architecture styles place constraints on the design that bring benefits and trade-offs; be practical, since sometimes it's better to relax a constraint; the complexity of the chosen style should match the domain.",
+          "title": "Architecture Styles - Azure Architecture Center",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "azure-architecture-styles",
+        "milan-jovanovic-blog",
+        "dotnet-microservices-ebook"
+      ],
+      "explanation": "Strong candidates reject the false either/or and explain what problem each style solves. Tying the choice to domain complexity, and knowing that architecture styles are constraints you can relax, is what separates a senior answer.",
+      "model_answer": {
+        "summary": "They answer different questions: Clean Architecture sets the direction of dependencies, vertical slices organize code by feature, and a modular monolith draws deployable-unit-independent module boundaries. Choose by domain complexity and team structure, and combine them pragmatically.",
+        "key_points": [
+          "Clean Architecture: inverts dependencies so the core has no infrastructure concerns; strong for complex domains and testability, but adds ceremony for simple CRUD",
+          "Vertical slices: code grouped by feature, high cohesion within a slice and low coupling between slices, at the cost of possible duplication",
+          "Modular monolith: modules with explicit public APIs that own their data, deployed as one unit, and a path to extracting services later",
+          "Combining them: modules at the top level, with slices (or a small clean core for complex modules) inside each",
+          "Decide by domain complexity, team size and expected change; match complexity to the domain, and relax a constraint when it costs more than it returns"
+        ]
+      }
+    },
+    {
+      "id": "w06-l01-q07",
+      "type": "written",
+      "lesson": "w06-l01",
+      "prompt": "Six months into a modular monolith, you find modules reading each other's tables and referencing each other's internals. How would you restore the boundaries and stop the erosion from happening again?",
+      "concept": "modular-monolith-module-boundaries",
+      "sources": [
+        {
+          "url": "https://www.milanjovanovic.tech/blog/modular-monolith-data-isolation",
+          "claim": "Modules should only access their own tables and joins are only allowed within a module; isolation levels range from separate tables to schemas, databases and persistence technologies, with schemas as a good starting point.",
+          "title": "Modular Monolith Data Isolation",
+          "accessed": "2026-09-27",
+          "publisher": "Milan Jovanović"
+        },
+        {
+          "url": "https://www.milanjovanovic.tech/blog/enforcing-software-architecture-with-architecture-tests",
+          "claim": "Architecture tests with NetArchTest.Rules enforce layer and module dependency rules automatically and can run in CI.",
+          "title": "Enforcing Software Architecture With Architecture Tests",
+          "accessed": "2026-09-27",
+          "publisher": "Milan Jovanović"
+        }
+      ],
+      "materials": [
+        "azure-architecture-styles",
+        "milan-jovanovic-blog",
+        "dotnet-microservices-ebook"
+      ],
+      "explanation": "The senior move is to make the rule executable: architecture tests and database permissions stop the regression, where a wiki page does not. Recognising that cross-module joins are the most common leak shows real experience.",
+      "model_answer": {
+        "summary": "Restore data ownership (a schema per module, access only through module APIs or events), make internals non-public, and enforce the rules automatically with architecture tests in CI so reviews are not the only guard.",
+        "key_points": [
+          "Each module owns its tables; replace cross-module joins with calls to the owning module's public API or with locally held read models fed by events",
+          "Give each module its own schema and `DbContext`, optionally with a separate database user per module, so accidental access fails",
+          "Keep internals `internal` and expose only a contracts assembly or public API per module",
+          "Enforce dependency rules with architecture tests (for example NetArchTest) that run in CI and fail the build on a forbidden reference",
+          "Fix the worst violations first and record the boundary rules so new code follows them"
+        ]
+      }
+    },
+    {
+      "id": "w06-l01-q08",
+      "type": "written",
+      "lesson": "w06-l01",
+      "prompt": "You inherit a CRUD-heavy admin API written with full DDD: aggregates, repositories, domain events, CQRS commands and handlers for every table. Delivery is slow. What would you recommend, and how would you justify it?",
+      "concept": "thin-application-layer",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/architecture/microservices/microservice-ddd-cqrs-patterns/ddd-oriented-microservice",
+          "claim": "DDD patterns fit complex microservices; simpler CRUD services can use a simpler approach; the application layer is thin and the domain layer is persistence ignorant.",
+          "title": "Designing a DDD-oriented microservice",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/architecture/microservices/microservice-ddd-cqrs-patterns/eshoponcontainers-cqrs-ddd-microservice",
+          "claim": "CQRS and DDD are patterns rather than top-level architectures and should be applied only in the bounded contexts that need them: do not use CQRS and DDD patterns everywhere.",
+          "title": "Applying CQRS and CQS approaches in a DDD microservice in eShopOnContainers",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "azure-architecture-styles",
+        "milan-jovanovic-blog",
+        "dotnet-microservices-ebook"
+      ],
+      "explanation": "Interviewers want to see that you can take patterns out as well as add them. Quoting the source's own warning (\"do not use CQRS and DDD patterns everywhere\") and proposing a gradual, measured change shows maturity.",
+      "model_answer": {
+        "summary": "Apply DDD and CQRS only where the domain is complex. For simple CRUD areas, a thin data-driven design (EF Core directly, simple handlers or endpoints) is appropriate, and the patterns can stay in the parts of the system that need them.",
+        "key_points": [
+          "Microsoft's guidance: use DDD patterns only for complex microservices or bounded contexts; simple CRUD services can use a simpler, data-driven design",
+          "CQRS and DDD are patterns applied inside a bounded context, not top-level architectures to use everywhere",
+          "Keep an application layer that stays thin; for CRUD, handlers or endpoints can work with EF Core directly",
+          "Identify the genuinely complex areas (where invariants and rules change often) and keep rich models there",
+          "Migrate incrementally, measure delivery speed before and after, and record the decision in an ADR"
+        ]
+      }
+    },
+    {
+      "id": "w06-l02-q01",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w06-l02",
+      "prompt": "A `Product` aggregate contains all of its `BacklogItem`s, `Release`s and `Sprint`s. Users working on different backlog items of the same product keep getting optimistic concurrency failures. What does Vaughn Vernon's aggregate guidance suggest?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Switch the `Product` aggregate to pessimistic row locking with `SELECT ... FOR UPDATE` on every read, so concurrent edits from different users queue up and wait instead of failing outright."
+        },
+        {
+          "id": "b",
+          "text": "Increase the database transaction isolation level to Serializable for every query that touches the `Product` cluster."
+        },
+        {
+          "id": "c",
+          "text": "Split it into small aggregates such as `Product` and `BacklogItem`, each protecting only its true invariants and referenced elsewhere by id, coordinated by domain events."
+        },
+        {
+          "id": "d",
+          "text": "Merge `Product` with its team's aggregate too, so the team roster and all backlog data load and save together in one transaction."
+        }
+      ],
+      "concept": "aggregate-consistency-boundary",
+      "sources": [
+        {
+          "url": "https://www.dddcommunity.org/wp-content/uploads/files/pdf_articles/Vernon_2011_1.pdf",
+          "claim": "Model true invariants in consistency boundaries and design small aggregates; the large Product cluster causes concurrent users to fail with optimistic concurrency conflicts, so BacklogItem, Release and Sprint become separate aggregates.",
+          "title": "Effective Aggregate Design Part I: Modeling a Single Aggregate",
+          "accessed": "2026-09-27",
+          "publisher": "Vaughn Vernon (DDD Community)"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/architecture/microservices/microservice-ddd-cqrs-patterns/microservice-domain-model",
+          "claim": "An aggregate is defined by the transactional consistency it needs; the root is the only entry point for updates, and other aggregates are referenced by their identity only.",
+          "title": "Designing a microservice domain model",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "evans-ddd",
+        "khononov-ddd",
+        "dotnet-microservices-ebook"
+      ],
+      "explanation": "Vernon's example is exactly this: a large cluster aggregate causes transactions to collide even though users are editing unrelated parts. The fix is to model true invariants only and design small aggregates that reference others by identity. Stronger locking (a, b) removes the error message but makes contention worse."
+    },
+    {
+      "id": "w06-l02-q02",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w06-l02",
+      "prompt": "A colleague says \"one bounded context equals one microservice\". Which statement reflects Vladik Khononov's argument?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A bounded context is the widest boundary where a model stays consistent; a microservice can be that size or smaller, so a microservice is a bounded context, but not the reverse."
+        },
+        {
+          "id": "b",
+          "text": "Correct: every bounded context must always be deployed as exactly one independently versioned microservice, with its own dedicated database, deployment pipeline and API gateway route."
+        },
+        {
+          "id": "c",
+          "text": "Bounded contexts are purely a database schema-naming convention and have nothing to do with how services are deployed."
+        },
+        {
+          "id": "d",
+          "text": "Microservices should always be modeled larger than bounded contexts, so a single microservice owns several distinct domain models at once."
+        }
+      ],
+      "concept": "bounded-context-model-divergence",
+      "sources": [
+        {
+          "url": "https://vladikk.com/2018/01/21/bounded-contexts-vs-microservices/",
+          "claim": "A bounded context defines the widest valid boundary of a consistent model; microservices can be smaller, so a microservice is a bounded context, but not vice versa.",
+          "title": "Bounded Contexts are NOT Microservices",
+          "accessed": "2026-09-27",
+          "publisher": "Vladik Khononov"
+        }
+      ],
+      "materials": [
+        "evans-ddd",
+        "khononov-ddd",
+        "dotnet-microservices-ebook"
+      ],
+      "explanation": "Khononov treats the bounded context as the *widest* valid boundary: go wider and the model becomes ambiguous. Within it, you can decompose further into several microservices for operational reasons. Answer (b) is the popular simplification the article corrects."
+    },
+    {
+      "id": "w06-l02-q03",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w06-l02",
+      "prompt": "An `Order` aggregate raises `OrderStartedDomainEvent`, and a handler updates the buyer aggregate. In the eShopOnContainers design, `SaveEntitiesAsync` dispatches the domain events *before* calling `SaveChanges` on the same scoped `DbContext`. What is the consequence?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The order and the buyer changes commit in a single transaction: either both succeed or neither does."
+        },
+        {
+          "id": "b",
+          "text": "The buyer update runs in a separate transaction after the order commits, so it becomes eventually consistent."
+        },
+        {
+          "id": "c",
+          "text": "The event is published to RabbitMQ before the database commit."
+        },
+        {
+          "id": "d",
+          "text": "The event is lost if the handler throws, but the order is saved anyway."
+        }
+      ],
+      "concept": "domain-event-dispatch-timing",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/architecture/microservices/microservice-ddd-cqrs-patterns/domain-events-design-implementation",
+          "claim": "Dispatching domain events right before SaveChanges with the same scoped DbContext commits all changes in a single transaction; dispatching after committing means multiple transactions and eventual consistency; integration events are published only after the commit.",
+          "title": "Domain events: Design and implementation",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "evans-ddd",
+        "khononov-ddd",
+        "dotnet-microservices-ebook"
+      ],
+      "explanation": "Because the handlers run before `SaveChanges` and share the scoped `DbContext`, all changes are committed together. Dispatching *after* committing (b) is the alternative, with multiple transactions, eventual consistency and possibly compensating actions. Integration events to a broker (c) are a separate concept, published only after a successful commit."
+    },
+    {
+      "id": "w06-l02-q04",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w06-l02",
+      "prompt": "Sales and Support both have a `Customer` class. Sales needs credit terms and pipeline stage; Support needs SLA tier and open tickets. The team wants to merge them into one shared `Customer` entity used everywhere. What does DDD suggest?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Merge them into one canonical `Customer` class shared by both teams' services, because a single model avoids field duplication."
+        },
+        {
+          "id": "b",
+          "text": "Put every field from both teams onto one `Customer` class and make most of the SLA, ticket and pipeline-stage fields nullable, so either team's code can simply ignore the ones it doesn't personally use."
+        },
+        {
+          "id": "c",
+          "text": "Move `Customer` into a shared class library referenced by both services, so any schema change must be reviewed and released by both teams together."
+        },
+        {
+          "id": "d",
+          "text": "Keep a separate `Customer` model per bounded context, since the word means different things, and translate between them via a context map and anti-corruption layer."
+        }
+      ],
+      "concept": "bounded-context-model-divergence",
+      "sources": [
+        {
+          "url": "https://martinfowler.com/bliki/BoundedContext.html",
+          "claim": "Total unification of the domain model for a large system is not feasible or cost-effective; bounded contexts have different models of common concepts such as Customer, related through a context map.",
+          "title": "Bounded Context",
+          "accessed": "2026-09-27",
+          "publisher": "Martin Fowler (martinfowler.com)"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/anti-corruption-layer",
+          "claim": "An anti-corruption layer translates between subsystems with different semantics so one model isn't corrupted by another; it adds latency and must not accumulate business logic.",
+          "title": "Anti-Corruption Layer Pattern",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "evans-ddd",
+        "khononov-ddd",
+        "dotnet-microservices-ebook"
+      ],
+      "explanation": "Fowler notes that total unification of a large domain model is neither feasible nor cost-effective, and that terms like Customer are polysemes whose meaning differs by context. Each context keeps its own model, and integration uses translation; an anti-corruption layer protects one model from another's semantics. Answer (a) is the intuitive but costly choice."
+    },
+    {
+      "id": "w06-l02-q05",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w06-l02",
+      "prompt": "When is an anemic domain model (entities that are only properties, with all logic in services) acceptable, according to Microsoft's microservices guidance and Fowler?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Never: every entity in every service must hold behaviour, even simple lookup tables like `Country` or `Currency`."
+        },
+        {
+          "id": "b",
+          "text": "Always: separating data properties from service logic is good object-oriented design regardless of how complex the rules are."
+        },
+        {
+          "id": "c",
+          "text": "Fine for a simple CRUD service; for complex rules it's an anti-pattern giving the costs of a domain model without the benefits."
+        },
+        {
+          "id": "d",
+          "text": "Only when the database is NoSQL, such as Cosmos DB or MongoDB, since document stores don't support behaviour-rich entity classes."
+        }
+      ],
+      "concept": "anemic-vs-rich-domain-model",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/architecture/microservices/microservice-ddd-cqrs-patterns/microservice-domain-model",
+          "claim": "An anemic domain model can be acceptable in a simple CRUD microservice but is an anti-pattern when there are complex business rules and invariants.",
+          "title": "Designing a microservice domain model",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://martinfowler.com/bliki/AnemicDomainModel.html",
+          "claim": "An anemic domain model incurs all the costs of a domain model without any of the benefits; it is essentially procedural design, with behaviour moved into services.",
+          "title": "Anemic Domain Model",
+          "accessed": "2026-09-27",
+          "publisher": "Martin Fowler (martinfowler.com)"
+        }
+      ],
+      "materials": [
+        "evans-ddd",
+        "khononov-ddd",
+        "dotnet-microservices-ebook"
+      ],
+      "explanation": "Microsoft says an anemic model can be fine for a simple CRUD microservice but becomes an anti-pattern when the domain has complex rules. Fowler's objection is that it is procedural design dressed up as objects, paying for the mapping layer without getting the encapsulation of invariants. Answer (a) overstates it; (b) inverts the guidance."
+    },
+    {
+      "id": "w06-l02-q06",
+      "type": "written",
+      "lesson": "w06-l02",
+      "prompt": "Design an `Order` aggregate with order lines, a `Money` total and a shipping `Address`. Explain the aggregate boundary, which types are entities and which are value objects, how invariants are enforced, and how you would persist the value objects with EF Core.",
+      "concept": "aggregate-consistency-boundary",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/architecture/microservices/microservice-ddd-cqrs-patterns/microservice-domain-model",
+          "claim": "Entities have identity while value objects don't; the aggregate root is the only entry point for updates and ensures consistency; reference other aggregates by identity.",
+          "title": "Designing a microservice domain model",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/architecture/microservices/microservice-ddd-cqrs-patterns/implement-value-objects",
+          "claim": "Value objects have no identity and are immutable, with equality through GetEqualityComponents; EF Core maps them as owned entity types with OwnsOne, stored in the owner's table.",
+          "title": "Implementing value objects",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "evans-ddd",
+        "khononov-ddd",
+        "dotnet-microservices-ebook"
+      ],
+      "explanation": "Weak answers draw a big object graph. Strong answers justify the boundary by invariants, show encapsulation (no public setters on collections), and know the concrete EF Core mapping for value objects.",
+      "model_answer": {
+        "summary": "`Order` is the root and the only entry point: lines are changed only through its methods, which enforce invariants. `Money` and `Address` are immutable value objects compared by their values, persisted as EF Core owned types. Other aggregates, such as the buyer, are referenced by id.",
+        "key_points": [
+          "`Order` is the aggregate root and the only way to change it (for example `AddLine`, `SetShippingAddress`), with no public setters on the collection, so invariants such as \"no negative quantities\" and \"total equals the sum of the lines\" hold at all times",
+          "`OrderLine` is an entity inside the aggregate (identity local to the order); the buyer or product is referenced by id, not by navigation",
+          "`Money` and `Address` are value objects: no identity, immutable, equality by value (for example through `GetEqualityComponents` or C# records)",
+          "EF Core persists value objects as owned types with `OwnsOne`, stored in the owner's table as columns such as `Address_Street`",
+          "One transaction changes one aggregate; keep the boundary as small as the invariants allow"
+        ]
+      }
+    },
+    {
+      "id": "w06-l02-q07",
+      "type": "written",
+      "lesson": "w06-l02",
+      "prompt": "Explain the difference between domain events and integration events, when each is dispatched, and how you handle consistency when an order placement must also update the buyer (same service) and notify the shipping service (another service).",
+      "concept": "domain-event-dispatch-timing",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/architecture/microservices/microservice-ddd-cqrs-patterns/domain-events-design-implementation",
+          "claim": "Domain events are in-process within the same domain; integration events are published only after the transaction commits and are asynchronous; Evans and Vernon favour one aggregate per transaction while others accept same-transaction side effects.",
+          "title": "Domain events: Design and implementation",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/cqrs",
+          "claim": "When models use separate stores, use patterns like the transactional outbox to publish events reliably, and design consumers to be idempotent.",
+          "title": "CQRS Pattern",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "evans-ddd",
+        "khononov-ddd",
+        "dotnet-microservices-ebook"
+      ],
+      "explanation": "Mixing up the two kinds of event is the classic mistake. A senior answer explains the dual-write problem that the outbox solves and knows that the one-aggregate-per-transaction rule is debated (Vernon and Evans for it, Bogard more relaxed).",
+      "model_answer": {
+        "summary": "Domain events are in-process side effects inside one bounded context, dispatched around the save and possibly in the same transaction. Integration events cross services and are published asynchronously only after the commit, ideally through an outbox, with idempotent consumers and eventual consistency.",
+        "key_points": [
+          "Domain events are in-process, within one domain; handlers in the same service can run in the same transaction when dispatched before `SaveChanges`",
+          "Integration events tell other services or bounded contexts; they are published only after the local transaction has committed, and asynchronously",
+          "To avoid losing or ghosting messages, write the event atomically with the state change (transactional outbox) and publish it afterwards",
+          "Consumers must be idempotent, because messages can arrive more than once",
+          "Accept eventual consistency across services and design compensating actions for failures; DDD purists prefer one aggregate per transaction even within a service"
+        ]
+      }
+    },
+    {
+      "id": "w06-l02-q08",
+      "type": "written",
+      "lesson": "w06-l02",
+      "prompt": "You inherit a 1,500-line `OrderService` full of `if` statements that manipulate an `Order` class with public setters. The rules are complex and bugs keep appearing. How would you refactor it towards a richer domain model without a big-bang rewrite?",
+      "concept": "anemic-vs-rich-domain-model",
+      "sources": [
+        {
+          "url": "https://martinfowler.com/bliki/AnemicDomainModel.html",
+          "claim": "In an anemic domain model the logic lives in service objects and the domain objects are bags of getters and setters; the service layer should be thin, with behaviour in the domain objects.",
+          "title": "Anemic Domain Model",
+          "accessed": "2026-09-27",
+          "publisher": "Martin Fowler (martinfowler.com)"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/architecture/microservices/microservice-ddd-cqrs-patterns/microservice-domain-model",
+          "claim": "Rich domain entities encapsulate behaviour and data; the anemic model is an anti-pattern for complex rules; the aggregate root enforces invariants through its methods.",
+          "title": "Designing a microservice domain model",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "evans-ddd",
+        "khononov-ddd",
+        "dotnet-microservices-ebook"
+      ],
+      "explanation": "Interviewers watch for safe, incremental refactoring (tests first, one rule at a time) and a clear idea of where each piece of logic should end up. Mentioning domain events for side effects is a bonus.",
+      "model_answer": {
+        "summary": "Move behaviour and invariants into `Order` step by step, behind tests: replace setters with intention-revealing methods, introduce value objects, and let the service shrink to an orchestrating application layer.",
+        "key_points": [
+          "Diagnose: anemic model plus procedural service; with complex rules this is the anti-pattern (all the cost of a domain model and none of the benefits)",
+          "Add characterization tests around current behaviour before moving any code",
+          "Move one rule at a time into methods such as `order.AddLine(...)` or `order.Cancel(reason)` that enforce invariants, and make setters private",
+          "Introduce value objects (Money, Quantity, Address) to remove primitive obsession and repeated validation",
+          "The service becomes a thin application layer: load the aggregate, call the method, save it; raise domain events for side effects"
+        ]
+      }
+    },
+    {
+      "id": "w06-l03-q01",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w06-l03",
+      "prompt": "In Microsoft's eShopOnContainers Ordering service, how are CQRS reads implemented?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Through a physically separate read database, kept up to date by replaying an append-only event store into projection tables."
+        },
+        {
+          "id": "b",
+          "text": "Simplified CQRS: one database, commands through the DDD model with EF Core, queries via Dapper returning DTOs directly, bypassing the domain model."
+        },
+        {
+          "id": "c",
+          "text": "Through the exact same repositories and aggregates used for writes, with the results mapped to view-model DTOs using AutoMapper profiles."
+        },
+        {
+          "id": "d",
+          "text": "Through GraphQL resolvers that subscribe to and replay the RabbitMQ integration event stream on every query."
+        }
+      ],
+      "concept": "cqrs-read-write-separation",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/architecture/microservices/microservice-ddd-cqrs-patterns/eshoponcontainers-cqrs-ddd-microservice",
+          "claim": "The Ordering microservice uses a simplified CQRS approach with a single database; queries use Dapper and bypass the domain model, while commands use the DDD model and EF Core.",
+          "title": "Applying CQRS and CQS approaches in a DDD microservice in eShopOnContainers",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "jimmy-bogard-blog",
+        "azure-cloud-design-patterns",
+        "dotnet-microservices-ebook"
+      ],
+      "explanation": "The eShopOnContainers chapter describes a simplified CQRS: one database, but queries are kept apart from the transactional domain model, using Dapper to run SQL and return exactly the data the UI needs. Answer (a) describes full CQRS with separate stores and event sourcing, which the guide says is not required."
+    },
+    {
+      "id": "w06-l03-q02",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w06-l03",
+      "prompt": "Your company (about $40M annual revenue) is upgrading MediatR to the latest version for a production system. What does Jimmy Bogard's July 2025 commercial launch post mean for you?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Nothing changes: MediatR remains MIT-licensed for every version and every company, regardless of revenue or production use."
+        },
+        {
+          "id": "b",
+          "text": "Every version, including releases from years ago already installed in production, now retroactively requires a paid commercial license key."
+        },
+        {
+          "id": "c",
+          "text": "From 13.0, MediatR is dual-licensed (RPL-1.5 or commercial); the free tier covers companies under $5M revenue, so your production use needs a paid license."
+        },
+        {
+          "id": "d",
+          "text": "The library throws a `LicenseException` at startup and refuses to run at all if it can't find a valid license key in configuration."
+        }
+      ],
+      "concept": "mediatr-usage-and-licensing",
+      "sources": [
+        {
+          "url": "https://www.jimmybogard.com/automapper-and-mediatr-commercial-editions-launch-today/",
+          "claim": "MediatR 13.0 and AutoMapper 15.0 onward are dual-licensed under RPL-1.5 and a commercial license; the free Community edition covers companies under $5M revenue and non-production use; a missing license key only logs a message; earlier versions keep their original license.",
+          "title": "AutoMapper and MediatR Commercial Editions Launch Today",
+          "accessed": "2026-09-27",
+          "publisher": "Jimmy Bogard"
+        }
+      ],
+      "materials": [
+        "jimmy-bogard-blog",
+        "azure-cloud-design-patterns",
+        "dotnet-microservices-ebook"
+      ],
+      "explanation": "Bogard's post states that versions from MediatR 13.0 and AutoMapper 15.0 are under the new dual license, that the Community edition covers companies below $5M in revenue, non-profits, education and non-production use, and that older versions keep their licenses. A missing key only logs a warning (d). Answer (b) is a common misreading."
+    },
+    {
+      "id": "w06-l03-q03",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w06-l03",
+      "prompt": "For which part of a system is event sourcing the *least* suitable, according to Azure's pattern guidance?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "An audit-critical ledger where every change must be traceable."
+        },
+        {
+          "id": "b",
+          "text": "A collaborative domain where many users change the same entities and conflicts should be reconciled."
+        },
+        {
+          "id": "c",
+          "text": "A workflow where you need to replay history to fix a past bug and rebuild state."
+        },
+        {
+          "id": "d",
+          "text": "User profile and settings CRUD that has no audit requirement and needs immediately consistent reads."
+        }
+      ],
+      "concept": "event-sourcing-tradeoffs",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/event-sourcing",
+          "claim": "Event sourcing isn't suitable for small or simple domains with little business logic, systems that need consistency and real-time updates to views, or systems without audit and history requirements; it is complex and costly to migrate to or from.",
+          "title": "Event Sourcing Pattern",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "jimmy-bogard-blog",
+        "azure-cloud-design-patterns",
+        "dotnet-microservices-ebook"
+      ],
+      "explanation": "Azure says event sourcing is complex, costly to migrate to and from, and a poor fit for simple domains with little business logic, for systems without audit or history needs, and where consistent real-time views are required. The other options are the scenarios where the pattern's audit trail and replay pay off."
+    },
+    {
+      "id": "w06-l03-q04",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w06-l03",
+      "prompt": "An event-sourced system stores customers' names and addresses in its events, and events are immutable. A customer invokes their GDPR right to erasure. Which approach does Azure's event sourcing guidance describe?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Keep personal data out of the events, referenced by id, or encrypt it per subject and delete the key (crypto-shredding)."
+        },
+        {
+          "id": "b",
+          "text": "Run an `UPDATE` script against the event store to edit the stored `CustomerRegistered` and `AddressChanged` events, blanking out the name and address fields in place."
+        },
+        {
+          "id": "c",
+          "text": "Delete the entire event stream for every aggregate the customer ever touched, including unrelated order and payment history."
+        },
+        {
+          "id": "d",
+          "text": "Nothing is needed, because the immutability guarantee of event sourcing legally exempts the system from GDPR erasure requests entirely."
+        }
+      ],
+      "concept": "event-sourcing-tradeoffs",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/event-sourcing",
+          "claim": "For personal data and right-to-be-forgotten requirements, store personal data outside the event store and reference it, or use crypto-shredding by encrypting data with per-subject keys that can be deleted.",
+          "title": "Event Sourcing Pattern",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "jimmy-bogard-blog",
+        "azure-cloud-design-patterns",
+        "dotnet-microservices-ebook"
+      ],
+      "explanation": "Because the event store is append-only, Azure suggests storing personal data outside the store with references from events, or crypto-shredding: encrypting it with a key per data subject and destroying the key when erasure is requested. Editing events (b) breaks the immutability that the pattern depends on."
+    },
+    {
+      "id": "w06-l03-q05",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w06-l03",
+      "prompt": "A projection that maintains an \"available seats\" read model receives the `SeatsReserved` event twice because the message broker redelivered it, and the count is now wrong. What is the right design?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Switch the message broker to one that promises exactly-once delivery semantics, such as a transactional queue, and leave the handler logic unchanged."
+        },
+        {
+          "id": "b",
+          "text": "Make the handler idempotent by tracking processed event ids or stream positions; since the read model is disposable, rebuild it from the event store when corrupted."
+        },
+        {
+          "id": "c",
+          "text": "Take an exclusive lock on the entire read model table for the duration of processing each incoming `SeatsReserved` event."
+        },
+        {
+          "id": "d",
+          "text": "Write to the event store and update the read model together inside one distributed two-phase-commit transaction spanning both stores."
+        }
+      ],
+      "concept": "projection-read-model-rebuild",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/event-sourcing",
+          "claim": "Event consumers must be idempotent because events may be delivered more than once.",
+          "title": "Event Sourcing Pattern",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/materialized-view",
+          "claim": "A materialized view is disposable and can be rebuilt entirely from the source data; rebuild using an atomic or versioned replacement and monitor staleness.",
+          "title": "Materialized View Pattern",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "jimmy-bogard-blog",
+        "azure-cloud-design-patterns",
+        "dotnet-microservices-ebook"
+      ],
+      "explanation": "Azure's guidance assumes at-least-once delivery: event consumers must be idempotent. Materialized views are disposable and can be rebuilt entirely from the source, ideally by building a new version and swapping it in atomically. Relying on exactly-once delivery (a) just moves the problem elsewhere."
+    },
+    {
+      "id": "w06-l03-q06",
+      "type": "written",
+      "lesson": "w06-l03",
+      "prompt": "When is CQRS worth introducing in a .NET system, what are the levels of adoption, and what costs come with separate read and write stores?",
+      "concept": "cqrs-read-write-separation",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/cqrs",
+          "claim": "CQRS can use separate models over a single store or separate stores; separate stores need a transactional outbox and idempotent consumers and introduce eventual consistency; it suits collaborative domains and task-based UIs but not simple CRUD.",
+          "title": "CQRS Pattern",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/architecture/microservices/microservice-ddd-cqrs-patterns/eshoponcontainers-cqrs-ddd-microservice",
+          "claim": "A simplified CQRS approach uses one database with separate query and command paths; CQRS and DDD patterns should not be used everywhere.",
+          "title": "Applying CQRS and CQS approaches in a DDD microservice in eShopOnContainers",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "jimmy-bogard-blog",
+        "azure-cloud-design-patterns",
+        "dotnet-microservices-ebook"
+      ],
+      "explanation": "A strong answer separates CQRS from event sourcing and treats separate stores as an optional, costly step. Saying where you would *not* use it is as important as saying where you would.",
+      "model_answer": {
+        "summary": "CQRS pays off when read and write workloads or models differ greatly (collaborative, task-based domains or performance-sensitive reads). Start with separate models in a single store and use separate stores only when needed, accepting eventual consistency, messaging complexity and more moving parts.",
+        "key_points": [
+          "Good fit: collaborative domains, task-based UIs with complex business rules, and read and write loads that must scale separately; poor fit: simple CRUD domains",
+          "Level 1: separate command and query models over the same database (for example EF Core domain model for writes and Dapper or projections for reads)",
+          "Level 2: separate read and write stores, synchronised by events; needs a transactional outbox and idempotent consumers",
+          "Costs: eventual consistency (users may see stale data), more complexity and infrastructure, and more to monitor",
+          "CQRS is applied per bounded context, not as a system-wide architecture, and is independent of event sourcing"
+        ]
+      }
+    },
+    {
+      "id": "w06-l03-q07",
+      "type": "written",
+      "lesson": "w06-l03",
+      "prompt": "Would you keep using MediatR in a new .NET project in 2026? Weigh what it gives you, what it costs (including licensing), and the alternatives.",
+      "concept": "mediatr-usage-and-licensing",
+      "sources": [
+        {
+          "url": "https://www.jimmybogard.com/automapper-and-mediatr-commercial-editions-launch-today/",
+          "claim": "MediatR 13.0 onward is dual-licensed (RPL-1.5 or commercial) with a free Community edition for companies under $5M revenue and non-production use; earlier versions keep their original license.",
+          "title": "AutoMapper and MediatR Commercial Editions Launch Today",
+          "accessed": "2026-09-27",
+          "publisher": "Jimmy Bogard"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/architecture/microservices/microservice-ddd-cqrs-patterns/microservice-application-layer-implementation-web-api",
+          "claim": "MediatR pipeline behaviors implement cross-cutting concerns such as logging and validation as explicit decorators around each command handler.",
+          "title": "Implementing the microservice application layer using the Web API",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "jimmy-bogard-blog",
+        "azure-cloud-design-patterns",
+        "dotnet-microservices-ebook"
+      ],
+      "explanation": "The question tests judgement rather than loyalty to a library. A senior answer gives an accurate account of the license terms, separates the pattern from the package, and records the decision.",
+      "model_answer": {
+        "summary": "MediatR mainly gives in-process request dispatch and a pipeline for cross-cutting behaviour. Since version 13 it needs a commercial license for many production users, so weigh its value against that cost and against simpler options such as direct handler injection with decorators, or older MIT-licensed versions.",
+        "key_points": [
+          "Benefits: pipeline behaviors for logging, validation and transactions as explicit decorators, and a consistent command and handler structure",
+          "Costs: indirection (it is harder to navigate from endpoint to handler) and an added dependency",
+          "Licensing: from 13.0 it is dual RPL-1.5 or commercial; the Community edition is free under $5M revenue or for non-production use; older versions keep their original license but stop receiving updates",
+          "Alternatives: inject handlers directly and use decorators (for example through Scrutor), use Minimal API endpoint filters, or use another mediator library",
+          "Decide per team and record the decision in an ADR, including the license and upgrade policy"
+        ]
+      }
+    },
+    {
+      "id": "w06-l03-q08",
+      "type": "written",
+      "lesson": "w06-l03",
+      "prompt": "Design the read model behind an \"order history\" page that must load fast for millions of customers, fed by events from the Ordering service. Cover the shape of the data, how it is updated, staleness, failures and rebuilds.",
+      "concept": "projection-read-model-rebuild",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/materialized-view",
+          "claim": "Materialized views are disposable and rebuildable, need a refresh strategy and staleness monitoring, should be rebuilt with atomic or versioned replacement, and need the same access control and data lifecycle management as the source.",
+          "title": "Materialized View Pattern",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/cqrs",
+          "claim": "Read models can be denormalised and optimised for queries; with separate stores the read side is eventually consistent and consumers must be idempotent.",
+          "title": "CQRS Pattern",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "jimmy-bogard-blog",
+        "azure-cloud-design-patterns",
+        "dotnet-microservices-ebook"
+      ],
+      "explanation": "Senior candidates treat the read model as a derived, rebuildable asset with an explicit consistency contract, and they mention security and retention, which are often forgotten for copies of data.",
+      "model_answer": {
+        "summary": "Build a denormalised materialized view per customer, shaped for the query and updated by idempotent event handlers. Expose and monitor staleness, and treat the view as disposable: it can be rebuilt side by side from the source events and swapped in atomically.",
+        "key_points": [
+          "Shape the view for the query: one denormalised document or row set per customer (order id, date, status, total, item summary) in a store optimised for reads",
+          "Update it from integration events with idempotent handlers (track processed ids or versions), because delivery is at least once",
+          "Staleness: define an acceptable lag, show recent writes from the command side where needed, and monitor projection lag",
+          "Rebuilds: the view is disposable; build a new version from the source and switch over atomically instead of patching in place",
+          "Apply the same access control and data lifecycle rules (retention, deletion) to the view as to the source data"
+        ]
+      }
+    },
+    {
+      "id": "w06-l04-q01",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w06-l04",
+      "prompt": "Two years ago the team accepted ADR-007, \"Use MediatR for all commands\". You have now decided to stop using it. According to the Azure Well-Architected guidance, what should you do with the ADR?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Edit ADR-007 in place, rewriting its context and decision sections to describe using MediatR being dropped, and keep the original acceptance date."
+        },
+        {
+          "id": "b",
+          "text": "Delete ADR-007 from the repository entirely, so the decision log only ever shows the decisions the team currently holds."
+        },
+        {
+          "id": "c",
+          "text": "Write a new ADR recording the new decision and its reasons, mark ADR-007 as superseded, and link the two records."
+        },
+        {
+          "id": "d",
+          "text": "Leave ADR-007 unchanged and untouched, and mention the reversal only in a pull request description or a commit message instead."
+        }
+      ],
+      "concept": "adr-append-only-decision-log",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/well-architected/architect-role/architecture-decision-record",
+          "claim": "An ADR is an append-only log; don't go back and edit accepted records; when a decision changes, add a new record that supersedes the old one and link them, with statuses such as proposed, accepted and superseded.",
+          "title": "Maintain an architecture decision record (ADR)",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "eshop",
+        "staff-engineer",
+        "azure-well-architected"
+      ],
+      "explanation": "Azure describes the ADR log as append-only: do not change accepted records; add a new record that supersedes the old one and link them, so the history of why the team decided each thing is kept. Editing in place (a) is the tempting shortcut that destroys that history."
+    },
+    {
+      "id": "w06-l04-q02",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w06-l04",
+      "prompt": "You have one sprint for cleanup. Module A (billing) is messy and changes every week. Module B (a CSV importer) is messier but hasn't been touched in two years. Following Fowler's reasoning on technical debt, where do you spend the time?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "On billing: interest is paid when code is changed, so cruft in a frequently changed module costs far more than cruft in one that rarely changes."
+        },
+        {
+          "id": "b",
+          "text": "On the importer, because it has accumulated the most raw cruft over its two years of neglect, regardless of how often either module is touched."
+        },
+        {
+          "id": "c",
+          "text": "Split the sprint evenly between both modules, because all technical debt carries equal risk and deserves the same amount of attention."
+        },
+        {
+          "id": "d",
+          "text": "Rewrite both modules from scratch this sprint, since a full rewrite always pays down debt faster than incremental refactoring."
+        }
+      ],
+      "concept": "technical-debt-interest-prioritization",
+      "sources": [
+        {
+          "url": "https://martinfowler.com/bliki/TechnicalDebt.html",
+          "claim": "Technical debt interest is the extra effort required to add new features; cruft in parts of the code base that are rarely touched matters little, while high-activity areas deserve zero tolerance for cruft.",
+          "title": "Technical Debt",
+          "accessed": "2026-09-27",
+          "publisher": "Martin Fowler (martinfowler.com)"
+        }
+      ],
+      "materials": [
+        "eshop",
+        "staff-engineer",
+        "azure-well-architected"
+      ],
+      "explanation": "Fowler frames debt as interest paid in extra effort when you modify code. Cruft in a stable area that no one changes accrues almost no interest, whereas high-activity areas deserve aggressive cleanup. Picking the messiest code (b) is the intuitive but wrong answer."
+    },
+    {
+      "id": "w06-l04-q03",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w06-l04",
+      "prompt": "Quality complaints keep rising and your director suggests forming a dedicated quality team right away. According to Will Larson's \"Manage technical quality\" guide, what should you try first?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Launch a company-wide quality program straight away, complete with tracked metrics, quarterly reviews and executive sponsorship from the director."
+        },
+        {
+          "id": "b",
+          "text": "Stand up a dedicated quality team immediately that takes ownership of every fix across all services, freeing feature teams from the work."
+        },
+        {
+          "id": "c",
+          "text": "Schedule a full rewrite of whichever service currently has the worst reputation among the engineers filing complaints."
+        },
+        {
+          "id": "d",
+          "text": "Try the cheapest tool likely to work first: fix hot spots, then spread best practices, escalating further only if that falls short."
+        }
+      ],
+      "concept": "technical-quality-leverage-points",
+      "sources": [
+        {
+          "url": "https://staffeng.com/guides/manage-technical-quality/",
+          "claim": "Start with the cheapest, most straightforward approach likely to work: fix hot spots, then adopt best practices, invest at leverage points, align technical vectors, measure, and only then create a quality team or program.",
+          "title": "Manage technical quality",
+          "accessed": "2026-09-27",
+          "publisher": "Will Larson (StaffEng)"
+        }
+      ],
+      "materials": [
+        "eshop",
+        "staff-engineer",
+        "azure-well-architected"
+      ],
+      "explanation": "Larson orders the approaches from light to heavy: fix hot spots, adopt best practices, invest at leverage points, align technical vectors, measure, then build a quality team and finally a quality program. He advises picking the cheapest, most straightforward tool that is likely to work. Jumping straight to (a) or (b) spends the most organisational capital first."
+    },
+    {
+      "id": "w06-l04-q04",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w06-l04",
+      "prompt": "In which situation is the Strangler Fig pattern a poor fit, according to Azure's guidance?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A large legacy web app whose incoming HTTP traffic can be routed through a facade that decides which requests go to the old system versus the new one."
+        },
+        {
+          "id": "b",
+          "text": "A small system, or one whose back-end requests can't be intercepted at all, where a wholesale rewrite and cutover is simpler than a gradual facade."
+        },
+        {
+          "id": "c",
+          "text": "A production system that must keep serving traffic without downtime while its features are migrated to the new implementation one at a time."
+        },
+        {
+          "id": "d",
+          "text": "A migration where old and new models disagree, so an anti-corruption layer is needed to translate calls between the legacy and replacement systems."
+        }
+      ],
+      "concept": "incremental-legacy-migration",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/strangler-fig",
+          "claim": "The pattern isn't suitable when requests to the back-end system can't be intercepted, for smaller systems where wholesale replacement is simpler, or when the legacy system must be quickly decommissioned; an anti-corruption layer can handle cross-system dependencies.",
+          "title": "Strangler Fig Pattern",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "eshop",
+        "staff-engineer",
+        "azure-cloud-design-patterns"
+      ],
+      "explanation": "Strangler Fig relies on a facade that intercepts requests and routes them gradually to the new system. Azure lists as poor fits the cases where back-end requests can't be intercepted, where the system is small enough that a wholesale replacement is simpler, and where the old system must be decommissioned quickly. The other options describe the pattern's intended use."
+    },
+    {
+      "id": "w06-l04-q05",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w06-l04",
+      "prompt": "Using Larson's idea of quality leverage points, where would you concentrate design review effort when studying `dotnet/eShop` (services communicating over a RabbitMQ event bus, each with its own PostgreSQL data)?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "UI styling and CSS class naming conventions used across the Blazor or React front ends of each individual storefront service."
+        },
+        {
+          "id": "b",
+          "text": "Private helper methods and locally scoped variables declared inside each service's own internal implementation classes."
+        },
+        {
+          "id": "c",
+          "text": "Interfaces, stateful systems and data models, such as the bus's event contracts and each service's schema, since they're costly to change later."
+        },
+        {
+          "id": "d",
+          "text": "Unit test method naming conventions and the folder structure used to organise the xUnit test projects for each service."
+        }
+      ],
+      "concept": "technical-quality-leverage-points",
+      "sources": [
+        {
+          "url": "https://staffeng.com/guides/manage-technical-quality/",
+          "claim": "Leverage points are interfaces, stateful systems and data models, where a little extra investment brings a lot of quality.",
+          "title": "Manage technical quality",
+          "accessed": "2026-09-27",
+          "publisher": "Will Larson (StaffEng)"
+        },
+        {
+          "url": "https://github.com/dotnet/eShop",
+          "claim": "eShop is a services-based reference application using .NET Aspire, with a RabbitMQ event bus and PostgreSQL and Redis for data.",
+          "title": "GitHub - dotnet/eShop: A reference .NET application implementing an eCommerce site",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft (.NET) on GitHub"
+        }
+      ],
+      "materials": [
+        "eshop",
+        "staff-engineer",
+        "azure-well-architected"
+      ],
+      "explanation": "Larson names three leverage points: interfaces, stateful systems and data models, since each is hard to change once other code depends on it. In eShop that means the integration event contracts between services and each service's data. Internal helpers (b) are easy to refactor later, so they give little leverage."
+    },
+    {
+      "id": "w06-l04-q06",
+      "type": "written",
+      "lesson": "w06-l04",
+      "prompt": "Write an outline for an ADR proposing that the team standardise on EF Core instead of mixing EF Core, Dapper and raw ADO.NET. Say what goes in each section and how the record is maintained over time.",
+      "concept": "adr-append-only-decision-log",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/well-architected/architect-role/architecture-decision-record",
+          "claim": "An ADR records the problem and context, the options considered with trade-offs, the decision outcome with its justification and confidence level, and a status; it is append-only, with superseded records linked.",
+          "title": "Maintain an architecture decision record (ADR)",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://adr.github.io/",
+          "claim": "An architectural decision record captures a single decision and its rationale; Michael Nygard's template has Title, Status, Context, Decision and Consequences, and MADR is another common template.",
+          "title": "Architectural Decision Records (ADRs)",
+          "accessed": "2026-09-27",
+          "publisher": "adr.github.io"
+        }
+      ],
+      "materials": [
+        "eshop",
+        "staff-engineer",
+        "azure-well-architected"
+      ],
+      "explanation": "Good ADRs record *why* and the options rejected, not only *what*. A senior answer includes an honest consequences section (costs as well as benefits) and knows the append-only rule.",
+      "model_answer": {
+        "summary": "Use a lightweight template (title, status, context, options, decision and consequences, including confidence) that records the problem, the alternatives and their trade-offs, the chosen outcome and its consequences. Keep ADRs in the repository as an append-only log.",
+        "key_points": [
+          "Title and status (Proposed, then Accepted, and later possibly Superseded), with a date and the people involved",
+          "Context: the problem (inconsistent data access, duplicated patterns, onboarding cost) and the forces (performance hot paths, team skills)",
+          "Options considered with their trade-offs: EF Core only, EF Core with Dapper for specific reads, the status quo",
+          "Decision and consequences: for example EF Core by default with raw SQL or Dapper allowed for measured hot paths; what gets easier, what gets harder, the migration plan and confidence level",
+          "Maintenance: store ADRs in the repo (for example `docs/adr/`), never edit accepted ones, and supersede and link them when the decision changes"
+        ]
+      }
+    },
+    {
+      "id": "w06-l04-q07",
+      "type": "written",
+      "lesson": "w06-l04",
+      "prompt": "Your backlog has 40 technical-debt tickets and the product manager wants features. How do you decide which debt to pay down, and how do you make the case?",
+      "concept": "technical-debt-interest-prioritization",
+      "sources": [
+        {
+          "url": "https://martinfowler.com/bliki/TechnicalDebt.html",
+          "claim": "Interest is the extra effort needed to add features; cruft in rarely changed code matters little while high-activity areas need aggressive cleanup; pay debt down gradually as part of normal work.",
+          "title": "Technical Debt",
+          "accessed": "2026-09-27",
+          "publisher": "Martin Fowler (martinfowler.com)"
+        },
+        {
+          "url": "https://staffeng.com/guides/manage-technical-quality/",
+          "claim": "Fix hot spots first and pick the cheapest, most straightforward tool likely to work; leverage points are interfaces, stateful systems and data models.",
+          "title": "Manage technical quality",
+          "accessed": "2026-09-27",
+          "publisher": "Will Larson (StaffEng)"
+        }
+      ],
+      "materials": [
+        "eshop",
+        "staff-engineer",
+        "azure-well-architected"
+      ],
+      "explanation": "The senior insight is that debt is an economic concept: only debt you keep paying interest on is worth paying down now. Tying the fix to feature work and to measurable outcomes wins the product conversation.",
+      "model_answer": {
+        "summary": "Prioritise by interest paid rather than by how ugly the code is: debt in areas that change often and slow the team down comes first. Pay it down incrementally as part of feature work, use the cheapest effective fix, and present it in terms of delivery speed and risk.",
+        "key_points": [
+          "Interest is the extra effort each change costs; rank the tickets by how often the affected code changes and how much each change hurts (use change frequency, lead time and incidents)",
+          "Debt in stable, rarely touched code can wait, even if it is ugly",
+          "Pay it down incrementally, alongside the features that touch the same area, rather than in a separate rewrite project",
+          "Choose the cheapest fix likely to work (hot spots before programs), and invest at leverage points such as interfaces and data models",
+          "Communicate in business terms: time lost per feature, incident risk, and the expected improvement, then measure afterwards"
+        ]
+      }
+    },
+    {
+      "id": "w06-l04-q08",
+      "type": "written",
+      "lesson": "w06-l04",
+      "prompt": "You join a team whose codebase has three competing patterns: old controllers with ADO.NET, a half-finished Clean Architecture layer, and some newer vertical slices. How would you review it, choose a direction and converge without a rewrite?",
+      "concept": "incremental-legacy-migration",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/strangler-fig",
+          "claim": "The Strangler Fig pattern incrementally replaces functionality behind a facade that routes requests; an anti-corruption layer can handle dependencies between old and new systems.",
+          "title": "Strangler Fig Pattern",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/well-architected/architect-role/architecture-decision-record",
+          "claim": "Record significant architecture decisions in an append-only ADR log; when a decision changes, add a superseding record linked to the old one.",
+          "title": "Maintain an architecture decision record (ADR)",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "eshop",
+        "staff-engineer",
+        "azure-cloud-design-patterns"
+      ],
+      "explanation": "Interviewers are testing whether you can bring consistency without a big-bang rewrite. The strongest answers ground the plan in evidence (change hot spots), record the decision, and make it enforceable.",
+      "model_answer": {
+        "summary": "Map what exists and where change actually happens, decide on one target pattern and record it in an ADR, then migrate incrementally, placing new work in the target style and moving old areas only when they are touched. Use a facade or anti-corruption layer where the old and new styles must coexist.",
+        "key_points": [
+          "Review: list the patterns, where each is used, and which areas change most (commit history, incidents); talk to the team about why each pattern appeared",
+          "Choose one target (for example vertical slices with a rich core where the domain is complex) and record it in an ADR that supersedes any earlier decisions",
+          "Migrate incrementally in the Strangler Fig style: new features use the target pattern, and old areas move only when touched; use an anti-corruption layer to isolate legacy models",
+          "Enforce the direction with architecture tests or analyzers so the codebase doesn't drift back",
+          "Present it with its trade-offs and a gradual plan, and measure whether delivery and defect rates improve"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,1373 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "xunit-test-lifecycle-and-fixtures",
+      "name": "xUnit test-class instances and fixture scopes"
+    },
+    {
+      "id": "test-double-roles-stub-mock-fake",
+      "name": "Test double roles: stub, mock and fake"
+    },
+    {
+      "id": "behavior-focused-test-design",
+      "name": "Behavior-focused, implementation-independent test design"
+    },
+    {
+      "id": "timeprovider-deterministic-time",
+      "name": "Deterministic time and timers with TimeProvider"
+    },
+    {
+      "id": "webapplicationfactory-service-override",
+      "name": "Replacing services in WebApplicationFactory tests"
+    },
+    {
+      "id": "real-database-over-in-memory-fake",
+      "name": "Real database containers over in-memory database fakes"
+    },
+    {
+      "id": "shared-test-database-isolation",
+      "name": "Isolating tests that share a real database"
+    },
+    {
+      "id": "consumer-driven-contract-testing",
+      "name": "Consumer-driven contract testing"
+    },
+    {
+      "id": "structured-logging-message-templates",
+      "name": "Structured logging with message templates"
+    },
+    {
+      "id": "metric-instrument-choice-and-cardinality",
+      "name": "Choosing metric instruments and tag cardinality"
+    },
+    {
+      "id": "activitysource-trace-propagation",
+      "name": "ActivitySource spans and trace-context propagation"
+    },
+    {
+      "id": "symptom-based-slo-alerting",
+      "name": "SLIs, SLOs and alerting on symptoms"
+    },
+    {
+      "id": "tail-latency-regression-triage",
+      "name": "Triage of a tail-latency (p99) regression from telemetry"
+    },
+    {
+      "id": "incident-command-roles-and-mitigation",
+      "name": "Incident command roles and mitigation first"
+    },
+    {
+      "id": "blameless-postmortem-practice",
+      "name": "Blameless postmortems"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w09-l01-q01",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w09-l01",
+      "prompt": "An xUnit test class declares `private readonly List<int> _items = new();`. Two `[Fact]` methods each call `_items.Add(1)` and then `Assert.Single(_items)`. What happens when both run?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The second test to run fails, because both tests share the class's `_items` list"
+        },
+        {
+          "id": "b",
+          "text": "Both pass, because xUnit creates a new instance of the test class for every test"
+        },
+        {
+          "id": "c",
+          "text": "Both pass only if parallelization is disabled for the class"
+        },
+        {
+          "id": "d",
+          "text": "The result depends on test ordering, so xUnit reports the class as flaky"
+        }
+      ],
+      "concept": "xunit-test-lifecycle-and-fixtures",
+      "sources": [
+        {
+          "url": "https://xunit.net/docs/shared-context",
+          "claim": "xUnit.net creates a new instance of the test class for every test that is run; the constructor and Dispose give a clean context per test.",
+          "title": "Sharing Context between Tests",
+          "accessed": "2026-09-27",
+          "publisher": "xUnit.net"
+        }
+      ],
+      "materials": [
+        "xunit",
+        "dotnet-testing"
+      ],
+      "explanation": "xUnit constructs a fresh test-class instance for every test, so the constructor and field initializers act as per-test setup and `_items` starts empty each time. The tempting answer assumes NUnit-style shared fixture instances; in xUnit, sharing state requires an explicit class or collection fixture."
+    },
+    {
+      "id": "w09-l01-q02",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w09-l01",
+      "prompt": "Several test classes need one expensive PostgreSQL container, started once and disposed after all of them finish. Which xUnit mechanism fits, and what is its main cost?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`IClassFixture<T>` added to every class; xUnit deduplicates the constructor calls, so the container is shared across classes without a collection"
+        },
+        {
+          "id": "b",
+          "text": "A constructor that starts the container on first use; the cost is only a slower first test, since xUnit reuses that same instance for every later test"
+        },
+        {
+          "id": "c",
+          "text": "`ICollectionFixture<T>` with a `[CollectionDefinition]` and `[Collection]` on each class; the classes in that collection no longer run in parallel"
+        },
+        {
+          "id": "d",
+          "text": "A `static readonly` field started in a static constructor; xUnit tracks static state automatically and disposes it once the whole test run exits"
+        }
+      ],
+      "concept": "xunit-test-lifecycle-and-fixtures",
+      "sources": [
+        {
+          "url": "https://xunit.net/docs/shared-context",
+          "claim": "Class fixtures share a context among tests in one class; collection fixtures share a single context among tests in several classes and are cleaned up after all of them run.",
+          "title": "Sharing Context between Tests",
+          "accessed": "2026-09-27",
+          "publisher": "xUnit.net"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/ef/core/testing/testing-with-the-database",
+          "claim": "xUnit collection fixtures prevent the test classes in the collection from running in parallel, which matters for test performance.",
+          "title": "Testing against your Production Database System - EF Core",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "xunit",
+        "dotnet-testing"
+      ],
+      "explanation": "A collection fixture is created once and shared by every class in the collection, then cleaned up after all of them complete. The trade-off, called out in the EF Core testing guide, is that classes in one collection do not run in parallel. `IClassFixture` is shared only within a single class, so each class would start its own container."
+    },
+    {
+      "id": "w09-l01-q03",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w09-l01",
+      "prompt": "In Microsoft's unit-testing terminology, what turns a fake object into a *mock* rather than a *stub*?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The test asserts against the fake, so the fake decides whether the test passes"
+        },
+        {
+          "id": "b",
+          "text": "The fake is generated by a mocking library such as Moq instead of hand-written"
+        },
+        {
+          "id": "c",
+          "text": "The fake returns canned values from its methods"
+        },
+        {
+          "id": "d",
+          "text": "The fake has a working, simplified implementation such as an in-memory store"
+        }
+      ],
+      "concept": "test-double-roles-stub-mock-fake",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/testing/unit-testing-best-practices",
+          "claim": "A mock is a fake that decides whether a unit test passes or fails; you run Assert operations against a mock but not against a stub.",
+          "title": "Best practices for writing unit tests - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://martinfowler.com/articles/mocksArentStubs.html",
+          "claim": "Meszaros: stubs provide canned answers; mocks are pre-programmed with expectations of the calls they receive; fakes have working implementations that take a shortcut.",
+          "title": "Mocks Aren't Stubs",
+          "accessed": "2026-09-27",
+          "publisher": "Martin Fowler"
+        }
+      ],
+      "materials": [
+        "xunit",
+        "dotnet-testing"
+      ],
+      "explanation": "Microsoft's guide says a mock is a fake that enters an `Assert`: it decides pass or fail. A stub is only a controllable replacement for a dependency. Whether a library generated the double does not matter. Canned return values describe a stub, and a working shortcut implementation is what Fowler and Meszaros call a fake."
+    },
+    {
+      "id": "w09-l01-q04",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w09-l01",
+      "prompt": "A service used to call `repo.GetCustomer(id)` and then `repo.GetOrders(id)`. A refactor replaces both with one `repo.GetCustomerWithOrders(id)`, and the service still returns the same result. Tests that use `mock.Verify(r => r.GetCustomer(id), Times.Once())` now fail. What is the best reading of this?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The tests caught a real regression: the combined call might use a different isolation level than the two separate calls did, so the refactor should be reverted"
+        },
+        {
+          "id": "b",
+          "text": "The verification should be loosened to `mock.Verify(r => r.GetCustomer(id), Times.AtLeastOnce())` so it tolerates either calling pattern"
+        },
+        {
+          "id": "c",
+          "text": "The repository interface should be split so `GetCustomer` stays virtual and Moq can still intercept it alongside the new combined call"
+        },
+        {
+          "id": "d",
+          "text": "The tests verify collaborator calls instead of the result; assert on the returned result with a fake repository instead"
+        }
+      ],
+      "concept": "behavior-focused-test-design",
+      "sources": [
+        {
+          "url": "https://martinfowler.com/articles/mocksArentStubs.html",
+          "claim": "Mockist tests are more coupled to the implementation of a method; changing the nature of calls to collaborators usually causes a mockist test to break.",
+          "title": "Mocks Aren't Stubs",
+          "accessed": "2026-09-27",
+          "publisher": "Martin Fowler"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/testing/unit-testing-best-practices",
+          "claim": "Minimal test inputs help tests focus on verifying the behavior over the implementation and make them more resilient to future changes.",
+          "title": "Best practices for writing unit tests - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "xunit",
+        "dotnet-testing"
+      ],
+      "explanation": "Nothing a caller can see changed; only the calls to the collaborator did. Fowler notes that mockist (behavior-verification) tests are coupled to the implementation, so changing the calls to collaborators breaks them. Loosening `Times` or making methods virtual keeps the coupling. A state-verifying test with a fake survives the refactor and still catches wrong results."
+    },
+    {
+      "id": "w09-l01-q05",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w09-l01",
+      "prompt": "Code under test waits with `await Task.Delay(TimeSpan.FromMinutes(5), _timeProvider, ct)`, and the test injects a `FakeTimeProvider`. How does the test make the delay complete without waiting five real minutes?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Nothing is needed: `FakeTimeProvider` completes every delay immediately"
+        },
+        {
+          "id": "b",
+          "text": "Start the operation, then call `fakeTime.Advance(TimeSpan.FromMinutes(5))`"
+        },
+        {
+          "id": "c",
+          "text": "Set `DateTime.Now` forward by five minutes inside the test"
+        },
+        {
+          "id": "d",
+          "text": "Replace the delay with `Thread.Sleep` in test builds"
+        }
+      ],
+      "concept": "timeprovider-deterministic-time",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/standard/datetime/timeprovider-overview",
+          "claim": "Task.Delay(TimeSpan, TimeProvider) and CancellationTokenSource(TimeSpan, TimeProvider) work with TimeProvider; FakeTimeProvider in Microsoft.Extensions.TimeProvider.Testing lets you set and manually advance time.",
+          "title": "What is the TimeProvider class - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/api/microsoft.extensions.time.testing.faketimeprovider.advance",
+          "claim": "Advancing time affects the timers created from this provider; for the fake provider the application is responsible for moving time forward explicitly by calling Advance.",
+          "title": "FakeTimeProvider.Advance(TimeSpan) Method",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "xunit",
+        "dotnet-testing"
+      ],
+      "explanation": "The `Task.Delay(TimeSpan, TimeProvider)` overload uses the provider's timers. With `FakeTimeProvider`, time moves only when the test moves it, and `Advance` affects timers created from that provider, so the delay completes. The fake does not complete delays by itself: that is its point, since it makes timing deterministic. `DateTime.Now` cannot be set and is not the provider's source."
+    },
+    {
+      "id": "w09-l01-q06",
+      "type": "written",
+      "lesson": "w09-l01",
+      "prompt": "An `OrderService` test builds five Moq mocks, sets up a dozen `Setup(...)` calls, and ends with four `Verify(...)` calls on the repository and email sender. It breaks on almost every refactor. Explain what is wrong and how you would rewrite it.",
+      "concept": "test-double-roles-stub-mock-fake",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/testing/unit-testing-best-practices",
+          "claim": "Mocks are asserted against and stubs are not; misnaming stubs as mocks leads other developers to false assumptions about intent.",
+          "title": "Best practices for writing unit tests - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://martinfowler.com/articles/mocksArentStubs.html",
+          "claim": "State verification checks the SUT and collaborators' state after exercise; behavior verification checks the calls made, and mockist tests are more coupled to implementation.",
+          "title": "Mocks Aren't Stubs",
+          "accessed": "2026-09-27",
+          "publisher": "Martin Fowler"
+        }
+      ],
+      "materials": [
+        "xunit",
+        "dotnet-testing"
+      ],
+      "explanation": "A senior answer separates what the caller can observe from how the service happens to achieve it. It uses the stub/mock/fake vocabulary precisely, knows the classical versus mockist trade-off, and still recognises that some interactions (sending an email, publishing a message) are the behaviour and deserve a check.",
+      "model_answer": {
+        "summary": "The test verifies interactions with every collaborator, so it pins the implementation. Rewrite it to assert the observable outcome, using a hand-written in-memory fake repository (a stub for inputs) and reserving mock-style verification for a true outgoing side effect such as the email.",
+        "key_points": [
+          "Name the roles correctly: stubs supply inputs, a mock is the double the test asserts on, a fake is a working lightweight implementation",
+          "Interaction verification on every collaborator couples the test to call order and call shape, so harmless refactors fail it",
+          "Replace the repository mocks with an in-memory fake and assert on state or the returned result (state verification)",
+          "Keep at most one interaction check, for a side effect that is the behaviour itself (for example that exactly one confirmation email was sent), ideally through a fake that records sent messages",
+          "Use minimal inputs and one Act per test so each test states one behaviour"
+        ]
+      }
+    },
+    {
+      "id": "w09-l01-q07",
+      "type": "written",
+      "lesson": "w09-l01",
+      "prompt": "A reviewer finds this test: it loops over an array of input strings, asserts inside the loop, and increments the expected value on each pass. Next to it is a test that uses reflection to call a private `TrimInput` method. Critique both and describe the replacements.",
+      "concept": "behavior-focused-test-design",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/testing/unit-testing-best-practices",
+          "claim": "Avoid logic such as if, while, for and switch in unit tests; the guide replaces a looping test with a [Theory] using [InlineData], and says private methods should be validated through the public method that calls them.",
+          "title": "Best practices for writing unit tests - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://xunit.net/docs/getting-started/v3/getting-started",
+          "claim": "Facts test invariant conditions; theories are tests that are only true for a particular set of data, supplied with [InlineData].",
+          "title": "Getting Started with xUnit.net v3",
+          "accessed": "2026-09-27",
+          "publisher": "xUnit.net"
+        }
+      ],
+      "materials": [
+        "xunit",
+        "dotnet-testing"
+      ],
+      "explanation": "The Microsoft guidance is explicit: avoid logic in tests, prefer parameterised tests for multiple cases, and validate private methods through public ones. A strong answer adds why: tests are only valuable if you trust a failure, and tests coupled to private structure block refactoring.",
+      "model_answer": {
+        "summary": "Logic in tests makes them untrustworthy, and testing private methods tests implementation. Turn the loop into an xUnit `[Theory]` with one `[InlineData]` row per case, and test `TrimInput` through the public method that uses it.",
+        "key_points": [
+          "Loops and conditionals in a test can hide bugs in the test itself, and a failing iteration hides which case failed",
+          "A `[Theory]` with `[InlineData(input, expected)]` rows runs each case as its own test case with its own result",
+          "Private methods are implementation details; test the public method (for example `ParseLogLine`) that calls them",
+          "A private helper returning the right value does not prove the public method uses its result correctly",
+          "Name tests by method, scenario and expected behaviour so failures read as specifications"
+        ]
+      }
+    },
+    {
+      "id": "w09-l01-q08",
+      "type": "written",
+      "lesson": "w09-l01",
+      "prompt": "A token cache refreshes a token 30 seconds before it expires, and a background loop retries failed refreshes every 10 seconds. Today it calls `DateTime.UtcNow` and `Task.Delay(TimeSpan)`, and its tests use real sleeps and are flaky. How do you make it testable, and what do the tests look like?",
+      "concept": "timeprovider-deterministic-time",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/standard/datetime/timeprovider-overview",
+          "claim": "TimeProvider is included in .NET 8+, provides GetUtcNow, GetTimestamp, GetElapsedTime and CreateTimer, and Task.Delay/WaitAsync/CancellationTokenSource have TimeProvider overloads.",
+          "title": "What is the TimeProvider class - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/api/microsoft.extensions.time.testing.faketimeprovider",
+          "claim": "FakeTimeProvider is a synthetic time provider for deterministic tests with Advance, SetUtcNow and AutoAdvanceAmount members.",
+          "title": "FakeTimeProvider Class",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "xunit",
+        "dotnet-testing"
+      ],
+      "explanation": "Senior candidates know `TimeProvider` has been built in since .NET 8, so there is no need for a home-made `IClock`, and that the async overloads matter as much as `GetUtcNow`. A frequent miss is changing the clock reads but leaving `Task.Delay(TimeSpan)` bound to real time.",
+      "model_answer": {
+        "summary": "Inject `TimeProvider` (register `TimeProvider.System` in production), read time with `GetUtcNow()`, and pass the provider to `Task.Delay` and timer or cancellation APIs. Tests use `FakeTimeProvider` from Microsoft.Extensions.TimeProvider.Testing, set a start time, and call `Advance` to cross the expiry and retry boundaries deterministically.",
+        "key_points": [
+          "Static clocks such as `DateTime.UtcNow` give the test no control; introduce `TimeProvider` as a seam through DI",
+          "Use the `TimeProvider` overloads (`Task.Delay(TimeSpan, TimeProvider, CancellationToken)`, `CancellationTokenSource(TimeSpan, TimeProvider)`, `CreateTimer`) so waits follow the injected clock",
+          "In tests, `FakeTimeProvider` time only moves when the test calls `Advance` or `SetUtcNow`, which also fires due timers",
+          "Assert boundary cases: just before and just after the refresh window, and a retry exactly 10 seconds after a failure",
+          "Measure elapsed time with `GetTimestamp` or `GetElapsedTime`, not wall-clock subtraction"
+        ]
+      }
+    },
+    {
+      "id": "w09-l02-q01",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w09-l02",
+      "prompt": "`Program.cs` registers `builder.Services.AddSingleton<IEmailSender, SmtpEmailSender>()`. A test uses `factory.WithWebHostBuilder(b => b.ConfigureTestServices(s => s.AddSingleton<IEmailSender, FakeEmailSender>()))`. What does an endpoint that injects `IEmailSender` receive?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`SmtpEmailSender`, because `Program.cs` registers it first and the DI container always keeps the first registration for a singleton lifetime"
+        },
+        {
+          "id": "b",
+          "text": "An exception at startup, because the container validates on build that `IEmailSender` was registered only once"
+        },
+        {
+          "id": "c",
+          "text": "`FakeEmailSender`, because test services are applied after the app's registrations, and the last one wins for a single resolution"
+        },
+        {
+          "id": "d",
+          "text": "Either one at random, because `ConfigureTestServices` runs on a background thread before the host finishes building"
+        }
+      ],
+      "concept": "webapplicationfactory-service-override",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/test/integration-tests",
+          "claim": "WithWebHostBuilder plus ConfigureTestServices injects test services; in ASP.NET Core 3.0+ the test's service configuration executes after the app's Program service registration.",
+          "title": "Integration tests in ASP.NET Core",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/extensions/dependency-injection/service-registration",
+          "claim": "When a service type is registered twice, the second registration overrides the first when resolved as a single service and both appear when resolved via IEnumerable<T>.",
+          "title": "Service registration (dependency injection) - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "aspnetcore-integration-tests",
+        "testcontainers-dotnet"
+      ],
+      "explanation": "`ConfigureTestServices` runs after the app's service registration, so the fake is added last. When the same service type is registered more than once, resolving a single instance returns the last registration, while `IEnumerable<IEmailSender>` would return both. Removing the original descriptor first is still worth doing when code resolves the enumerable."
+    },
+    {
+      "id": "w09-l02-q02",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w09-l02",
+      "prompt": "Which statement about the EF Core in-memory provider as a test database is correct, according to the EF Core team?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It is discouraged: it doesn't support transactions or raw SQL, and queries can behave differently from the production database"
+        },
+        {
+          "id": "b",
+          "text": "It is recommended for integration tests because it behaves like a relational database"
+        },
+        {
+          "id": "c",
+          "text": "It is the fastest fake available, which is why it is still recommended over SQLite"
+        },
+        {
+          "id": "d",
+          "text": "It is safe as long as the production database is SQL Server, because both use case-insensitive comparisons"
+        }
+      ],
+      "concept": "real-database-over-in-memory-fake",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/ef/core/testing/choosing-a-testing-strategy",
+          "claim": "Using the in-memory provider as a database fake is highly discouraged: transactions are not supported, raw SQL is unsupported, it supports fewer queries and is generally slower than SQLite in-memory.",
+          "title": "Choosing a testing strategy - EF Core",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "aspnetcore-integration-tests",
+        "testcontainers-dotnet"
+      ],
+      "explanation": "The EF Core docs call using the in-memory provider as a fake highly discouraged: transactions are ignored, raw SQL is unsupported, fewer queries work, and it is not even faster than SQLite in-memory. Case sensitivity is a classic trap: a fake can compare strings case-sensitively while SQL Server compares case-insensitively by default."
+    },
+    {
+      "id": "w09-l02-q03",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w09-l02",
+      "prompt": "Your integration tests isolate writes by opening a transaction per test and never committing it. One endpoint under test begins and commits its own serializable transaction. How should tests for that endpoint be isolated?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Wrap them in an outer transaction as usual; most databases support nested transactions, so the endpoint's own transaction commits inside the outer one and still rolls back"
+        },
+        {
+          "id": "b",
+          "text": "Reset the database to its seeded state after each test, and don't run them in parallel with others sharing that database"
+        },
+        {
+          "id": "c",
+          "text": "Use the EF Core in-memory provider only for these tests, since it fully honors serializable transaction boundaries the way the real engine does"
+        },
+        {
+          "id": "d",
+          "text": "Run them first, before any other test class, so later tests see their committed rows as part of the seed data"
+        }
+      ],
+      "concept": "shared-test-database-isolation",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/ef/core/testing/testing-with-the-database",
+          "claim": "For tests whose code explicitly manages transactions, transactions can't be used for isolation because databases don't typically support nested transactions; clean the database after each test and disable parallelization.",
+          "title": "Testing against your Production Database System - EF Core",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "aspnetcore-integration-tests",
+        "testcontainers-dotnet"
+      ],
+      "explanation": "Databases don't generally support nested transactions, so the rollback trick fails once product code manages its own transaction. The EF Core guidance for these tests is to clean up after each test and turn off parallel runs, for example with a separate database behind a collection fixture whose cleanup runs in `Dispose`. Swapping to the in-memory provider would ignore the very transaction you want to test."
+    },
+    {
+      "id": "w09-l02-q04",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w09-l02",
+      "prompt": "Tests commit data to a shared container database and must reset it between tests. The current cleanup deletes rows table by table through EF Core, and it is slow and needs editing every time a table is added. What does the EF Core testing guide suggest?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Call `EnsureDeleted()` and `EnsureCreated()` before every test, since dropping and recreating the schema is the fastest way to reset it"
+        },
+        {
+          "id": "b",
+          "text": "Stop cleaning up and make every test tolerate leftover data from others, since isolation is only needed for unit tests"
+        },
+        {
+          "id": "c",
+          "text": "Order the tests so each one undoes the previous test's writes, then pin that order with `[TestCaseOrderer]`"
+        },
+        {
+          "id": "d",
+          "text": "Use raw `DELETE` statements, or a tool such as Respawn, which clears the database without a hand-maintained table list"
+        }
+      ],
+      "concept": "shared-test-database-isolation",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/ef/core/testing/testing-with-the-database",
+          "claim": "Deleting table contents through EF Core isn't the most efficient cleanup; raw SQL deletes or the Respawn package clear the database efficiently, and Respawn doesn't need the tables to be specified.",
+          "title": "Testing against your Production Database System - EF Core",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "aspnetcore-integration-tests",
+        "testcontainers-dotnet"
+      ],
+      "explanation": "The guide notes that EF-based `RemoveRange` cleanup is inefficient, suggests raw SQL deletes, and points to Respawn, which clears data without you listing the tables. Recreating the schema per test is the slow operation the guide warns about. Order-dependent tests break under parallel runs and filtering."
+    },
+    {
+      "id": "w09-l02-q05",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w09-l02",
+      "prompt": "How does consumer-driven contract testing with Pact check that a consumer and a provider still work together?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The provider publishes its OpenAPI document, and a schema linter checks the consumer's request and response payloads against every field in it"
+        },
+        {
+          "id": "b",
+          "text": "Both services are deployed together to a shared staging environment and a suite of end-to-end tests runs against the pair"
+        },
+        {
+          "id": "c",
+          "text": "The consumer's tests run against a Pact mock provider and record a contract, which the provider's build replays against the real provider"
+        },
+        {
+          "id": "d",
+          "text": "The consumer's team writes and maintains the provider's unit tests directly inside the provider's own repository"
+        }
+      ],
+      "concept": "consumer-driven-contract-testing",
+      "sources": [
+        {
+          "url": "https://docs.pact.io/",
+          "claim": "The contract is generated during the consumer's automated tests; the provider verifies by replaying the recorded requests, so teams confirm compatibility without deploying all services together.",
+          "title": "Introduction | Pact Docs",
+          "accessed": "2026-09-27",
+          "publisher": "Pact Foundation"
+        }
+      ],
+      "materials": [
+        "aspnetcore-integration-tests",
+        "testcontainers-dotnet"
+      ],
+      "explanation": "Pact is code-first and consumer-driven: running the consumer tests generates the pact, and provider verification replays those recorded requests. Because only the interactions the consumer uses are in the contract, the provider can change anything else freely. The approach avoids having to 'deploy the world' for expensive, brittle integrated tests."
+    },
+    {
+      "id": "w09-l02-q06",
+      "type": "written",
+      "lesson": "w09-l02",
+      "prompt": "Design an integration test for `POST /orders` in an API that uses PostgreSQL through EF Core and calls an external payment gateway over `HttpClient`. The test should exercise the real HTTP pipeline and the real database. Describe the fixture and the per-test setup.",
+      "concept": "webapplicationfactory-service-override",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/test/integration-tests",
+          "claim": "WebApplicationFactory creates a TestServer, sets the content root to the SUT's project, and lets tests replace services with ConfigureWebHost or ConfigureTestServices; WebApplicationFactoryClientOptions include AllowAutoRedirect and HandleCookies.",
+          "title": "Integration tests in ASP.NET Core",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://testcontainers.com/guides/getting-started-with-testcontainers-for-dotnet/",
+          "claim": "The guide starts a PostgreSqlBuilder container in IAsyncLifetime.InitializeAsync, disposes it in DisposeAsync, and reads GetConnectionString() for the test.",
+          "title": "Getting started with Testcontainers for .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Testcontainers"
+        }
+      ],
+      "materials": [
+        "aspnetcore-integration-tests",
+        "testcontainers-dotnet"
+      ],
+      "explanation": "What separates a senior answer is knowing where the seams go: fake what you don't own (the payment provider), run what you do own for real (the database engine, EF mappings and the pipeline), and plan data isolation and container lifetime so the suite stays fast in CI.",
+      "model_answer": {
+        "summary": "Use a custom `WebApplicationFactory<Program>` shared through a fixture. Start a PostgreSQL Testcontainer in `IAsyncLifetime.InitializeAsync`, point the app's `DbContext` at the container's connection string, and swap the payment client for a fake in `ConfigureTestServices`. Each test calls the endpoint through `CreateClient()` and checks both the response and the persisted rows.",
+        "key_points": [
+          "`WebApplicationFactory<Program>` hosts the app in memory on `TestServer`, runs the real middleware, routing and DI, and sets the content root",
+          "Start the database with Testcontainers (for example `PostgreSqlBuilder`) and use `GetConnectionString()` to replace the `DbContextOptions` registration",
+          "Replace only the external dependency (the payment gateway) with a fake through `ConfigureTestServices`; keep the rest real",
+          "Share the factory and container through a class or collection fixture and give each test isolated data (a transaction, a reset or unique keys)",
+          "Assert on the HTTP status and body and query the database for the resulting state; configure the client (for example `AllowAutoRedirect = false`) when redirects matter"
+        ]
+      }
+    },
+    {
+      "id": "w09-l02-q07",
+      "type": "written",
+      "lesson": "w09-l02",
+      "prompt": "An interviewer asks: \"Why run integration tests against a real database in a container rather than SQLite or the in-memory provider? Isn't that too slow for CI?\" Answer both parts.",
+      "concept": "real-database-over-in-memory-fake",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/ef/core/testing/choosing-a-testing-strategy",
+          "claim": "Test doubles don't guarantee the program works against the real database (for example case-sensitive vs case-insensitive comparisons); local database tests are fast, EF Core runs over 30,000 SQL Server tests in minutes, and Testcontainers can automate container lifecycles.",
+          "title": "Choosing a testing strategy - EF Core",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://testcontainers.com/guides/getting-started-with-testcontainers-for-dotnet/",
+          "claim": "Testcontainers lets tests talk to the same type of services used in production, without mocks or in-memory services, and teammates can run them without installing Postgres.",
+          "title": "Getting started with Testcontainers for .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Testcontainers"
+        }
+      ],
+      "materials": [
+        "aspnetcore-integration-tests",
+        "testcontainers-dotnet"
+      ],
+      "explanation": "The EF Core team is unusually direct here, recommending tests against the production database system and noting that people rarely need a fake for speed. A senior candidate answers the cost objection with isolation and lifecycle design rather than dismissing it.",
+      "model_answer": {
+        "summary": "Fakes don't behave like the production database, so passing tests prove little about the data layer. With Testcontainers the real engine starts in seconds and runs locally, so tests stay fast, provided you design for isolation and reuse the container across tests.",
+        "key_points": [
+          "Providers differ: case sensitivity, provider-specific functions (for example `EF.Functions.DateDiffDay`), SQL dialect and raw SQL, and transactions",
+          "Tests that pass on a fake can fail in production, and the reverse, so data-access bugs slip through",
+          "Testcontainers manages the container's lifecycle from the test, needs no locally installed database, and can match the production engine and version",
+          "Local database tests are fast: the EF Core team runs over 30,000 tests against SQL Server in a few minutes on every commit",
+          "Keep fakes or repository stubs for cases a real database can't easily produce, such as simulated failures, and share one container per test run"
+        ]
+      }
+    },
+    {
+      "id": "w09-l02-q08",
+      "type": "written",
+      "lesson": "w09-l02",
+      "prompt": "Your team owns a Catalog API used by three internal consumers. Releases keep breaking a consumer even though every service's own tests pass, and the shared end-to-end suite is slow and flaky. Where do contract tests fit, and what are their limits?",
+      "concept": "consumer-driven-contract-testing",
+      "sources": [
+        {
+          "url": "https://docs.pact.io/",
+          "claim": "Without contract testing the only way to check that apps work together is expensive, brittle integration tests; Pact tests only the parts of the communication that consumers use and shines in environments with many services.",
+          "title": "Introduction | Pact Docs",
+          "accessed": "2026-09-27",
+          "publisher": "Pact Foundation"
+        }
+      ],
+      "materials": [
+        "aspnetcore-integration-tests",
+        "testcontainers-dotnet"
+      ],
+      "explanation": "A strong answer explains why integrated suites fail at scale (cost, brittleness, needing the whole world deployed) and shows contracts turning cross-team breakage into a failing provider build, while being honest about what contracts don't test.",
+      "model_answer": {
+        "summary": "Add consumer-driven contracts: each consumer's tests record the requests and responses it relies on, and Catalog's CI verifies every consumer's pact before release, so a breaking change fails the provider build. Contracts check the shape of the integration, not business correctness, so keep unit and integration tests and a thin set of end-to-end smoke tests.",
+        "key_points": [
+          "Consumers generate pacts from their own tests against a mock provider; the provider verifies them by replaying the requests",
+          "Only the fields and interactions a consumer actually uses are pinned, so the provider can change everything else safely",
+          "Verification runs in the provider's pipeline, gives fast feedback and removes the need to deploy every service together",
+          "Contracts don't prove that the provider's logic is correct or that the whole system works; they complement functional and a few end-to-end tests",
+          "The approach pays off when there are many services and teams; it adds little for a single deployable"
+        ]
+      }
+    },
+    {
+      "id": "w09-l03-q01",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w09-l03",
+      "prompt": "Why is `logger.LogInformation(\"Getting item {Id} at {RunTime}\", id, DateTime.Now)` preferred over `logger.LogInformation($\"Getting item {id} at {DateTime.Now}\")`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The interpolated string throws at runtime whenever `id` or `DateTime.Now` resolves to a value the formatter can't convert to text"
+        },
+        {
+          "id": "b",
+          "text": "The template's placeholders are matched to arguments by name, so their order doesn't matter"
+        },
+        {
+          "id": "c",
+          "text": "Only the template form is written to OpenTelemetry exporters; the interpolated form is silently dropped by the logging pipeline before export"
+        },
+        {
+          "id": "d",
+          "text": "The template passes the arguments to the provider as structured fields; interpolation produces only flat text and always formats up front"
+        }
+      ],
+      "concept": "structured-logging-message-templates",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/extensions/logging/overview",
+          "claim": "Message template arguments are passed to the logging system, not just the formatted text, so providers can store parameter values as fields; placeholders are ordinal-based, and string interpolation can cause performance issues (CA2254).",
+          "title": "Logging in C# - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "dotnet-otel",
+        "opentelemetry-dotnet",
+        "google-sre-book"
+      ],
+      "explanation": "With a message template, providers can store `Id` and `RunTime` as fields and query them, which is structured logging. The docs also warn that string interpolation can cause performance problems, and analyzer CA2254 flags it. Placeholders are bound by position, not by name, which is a common misconception."
+    },
+    {
+      "id": "w09-l03-q02",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w09-l03",
+      "prompt": "You want to alert on checkout latency and see its tail. Which .NET metrics instrument fits?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`Histogram<double>` recording each request duration in seconds, so tools can compute p50, p95 and p99"
+        },
+        {
+          "id": "b",
+          "text": "`Counter<long>` adding each request's duration, divided by request count in the dashboard"
+        },
+        {
+          "id": "c",
+          "text": "`ObservableGauge<double>` returning the last request's duration"
+        },
+        {
+          "id": "d",
+          "text": "`UpDownCounter<int>` incremented on start and decremented on completion"
+        }
+      ],
+      "concept": "metric-instrument-choice-and-cardinality",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/diagnostics/metrics-instrumentation",
+          "claim": "For timing things, Histogram is usually preferred because it's useful to understand the tail (90th, 95th, 99th percentile) rather than averages or totals; prefer seconds recorded as a double for time.",
+          "title": "Creating Metrics - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "dotnet-otel",
+        "opentelemetry-dotnet",
+        "google-sre-book"
+      ],
+      "explanation": "The .NET guidance says a Histogram is usually preferred for timing because the tail (90th, 95th, 99th percentile) matters more than averages or totals, and to record time in seconds as a double. A counter of summed durations gives only the mean, which hides the tail. The last value is a single sample, and an up/down counter measures concurrency, not latency."
+    },
+    {
+      "id": "w09-l03-q03",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w09-l03",
+      "prompt": "A developer adds a `customer.id` tag to the `orders.completed` counter so dashboards can break orders down per customer. The service has millions of customers. What is the problem?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "None: the .NET Meter API deduplicates tag values internally, so adding more tags never changes memory or export cost"
+        },
+        {
+          "id": "b",
+          "text": "Tag values must be numeric, so the customer id has to be hashed into a fixed-width `long` before it can be attached to the counter as a tag"
+        },
+        {
+          "id": "c",
+          "text": "Each unique tag combination is its own series, so an unbounded tag explodes cost; use logs or traces for per-customer detail"
+        },
+        {
+          "id": "d",
+          "text": "Counters can't take tags at all; only `Histogram` and `ObservableGauge` instruments accept a tag list"
+        }
+      ],
+      "concept": "metric-instrument-choice-and-cardinality",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/diagnostics/metrics-instrumentation",
+          "claim": "Beware very large or unbounded tag combinations: adding a CustomerID tag could create billions of combinations; tools may drop data or incur large costs, and fewer than about 1000 combinations per instrument is likely safe.",
+          "title": "Creating Metrics - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "dotnet-otel",
+        "opentelemetry-dotnet",
+        "google-sre-book"
+      ],
+      "explanation": "Collection tools allocate storage for every tag combination. The .NET docs use a customer id as the example that turns 250 combinations into billions, and suggest staying under about 1000 combinations per instrument, with even lower limits for histograms. Per-entity detail belongs in logs, traces or a database."
+    },
+    {
+      "id": "w09-l03-q04",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w09-l03",
+      "prompt": "A library creates `static readonly ActivitySource Source = new(\"Shop.Checkout\")`, and code calls `using var activity = Source.StartActivity(\"Reserve\")`. In the app, `activity` is always `null` and no spans appear. What is the most likely cause?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The source name must exactly match the ASP.NET Core assembly name, or the runtime refuses to route any activity through it"
+        },
+        {
+          "id": "b",
+          "text": "`StartActivity` returns `null` when no listener is sampling the source; the tracer provider was never told `AddSource(\"Shop.Checkout\")`"
+        },
+        {
+          "id": "c",
+          "text": "`Activity` objects must be constructed with `new Activity(...).Start()` instead, since `ActivitySource.StartActivity` only works inside ASP.NET Core requests"
+        },
+        {
+          "id": "d",
+          "text": "`StartActivity` needs an explicit parent context passed in, or the runtime refuses to allocate an activity and returns `null`"
+        }
+      ],
+      "concept": "activitysource-trace-propagation",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/diagnostics/distributed-tracing-instrumentation-walkthroughs",
+          "claim": "StartActivity returns null if there are no registered listeners or none are interested; the tracer provider is built with .AddSource(\"Sample.DistributedTracing\"), and the ActivitySource should be created once and stored statically.",
+          "title": "Add distributed tracing instrumentation - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "dotnet-otel",
+        "opentelemetry-dotnet",
+        "google-sre-book"
+      ],
+      "explanation": "`StartActivity` checks for registered, interested listeners and returns `null` if there are none, which keeps instrumentation cheap on hot paths. That is why callers use `activity?.SetTag(...)`. With OpenTelemetry, the tracer provider listens only to sources passed to `AddSource`. A missing parent just makes the span a root; it doesn't make it null."
+    },
+    {
+      "id": "w09-l03-q05",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w09-l03",
+      "prompt": "Which paging rule best follows Google SRE guidance on alerting?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Page whenever any single pod's CPU goes above 80% for one minute, since sustained CPU pressure always precedes a user-facing outage"
+        },
+        {
+          "id": "b",
+          "text": "Page on every exception logged at `Error` level, no matter how rare or how little it affects checkout traffic overall"
+        },
+        {
+          "id": "c",
+          "text": "Page when the average latency over the whole day exceeds its historical mean, since that reflects the typical customer's experience"
+        },
+        {
+          "id": "d",
+          "text": "Page when the error rate or p99 latency burns through the SLO fast enough to threaten it; treat CPU as a diagnostic dashboard"
+        }
+      ],
+      "concept": "symptom-based-slo-alerting",
+      "sources": [
+        {
+          "url": "https://sre.google/sre-book/monitoring-distributed-systems/",
+          "claim": "Monitoring should answer what's broken and why (symptoms vs causes); every page should be actionable and urgent; focus on latency, traffic, errors and saturation, and track the latency tail rather than the mean.",
+          "title": "Chapter 6 - Monitoring Distributed Systems",
+          "accessed": "2026-09-27",
+          "publisher": "Google SRE"
+        },
+        {
+          "url": "https://sre.google/sre-book/service-level-objectives/",
+          "claim": "An SLO is a target value for an SLI such as latency or error rate; metrics are better treated as distributions, using percentiles rather than averages.",
+          "title": "Google SRE - Defining slo: service level objective meaning",
+          "accessed": "2026-09-27",
+          "publisher": "Google SRE"
+        }
+      ],
+      "materials": [
+        "dotnet-otel",
+        "opentelemetry-dotnet",
+        "google-sre-book"
+      ],
+      "explanation": "SRE guidance separates symptoms (what's broken for users) from causes (why), and says every page should be actionable, urgent and reflect real user impact. The four golden signals and SLOs define the symptoms. CPU spikes and individual exceptions are causes that often need no action, and daily averages hide the tail."
+    },
+    {
+      "id": "w09-l03-q06",
+      "type": "written",
+      "lesson": "w09-l03",
+      "prompt": "On-call engineers can't find the logs for a single failed checkout among millions of lines, and queries by order id need regex parsing. How would you redesign logging in the ASP.NET Core services so this becomes easy, and what belongs in logs versus metrics versus traces?",
+      "concept": "structured-logging-message-templates",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/extensions/logging/overview",
+          "claim": "Message templates store arguments as fields; compile-time LoggerMessage source generation offers better performance and stronger typing; scopes attach data such as a transaction ID to every log in a set.",
+          "title": "Logging in C# - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/diagnostics/distributed-tracing-instrumentation-walkthroughs",
+          "claim": "For large volumes of events use ILogger rather than Activity events; ILogger supports automatically capturing the active Activity IDs so log messages can be correlated with the distributed trace.",
+          "title": "Add distributed tracing instrumentation - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "dotnet-otel",
+        "opentelemetry-dotnet",
+        "google-sre-book"
+      ],
+      "explanation": "Senior answers connect the three pillars through correlation ids rather than treating them as separate tools, and they know the .NET specifics: structured templates, source-generated logging, and ILogger picking up Activity ids automatically.",
+      "model_answer": {
+        "summary": "Log with message templates (ideally source-generated `[LoggerMessage]` methods) so order ids and outcomes are fields, and export logs through OpenTelemetry so each entry carries the current trace and span ids. Then one trace id pulls up every log line across services. Keep counts and latency in metrics and request flow and timing in traces.",
+        "key_points": [
+          "Use named placeholders and no string interpolation, so values such as `OrderId` are stored as queryable fields",
+          "Prefer compile-time `LoggerMessage` source generation for hot paths: faster, strongly typed, no string constants spread around",
+          "ILogger captures the active Activity ids, so logs correlate with the distributed trace; add scopes for extra context such as a transaction id",
+          "Metrics for aggregates and alerting (rates, latency histograms), traces for where time goes in one request, logs for discrete events and error detail",
+          "Choose log levels and categories deliberately; don't enable Trace or Debug broadly in production, for cost reasons"
+        ]
+      }
+    },
+    {
+      "id": "w09-l03-q07",
+      "type": "written",
+      "lesson": "w09-l03",
+      "prompt": "A request enters the Web API, which calls an Inventory service over HTTP and then publishes an `OrderPlaced` message to a broker consumed by a Billing worker. How do you get one trace that spans all three services? Explain what is automatic and what you must do yourself.",
+      "concept": "activitysource-trace-propagation",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/diagnostics/distributed-tracing-concepts",
+          "claim": "ASP.NET and System.Net.Http natively encode and decode Activity IDs on HTTP using the W3C TraceContext headers; third-party libraries may add support for transmitting IDs over non-HTTP message protocols.",
+          "title": "Distributed tracing concepts - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://opentelemetry.io/docs/concepts/context-propagation/",
+          "claim": "Propagation serializes context between services: propagators inject context into a carrier such as request headers and extract it on the receiving side; the default propagator uses W3C TraceContext headers.",
+          "title": "Context propagation",
+          "accessed": "2026-09-27",
+          "publisher": "OpenTelemetry"
+        }
+      ],
+      "materials": [
+        "dotnet-otel",
+        "opentelemetry-dotnet",
+        "google-sre-book"
+      ],
+      "explanation": "The distinguishing point is knowing exactly where .NET propagates for you (HTTP in and out, async flow) and where it does not (arbitrary message protocols), plus how batch consumers should use links instead of a single parent.",
+      "model_answer": {
+        "summary": "Every service registers the OpenTelemetry SDK with ASP.NET Core and HttpClient instrumentation, its own `ActivitySource`s and an exporter to one backend. HTTP propagation of W3C `traceparent` is automatic in .NET. For the broker, inject the current context into message headers when publishing and extract it when consuming, then start the consumer's activity with that parent, unless the broker's client library already does this.",
+        "key_points": [
+          "A trace is a tree of Activities (spans) sharing a 16-byte trace-id; each span has an 8-byte span-id and records its parent's span-id",
+          "ASP.NET Core and `HttpClient` read and write W3C `traceparent` headers automatically, and `Activity.Current` flows across async calls",
+          "Non-HTTP transports need propagation: a propagator injects context into the message headers and extracts it in the consumer (some client libraries do this for you)",
+          "Start consumer spans with the extracted parent context (or an `ActivityLink` for batches) and use producer/consumer `ActivityKind`s",
+          "Every service must export to the same backend (OTLP to Application Insights, Grafana Tempo and so on) with a distinct `service.name`, and sampling must keep whole traces"
+        ]
+      }
+    },
+    {
+      "id": "w09-l03-q08",
+      "type": "written",
+      "lesson": "w09-l03",
+      "prompt": "Define SLIs and SLOs for a checkout API and describe the alerting you would put on them. Explain why you would not alert on CPU usage or on the average latency.",
+      "concept": "symptom-based-slo-alerting",
+      "sources": [
+        {
+          "url": "https://sre.google/sre-book/service-level-objectives/",
+          "claim": "Defines SLI, SLO and SLA; metrics are better thought of as distributions; don't pick a target based on current performance; a tighter internal SLO than the advertised one gives room to respond.",
+          "title": "Google SRE - Defining slo: service level objective meaning",
+          "accessed": "2026-09-27",
+          "publisher": "Google SRE"
+        },
+        {
+          "url": "https://sre.google/sre-book/monitoring-distributed-systems/",
+          "claim": "Distinguishes symptoms from causes and says every page should be actionable; recommends the four golden signals and warns that the mean hides slow tail requests.",
+          "title": "Chapter 6 - Monitoring Distributed Systems",
+          "accessed": "2026-09-27",
+          "publisher": "Google SRE"
+        }
+      ],
+      "materials": [
+        "dotnet-otel",
+        "opentelemetry-dotnet",
+        "google-sre-book"
+      ],
+      "explanation": "A strong answer ties alerting to user impact and error budgets rather than to resource thresholds, and shows it understands why distributions and percentiles matter for latency SLIs.",
+      "model_answer": {
+        "summary": "Pick user-facing SLIs, such as the share of checkout requests that succeed and the share served under a latency threshold (for example 99% under 400 ms), measured as distributions. Set SLOs somewhat tighter internally than anything promised externally, and page when the error budget is being consumed fast. CPU is a cause, not a symptom, and averages hide the slow tail.",
+        "key_points": [
+          "An SLI is a measured quantity (availability, latency percentile, error rate); an SLO is a target for it; an SLA adds consequences",
+          "Use percentiles, not means, because a small fraction of very slow requests is invisible in an average",
+          "Don't set the target from current performance alone; keep a tighter internal SLO as a safety margin",
+          "Alert on symptoms users feel (errors, latency against the SLO); use causes such as CPU and GC as diagnostic dashboards",
+          "Pages must be actionable and urgent; the error budget decides when reliability work outranks feature work"
+        ]
+      }
+    },
+    {
+      "id": "w09-l04-q01",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w09-l04",
+      "prompt": "p99 latency doubled after a release, but traces are head-sampled at 5% and the trace backend shows no slow traces at all. What is the most likely gap, and the fix?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Head sampling decides at trace start, so slow traces aren't guaranteed to be kept; add tail sampling that keeps traces above a latency threshold or with errors"
+        },
+        {
+          "id": "b",
+          "text": "The p99 metric itself must be miscalculated, since a real regression would always show up as a sampled trace somewhere in the backend"
+        },
+        {
+          "id": "c",
+          "text": "Increase the head-sampling rate to 100% permanently in every service, so no trace is ever discarded regardless of the storage cost"
+        },
+        {
+          "id": "d",
+          "text": "Traces can never show latency problems by design; only structured logs correlated by a request id can reveal a slow request"
+        }
+      ],
+      "concept": "tail-latency-regression-triage",
+      "sources": [
+        {
+          "url": "https://opentelemetry.io/docs/concepts/sampling/",
+          "claim": "Head sampling decides as early as possible and cannot ensure that all traces with errors are sampled; tail sampling considers all or most spans and can sample based on errors or overall latency.",
+          "title": "Sampling",
+          "accessed": "2026-09-27",
+          "publisher": "OpenTelemetry"
+        }
+      ],
+      "materials": [
+        "dotnet-diagnostics",
+        "google-sre-book"
+      ],
+      "explanation": "Head sampling picks traces before their duration or errors are known, so rare slow requests are easily discarded. Tail sampling decides once most or all spans are in and can keep every slow or error trace. Always sampling 100% is expensive at scale, and the latency histogram metric is the signal that tells you to look."
+    },
+    {
+      "id": "w09-l04-q02",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w09-l04",
+      "prompt": "Under load, request latency climbs from 500 ms to several seconds. `dotnet-counters` shows `dotnet.thread_pool.thread.count` rising steadily by a thread or two per second, CPU well below 100%, and a long `dotnet.thread_pool.queue.length`. What is the most likely diagnosis?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "GC pressure: the heap is too large, so long stop-the-world collections are pausing every request at once"
+        },
+        {
+          "id": "b",
+          "text": "CPU saturation: the service is compute-bound and needs more cores to keep up with the request rate"
+        },
+        {
+          "id": "c",
+          "text": "Thread-pool starvation: threads are blocked, so queued work waits while the pool slowly injects more"
+        },
+        {
+          "id": "d",
+          "text": "Lock contention inside Kestrel's own connection handling is serializing every incoming request onto one thread"
+        }
+      ],
+      "concept": "threadpool-starvation-signals",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/diagnostics/debug-threadpool-starvation",
+          "claim": "The key signals of ThreadPool starvation are a slow and steady increase of ThreadPool threads and CPU usage much less than 100%, often with large dotnet.thread_pool.queue.length and low dotnet.thread_pool.work_item.count.",
+          "title": "Debug ThreadPool Starvation - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/diagnostics/built-in-metrics-runtime",
+          "claim": "dotnet.thread_pool.thread.count is the number of thread pool threads that currently exist; dotnet.thread_pool.queue.length is the number of work items currently queued to be processed.",
+          "title": ".NET runtime metrics - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "dotnet-diagnostics",
+        "google-sre-book"
+      ],
+      "explanation": "Microsoft's walkthrough names a slow, steady increase in thread-pool threads with CPU well under 100% as the key sign of starvation, often with a large queue length and few completed work items. CPU saturation would show high CPU. GC problems show up as pause time and collection counts instead."
+    },
+    {
+      "id": "w09-l04-q03",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w09-l04",
+      "prompt": "`dotnet-stack report` on a starving service shows hundreds of thread-pool threads in `ManualResetEventSlim.Wait` under `Task.GetResultCore`, called from a controller action. What is the fix?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Call `ThreadPool.SetMinThreads` with a much larger value at startup and leave the blocking `.Result` call in the action untouched"
+        },
+        {
+          "id": "b",
+          "text": "Make the action `async` and `await` the call instead of blocking on `.Result`, so no thread is held while I/O is pending"
+        },
+        {
+          "id": "c",
+          "text": "Wrap the blocking call in `Task.Run` so the wait happens on a different pool thread instead of the request thread"
+        },
+        {
+          "id": "d",
+          "text": "Move the blocking call into a `lock` block so only one thread waits on it at a time instead of hundreds"
+        }
+      ],
+      "concept": "threadpool-starvation-signals",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/diagnostics/debug-threadpool-starvation",
+          "claim": "Calling an async API and blocking with .Result (sync-over-async) is the most common cause of ThreadPool starvation; changing the code to async/await keeps thread counts low and latency near 500 ms.",
+          "title": "Debug ThreadPool Starvation - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "dotnet-diagnostics",
+        "google-sre-book"
+      ],
+      "explanation": "The stack shows sync-over-async: a pool thread blocks on `.Result` while it waits for I/O, which the docs call the most common cause of thread-pool starvation. Awaiting frees the thread to serve other work. Raising the minimum thread count or using `Task.Run` just spends more threads on blocking, and a lock adds contention."
+    },
+    {
+      "id": "w09-l04-q04",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w09-l04",
+      "prompt": "Twenty minutes after a deploy, checkout errors jump and customers are affected. The team is reading code to find the root cause. What should the incident commander prioritise?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Keep everyone reading code to root-cause it first, since a targeted fix is always faster than a rollback for a customer-facing checkout service"
+        },
+        {
+          "id": "b",
+          "text": "Wait for the full postmortem before changing anything in production, so the evidence trail stays completely untouched"
+        },
+        {
+          "id": "c",
+          "text": "Ask each engineer to try their own theory directly in production, in parallel, to cover more ground faster"
+        },
+        {
+          "id": "d",
+          "text": "Stop the bleeding first, for example by rolling back or shifting traffic, while preserving evidence; root-cause after service is restored"
+        }
+      ],
+      "concept": "incident-command-roles-and-mitigation",
+      "sources": [
+        {
+          "url": "https://sre.google/sre-book/managing-incidents/",
+          "claim": "The priorities are to stop the bleeding, restore service, and preserve the evidence for root-causing.",
+          "title": "Chapter 14 - Managing Incidents",
+          "accessed": "2026-09-27",
+          "publisher": "Google SRE"
+        },
+        {
+          "url": "https://sre.google/sre-book/effective-troubleshooting/",
+          "claim": "In a major outage, ignore the instinct to find a root cause first; make the system work as well as it can; recent changes are a productive place to start.",
+          "title": "Chapter 12 - Effective Troubleshooting",
+          "accessed": "2026-09-27",
+          "publisher": "Google SRE"
+        }
+      ],
+      "materials": [
+        "dotnet-diagnostics",
+        "google-sre-book"
+      ],
+      "explanation": "SRE practice is to stop the bleeding, restore service and preserve the evidence, in that order. The troubleshooting chapter explicitly says to ignore the instinct to find the root cause first in a major outage. A recent change is also a strong suspect, which makes rolling it back the obvious first move. Uncoordinated parallel changes in production are exactly what incident command exists to prevent."
+    },
+    {
+      "id": "w09-l04-q05",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w09-l04",
+      "prompt": "Which statement best describes a blameless postmortem?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It assumes people acted in good faith with the information they had, and produces prioritised, reviewed action items that fix systems and processes"
+        },
+        {
+          "id": "b",
+          "text": "It is written only when a customer-facing SLA is formally breached, and skipped for internal incidents that customers never notice"
+        },
+        {
+          "id": "c",
+          "text": "It names the engineer whose change caused the incident, so the rest of the team can learn to be more careful in review"
+        },
+        {
+          "id": "d",
+          "text": "It is a private note the on-call engineer keeps for their own reference, never shared with the rest of the team"
+        }
+      ],
+      "concept": "blameless-postmortem-practice",
+      "sources": [
+        {
+          "url": "https://sre.google/sre-book/postmortem-culture/",
+          "claim": "A blameless postmortem focuses on identifying contributing causes without indicting any individual or team; triggers include user-visible downtime, data loss, on-call intervention and monitoring failures; postmortems are reviewed and shared.",
+          "title": "Chapter 15 - Postmortem Culture: Learning from Failure",
+          "accessed": "2026-09-27",
+          "publisher": "Google SRE"
+        }
+      ],
+      "materials": [
+        "dotnet-diagnostics",
+        "google-sre-book"
+      ],
+      "explanation": "Google's SRE book describes blameless postmortems as focusing on contributing causes without indicting individuals, because you can fix systems but not people. They are triggered by more than SLA breaches (data loss, on-call intervention such as a rollback, long resolution, a monitoring failure), and they are reviewed and shared."
+    },
+    {
+      "id": "w09-l04-q06",
+      "type": "written",
+      "lesson": "w09-l04",
+      "prompt": "p99 latency doubled after this morning's release while p50 barely moved. Walk through how you find out why, using traces and metrics.",
+      "concept": "tail-latency-regression-triage",
+      "sources": [
+        {
+          "url": "https://sre.google/sre-book/effective-troubleshooting/",
+          "claim": "Recent changes are a productive place to start; correlation is not causation; troubleshooting iterates hypotheses and tests them, helped by latency histograms per RPC type.",
+          "title": "Chapter 12 - Effective Troubleshooting",
+          "accessed": "2026-09-27",
+          "publisher": "Google SRE"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/diagnostics/metrics-instrumentation",
+          "claim": "Histograms are preferred for timing because the tail (90th, 95th, 99th percentile) matters more than averages; dotnet-counters shows histogram percentiles.",
+          "title": "Creating Metrics - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "dotnet-diagnostics",
+        "google-sre-book"
+      ],
+      "explanation": "Senior engineers reason from the shape of the distribution (tail only, not median) to what kind of cause is plausible, use recent changes as the first suspect, and prove the cause instead of stopping at a correlated graph.",
+      "model_answer": {
+        "summary": "Confirm it on the latency histogram, split by version, route and instance to see where the tail lives, and correlate its start with the deploy. Then pull slow exemplar traces (keeping them with tail sampling if needed) and compare their span breakdown with fast traces to find the span that grew. Check runtime counters such as thread pool, GC and locks to explain it, and roll back if users are hurting.",
+        "key_points": [
+          "Use histogram percentiles, not averages; a p99-only regression means a subset of requests changed",
+          "Slice by dimensions (release version, endpoint, dependency, instance) to localise the regression, and line its start up with the change",
+          "Compare slow and fast traces span by span: which dependency call, retry, lock or query got longer",
+          "Check runtime signals (thread-pool queue, GC pause time, lock contention) and dependency metrics to confirm the mechanism",
+          "Test the hypothesis (for example on a canary or by rollback) instead of trusting correlation; mitigate first if the SLO is at risk"
+        ]
+      }
+    },
+    {
+      "id": "w09-l04-q07",
+      "type": "written",
+      "lesson": "w09-l04",
+      "prompt": "You are paged for an outage that needs three teams. Describe how you would run the incident: roles, communication, decision-making and handoff.",
+      "concept": "incident-command-roles-and-mitigation",
+      "sources": [
+        {
+          "url": "https://sre.google/sre-book/managing-incidents/",
+          "claim": "Incident roles are the Incident Commander, Operations lead, Communications lead and Planning lead; keep a live incident state document; hand off explicitly; declare if another team is needed, customers are impacted, or it's unsolved after an hour.",
+          "title": "Chapter 14 - Managing Incidents",
+          "accessed": "2026-09-27",
+          "publisher": "Google SRE"
+        }
+      ],
+      "materials": [
+        "dotnet-diagnostics",
+        "google-sre-book"
+      ],
+      "explanation": "Candidates who have run real incidents stress separating roles so that no one both debugs and communicates, and making explicit handoffs. Uncoordinated freelancing is the failure mode that incident command prevents.",
+      "model_answer": {
+        "summary": "Declare an incident and take or assign incident command. Separate roles (operations, communications, planning), keep a live incident document, communicate on a fixed cadence, prioritise mitigation such as rollback, and hand off command explicitly.",
+        "key_points": [
+          "Declare an incident early: another team is needed, customers are impacted, or it's unsolved after an hour",
+          "The incident commander holds the overall picture and assigns work; only the operations lead's team changes production",
+          "A communications lead sends stakeholder updates on a regular cadence; a planning lead handles tickets, logistics and follow-ups",
+          "Keep a live incident state document that records decisions and a timeline, and later feeds the postmortem",
+          "Stop the bleeding before root-causing; transfer command explicitly (\"you are now the incident commander\")"
+        ]
+      }
+    },
+    {
+      "id": "w09-l04-q08",
+      "type": "written",
+      "lesson": "w09-l04",
+      "prompt": "After the drill, the planted regression turned out to be a sync-over-async call added in a pull request. Write the outline of the postmortem and explain how you keep it blameless while still producing real fixes.",
+      "concept": "blameless-postmortem-practice",
+      "sources": [
+        {
+          "url": "https://sre.google/sre-book/postmortem-culture/",
+          "claim": "Blameless postmortems focus on contributing causes without indicting individuals, since you can fix systems and processes but not people; reviews check that the action plan is appropriate.",
+          "title": "Chapter 15 - Postmortem Culture: Learning from Failure",
+          "accessed": "2026-09-27",
+          "publisher": "Google SRE"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/diagnostics/debug-threadpool-starvation",
+          "claim": "Sync-over-async code such as Task.Result blocks thread-pool threads and is the most common cause of ThreadPool starvation.",
+          "title": "Debug ThreadPool Starvation - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "dotnet-diagnostics",
+        "google-sre-book"
+      ],
+      "explanation": "A senior answer turns 'X wrote a bad line' into 'our pipeline let a known anti-pattern reach production undetected', and gives concrete, verifiable action items for both prevention and detection.",
+      "model_answer": {
+        "summary": "Cover impact, timeline, detection, contributing causes, what went well and badly, and owned, prioritised action items. Frame the causes as system gaps (no load test, no thread-pool alert, a review checklist that missed the blocking call) rather than the author's mistake, then review the document and share it.",
+        "key_points": [
+          "Impact and timeline, including how and when the problem was detected and mitigated",
+          "Contributing causes stated as system and process gaps, on the assumption that people acted reasonably with the information they had",
+          "Action items with owners and priorities: an analyzer or review rule against `.Result`/`.Wait`, a thread-pool queue alert, load tests in CI",
+          "Note the detection gaps (why monitoring or tests didn't catch it) as well as the code defect",
+          "The postmortem is reviewed and published so other teams learn from it"
+        ]
+      }
+    }
+  ]
+}

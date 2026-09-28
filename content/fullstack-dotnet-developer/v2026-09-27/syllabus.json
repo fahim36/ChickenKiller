@@ -1,0 +1,1768 @@
+{
+  "stack": {
+    "id": "fullstack-dotnet-developer",
+    "name": "Full Stack .NET Developer",
+    "summary": "A 12-week plan to pass senior full stack .NET interviews: modern C# and .NET 10, async and performance, ASP.NET Core, SQL and EF Core, security, architecture, distributed systems, cloud delivery, testing and observability, React with TypeScript, AI integration and system design.",
+    "published": true
+  },
+  "weeks": [
+    {
+      "id": "w01",
+      "goal": "Answer language and platform questions at senior depth, and plan a move to .NET 10, since .NET 8 and 9 both leave support on 2026-11-10.",
+      "title": "Modern C# and the .NET 10 platform",
+      "number": 1,
+      "lessons": [
+        {
+          "id": "w01-l01",
+          "title": "Types, memory layout and value semantics",
+          "topics": [
+            "Value types vs reference types: layout, copying and where they live",
+            "Boxing, including hidden boxing through interfaces",
+            "Records and record structs: value equality and its pitfalls with mutable members",
+            "Nullable reference types: compile-time analysis, not runtime checks"
+          ],
+          "minutes": 90,
+          "exercise": "Write three snippets that box without an obvious cast and one record whose equality surprises; explain each.",
+          "materials": [
+            "csharp-docs",
+            "csharp-in-depth"
+          ]
+        },
+        {
+          "id": "w01-l02",
+          "title": "C# 12 to 14, and what comes in C# 15",
+          "topics": [
+            "Primary constructors and collection expressions",
+            "Pattern matching: property, list and relational patterns; switch expressions",
+            "C# 14: field-backed properties, extension members and implicit span conversions",
+            "C# 15 preview: unions and closed hierarchies"
+          ],
+          "minutes": 90,
+          "exercise": "Refactor a class hierarchy with type checks into switch expressions, then rewrite a helper class as C# 14 extension members.",
+          "materials": [
+            "csharp-14-whats-new",
+            "csharp-docs",
+            "dotnet-11-whats-new"
+          ]
+        },
+        {
+          "id": "w01-l03",
+          "title": "Generics, LINQ internals and source generators",
+          "topics": [
+            "Generic constraints, covariance and contravariance",
+            "Deferred vs immediate execution; multiple enumeration",
+            "`IEnumerable<T>` vs `IQueryable<T>`, expression trees and query providers",
+            "Source generators: what they replace (reflection) and when to use them"
+          ],
+          "minutes": 90,
+          "exercise": "Implement a custom LINQ operator with `yield return`, then show where multiple enumeration causes duplicate work.",
+          "materials": [
+            "csharp-in-depth",
+            "csharp-docs"
+          ]
+        },
+        {
+          "id": "w01-l04",
+          "title": "The .NET release model and migrating to .NET 10",
+          "topics": [
+            "LTS vs STS, support dates, and why .NET 8 ending in November 2026 matters",
+            "Porting from .NET Framework: assessment, incremental migration, removed APIs such as `BinaryFormatter`",
+            "Moving .NET 8 to .NET 10: breaking changes and testing",
+            "Native AOT and trimming: startup and size gains, and reflection limits"
+          ],
+          "minutes": 90,
+          "exercise": "Assess a sample project for .NET 10: list blocking APIs, packages and the migration order.",
+          "materials": [
+            "dotnet-support-policy",
+            "dotnet-porting",
+            "dotnet-10-whats-new",
+            "aspnetcore-native-aot"
+          ]
+        }
+      ],
+      "milestones": [
+        {
+          "id": "w01-m01",
+          "kind": "job-hunt",
+          "title": "Refresh your CV and LinkedIn for senior .NET roles: lead with scale, ownership and measurable impact",
+          "minutes": 120,
+          "materials": [
+            "linkedin-jobs",
+            "bdjobs"
+          ]
+        }
+      ],
+      "deliverable": "A short migration plan for a real or sample .NET Framework or .NET 8 app to .NET 10, plus a C# kata that uses records, pattern matching and C# 14 features.",
+      "interview_checks": [
+        "Why can a record with a `List<T>` property break value equality?",
+        "What is the difference between `IEnumerable<T>` and `IQueryable<T>` when you add a `Where`?",
+        "How would you migrate a .NET Framework 4.8 app to .NET 10, and what would you do first?",
+        "What does Native AOT give you, and what does it cost?"
+      ]
+    },
+    {
+      "id": "w02",
+      "goal": "Explain async and the garbage collector at the level of internals, and diagnose production performance problems with measurements instead of guesses.",
+      "title": "Async, concurrency, GC and performance",
+      "number": 2,
+      "lessons": [
+        {
+          "id": "w02-l01",
+          "title": "How async/await works",
+          "topics": [
+            "The compiler-generated state machine and continuations",
+            "`Task`, `ValueTask` and `IAsyncEnumerable<T>`",
+            "Sync-over-async deadlocks, `SynchronizationContext` and `ConfigureAwait`",
+            "`async void`, cancellation with `CancellationToken`, and exceptions from `Task.WhenAll`"
+          ],
+          "minutes": 90,
+          "exercise": "Reproduce a sync-over-async deadlock in a UI app, explain it, and show why the same code does not deadlock in ASP.NET Core.",
+          "materials": [
+            "dotnet-async",
+            "cleary-blog",
+            "aspnetcore-diagnostic-scenarios"
+          ]
+        },
+        {
+          "id": "w02-l02",
+          "title": "Threads, the thread pool and synchronization",
+          "topics": [
+            "How the thread pool grows, and what starvation looks like",
+            "`lock`, `SemaphoreSlim`, `Interlocked` and when each fits",
+            "Concurrent collections and the `GetOrAdd` factory gotcha",
+            "Channels and `Parallel.ForEachAsync` for bounded concurrency"
+          ],
+          "minutes": 90,
+          "exercise": "Call a downstream API 1,000 times with at most 10 calls in flight, first with `SemaphoreSlim` and then with `Parallel.ForEachAsync`.",
+          "materials": [
+            "dotnet-channels",
+            "concurrency-in-csharp",
+            "aspnetcore-diagnostic-scenarios"
+          ]
+        },
+        {
+          "id": "w02-l03",
+          "title": "The garbage collector and memory",
+          "topics": [
+            "Generations, the Large Object Heap and the Pinned Object Heap",
+            "Workstation, Server and DATAS modes",
+            "`IDisposable`, finalizers and common leak sources",
+            "`Span<T>`, `Memory<T>` and `ArrayPool<T>` for allocation-free code"
+          ],
+          "minutes": 90,
+          "exercise": "Rewrite a string-splitting parser with `ReadOnlySpan<char>` and measure allocations with BenchmarkDotNet.",
+          "materials": [
+            "dotnet-gc-fundamentals",
+            "dotnet-memory-and-spans",
+            "pro-dotnet-memory"
+          ]
+        },
+        {
+          "id": "w02-l04",
+          "title": "Performance diagnostics lab",
+          "topics": [
+            "Tool escalation: dotnet-counters, dotnet-stack, dotnet-trace, dotnet-dump",
+            "Reading p50 vs p99 latency and RED/USE dashboards",
+            "Proving a change with BenchmarkDotNet",
+            "What changed for performance in .NET 10"
+          ],
+          "minutes": 90,
+          "exercise": "Find a planted memory leak from a heap dump and a planted starvation from counters, and write a two-paragraph postmortem for each.",
+          "materials": [
+            "dotnet-diagnostics",
+            "benchmarkdotnet",
+            "dotnet-10-performance"
+          ]
+        }
+      ],
+      "milestones": [
+        {
+          "id": "w02-m01",
+          "kind": "build",
+          "title": "Build: start a portfolio API (ASP.NET Core, EF Core, React client) that you will grow each week",
+          "minutes": 180,
+          "materials": [
+            "eshop"
+          ]
+        }
+      ],
+      "deliverable": "A diagnostics write-up: a planted thread-pool starvation and a memory leak, each found with dotnet-counters, dotnet-trace or dotnet-dump, and fixed.",
+      "interview_checks": [
+        "What does `await` compile to, and what does `ConfigureAwait(false)` change?",
+        "Why can `ConcurrentDictionary.GetOrAdd` run your factory twice?",
+        "CPU is at 20% but requests are timing out. What do you check?",
+        "What are GC generations and the Large Object Heap, and how do they affect latency?"
+      ]
+    },
+    {
+      "id": "w03",
+      "goal": "Know the request pipeline end to end and design APIs other teams can depend on: DI, middleware, contracts, caching and rate limiting.",
+      "title": "ASP.NET Core internals and API design",
+      "number": 3,
+      "lessons": [
+        {
+          "id": "w03-l01",
+          "title": "The host, middleware and routing",
+          "topics": [
+            "The generic host, `WebApplication` and Kestrel",
+            "Middleware order and short-circuiting; middleware vs filters",
+            "Endpoint routing and route constraints",
+            "Minimal APIs vs controllers: features and trade-offs"
+          ],
+          "minutes": 90,
+          "exercise": "Write a correlation-id and timing middleware, place it correctly in the pipeline, and test the order.",
+          "materials": [
+            "aspnetcore-middleware",
+            "aspnetcore-apis",
+            "aspnetcore-in-action"
+          ]
+        },
+        {
+          "id": "w03-l02",
+          "title": "Dependency injection and configuration",
+          "topics": [
+            "Singleton, scoped and transient lifetimes; scope validation",
+            "Captive dependencies and `IServiceScopeFactory`",
+            "Keyed services, factories and decorators",
+            "Configuration providers, the options pattern and `ValidateOnStart`"
+          ],
+          "minutes": 90,
+          "exercise": "Inject a scoped service into a singleton, show the startup error, and fix it two ways.",
+          "materials": [
+            "aspnetcore-di",
+            "di-principles-patterns",
+            "andrew-lock-blog"
+          ]
+        },
+        {
+          "id": "w03-l03",
+          "title": "API contracts",
+          "topics": [
+            "REST resources, status codes and ProblemDetails",
+            "Versioning, pagination and idempotency keys",
+            "OpenAPI 3.1 in ASP.NET Core 10 and validation",
+            "gRPC and SignalR: when REST is the wrong fit"
+          ],
+          "minutes": 90,
+          "exercise": "Design an orders API with idempotent creation, cursor pagination and optimistic concurrency, and publish its OpenAPI document.",
+          "materials": [
+            "aspnetcore-openapi",
+            "aspnetcore-apis",
+            "signalr-intro"
+          ]
+        },
+        {
+          "id": "w03-l04",
+          "title": "Caching, rate limiting and background work",
+          "topics": [
+            "Output caching vs response caching",
+            "HybridCache: L1 and L2, stampede protection and tag invalidation",
+            "Rate limiting: fixed window, sliding window, token bucket and concurrency limiters",
+            "`BackgroundService` and graceful shutdown"
+          ],
+          "minutes": 90,
+          "exercise": "Put HybridCache in front of a slow query, simulate a stampede, and show only one call reaches the database.",
+          "materials": [
+            "hybridcache",
+            "aspnetcore-rate-limit",
+            "andrew-lock-blog"
+          ]
+        }
+      ],
+      "milestones": [
+        {
+          "id": "w03-m01",
+          "kind": "job-hunt",
+          "title": "Apply to five senior .NET roles (LinkedIn, Bdjobs, remote boards), each with a tailored summary",
+          "minutes": 120,
+          "materials": [
+            "linkedin-jobs",
+            "bdjobs"
+          ]
+        }
+      ],
+      "deliverable": "Your portfolio API with custom middleware, validated options, ProblemDetails errors, OpenAPI 3.1, HybridCache and rate limiting.",
+      "interview_checks": [
+        "What is a captive dependency, and how does ASP.NET Core catch it?",
+        "Middleware or a filter: how do you choose?",
+        "How do you make a POST endpoint idempotent?",
+        "What does HybridCache's stampede protection do, and what does its invalidation not do?"
+      ]
+    },
+    {
+      "id": "w04",
+      "goal": "Read and tune the SQL behind your code, use EF Core without surprises, and change schemas without downtime.",
+      "title": "Data: SQL and EF Core",
+      "number": 4,
+      "lessons": [
+        {
+          "id": "w04-l01",
+          "title": "SQL performance and transactions",
+          "topics": [
+            "Clustered, non-clustered, covering and filtered indexes",
+            "Reading execution plans: seeks, scans and key lookups",
+            "Isolation levels, locking, row versioning and deadlocks",
+            "SQL Server and PostgreSQL differences that matter to .NET developers"
+          ],
+          "minutes": 90,
+          "exercise": "Capture the plan for a slow query, add one index to remove a key lookup, and record the change.",
+          "materials": [
+            "use-the-index-luke",
+            "postgresql-docs"
+          ]
+        },
+        {
+          "id": "w04-l02",
+          "title": "EF Core queries",
+          "topics": [
+            "The change tracker, tracking vs no-tracking queries and projections",
+            "N+1 queries, eager loading, split queries and cartesian explosion",
+            "Client vs server evaluation, global query filters and compiled queries",
+            "Raw SQL and Dapper: when to leave LINQ"
+          ],
+          "minutes": 90,
+          "exercise": "Fix an endpoint with an N+1 two ways (Include and projection) and compare round trips.",
+          "materials": [
+            "efcore-performance",
+            "efcore-split-queries"
+          ]
+        },
+        {
+          "id": "w04-l03",
+          "title": "EF Core writes and migrations",
+          "topics": [
+            "Optimistic concurrency with row versions",
+            "Transactions and `SaveChanges` atomicity",
+            "Bulk `ExecuteUpdate` and `ExecuteDelete`",
+            "Migrations in production: scripts, bundles and expand/contract changes"
+          ],
+          "minutes": 90,
+          "exercise": "Plan a zero-downtime column rename as a series of deployable migrations.",
+          "materials": [
+            "efcore-concurrency",
+            "efcore-10-whats-new"
+          ]
+        },
+        {
+          "id": "w04-l04",
+          "title": "Scaling data",
+          "topics": [
+            "Read replicas and read-your-own-writes",
+            "Caching layers and their consistency",
+            "Multi-tenancy: database, schema or row-level isolation",
+            "When to use a document or key-value store instead"
+          ],
+          "minutes": 90,
+          "exercise": "Choose a multi-tenancy model for a SaaS product and defend it in a one-page note.",
+          "materials": [
+            "ddia",
+            "azure-architecture-styles"
+          ]
+        }
+      ],
+      "milestones": [
+        {
+          "id": "w04-m01",
+          "kind": "job-hunt",
+          "title": "Practice: answer three SQL tuning questions aloud and record yourself",
+          "minutes": 90,
+          "materials": [
+            "use-the-index-luke"
+          ]
+        }
+      ],
+      "deliverable": "An EF Core data layer with no N+1 queries, optimistic concurrency and a zero-downtime migration plan, plus before-and-after execution plans for two slow queries.",
+      "interview_checks": [
+        "What is the N+1 problem, and how do you find it with EF Core?",
+        "Clustered, non-clustered and covering indexes: explain each.",
+        "Which isolation level would you use for a balance transfer, and why?",
+        "How do you rename a column with zero downtime?"
+      ]
+    },
+    {
+      "id": "w05",
+      "goal": "Secure a full stack .NET app end to end: OAuth 2.0 and OIDC flows, authorization, the OWASP Top 10 and secret handling.",
+      "title": "Identity and application security",
+      "number": 5,
+      "lessons": [
+        {
+          "id": "w05-l01",
+          "title": "OAuth 2.0, OIDC and tokens",
+          "topics": [
+            "Authorization code with PKCE, and client credentials for services",
+            "ID tokens vs access tokens; validating a JWT",
+            "Cookies vs tokens in SPAs and the BFF pattern",
+            "Refresh tokens, rotation and revocation"
+          ],
+          "minutes": 90,
+          "exercise": "Secure an API with JWT bearer auth and list every validation parameter you set and why.",
+          "materials": [
+            "oauth2",
+            "jwt-introduction",
+            "aspnetcore-authentication"
+          ]
+        },
+        {
+          "id": "w05-l02",
+          "title": "Authentication and authorization in ASP.NET Core",
+          "topics": [
+            "Authentication schemes and handlers",
+            "Policies, requirements and resource-based authorization",
+            "Microsoft Entra ID for apps and APIs",
+            "Passkeys in ASP.NET Core 10"
+          ],
+          "minutes": 90,
+          "exercise": "Allow editing a document only by its owner or an admin with a resource-based authorization handler.",
+          "materials": [
+            "aspnetcore-authorization",
+            "entra-identity-platform",
+            "aspnetcore-passkeys"
+          ]
+        },
+        {
+          "id": "w05-l03",
+          "title": "OWASP Top 10 in .NET",
+          "topics": [
+            "Injection and parameterized queries in EF Core and Dapper",
+            "XSS, CSRF, antiforgery tokens and SameSite cookies",
+            "SSRF and insecure deserialization",
+            "Secrets, Key Vault and managed identities"
+          ],
+          "minutes": 90,
+          "exercise": "Audit a sample app against the OWASP Top 10 and fix the three worst findings.",
+          "materials": [
+            "owasp-top-ten",
+            "owasp-cheat-sheets"
+          ]
+        },
+        {
+          "id": "w05-l04",
+          "title": "Security in the delivery pipeline",
+          "topics": [
+            "Static and dynamic analysis (SAST and DAST)",
+            "Dependency and container scanning",
+            "Threat modelling with STRIDE",
+            "Handling a vulnerability disclosure"
+          ],
+          "minutes": 90,
+          "exercise": "Threat-model your portfolio app and add dependency scanning to its CI.",
+          "materials": [
+            "owasp-cheat-sheets",
+            "github-actions"
+          ]
+        }
+      ],
+      "milestones": [
+        {
+          "id": "w05-m01",
+          "kind": "build",
+          "title": "Build: add login, roles and a security section to your portfolio README",
+          "minutes": 180,
+          "materials": [
+            "aspnetcore-authentication"
+          ]
+        }
+      ],
+      "deliverable": "Your API protected with OIDC and JWT bearer tokens, a BFF for the React client, resource-based authorization and a short threat model.",
+      "interview_checks": [
+        "Walk through the authorization code flow with PKCE.",
+        "Cookies or tokens for a SPA calling your API? Justify it.",
+        "How does ASP.NET Core protect against CSRF, and when do you need it?",
+        "Where do secrets live in development, CI and production?"
+      ]
+    },
+    {
+      "id": "w06",
+      "goal": "Structure large codebases so they stay changeable, and argue the trade-offs of each style rather than following one by habit.",
+      "title": "Architecture: modular monolith, DDD and CQRS",
+      "number": 6,
+      "lessons": [
+        {
+          "id": "w06-l01",
+          "title": "Architecture styles",
+          "topics": [
+            "Layered, clean/onion and vertical slice architectures",
+            "The modular monolith and enforcing module boundaries",
+            "Where validation, transactions and logging belong",
+            "Recognizing over-engineering"
+          ],
+          "minutes": 90,
+          "exercise": "Implement one feature as a vertical slice and compare it with the same feature in a layered design.",
+          "materials": [
+            "azure-architecture-styles",
+            "milan-jovanovic-blog",
+            "dotnet-microservices-ebook"
+          ]
+        },
+        {
+          "id": "w06-l02",
+          "title": "Domain-driven design",
+          "topics": [
+            "Entities, value objects and aggregates",
+            "Invariants and domain events",
+            "Bounded contexts and context maps",
+            "Anemic vs rich domain models"
+          ],
+          "minutes": 90,
+          "exercise": "Model an order aggregate that enforces its invariants, with value objects for money and address.",
+          "materials": [
+            "evans-ddd",
+            "khononov-ddd"
+          ]
+        },
+        {
+          "id": "w06-l03",
+          "title": "CQRS and event sourcing",
+          "topics": [
+            "Separate read and write models without separate databases",
+            "Mediator pipelines and the MediatR licensing question",
+            "Event sourcing: what it gives you and when not to use it",
+            "Read models and projections"
+          ],
+          "minutes": 90,
+          "exercise": "Add a read model to one feature and write down what the added complexity bought you.",
+          "materials": [
+            "jimmy-bogard-blog",
+            "azure-cloud-design-patterns"
+          ]
+        },
+        {
+          "id": "w06-l04",
+          "title": "Architecture review",
+          "topics": [
+            "Inheriting a codebase with competing patterns",
+            "Prioritizing technical debt",
+            "Writing architecture decision records",
+            "Presenting a review to the team"
+          ],
+          "minutes": 90,
+          "exercise": "Review the eShop reference app and present three decisions you agree with and one you would change.",
+          "materials": [
+            "eshop",
+            "staff-engineer"
+          ]
+        }
+      ],
+      "milestones": [
+        {
+          "id": "w06-m01",
+          "kind": "job-hunt",
+          "title": "Apply to five more roles and ask two people in your network for referrals",
+          "minutes": 120,
+          "materials": [
+            "linkedin-jobs",
+            "bdjobs"
+          ]
+        }
+      ],
+      "deliverable": "Three ADRs for your portfolio app covering its architecture style, module boundaries and whether it uses CQRS.",
+      "interview_checks": [
+        "Clean architecture, vertical slices or a modular monolith: how do you choose?",
+        "What is an aggregate, and how do you pick its boundary?",
+        "When is CQRS worth its complexity, and would you still use MediatR now that it is commercially licensed?",
+        "When would you not use event sourcing?"
+      ]
+    },
+    {
+      "id": "w07",
+      "goal": "Build reliable distributed .NET systems: when to split services, messaging semantics, the outbox, idempotency and resilience.",
+      "title": "Distributed systems and messaging",
+      "number": 7,
+      "lessons": [
+        {
+          "id": "w07-l01",
+          "title": "Microservices decisions",
+          "topics": [
+            "Monolith vs microservices: team size, deployability and data ownership",
+            "Synchronous vs asynchronous communication",
+            "API gateways and YARP",
+            "The strangler fig pattern for migrations"
+          ],
+          "minutes": 90,
+          "exercise": "Write an ADR arguing for or against splitting one module of your app into a service.",
+          "materials": [
+            "fowler-microservices",
+            "dotnet-microservices-ebook"
+          ]
+        },
+        {
+          "id": "w07-l02",
+          "title": "Message brokers",
+          "topics": [
+            "Queues and topics; Azure Service Bus, RabbitMQ and Kafka compared",
+            "Delivery guarantees, ordering and partitions",
+            "Dead-letter queues and poison messages",
+            "Choosing a broker for a workload"
+          ],
+          "minutes": 90,
+          "exercise": "Publish an event from one service and consume it in another with a dead-letter policy.",
+          "materials": [
+            "azure-service-bus",
+            "rabbitmq-tutorials",
+            "kafka-docs",
+            "enterprise-integration-patterns"
+          ]
+        },
+        {
+          "id": "w07-l03",
+          "title": "Consistency: outbox, idempotency and sagas",
+          "topics": [
+            "The dual-write problem and the transactional outbox and inbox",
+            "Idempotency keys and idempotent consumers",
+            "Sagas: orchestration vs choreography and compensation",
+            "Explaining eventual consistency to product owners"
+          ],
+          "minutes": 90,
+          "exercise": "Add an outbox so a crash between saving and publishing loses nothing, and prove it with a test.",
+          "materials": [
+            "azure-cloud-design-patterns",
+            "ddia"
+          ]
+        },
+        {
+          "id": "w07-l04",
+          "title": "Resilience and local orchestration",
+          "topics": [
+            "Timeouts, retries with jitter, circuit breakers and hedging",
+            "The .NET resilience libraries and Polly",
+            "`IHttpClientFactory` and socket exhaustion",
+            "Aspire for running and wiring services locally"
+          ],
+          "minutes": 90,
+          "exercise": "Wrap a flaky downstream call with the standard resilience handler and show its behavior under injected faults.",
+          "materials": [
+            "dotnet-resilience",
+            "aspire"
+          ]
+        }
+      ],
+      "milestones": [
+        {
+          "id": "w07-m01",
+          "kind": "job-hunt",
+          "title": "Practice: one mock system design interview with a peer",
+          "minutes": 120,
+          "materials": [
+            "hellointerview-system-design"
+          ]
+        }
+      ],
+      "deliverable": "Two services that talk through a broker with an outbox, idempotent consumers and resilient HTTP calls, run locally with Aspire.",
+      "interview_checks": [
+        "How does the transactional outbox solve the dual-write problem?",
+        "What does at-least-once delivery force your consumers to do?",
+        "How do you stop one slow dependency from taking down every service?",
+        "When is a monolith the right answer?"
+      ]
+    },
+    {
+      "id": "w08",
+      "goal": "Ship .NET apps to the cloud: Azure hosting choices with their AWS equivalents, containers, Kubernetes basics, CI/CD and infrastructure as code.",
+      "title": "Cloud and delivery",
+      "number": 8,
+      "lessons": [
+        {
+          "id": "w08-l01",
+          "title": "Azure hosting, with AWS equivalents",
+          "topics": [
+            "App Service, Container Apps, AKS and Functions",
+            "The AWS equivalents: Elastic Beanstalk, ECS/Fargate, EKS and Lambda",
+            "Managed identities and networking basics",
+            "Cost and scaling trade-offs"
+          ],
+          "minutes": 90,
+          "exercise": "Pick a hosting option for three different workloads and justify each on cost and operations.",
+          "materials": [
+            "azure-well-architected",
+            "az-204"
+          ]
+        },
+        {
+          "id": "w08-l02",
+          "title": "Containers and Kubernetes",
+          "topics": [
+            "Multi-stage Dockerfiles and `dotnet publish` container support",
+            "Chiseled images, non-root users and image size",
+            "Kubernetes basics: probes, configuration, scaling",
+            "How the GC behaves under container memory limits"
+          ],
+          "minutes": 90,
+          "exercise": "Containerize the API, run it as non-root, and compare image sizes across base images.",
+          "materials": [
+            "docker-get-started",
+            "kubernetes-concepts"
+          ]
+        },
+        {
+          "id": "w08-l03",
+          "title": "CI/CD and infrastructure as code",
+          "topics": [
+            "Build once, deploy many: artifacts and environments",
+            "Blue/green, canary and rolling deployments; feature flags",
+            "Bicep vs Terraform",
+            "Database changes in the pipeline"
+          ],
+          "minutes": 90,
+          "exercise": "Build a pipeline that tests, scans and deploys to staging, with a manual gate before production.",
+          "materials": [
+            "github-actions",
+            "azure-well-architected"
+          ]
+        },
+        {
+          "id": "w08-l04",
+          "title": "Deploying with Aspire",
+          "topics": [
+            "Aspire app model and service defaults",
+            "Deploying to Container Apps or Kubernetes",
+            "Configuration and secrets across environments",
+            "Scalability and cost reviews"
+          ],
+          "minutes": 90,
+          "exercise": "Deploy your two-service system with Aspire and document how it scales.",
+          "materials": [
+            "aspire"
+          ]
+        }
+      ],
+      "milestones": [
+        {
+          "id": "w08-m01",
+          "kind": "job-hunt",
+          "title": "Apply to five more roles and follow up on earlier applications",
+          "minutes": 120,
+          "materials": [
+            "linkedin-jobs",
+            "bdjobs"
+          ]
+        }
+      ],
+      "deliverable": "Your app containerized and deployed to Azure Container Apps from GitHub Actions, with infrastructure defined as code.",
+      "interview_checks": [
+        "App Service, Container Apps, AKS or Functions: how do you choose, and what are the AWS equivalents?",
+        "How do you make a .NET container image small and safe?",
+        "Blue/green or canary: trade-offs?",
+        "How do you roll back a release that included a database migration?"
+      ]
+    },
+    {
+      "id": "w09",
+      "goal": "Design a test strategy that catches regressions cheaply, and instrument services so production problems can be found from telemetry.",
+      "title": "Testing and observability",
+      "number": 9,
+      "lessons": [
+        {
+          "id": "w09-l01",
+          "title": "Unit testing and test design",
+          "topics": [
+            "xUnit facts, theories and fixtures",
+            "Mocks, stubs and fakes; the cost of over-mocking",
+            "Testing behavior, not implementation",
+            "Testing time and async code with `TimeProvider`"
+          ],
+          "minutes": 90,
+          "exercise": "Rewrite a brittle mock-heavy test into a behavior-focused test with a fake.",
+          "materials": [
+            "xunit",
+            "dotnet-testing"
+          ]
+        },
+        {
+          "id": "w09-l02",
+          "title": "Integration and contract tests",
+          "topics": [
+            "`WebApplicationFactory` and replacing services",
+            "Testcontainers for SQL Server, PostgreSQL and brokers",
+            "Database reset strategies",
+            "Contract tests between services"
+          ],
+          "minutes": 90,
+          "exercise": "Write an integration test that runs the API against a database container and checks a full request.",
+          "materials": [
+            "aspnetcore-integration-tests",
+            "testcontainers-dotnet"
+          ]
+        },
+        {
+          "id": "w09-l03",
+          "title": "Observability with OpenTelemetry",
+          "topics": [
+            "Logs, metrics and traces; structured logging",
+            "`ActivitySource`, `Meter` and context propagation",
+            "Exporting to Application Insights or Grafana",
+            "SLIs, SLOs and alerting on symptoms"
+          ],
+          "minutes": 90,
+          "exercise": "Instrument both services and view one trace that spans HTTP and the message broker.",
+          "materials": [
+            "dotnet-otel",
+            "opentelemetry-dotnet",
+            "google-sre-book"
+          ]
+        },
+        {
+          "id": "w09-l04",
+          "title": "Incident drill",
+          "topics": [
+            "Finding a p99 regression from traces and metrics",
+            "Spotting thread-pool starvation from counters",
+            "Running an incident: roles, communication, rollback",
+            "Blameless postmortems"
+          ],
+          "minutes": 90,
+          "exercise": "Run a drill on a planted regression and write the postmortem.",
+          "materials": [
+            "dotnet-diagnostics",
+            "google-sre-book"
+          ]
+        }
+      ],
+      "milestones": [
+        {
+          "id": "w09-m01",
+          "kind": "build",
+          "title": "Build: CI runs unit and integration tests on every pull request",
+          "minutes": 120,
+          "materials": [
+            "github-actions"
+          ]
+        }
+      ],
+      "deliverable": "Unit and integration tests (WebApplicationFactory and Testcontainers) in CI, and OpenTelemetry traces and metrics across both services.",
+      "interview_checks": [
+        "What makes a unit test brittle?",
+        "Why run integration tests against a real database in a container?",
+        "How do you trace one request across three services?",
+        "p99 latency doubled after a release. How do you find out why?"
+      ]
+    },
+    {
+      "id": "w10",
+      "goal": "Be credible on the front end: React is in 67% of senior .NET postings, so learn TypeScript and React's rendering model well, with one lesson for Angular shops.",
+      "title": "React and TypeScript for .NET engineers",
+      "number": 10,
+      "lessons": [
+        {
+          "id": "w10-l01",
+          "title": "TypeScript for C# developers",
+          "topics": [
+            "Structural typing, unions, intersections and narrowing",
+            "Generics, `keyof`, mapped and conditional types",
+            "`unknown` vs `any` and exhaustiveness with `never`",
+            "Generating API types from OpenAPI"
+          ],
+          "minutes": 90,
+          "exercise": "Model an API result as a discriminated union and write an exhaustive render function.",
+          "materials": [
+            "typescript-handbook"
+          ]
+        },
+        {
+          "id": "w10-l02",
+          "title": "React's rendering model",
+          "topics": [
+            "Render and commit; reconciliation and keys",
+            "Hooks, effects and stale closures",
+            "Context and its re-render cost",
+            "`useTransition`, `useDeferredValue` and the React Compiler"
+          ],
+          "minutes": 90,
+          "exercise": "Fix a stale-closure bug in an interval hook and an unnecessary re-render in a list.",
+          "materials": [
+            "react-learn",
+            "react-reference",
+            "greatfrontend"
+          ]
+        },
+        {
+          "id": "w10-l03",
+          "title": "Data, state and testing on the front end",
+          "topics": [
+            "Server state vs client state; TanStack Query caching and invalidation",
+            "Forms, validation and optimistic updates",
+            "Auth with a BFF",
+            "Testing Library, Playwright and accessibility (WCAG)"
+          ],
+          "minutes": 90,
+          "exercise": "Replace effect-based fetching with TanStack Query, add an optimistic update, and cover the flow with a Playwright test.",
+          "materials": [
+            "tanstack-query",
+            "playwright-dotnet",
+            "patterns-dev"
+          ]
+        },
+        {
+          "id": "w10-l04",
+          "title": "Angular for Angular shops, and where Blazor fits",
+          "topics": [
+            "Angular signals, zoneless change detection and OnPush",
+            "RxJS flattening operators: `switchMap` vs `exhaustMap`",
+            "Lazy routes and bundle size",
+            "Blazor render modes and when a .NET-only team picks it"
+          ],
+          "minutes": 90,
+          "exercise": "Build the same list page in Angular with signals and compare it with the React version.",
+          "materials": [
+            "angular-signals",
+            "blazor-docs"
+          ]
+        }
+      ],
+      "milestones": [
+        {
+          "id": "w10-m01",
+          "kind": "build",
+          "title": "Build: publish your full stack portfolio app with a README explaining its design decisions",
+          "minutes": 180,
+          "materials": [
+            "eshop"
+          ]
+        }
+      ],
+      "deliverable": "A React and TypeScript client for your API with generated API types, server-state caching, a BFF login, and Playwright tests.",
+      "interview_checks": [
+        "What triggers a React re-render, and how do you avoid unnecessary ones?",
+        "Why do index keys break lists?",
+        "What does TanStack Query do that `useEffect` plus `fetch` does not?",
+        "Signals or RxJS in Angular: when do you use each?"
+      ]
+    },
+    {
+      "id": "w11",
+      "goal": "Build LLM features in .NET and review AI-written code responsibly, since about half of senior postings now ask for one or the other.",
+      "title": "AI and LLM integration in .NET",
+      "number": 11,
+      "lessons": [
+        {
+          "id": "w11-l01",
+          "title": "LLMs for engineers and Microsoft.Extensions.AI",
+          "topics": [
+            "Tokens, context windows, cost and latency",
+            "Failure modes: hallucination, prompt injection, non-determinism",
+            "`IChatClient`, streaming and structured output",
+            "Caching, retries and rate limits for model calls"
+          ],
+          "minutes": 90,
+          "exercise": "Add a streaming chat endpoint behind `IChatClient` and log tokens and cost per request.",
+          "materials": [
+            "microsoft-extensions-ai"
+          ]
+        },
+        {
+          "id": "w11-l02",
+          "title": "Retrieval-augmented generation",
+          "topics": [
+            "Embeddings and vector search (EF Core 10 on Azure SQL, pgvector)",
+            "Chunking and retrieval strategies",
+            "Grounding answers and citing sources",
+            "Evaluating retrieval and answer quality"
+          ],
+          "minutes": 90,
+          "exercise": "Index your app's documents, answer questions with citations, and measure retrieval quality on 20 test questions.",
+          "materials": [
+            "microsoft-extensions-ai",
+            "efcore-10-whats-new"
+          ]
+        },
+        {
+          "id": "w11-l03",
+          "title": "Agents, tools and MCP",
+          "topics": [
+            "Function calling and tool design",
+            "Microsoft Agent Framework",
+            "MCP servers and clients",
+            "Guardrails, permissions and human approval"
+          ],
+          "minutes": 90,
+          "exercise": "Expose one read-only tool from your API to an agent and add an approval step for anything that writes.",
+          "materials": [
+            "agent-framework",
+            "microsoft-extensions-ai"
+          ]
+        },
+        {
+          "id": "w11-l04",
+          "title": "Governing AI-assisted engineering",
+          "topics": [
+            "Reviewing AI-generated code: correctness, security and licensing",
+            "Testing AI features",
+            "Data privacy and what may be sent to a model",
+            "Team policies for AI coding tools"
+          ],
+          "minutes": 90,
+          "exercise": "Write a one-page team policy for AI coding tools and review an AI-generated pull request against it.",
+          "materials": [
+            "owasp-cheat-sheets",
+            "staff-engineer"
+          ]
+        }
+      ],
+      "milestones": [
+        {
+          "id": "w11-m01",
+          "kind": "job-hunt",
+          "title": "Apply to five more roles and prepare questions to ask each company",
+          "minutes": 120,
+          "materials": [
+            "linkedin-jobs",
+            "bdjobs"
+          ]
+        }
+      ],
+      "deliverable": "A streaming chat feature in your app using Microsoft.Extensions.AI, with retrieval over your own data and one tool exposed to the model.",
+      "interview_checks": [
+        "What drives the cost and latency of an LLM call, and how do you control them?",
+        "Walk through a retrieval-augmented generation pipeline and how you would evaluate it.",
+        "What is MCP, and how would you expose your API's data to an agent safely?",
+        "How do you review and test code written by an AI assistant?"
+      ]
+    },
+    {
+      "id": "w12",
+      "goal": "Pass the senior loop: system design with capacity math, leadership and behavioral stories, a short algorithms refresher, and a full mock.",
+      "title": "System design, leadership and mock interviews",
+      "number": 12,
+      "lessons": [
+        {
+          "id": "w12-l01",
+          "title": "System design method",
+          "topics": [
+            "Requirements, estimates, API, data model, high-level design and deep dives",
+            "A rate limiter and a notification system",
+            "Trade-off language: consistency, latency, cost and complexity",
+            "Designing with .NET and Azure building blocks"
+          ],
+          "minutes": 90,
+          "exercise": "Design a notification system in 45 minutes and review it against the method.",
+          "materials": [
+            "hellointerview-system-design",
+            "system-design-primer",
+            "azure-cloud-design-patterns"
+          ]
+        },
+        {
+          "id": "w12-l02",
+          "title": "A second design with capacity math",
+          "topics": [
+            "Back-of-the-envelope estimation",
+            "A multi-tenant SaaS or chat system",
+            "Partitioning, replication and caching tiers",
+            "Handling failure and graceful degradation"
+          ],
+          "minutes": 90,
+          "exercise": "Design a multi-tenant order pipeline with capacity estimates and a failure analysis.",
+          "materials": [
+            "system-design-primer",
+            "ddia"
+          ]
+        },
+        {
+          "id": "w12-l03",
+          "title": "Leadership stories and an algorithms refresher",
+          "topics": [
+            "STAR stories: incidents, disagreement, mentoring and tech debt",
+            "Senior signals: scope, ambiguity and influence",
+            "Hash maps, trees, graphs and an LRU cache",
+            "What Bangladesh service companies and big-tech loops each test"
+          ],
+          "minutes": 90,
+          "exercise": "Write five STAR stories and solve three medium problems under a timer.",
+          "materials": [
+            "tech-interview-handbook-behavioral",
+            "neetcode-roadmap",
+            "staff-engineer"
+          ]
+        },
+        {
+          "id": "w12-l04",
+          "title": "Full mock loop",
+          "topics": [
+            "A 45-minute .NET deep dive",
+            "A 45-minute system design",
+            "A 30-minute behavioral round",
+            "Turning feedback into a final study plan"
+          ],
+          "minutes": 90,
+          "exercise": "Run the full mock loop with a peer and fix your weakest answer.",
+          "materials": [
+            "codewithmukesh-senior-questions",
+            "tech-interview-handbook-behavioral"
+          ]
+        }
+      ],
+      "milestones": [
+        {
+          "id": "w12-m01",
+          "kind": "job-hunt",
+          "title": "Run two full mock interviews and send follow-ups on every open application",
+          "minutes": 240,
+          "materials": [
+            "linkedin-jobs"
+          ]
+        }
+      ],
+      "deliverable": "Two rehearsed system designs, five STAR stories and one full mock interview loop with notes on what to improve.",
+      "interview_checks": [
+        "Design a rate limiter, then scale it across regions.",
+        "Design a multi-tenant SaaS order pipeline.",
+        "Tell me about a production incident you led. What changed afterwards?",
+        "How do you mentor a developer who is struggling?"
+      ]
+    }
+  ],
+  "version": "v2026-09-27",
+  "materials": [
+    {
+      "id": "csharp-docs",
+      "url": "https://learn.microsoft.com/en-us/dotnet/csharp/",
+      "type": "docs",
+      "title": "C# documentation",
+      "subject": "C#"
+    },
+    {
+      "id": "csharp-14-whats-new",
+      "url": "https://learn.microsoft.com/en-us/dotnet/csharp/whats-new/csharp-14",
+      "type": "docs",
+      "title": "What's new in C# 14",
+      "subject": "C#"
+    },
+    {
+      "id": "dotnet-10-whats-new",
+      "url": "https://learn.microsoft.com/en-us/dotnet/core/whats-new/dotnet-10/overview",
+      "type": "docs",
+      "title": "What's new in .NET 10",
+      "subject": ".NET platform"
+    },
+    {
+      "id": "dotnet-11-whats-new",
+      "url": "https://learn.microsoft.com/en-us/dotnet/core/whats-new/dotnet-11/overview",
+      "type": "docs",
+      "title": "What's new in .NET 11",
+      "subject": ".NET platform"
+    },
+    {
+      "id": "dotnet-support-policy",
+      "url": "https://dotnet.microsoft.com/en-us/platform/support/policy/dotnet-core",
+      "type": "docs",
+      "title": ".NET and .NET Core support policy",
+      "subject": ".NET platform"
+    },
+    {
+      "id": "dotnet-porting",
+      "url": "https://learn.microsoft.com/en-us/dotnet/core/porting/",
+      "type": "docs",
+      "title": "Port from .NET Framework to .NET",
+      "subject": "Migration"
+    },
+    {
+      "id": "dotnet-async",
+      "url": "https://learn.microsoft.com/en-us/dotnet/csharp/asynchronous-programming/",
+      "type": "docs",
+      "title": "Asynchronous programming with async and await",
+      "subject": "Async"
+    },
+    {
+      "id": "dotnet-channels",
+      "url": "https://learn.microsoft.com/en-us/dotnet/core/extensions/channels",
+      "type": "docs",
+      "title": "System.Threading.Channels",
+      "subject": "Concurrency"
+    },
+    {
+      "id": "dotnet-memory-and-spans",
+      "url": "https://learn.microsoft.com/en-us/dotnet/standard/memory-and-spans/",
+      "type": "docs",
+      "title": "Memory- and span-related types",
+      "subject": "Performance"
+    },
+    {
+      "id": "dotnet-gc-fundamentals",
+      "url": "https://learn.microsoft.com/en-us/dotnet/standard/garbage-collection/fundamentals",
+      "type": "docs",
+      "title": "Fundamentals of garbage collection",
+      "subject": "Runtime"
+    },
+    {
+      "id": "dotnet-diagnostics",
+      "url": "https://learn.microsoft.com/en-us/dotnet/core/diagnostics/",
+      "type": "docs",
+      "title": ".NET diagnostics tools",
+      "subject": "Diagnostics"
+    },
+    {
+      "id": "dotnet-10-performance",
+      "url": "https://devblogs.microsoft.com/dotnet/performance-improvements-in-net-10/",
+      "type": "free",
+      "title": "Performance Improvements in .NET 10 (Toub)",
+      "subject": "Performance"
+    },
+    {
+      "id": "benchmarkdotnet",
+      "url": "https://benchmarkdotnet.org/",
+      "type": "tool",
+      "title": "BenchmarkDotNet",
+      "subject": "Performance"
+    },
+    {
+      "id": "aspnetcore-middleware",
+      "url": "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/middleware/",
+      "type": "docs",
+      "title": "ASP.NET Core middleware",
+      "subject": "ASP.NET Core"
+    },
+    {
+      "id": "aspnetcore-di",
+      "url": "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/dependency-injection",
+      "type": "docs",
+      "title": "Dependency injection in ASP.NET Core",
+      "subject": "ASP.NET Core"
+    },
+    {
+      "id": "aspnetcore-apis",
+      "url": "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/apis",
+      "type": "docs",
+      "title": "APIs overview: Minimal APIs and controllers",
+      "subject": "ASP.NET Core"
+    },
+    {
+      "id": "aspnetcore-openapi",
+      "url": "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/openapi/overview",
+      "type": "docs",
+      "title": "OpenAPI support in ASP.NET Core",
+      "subject": "API design"
+    },
+    {
+      "id": "hybridcache",
+      "url": "https://learn.microsoft.com/en-us/aspnet/core/performance/caching/hybrid",
+      "type": "docs",
+      "title": "HybridCache library in ASP.NET Core",
+      "subject": "Caching"
+    },
+    {
+      "id": "aspnetcore-rate-limit",
+      "url": "https://learn.microsoft.com/en-us/aspnet/core/performance/rate-limit",
+      "type": "docs",
+      "title": "Rate limiting middleware in ASP.NET Core",
+      "subject": "ASP.NET Core"
+    },
+    {
+      "id": "aspnetcore-native-aot",
+      "url": "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/native-aot",
+      "type": "docs",
+      "title": "ASP.NET Core support for Native AOT",
+      "subject": "ASP.NET Core"
+    },
+    {
+      "id": "signalr-intro",
+      "url": "https://learn.microsoft.com/en-us/aspnet/core/signalr/introduction",
+      "type": "docs",
+      "title": "Overview of ASP.NET Core SignalR",
+      "subject": "Real-time"
+    },
+    {
+      "id": "aspnetcore-diagnostic-scenarios",
+      "url": "https://github.com/davidfowl/AspNetCoreDiagnosticScenarios",
+      "type": "free",
+      "title": "ASP.NET Core Diagnostic Scenarios (Fowler)",
+      "subject": "Async"
+    },
+    {
+      "id": "efcore-performance",
+      "url": "https://learn.microsoft.com/en-us/ef/core/performance/",
+      "type": "docs",
+      "title": "EF Core performance",
+      "subject": "EF Core"
+    },
+    {
+      "id": "efcore-split-queries",
+      "url": "https://learn.microsoft.com/en-us/ef/core/querying/single-split-queries",
+      "type": "docs",
+      "title": "EF Core single vs split queries",
+      "subject": "EF Core"
+    },
+    {
+      "id": "efcore-concurrency",
+      "url": "https://learn.microsoft.com/en-us/ef/core/saving/concurrency",
+      "type": "docs",
+      "title": "Handling concurrency conflicts in EF Core",
+      "subject": "EF Core"
+    },
+    {
+      "id": "efcore-10-whats-new",
+      "url": "https://learn.microsoft.com/en-us/ef/core/what-is-new/ef-core-10.0/whatsnew",
+      "type": "docs",
+      "title": "What's new in EF Core 10",
+      "subject": "EF Core"
+    },
+    {
+      "id": "use-the-index-luke",
+      "url": "https://use-the-index-luke.com/",
+      "type": "free",
+      "title": "Use The Index, Luke (Winand)",
+      "subject": "SQL"
+    },
+    {
+      "id": "postgresql-docs",
+      "url": "https://www.postgresql.org/docs/current/",
+      "type": "docs",
+      "title": "PostgreSQL documentation",
+      "subject": "Databases"
+    },
+    {
+      "id": "aspnetcore-authentication",
+      "url": "https://learn.microsoft.com/en-us/aspnet/core/security/authentication/",
+      "type": "docs",
+      "title": "Authentication in ASP.NET Core",
+      "subject": "Security"
+    },
+    {
+      "id": "aspnetcore-authorization",
+      "url": "https://learn.microsoft.com/en-us/aspnet/core/security/authorization/introduction",
+      "type": "docs",
+      "title": "Authorization in ASP.NET Core",
+      "subject": "Security"
+    },
+    {
+      "id": "aspnetcore-passkeys",
+      "url": "https://learn.microsoft.com/en-us/aspnet/core/security/authentication/passkeys",
+      "type": "docs",
+      "title": "Passkeys in ASP.NET Core",
+      "subject": "Security"
+    },
+    {
+      "id": "entra-identity-platform",
+      "url": "https://learn.microsoft.com/en-us/entra/identity-platform/",
+      "type": "docs",
+      "title": "Microsoft identity platform (Entra ID)",
+      "subject": "Identity"
+    },
+    {
+      "id": "oauth2",
+      "url": "https://oauth.net/2/",
+      "type": "docs",
+      "title": "OAuth 2.0 (oauth.net)",
+      "subject": "Identity"
+    },
+    {
+      "id": "jwt-introduction",
+      "url": "https://www.jwt.io/introduction",
+      "type": "free",
+      "title": "Introduction to JSON Web Tokens",
+      "subject": "Identity"
+    },
+    {
+      "id": "owasp-top-ten",
+      "url": "https://owasp.org/projects/top-ten",
+      "type": "docs",
+      "title": "OWASP Top Ten",
+      "subject": "Security"
+    },
+    {
+      "id": "owasp-cheat-sheets",
+      "url": "https://cheatsheetseries.owasp.org/",
+      "type": "free",
+      "title": "OWASP Cheat Sheet Series",
+      "subject": "Security"
+    },
+    {
+      "id": "dotnet-microservices-ebook",
+      "url": "https://learn.microsoft.com/en-us/dotnet/architecture/microservices/",
+      "type": "free",
+      "title": ".NET Microservices: Architecture for Containerized .NET Applications",
+      "subject": "Architecture"
+    },
+    {
+      "id": "azure-architecture-styles",
+      "url": "https://learn.microsoft.com/en-us/azure/architecture/guide/architecture-styles/",
+      "type": "docs",
+      "title": "Azure Architecture Center: architecture styles",
+      "subject": "Architecture"
+    },
+    {
+      "id": "azure-cloud-design-patterns",
+      "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/",
+      "type": "docs",
+      "title": "Cloud design patterns",
+      "subject": "Distributed patterns"
+    },
+    {
+      "id": "azure-well-architected",
+      "url": "https://learn.microsoft.com/en-us/azure/well-architected/",
+      "type": "docs",
+      "title": "Azure Well-Architected Framework",
+      "subject": "Cloud architecture"
+    },
+    {
+      "id": "fowler-microservices",
+      "url": "https://martinfowler.com/articles/microservices.html",
+      "type": "free",
+      "title": "Microservices (Lewis and Fowler)",
+      "subject": "Architecture"
+    },
+    {
+      "id": "evans-ddd",
+      "url": "https://www.domainlanguage.com/ddd/",
+      "type": "book",
+      "title": "Domain-Driven Design (Evans)",
+      "subject": "DDD"
+    },
+    {
+      "id": "khononov-ddd",
+      "url": "https://vladikk.com/",
+      "type": "free",
+      "title": "Vladik Khononov on domain-driven design",
+      "subject": "DDD"
+    },
+    {
+      "id": "enterprise-integration-patterns",
+      "url": "https://www.enterpriseintegrationpatterns.com/",
+      "type": "book",
+      "title": "Enterprise Integration Patterns",
+      "subject": "Messaging"
+    },
+    {
+      "id": "azure-service-bus",
+      "url": "https://learn.microsoft.com/en-us/azure/service-bus-messaging/service-bus-messaging-overview",
+      "type": "docs",
+      "title": "Azure Service Bus overview",
+      "subject": "Messaging"
+    },
+    {
+      "id": "rabbitmq-tutorials",
+      "url": "https://www.rabbitmq.com/tutorials",
+      "type": "docs",
+      "title": "RabbitMQ tutorials",
+      "subject": "Messaging"
+    },
+    {
+      "id": "kafka-docs",
+      "url": "https://kafka.apache.org/documentation/",
+      "type": "docs",
+      "title": "Apache Kafka documentation",
+      "subject": "Messaging"
+    },
+    {
+      "id": "dotnet-resilience",
+      "url": "https://learn.microsoft.com/en-us/dotnet/core/resilience/",
+      "type": "docs",
+      "title": "Building resilient apps with .NET",
+      "subject": "Resilience"
+    },
+    {
+      "id": "aspire",
+      "url": "https://aspire.dev/",
+      "type": "docs",
+      "title": "Aspire",
+      "subject": "Cloud-native .NET"
+    },
+    {
+      "id": "eshop",
+      "url": "https://github.com/dotnet/eShop",
+      "type": "free",
+      "title": "eShop reference application",
+      "subject": "Reference architecture"
+    },
+    {
+      "id": "docker-get-started",
+      "url": "https://docs.docker.com/get-started/",
+      "type": "docs",
+      "title": "Docker: get started",
+      "subject": "Containers"
+    },
+    {
+      "id": "kubernetes-concepts",
+      "url": "https://kubernetes.io/docs/concepts/",
+      "type": "docs",
+      "title": "Kubernetes concepts",
+      "subject": "Containers"
+    },
+    {
+      "id": "github-actions",
+      "url": "https://docs.github.com/en/actions",
+      "type": "docs",
+      "title": "GitHub Actions documentation",
+      "subject": "CI/CD"
+    },
+    {
+      "id": "az-204",
+      "url": "https://learn.microsoft.com/en-us/credentials/certifications/azure-developer/",
+      "type": "platform",
+      "title": "Microsoft Certified: Azure Developer Associate (AZ-204)",
+      "subject": "Azure"
+    },
+    {
+      "id": "dotnet-testing",
+      "url": "https://learn.microsoft.com/en-us/dotnet/core/testing/",
+      "type": "docs",
+      "title": "Testing in .NET",
+      "subject": "Testing"
+    },
+    {
+      "id": "aspnetcore-integration-tests",
+      "url": "https://learn.microsoft.com/en-us/aspnet/core/test/integration-tests",
+      "type": "docs",
+      "title": "Integration tests in ASP.NET Core",
+      "subject": "Testing"
+    },
+    {
+      "id": "xunit",
+      "url": "https://xunit.net/",
+      "type": "tool",
+      "title": "xUnit.net",
+      "subject": "Testing"
+    },
+    {
+      "id": "testcontainers-dotnet",
+      "url": "https://testcontainers.com/guides/getting-started-with-testcontainers-for-dotnet/",
+      "type": "tool",
+      "title": "Getting started with Testcontainers for .NET",
+      "subject": "Testing"
+    },
+    {
+      "id": "playwright-dotnet",
+      "url": "https://playwright.dev/dotnet/",
+      "type": "tool",
+      "title": "Playwright for .NET",
+      "subject": "E2E testing"
+    },
+    {
+      "id": "dotnet-otel",
+      "url": "https://learn.microsoft.com/en-us/dotnet/core/diagnostics/observability-with-otel",
+      "type": "docs",
+      "title": ".NET observability with OpenTelemetry",
+      "subject": "Observability"
+    },
+    {
+      "id": "opentelemetry-dotnet",
+      "url": "https://opentelemetry.io/docs/languages/dotnet/",
+      "type": "docs",
+      "title": "OpenTelemetry .NET",
+      "subject": "Observability"
+    },
+    {
+      "id": "google-sre-book",
+      "url": "https://sre.google/sre-book/table-of-contents/",
+      "type": "book",
+      "title": "Site Reliability Engineering (Google)",
+      "subject": "Reliability"
+    },
+    {
+      "id": "react-learn",
+      "url": "https://react.dev/learn",
+      "type": "docs",
+      "title": "React: Learn",
+      "subject": "React"
+    },
+    {
+      "id": "react-reference",
+      "url": "https://react.dev/reference/react",
+      "type": "docs",
+      "title": "React API reference",
+      "subject": "React"
+    },
+    {
+      "id": "typescript-handbook",
+      "url": "https://www.typescriptlang.org/docs/handbook/intro.html",
+      "type": "docs",
+      "title": "The TypeScript Handbook",
+      "subject": "TypeScript"
+    },
+    {
+      "id": "tanstack-query",
+      "url": "https://tanstack.com/query/latest/docs/framework/react/overview",
+      "type": "docs",
+      "title": "TanStack Query (React)",
+      "subject": "React"
+    },
+    {
+      "id": "patterns-dev",
+      "url": "https://www.patterns.dev/",
+      "type": "free",
+      "title": "Patterns.dev",
+      "subject": "Frontend patterns"
+    },
+    {
+      "id": "greatfrontend",
+      "url": "https://www.greatfrontend.com/",
+      "type": "platform",
+      "title": "GreatFrontEnd",
+      "subject": "Frontend interviews"
+    },
+    {
+      "id": "angular-signals",
+      "url": "https://angular.dev/guide/signals",
+      "type": "docs",
+      "title": "Angular signals guide",
+      "subject": "Angular"
+    },
+    {
+      "id": "blazor-docs",
+      "url": "https://learn.microsoft.com/en-us/aspnet/core/blazor/",
+      "type": "docs",
+      "title": "ASP.NET Core Blazor",
+      "subject": "Blazor"
+    },
+    {
+      "id": "microsoft-extensions-ai",
+      "url": "https://learn.microsoft.com/en-us/dotnet/ai/microsoft-extensions-ai",
+      "type": "docs",
+      "title": "Microsoft.Extensions.AI libraries",
+      "subject": "AI integration"
+    },
+    {
+      "id": "agent-framework",
+      "url": "https://learn.microsoft.com/en-us/agent-framework/overview/",
+      "type": "docs",
+      "title": "Microsoft Agent Framework overview",
+      "subject": "AI agents"
+    },
+    {
+      "id": "csharp-in-depth",
+      "url": "https://www.manning.com/books/c-sharp-in-depth-fourth-edition",
+      "type": "book",
+      "title": "C# in Depth, 4th ed. (Skeet)",
+      "subject": "C#"
+    },
+    {
+      "id": "aspnetcore-in-action",
+      "url": "https://www.manning.com/books/asp-net-core-in-action-third-edition",
+      "type": "book",
+      "title": "ASP.NET Core in Action, 3rd ed. (Lock)",
+      "subject": "ASP.NET Core"
+    },
+    {
+      "id": "di-principles-patterns",
+      "url": "https://www.manning.com/books/dependency-injection-principles-practices-patterns",
+      "type": "book",
+      "title": "Dependency Injection Principles, Practices, and Patterns (van Deursen, Seemann)",
+      "subject": "Architecture"
+    },
+    {
+      "id": "concurrency-in-csharp",
+      "url": "https://stephencleary.com/book/",
+      "type": "book",
+      "title": "Concurrency in C# Cookbook (Cleary)",
+      "subject": "Concurrency"
+    },
+    {
+      "id": "pro-dotnet-memory",
+      "url": "https://prodotnetmemory.com/",
+      "type": "book",
+      "title": "Pro .NET Memory Management (Kokosa)",
+      "subject": "Runtime"
+    },
+    {
+      "id": "ddia",
+      "url": "https://dataintensive.net/",
+      "type": "book",
+      "title": "Designing Data-Intensive Applications (Kleppmann)",
+      "subject": "Distributed data"
+    },
+    {
+      "id": "staff-engineer",
+      "url": "https://staffeng.com/book",
+      "type": "book",
+      "title": "Staff Engineer (Larson)",
+      "subject": "Leadership"
+    },
+    {
+      "id": "andrew-lock-blog",
+      "url": "https://andrewlock.net/",
+      "type": "free",
+      "title": ".NET Escapades (Andrew Lock)",
+      "subject": "ASP.NET Core"
+    },
+    {
+      "id": "cleary-blog",
+      "url": "https://blog.stephencleary.com/",
+      "type": "free",
+      "title": "Stephen Cleary's blog",
+      "subject": "Async"
+    },
+    {
+      "id": "milan-jovanovic-blog",
+      "url": "https://www.milanjovanovic.tech/blog",
+      "type": "free",
+      "title": "Milan Jovanović's blog",
+      "subject": "Architecture"
+    },
+    {
+      "id": "jimmy-bogard-blog",
+      "url": "https://www.jimmybogard.com/",
+      "type": "free",
+      "title": "Jimmy Bogard's blog",
+      "subject": "Architecture"
+    },
+    {
+      "id": "nick-chapsas-youtube",
+      "url": "https://www.youtube.com/@nickchapsas",
+      "type": "video",
+      "title": "Nick Chapsas (YouTube)",
+      "subject": ".NET performance"
+    },
+    {
+      "id": "dotnet-youtube",
+      "url": "https://www.youtube.com/@dotnet",
+      "type": "video",
+      "title": ".NET (YouTube)",
+      "subject": ".NET platform"
+    },
+    {
+      "id": "system-design-primer",
+      "url": "https://github.com/donnemartin/system-design-primer",
+      "type": "free",
+      "title": "The System Design Primer",
+      "subject": "System design"
+    },
+    {
+      "id": "hellointerview-system-design",
+      "url": "https://www.hellointerview.com/learn/system-design/in-a-hurry/introduction",
+      "type": "free",
+      "title": "System Design in a Hurry (Hello Interview)",
+      "subject": "System design"
+    },
+    {
+      "id": "neetcode-roadmap",
+      "url": "https://neetcode.io/roadmap",
+      "type": "platform",
+      "title": "NeetCode roadmap",
+      "subject": "DSA"
+    },
+    {
+      "id": "codewithmukesh-senior-questions",
+      "url": "https://www.codewithmukesh.com/blog/senior-dotnet-developer-interview-questions/",
+      "type": "free",
+      "title": "Senior .NET developer interview questions (codewithmukesh)",
+      "subject": "Interview prep"
+    },
+    {
+      "id": "roadmap-aspnet-core",
+      "url": "https://roadmap.sh/aspnet-core",
+      "type": "free",
+      "title": "ASP.NET Core roadmap (roadmap.sh)",
+      "subject": "Roadmap"
+    },
+    {
+      "id": "tech-interview-handbook-behavioral",
+      "url": "https://www.techinterviewhandbook.org/behavioral-interview/",
+      "type": "free",
+      "title": "Behavioral interviews (Tech Interview Handbook)",
+      "subject": "Job hunt"
+    },
+    {
+      "id": "linkedin-jobs",
+      "url": "https://www.linkedin.com/jobs/",
+      "type": "platform",
+      "title": "LinkedIn Jobs",
+      "subject": "Job hunt"
+    },
+    {
+      "id": "bdjobs",
+      "url": "https://www.bdjobs.com/",
+      "type": "platform",
+      "title": "Bdjobs.com",
+      "subject": "Job hunt"
+    }
+  ],
+  "schema_version": 1
+}

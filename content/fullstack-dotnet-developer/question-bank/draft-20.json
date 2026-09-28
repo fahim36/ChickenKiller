@@ -1,0 +1,1330 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "microservice-data-ownership-tradeoffs",
+      "name": "Microservice data ownership and the cost of splitting a monolith"
+    },
+    {
+      "id": "synchronous-service-call-chains",
+      "name": "Synchronous request chains between microservices"
+    },
+    {
+      "id": "api-gateway-bff-yarp",
+      "name": "API gateways, backends for frontends and YARP"
+    },
+    {
+      "id": "strangler-fig-facade-migration",
+      "name": "Strangler fig migration through a routing facade"
+    },
+    {
+      "id": "broker-fanout-and-retention-models",
+      "name": "Broker delivery models: queues, topics and retained logs"
+    },
+    {
+      "id": "partition-and-session-ordering",
+      "name": "Message ordering through partitions and sessions"
+    },
+    {
+      "id": "peek-lock-settlement-redelivery",
+      "name": "Peek-lock settlement, lock loss and redelivery"
+    },
+    {
+      "id": "dead-letter-poison-message-handling",
+      "name": "Dead-letter queues and poison message handling"
+    },
+    {
+      "id": "transactional-outbox-dual-write",
+      "name": "The dual-write problem and the transactional outbox"
+    },
+    {
+      "id": "idempotent-consumer-dedup-key",
+      "name": "Idempotent consumers, inbox tables and deduplication keys"
+    },
+    {
+      "id": "saga-compensation-and-pivot",
+      "name": "Sagas: orchestration, choreography, compensation and pivot steps"
+    },
+    {
+      "id": "standard-resilience-handler-pipeline",
+      "name": "The .NET standard resilience handler pipeline and defaults"
+    },
+    {
+      "id": "retry-circuit-breaker-interplay",
+      "name": "Timeouts, retries with jitter and circuit breakers together"
+    },
+    {
+      "id": "httpclientfactory-handler-lifetime",
+      "name": "IHttpClientFactory handler pooling, socket exhaustion and DNS"
+    },
+    {
+      "id": "aspire-apphost-service-discovery",
+      "name": "Aspire AppHost references and service discovery"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w07-l01-q01",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w07-l01",
+      "prompt": "`Ordering` and `Billing` are separate services, but `Billing` reads the `Orders` table directly from the shared SQL database because \"it's faster than an API call\". According to the .NET microservices guidance, what is the most important problem with this design?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Cross-service SQL joins run inside the database engine, so they are always slower than the equivalent HTTP round trip between the two services"
+        },
+        {
+          "id": "b",
+          "text": "A schema change to `Orders` needs coordinated updates to both services, which breaks their independent lifecycle and deployment"
+        },
+        {
+          "id": "c",
+          "text": "SQL Server can't serve two separate applications from one database under load without the connection pool deadlocking"
+        },
+        {
+          "id": "d",
+          "text": "EF Core refuses to map two different `DbContext` types onto the same underlying database, so one of the services would fail at startup"
+        }
+      ],
+      "concept": "microservice-data-ownership-tradeoffs",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/architecture/microservices/architect-microservice-container-applications/data-sovereignty-per-microservice",
+          "claim": "If multiple services were accessing the same data, schema updates would require coordinated updates to all the services, which breaks microservice lifecycle autonomy.",
+          "title": "Data sovereignty per microservice - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://martinfowler.com/articles/microservices.html",
+          "claim": "Microservices prefer letting each service manage its own database, and a change to one service shouldn't require rebuilding and redeploying the whole system.",
+          "title": "Microservices",
+          "accessed": "2026-09-27",
+          "publisher": "Martin Fowler"
+        }
+      ],
+      "materials": [
+        "fowler-microservices",
+        "dotnet-microservices-ebook"
+      ],
+      "explanation": "Each microservice must own its data and expose it only through its API or messages. If several services access the same tables, any schema change forces coordinated changes and releases, so the services are no longer independently deployable. Performance (a) is not the core issue; a shared database is often faster, which is exactly why teams are tempted by it."
+    },
+    {
+      "id": "w07-l01-q02",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w07-l01",
+      "prompt": "The `Basket` service needs product prices owned by `Catalog`. Today every `GET /basket` call makes a synchronous HTTP request to `Catalog`, so baskets fail whenever `Catalog` is down. What does the .NET microservices guidance recommend?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Keep the synchronous HTTP call but add three retries with backoff, so brief `Catalog` outages are hidden from the caller"
+        },
+        {
+          "id": "b",
+          "text": "Give `Basket` a read-only connection string to the `Catalog` database so it can query prices without going through the API"
+        },
+        {
+          "id": "c",
+          "text": "Replicate the few price attributes `Basket` needs into its own store, kept current through integration events"
+        },
+        {
+          "id": "d",
+          "text": "Switch the call from REST to gRPC, so the same synchronous dependency completes faster and outages are shorter"
+        }
+      ],
+      "concept": "synchronous-service-call-chains",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/architecture/microservices/architect-microservice-container-applications/communication-in-microservice-architecture",
+          "claim": "If your microservice needs data owned by other microservices, don't rely on synchronous requests; replicate or propagate only the attributes you need into its own database using eventual consistency, typically via integration events.",
+          "title": "Communication in a microservice architecture - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "fowler-microservices",
+        "dotnet-microservices-ebook"
+      ],
+      "explanation": "The guidance says a service should stay available even when others are down: if it needs data owned by another service, it should not fetch it synchronously but propagate the needed attributes into its own store through integration events. Retries (a) and faster protocols (d) keep the synchronous dependency, and sharing the database (b) breaks data ownership."
+    },
+    {
+      "id": "w07-l01-q03",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w07-l01",
+      "prompt": "Your team built one custom ASP.NET Core gateway, with YARP routing plus C# aggregation code, in front of 30 services for the web app, the mobile app and partner integrations. What risk does the .NET microservices guidance call out, and what does it recommend?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A single YARP gateway can't terminate authentication at all, so every one of the 30 services must still validate tokens itself; add a service mesh sidecar to each"
+        },
+        {
+          "id": "b",
+          "text": "YARP can't load balance across backend instances, so an Azure Load Balancer must sit in front of every one of the 30 services instead"
+        },
+        {
+          "id": "c",
+          "text": "Putting a gateway in front removes the need to version any service's API, so internal contracts between the gateway and the services can change freely"
+        },
+        {
+          "id": "d",
+          "text": "The single gateway grows into a monolithic aggregator; split it into smaller gateways per client type (BFF) and business boundary"
+        }
+      ],
+      "concept": "api-gateway-bff-yarp",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/architecture/microservices/architect-microservice-container-applications/direct-client-to-microservice-communication-versus-the-api-gateway-pattern",
+          "claim": "A single custom API Gateway facing many client apps can become bloated like a monolith; it's recommended to split it into multiple API Gateways, for example one per client app form factor (Backend for Frontend) and by business boundaries.",
+          "title": "The API gateway pattern versus the direct client-to-microservice communication - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/servers/yarp/yarp-overview",
+          "claim": "YARP is a reverse proxy library that provides routing and load balancing across multiple backend servers.",
+          "title": "Overview of YARP",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "fowler-microservices",
+        "dotnet-microservices-ebook"
+      ],
+      "explanation": "The guidance warns that a single custom gateway serving many different clients becomes bloated and behaves like a monolith that couples all the internal services. It recommends several gateways segregated by client (BFF) and business boundaries. Gateways do offload cross-cutting concerns such as auth (a), and YARP does load balance (b)."
+    },
+    {
+      "id": "w07-l01-q04",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w07-l01",
+      "prompt": "In which situation does the Azure Architecture Center say the Strangler Fig pattern might **not** be suitable?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "When requests to the back-end system can't be intercepted by a facade"
+        },
+        {
+          "id": "b",
+          "text": "When the legacy system must keep running for a long time during the migration"
+        },
+        {
+          "id": "c",
+          "text": "When replacing a large, risky component all at once would be dangerous"
+        },
+        {
+          "id": "d",
+          "text": "When you want to migrate feature by feature while clients keep the same interface"
+        }
+      ],
+      "concept": "strangler-fig-facade-migration",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/strangler-fig",
+          "claim": "The Strangler Fig pattern might not be suitable when requests to the back-end system can't be intercepted, or when you migrate a small system and replacing the whole system is simple.",
+          "title": "Strangler Fig Pattern - Azure Architecture Center",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "fowler-microservices",
+        "dotnet-microservices-ebook"
+      ],
+      "explanation": "The pattern depends on a facade that intercepts requests and routes them to either the legacy or the new system. If requests can't be intercepted (or the system is small and easy to replace in one go), the pattern doesn't fit. Choices b, c and d are the situations the pattern is designed for."
+    },
+    {
+      "id": "w07-l01-q05",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w07-l01",
+      "prompt": "Which statement correctly describes how a reverse proxy such as YARP handles a proxied HTTP request?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It forwards the client's raw TCP connection unchanged all the way to the backend server, so the client and backend must negotiate the exact same HTTP version"
+        },
+        {
+          "id": "b",
+          "text": "It requires every backend service to run inside the same worker process as the proxy itself, sharing one Kestrel instance"
+        },
+        {
+          "id": "c",
+          "text": "It terminates the inbound connection and reuses pooled outbound connections, so client and backend can differ in HTTP version and connection lifetime"
+        },
+        {
+          "id": "d",
+          "text": "It can route requests by URL path only; it has no way to inspect or match on request headers when choosing a destination"
+        }
+      ],
+      "concept": "api-gateway-bff-yarp",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/servers/yarp/yarp-overview",
+          "claim": "Inbound HTTP connections are terminated at the proxy and new, pooled connections are used for outbound requests; inbound and outbound are independent, so the proxy can use different HTTP versions and connection lifetimes, and route on URL patterns or headers.",
+          "title": "Overview of YARP",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "fowler-microservices",
+        "dotnet-microservices-ebook"
+      ],
+      "explanation": "YARP terminates inbound connections at the proxy and uses separate, pooled outbound connections. This decouples client and backend: it can upgrade or downgrade HTTP versions, keep long-lived backend connections while clients connect briefly, and transform URLs. Routing can use URL patterns or headers, so d is wrong."
+    },
+    {
+      "id": "w07-l01-q06",
+      "type": "written",
+      "lesson": "w07-l01",
+      "prompt": "A 12-person team with one modular monolith is told by the CTO to split it into eight microservices \"for scalability\". Make the senior case for when a monolith is the right answer, and spell out what splitting really costs.",
+      "concept": "microservice-data-ownership-tradeoffs",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/architecture/microservices/architect-microservice-container-applications/data-sovereignty-per-microservice",
+          "claim": "A monolith with one relational database has ACID transactions and SQL across all tables; with microservices you can't make a single ACID transaction across services and must use eventual consistency.",
+          "title": "Data sovereignty per microservice - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://martinfowler.com/articles/microservices.html",
+          "claim": "Remote calls are more expensive than in-process calls, so remote APIs need to be coarser-grained; organizations tend to produce designs that copy their communication structure.",
+          "title": "Microservices",
+          "accessed": "2026-09-27",
+          "publisher": "Martin Fowler"
+        }
+      ],
+      "materials": [
+        "fowler-microservices",
+        "dotnet-microservices-ebook"
+      ],
+      "explanation": "A senior answer ties the decision to team structure and data, not to fashion. It names the concrete costs (no distributed ACID transactions, eventual consistency, remote-call overhead, more operations) and offers an incremental path such as modular boundaries first.",
+      "model_answer": {
+        "summary": "Microservices buy independent deployability and team autonomy at the price of distributed data and remote calls. For one small team, a well-modularized monolith usually keeps ACID transactions, simple queries and simple operations, so split only a module whose change rate, scaling or ownership truly differs.",
+        "key_points": [
+          "The main benefit of microservices is independent deployment and ownership aligned to teams (Conway's law); with a single team much of that benefit disappears",
+          "Each service must own its data, so you lose ACID transactions and SQL joins across services and must use eventual consistency for cross-service processes",
+          "Remote calls are more expensive than in-process calls, forcing coarser-grained APIs and adding latency and failure modes",
+          "A monolith with one database keeps ACID transactions and easy cross-table queries; modular boundaries inside it (bounded contexts) keep the option to split later",
+          "Split only where there is a concrete driver (different scaling, release cadence or team ownership), and record it in an ADR"
+        ]
+      }
+    },
+    {
+      "id": "w07-l01-q07",
+      "type": "written",
+      "lesson": "w07-l01",
+      "prompt": "Checkout p99 latency spikes, and checkout fails outright, whenever `Inventory` is slow. Checkout calls `Pricing`, which calls `Inventory`, which calls `Shipping`, all synchronously over HTTP within the user's request. Diagnose the design problem and propose a better one.",
+      "concept": "synchronous-service-call-chains",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/architecture/microservices/architect-microservice-container-applications/communication-in-microservice-architecture",
+          "claim": "Long HTTP request chains between microservices are an anti-pattern: services aren't autonomous, and performance is hit as soon as one service in the chain performs badly; the more synchronous dependencies you add, the worse the response time.",
+          "title": "Communication in a microservice architecture - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "dotnet-microservices-ebook",
+        "fowler-microservices"
+      ],
+      "explanation": "Stronger answers separate mitigation (timeouts, circuit breakers) from the root cause (temporal coupling), and explain the trade-off: asynchronous integration brings eventual consistency, which the business must accept.",
+      "model_answer": {
+        "summary": "It's a synchronous request chain: every hop adds latency and multiplies the chance of failure, so one slow service degrades the whole client request. Integrate services asynchronously (events, queues, replicated read data) so checkout can answer from its own data, and keep synchronous HTTP mainly for client-facing queries.",
+        "key_points": [
+          "A chain of synchronous HTTP calls between services is an anti-pattern: the client's response time is the sum of the chain and fails if any link fails",
+          "Services should stay autonomous and available even when other services are down or unhealthy",
+          "Raise follow-up actions (reserve stock, book shipping) asynchronously through messages or integration events instead of inside the original request",
+          "Replicate the data checkout needs (prices, stock levels) into its own store through events, accepting eventual consistency",
+          "Timeouts and circuit breakers limit the damage but don't remove the coupling; the fix is the integration style"
+        ]
+      }
+    },
+    {
+      "id": "w07-l01-q08",
+      "type": "written",
+      "lesson": "w07-l01",
+      "prompt": "You must move the invoicing module out of a legacy .NET Framework monolith without a big-bang rewrite. Using the Strangler Fig pattern with YARP as the facade, describe the migration steps, the risks of the facade, and how you handle the invoicing data.",
+      "concept": "strangler-fig-facade-migration",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/strangler-fig",
+          "claim": "A facade routes requests to the legacy or new system; ensure it doesn't become a single point of failure or bottleneck; use an anti-corruption layer for cross-system calls; migrate domain tables via ETL and CDC, validate, and remove legacy objects only after validation because rollback then becomes harder.",
+          "title": "Strangler Fig Pattern - Azure Architecture Center",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/servers/yarp/yarp-overview",
+          "claim": "YARP is a customizable reverse proxy built on ASP.NET Core that routes requests to backend clusters and can transform URLs so internal endpoints can change without affecting external URLs.",
+          "title": "Overview of YARP",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "dotnet-microservices-ebook",
+        "azure-cloud-design-patterns"
+      ],
+      "explanation": "A senior answer covers the data migration, not just the routing, and treats removing legacy objects as the deliberate point of no return.",
+      "model_answer": {
+        "summary": "Put a facade in front of the legacy app, route invoicing requests to a new service one slice at a time, then retire the legacy code and finally the facade. Extract the invoicing tables into their own database with an initial copy plus change data capture, validate before cutover, and keep rollback possible until the legacy objects are removed.",
+        "key_points": [
+          "A facade (proxy) intercepts client requests and routes them to either the legacy system or the new service; clients keep the same interface",
+          "Shift routes incrementally; when nothing depends on the legacy code, decommission it and then remove the facade (or keep it as an adapter for old clients)",
+          "The facade must keep up with the migration and must not become a single point of failure or a performance bottleneck",
+          "Use an anti-corruption layer for calls between the new service and unmigrated legacy parts",
+          "For data: move the domain tables into a new database with ETL and change data capture, validate consistency, cut over, and remove legacy tables only when validated because rollback gets much harder after that"
+        ]
+      }
+    },
+    {
+      "id": "w07-l02-q01",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w07-l02",
+      "prompt": "`Ordering` publishes `OrderPlaced`. `Billing`, `Shipping` and `Analytics` must each receive every event, and `Billing` runs five instances that should share its load. Which Azure Service Bus design fits?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "One queue that all three services read from"
+        },
+        {
+          "id": "b",
+          "text": "One queue per service instance, with `Ordering` sending a copy to each"
+        },
+        {
+          "id": "c",
+          "text": "A topic with one subscription per instance, so each of the five `Billing` instances has its own subscription"
+        },
+        {
+          "id": "d",
+          "text": "A topic with one subscription per consuming service; the five `Billing` instances compete for messages on the `Billing` subscription"
+        }
+      ],
+      "concept": "broker-fanout-and-retention-models",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/service-bus-messaging/service-bus-queues-topics-subscriptions",
+          "claim": "Each published message is made available to each subscription registered with the topic; a subscription resembles a virtual queue and supports the same patterns as queues, including competing consumers.",
+          "title": "Azure Service Bus Queues, Topics, and Subscriptions",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "azure-service-bus",
+        "kafka-docs"
+      ],
+      "explanation": "A topic gives each subscription its own copy of every message, and a subscription behaves like a queue, so competing consumers work on it. One subscription per service gives fan-out, and instances of one service share its subscription. A single queue (a) gives each message to only one consumer; a subscription per instance (c) would make every `Billing` instance process every event."
+    },
+    {
+      "id": "w07-l02-q02",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w07-l02",
+      "prompt": "A Kafka topic has 12 partitions and events are keyed by `customerId`. To speed up processing you scale one consumer group to 20 instances. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Per-customer order is still preserved, but only 12 instances receive partitions and the other 8 sit idle"
+        },
+        {
+          "id": "b",
+          "text": "All 20 instances share the load, and Kafka keeps a total order across the whole topic"
+        },
+        {
+          "id": "c",
+          "text": "Order is lost, because Kafka spreads a key's events across partitions in round-robin fashion"
+        },
+        {
+          "id": "d",
+          "text": "Events are deleted once a consumer reads them, so the extra instances prevent reprocessing"
+        }
+      ],
+      "concept": "partition-and-session-ordering",
+      "sources": [
+        {
+          "url": "https://kafka.apache.org/intro",
+          "claim": "Events with the same event key are written to the same partition, and Kafka guarantees that any consumer of a topic-partition reads its events in the order they were written; events are not deleted after consumption.",
+          "title": "Introduction | Apache Kafka",
+          "accessed": "2026-09-27",
+          "publisher": "Apache Software Foundation"
+        },
+        {
+          "url": "https://kafka.apache.org/42/design/design/",
+          "claim": "A topic is divided into totally ordered partitions, each of which is consumed by exactly one consumer within each subscribing consumer group at any given time.",
+          "title": "Design | Apache Kafka",
+          "accessed": "2026-09-27",
+          "publisher": "Apache Software Foundation"
+        }
+      ],
+      "materials": [
+        "azure-service-bus",
+        "kafka-docs"
+      ],
+      "explanation": "Events with the same key go to the same partition, and Kafka guarantees order only within a partition. Within a consumer group, each partition is consumed by exactly one consumer at a time, so parallelism is capped by the partition count. Kafka also keeps events after consumption, for a configured retention time (d is wrong)."
+    },
+    {
+      "id": "w07-l02-q03",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w07-l02",
+      "prompt": "Messages `m1`, `m2` and `m3` for the same order arrive in order on a Service Bus queue that two competing consumers read. Sometimes `m2` is **processed** before `m1`. What fixes this?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Enable duplicate detection on the queue, since it tracks the order of arrival and blocks a message from being handed to a second consumer"
+        },
+        {
+          "id": "b",
+          "text": "Enable sessions and set `SessionId` to the order ID, so one receiver holds the session lock and processes its messages in order"
+        },
+        {
+          "id": "c",
+          "text": "Switch the consumers to receive-and-delete mode, which settles each message the instant it is fetched instead of after processing"
+        },
+        {
+          "id": "d",
+          "text": "Rely on the message sequence number, which already guarantees the order messages are processed in, regardless of how many consumers read the queue"
+        }
+      ],
+      "concept": "partition-and-session-ordering",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/service-bus-messaging/message-sessions",
+          "claim": "Sequence number guarantees queuing and extraction order but not processing order, which requires sessions; a session receiver holds an exclusive lock on all messages with that session ID.",
+          "title": "Azure Service Bus Enable FIFO with Sessions",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "azure-service-bus",
+        "kafka-docs"
+      ],
+      "explanation": "Sequence numbers guarantee the order messages are queued and extracted, not the order they are processed: two consumers can pick up `m1` and `m2` at the same time. Sessions give an exclusive lock on all messages with one session ID to a single receiver, which preserves processing order per order while other sessions still run in parallel."
+    },
+    {
+      "id": "w07-l02-q04",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w07-l02",
+      "prompt": "A Service Bus consumer uses peek-lock. It receives a message, writes a row to its database, then crashes before calling `CompleteMessageAsync`. What happens next?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The message is lost, because peek-lock removes it from the queue the moment it is first handed to a receiver"
+        },
+        {
+          "id": "b",
+          "text": "The message is moved straight to the dead-letter queue the instant the receiving process crashes, without waiting for the lock"
+        },
+        {
+          "id": "c",
+          "text": "Duplicate detection on the queue notices the crash and stops the same message from ever being delivered again"
+        },
+        {
+          "id": "d",
+          "text": "The lock expires and the message is delivered again; the handler must tolerate processing it twice"
+        }
+      ],
+      "concept": "peek-lock-settlement-redelivery",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/service-bus-messaging/service-bus-queues-topics-subscriptions",
+          "claim": "In peek-lock mode, if the application crashes after processing the message but before completing it, Service Bus redelivers the message: at-least-once processing. Receive-and-delete is at-most-once.",
+          "title": "Azure Service Bus Queues, Topics, and Subscriptions",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/idempotent-consumer",
+          "claim": "Service Bus duplicate detection works on the send side within a bounded window and doesn't stop a consumer from processing the same message twice after a redelivery.",
+          "title": "Idempotent Consumer Pattern - Azure Architecture Center",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "azure-service-bus",
+        "kafka-docs"
+      ],
+      "explanation": "In peek-lock mode the message stays on the queue, locked, until it is completed. If the consumer crashes after processing but before completing, the message is redelivered once the lock expires: this is at-least-once delivery, so handlers must be idempotent. Losing the message (a) is receive-and-delete behavior. Duplicate detection (c) filters duplicate sends, not redeliveries."
+    },
+    {
+      "id": "w07-l02-q05",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w07-l02",
+      "prompt": "A message with a malformed payload makes the handler throw on every attempt. With default Azure Service Bus settings, what happens to it?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It is retried forever with no limit, and it blocks every other message behind it on the queue from ever being delivered"
+        },
+        {
+          "id": "b",
+          "text": "After more than 10 attempts it moves to the dead-letter queue with reason `MaxDeliveryCountExceeded`, and stays until completed"
+        },
+        {
+          "id": "c",
+          "text": "After exactly 10 delivery attempts it is silently dropped, with no dead-letter queue or log entry recording that it happened"
+        },
+        {
+          "id": "d",
+          "text": "It is dead-lettered, and the dead-letter queue automatically deletes it once its original time-to-live expires there"
+        }
+      ],
+      "concept": "dead-letter-poison-message-handling",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/service-bus-messaging/service-bus-dead-letter-queues",
+          "claim": "Max delivery count defaults to 10; when exceeded the message moves to the DLQ with reason MaxDeliveryCountExceeded. There's no automatic cleanup of the DLQ and time-to-live isn't observed there; applications can dead-letter explicitly with DeadLetterMessageAsync.",
+          "title": "Service Bus Dead-Letter Queues",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "azure-service-bus",
+        "kafka-docs"
+      ],
+      "explanation": "Each abandoned or lock-expired peek-lock delivery increases the delivery count. When the count exceeds `MaxDeliveryCount` (10 by default), the message moves to the DLQ. The DLQ has no automatic cleanup and ignores time-to-live, so someone must monitor and drain it. For a payload that can never succeed, dead-letter it explicitly with `DeadLetterMessageAsync` rather than burning ten attempts."
+    },
+    {
+      "id": "w07-l02-q06",
+      "type": "written",
+      "lesson": "w07-l02",
+      "prompt": "Choose a broker for two workloads and justify it: (1) order-processing commands that need per-order ordering, retries and a dead-letter policy; (2) a high-volume clickstream feed where a new analytics consumer added next month must replay the last 7 days. Compare Azure Service Bus, RabbitMQ and Kafka.",
+      "concept": "broker-fanout-and-retention-models",
+      "sources": [
+        {
+          "url": "https://kafka.apache.org/intro",
+          "claim": "Events are not deleted after consumption; a per-topic setting defines how long Kafka retains them. Events with the same key go to the same partition.",
+          "title": "Introduction | Apache Kafka",
+          "accessed": "2026-09-27",
+          "publisher": "Apache Software Foundation"
+        },
+        {
+          "url": "https://www.rabbitmq.com/docs/confirms",
+          "claim": "With manual acknowledgements, unacked deliveries are requeued when the channel closes; consumers must be prepared for redeliveries and be implemented with idempotence in mind.",
+          "title": "Consumer Acknowledgements and Publisher Confirms",
+          "accessed": "2026-09-27",
+          "publisher": "RabbitMQ"
+        }
+      ],
+      "materials": [
+        "azure-service-bus",
+        "kafka-docs",
+        "rabbitmq-tutorials"
+      ],
+      "explanation": "Senior candidates choose by delivery semantics (retention and replay, ordering scope, settlement, dead-lettering), not by popularity, and they note that every option is at-least-once, so idempotent consumers are always needed.",
+      "model_answer": {
+        "summary": "Use a queue broker such as Service Bus for commands: peek-lock settlement, sessions for per-order FIFO, dead-lettering and duplicate detection. Use Kafka's retained, partitioned log for the clickstream: events stay after consumption for a configured retention, so a new consumer group can replay, and order is kept per key within a partition.",
+        "key_points": [
+          "Service Bus queues give competing consumers, peek-lock settlement and a built-in DLQ; topics with subscriptions give fan-out",
+          "Service Bus sessions (`SessionId`) give per-entity FIFO processing; duplicate detection filters producer resends",
+          "Kafka keeps events after they are consumed, for a configured retention, so new consumer groups can replay history",
+          "Kafka orders events only within a partition (same key, same partition), and consumer parallelism is capped by the number of partitions",
+          "RabbitMQ uses manual acknowledgements with requeue or dead-letter exchanges; like the others it delivers at least once, so consumers must be idempotent"
+        ]
+      }
+    },
+    {
+      "id": "w07-l02-q07",
+      "type": "written",
+      "lesson": "w07-l02",
+      "prompt": "Design a poison-message strategy for a Service Bus consumer that handles payment events. Cover transient vs permanent failures, what goes to the dead-letter queue and with what information, how operators find and replay messages, and what can go wrong when they replay.",
+      "concept": "dead-letter-poison-message-handling",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/service-bus-messaging/service-bus-dead-letter-queues",
+          "claim": "Applications can explicitly dead-letter unacceptable messages and should include the exception type in DeadLetterReason and the stack trace in DeadLetterDescription; messages remain in the DLQ until explicitly received and completed.",
+          "title": "Service Bus Dead-Letter Queues",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/service-bus-messaging/message-sessions",
+          "claim": "If a dead-lettered message is later moved back to the original queue, its original ordering relative to other session messages is lost because it gets a new enqueue time and sequence number.",
+          "title": "Azure Service Bus Enable FIFO with Sessions",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "azure-service-bus",
+        "enterprise-integration-patterns"
+      ],
+      "explanation": "The senior signal is treating the DLQ as an operational workflow (alerting, diagnosis, replay) rather than a bin, and seeing how replay interacts with ordering and idempotency.",
+      "model_answer": {
+        "summary": "Retry transient failures through normal redelivery up to `MaxDeliveryCount`. Dead-letter permanent failures (malformed or invalid messages) immediately with a clear reason and description. Alert on DLQ depth, because nothing cleans it automatically. Replay only after a fix, and design consumers to be idempotent, since replayed messages may already have been partly processed and lose their original order.",
+        "key_points": [
+          "Tell transient failures (let redelivery and `MaxDeliveryCount` handle them) apart from permanent ones (dead-letter at once with `DeadLetterMessageAsync`)",
+          "Set `DeadLetterReason` and `DeadLetterErrorDescription` (exception type and details) so the cause can be diagnosed",
+          "The DLQ has no automatic cleanup and ignores time-to-live: monitor its depth and alert on it",
+          "Resubmit after fixing the cause (for example with Service Bus Explorer); resubmitted session messages get a new sequence number and lose their original order",
+          "Consumers must be idempotent because resubmissions and redeliveries can arrive long after the first attempt"
+        ]
+      }
+    },
+    {
+      "id": "w07-l02-q08",
+      "type": "written",
+      "lesson": "w07-l02",
+      "prompt": "Messages keep landing in the dead-letter queue with reason `MaxDeliveryCountExceeded`, yet the handler logs show each one processed successfully. The code receives a batch in peek-lock mode, hands the messages to a background worker, disposes the receiver, and completes the messages 12 minutes later. Diagnose it and fix it.",
+      "concept": "peek-lock-settlement-redelivery",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/service-bus-messaging/service-bus-dead-letter-queues",
+          "claim": "If you close the receiver or its connection before settling, the settlement doesn't reach the service; the message is redelivered with an increased delivery count and eventually dead-lettered with MaxDeliveryCountExceeded. The service closes an idle connection after 10 minutes.",
+          "title": "Service Bus Dead-Letter Queues",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "azure-service-bus"
+      ],
+      "explanation": "Strong answers connect the symptom (DLQ plus successful logs) to the lock lifecycle and point out the hidden second bug: duplicate processing.",
+      "model_answer": {
+        "summary": "Completion is sent after the receiver and connection have closed and after the locks are gone, so the service never records it. Each message is redelivered with a higher delivery count until it passes `MaxDeliveryCount` and is dead-lettered. Settle each message while its receiver is open and its lock is valid, or renew the lock, and make processing idempotent because the redeliveries were processed again.",
+        "key_points": [
+          "In peek-lock mode the lock belongs to the receiver and its connection; settling after closing them doesn't reach the service",
+          "When the lock expires the message is redelivered and its delivery count goes up, until it is moved to the DLQ",
+          "The service closes idle connections after 10 minutes, which also releases locks",
+          "Fix: complete each message before closing the receiver, keep work within the lock duration or renew the lock, and if a lock is lost, receive and process the message again rather than retrying the settlement",
+          "The messages that were redelivered were processed more than once, so the handler must be idempotent"
+        ]
+      }
+    },
+    {
+      "id": "w07-l03-q01",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w07-l03",
+      "prompt": "`CreateOrder` saves the order with EF Core, then calls `_bus.Publish(new OrderCreated(...))`. Sometimes the host crashes between the two steps and downstream services never hear about the order. Which change guarantees the event isn't lost?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Retry `Publish` three times inside the request before returning, so a transient broker error doesn't drop the event"
+        },
+        {
+          "id": "b",
+          "text": "Publish the `OrderCreated` event first, over the broker, and only save the order to the database once publishing succeeds"
+        },
+        {
+          "id": "c",
+          "text": "Write the order and event to an outbox table in one transaction; a relay publishes unsent rows and marks them processed"
+        },
+        {
+          "id": "d",
+          "text": "Turn on Service Bus duplicate detection so a crash between the save and the publish can never produce a lost event"
+        }
+      ],
+      "concept": "transactional-outbox-dual-write",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/databases/guide/transactional-outbox-cosmos",
+          "claim": "Save the business object and its events within the same database transaction in an outbox table; a separate worker queries the outbox for unhandled entries, publishes them, and marks them as processed, preventing event loss.",
+          "title": "Implement the Transactional Outbox Pattern by Using Azure Cosmos DB",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "azure-cloud-design-patterns",
+        "ddia"
+      ],
+      "explanation": "The transactional outbox saves the state change and the event atomically, so both are committed or neither is, and a separate worker publishes from the table later. In-process retries (a) die with the host. Publishing first (b) just flips the failure: an event for an order that was never saved. Duplicate detection (d) removes duplicates; it doesn't recover lost messages."
+    },
+    {
+      "id": "w07-l03-q02",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w07-l03",
+      "prompt": "In Microsoft's Cosmos DB outbox sample, the change-feed relay sets `ServiceBusMessage.MessageId` to the event document's `id`. Why?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "So when the change feed restarts from its last checkpoint and re-sends a batch, duplicate detection drops the re-sent copies"
+        },
+        {
+          "id": "b",
+          "text": "So consumers can sort events by `MessageId` and reconstruct the original order the change feed produced them in"
+        },
+        {
+          "id": "c",
+          "text": "Because Service Bus rejects any message whose `MessageId` isn't formatted as a GUID, and the document's `id` already is one"
+        },
+        {
+          "id": "d",
+          "text": "So the relay can delete the outbox document from Cosmos DB once Service Bus returns an acknowledgement for that `MessageId`"
+        }
+      ],
+      "concept": "transactional-outbox-dual-write",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/databases/guide/transactional-outbox-cosmos",
+          "claim": "When reprocessing occurs the app might already have sent some messages; turning on Service Bus duplicate detection, keyed on the application-controlled MessageId set to the event document ID, drops the duplicates.",
+          "title": "Implement the Transactional Outbox Pattern by Using Azure Cosmos DB",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/service-bus-messaging/duplicate-detection",
+          "claim": "Duplicate detection tracks the application-controlled MessageId during a time window (default 10 minutes) and drops new messages with a MessageId already logged.",
+          "title": "Azure Service Bus duplicate message detection",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "azure-cloud-design-patterns",
+        "ddia"
+      ],
+      "explanation": "The relay publishes at least once: after an error the change feed processor resumes from the last successfully processed position, so some events are sent again. An application-controlled, stable `MessageId` lets duplicate detection discard those re-sends within its time window. Ordering comes from sessions, not from `MessageId` (b)."
+    },
+    {
+      "id": "w07-l03-q03",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w07-l03",
+      "prompt": "Two competing consumer instances sometimes receive copies of the same `ChargeCustomer` message at the same moment. Each instance first runs `SELECT` against an `Inbox` table and inserts the message ID only if it isn't there. Customers are still charged twice. What is the right fix?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Increase the lock duration on the queue so a second competing instance has less chance of grabbing the same message concurrently"
+        },
+        {
+          "id": "b",
+          "text": "Put a unique constraint on the key and insert the inbox row in the same transaction as the change; the loser treats it as a duplicate"
+        },
+        {
+          "id": "c",
+          "text": "Turn on Service Bus duplicate detection instead of keeping an inbox table, since the broker already tracks every message it has delivered"
+        },
+        {
+          "id": "d",
+          "text": "Use `CorrelationId` as the deduplication key, since it stays the same across every redelivery of the message"
+        }
+      ],
+      "concept": "idempotent-consumer-dedup-key",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/idempotent-consumer",
+          "claim": "Both concurrent instances can pass the existence check before either commits; use a uniqueness constraint on the deduplication key and write the marker and side effects in the same transaction (the Inbox pattern).",
+          "title": "Idempotent Consumer Pattern - Azure Architecture Center",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "azure-cloud-design-patterns",
+        "ddia"
+      ],
+      "explanation": "Check-then-insert is a race: both instances pass the existence check before either commits. Make the database the arbiter with a uniqueness constraint, and commit the marker and the side effects atomically (the inbox pattern). Broker duplicate detection (c) works on the send side within a window and doesn't stop redelivery duplicates. `CorrelationId` (d) identifies a group of related messages, not one logical message."
+    },
+    {
+      "id": "w07-l03-q04",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w07-l03",
+      "prompt": "Which value should an idempotent consumer use as its deduplication key?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The broker's delivery count or lock token, since the broker regenerates a fresh one on every redelivery of the message"
+        },
+        {
+          "id": "b",
+          "text": "The wall-clock time the consumer happened to receive the message, read from `DateTime.UtcNow` at the top of the handler"
+        },
+        {
+          "id": "c",
+          "text": "A producer-assigned message ID or business key that stays the same across redeliveries"
+        },
+        {
+          "id": "d",
+          "text": "The `CorrelationId` shared by a request and every reply it produces, across the whole conversation"
+        }
+      ],
+      "concept": "idempotent-consumer-dedup-key",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/idempotent-consumer",
+          "claim": "Use a producer-assigned message identifier or business-level idempotency key; don't use CorrelationId, transport-level identifiers the broker regenerates on redelivery, or volatile fields like receive timestamps.",
+          "title": "Idempotent Consumer Pattern - Azure Architecture Center",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "azure-cloud-design-patterns",
+        "ddia"
+      ],
+      "explanation": "The key must identify the logical message the same way on every redelivery. Transport values the broker regenerates (a) and receive timestamps (b) change between deliveries, which defeats deduplication. `CorrelationId` (d) groups related messages. When several subscribers share one deduplication store, key it on consumer identity plus message identity."
+    },
+    {
+      "id": "w07-l03-q05",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w07-l03",
+      "prompt": "An order saga runs: reserve inventory, then authorize payment, then capture payment (irreversible), then create the shipment. In saga terms, what is the capture step, and what does that mean for the shipment step?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A compensable transaction, so if the shipment step fails later, the capture is simply reversed with a refund transaction"
+        },
+        {
+          "id": "b",
+          "text": "A pivot transaction, the point of no return: the steps after it must be retryable and idempotent so the saga finishes"
+        },
+        {
+          "id": "c",
+          "text": "A retryable transaction, so every step that ran before it in the saga must also have been built to be retryable"
+        },
+        {
+          "id": "d",
+          "text": "A distributed two-phase-commit step that locks the inventory, payment and shipment participants until the shipment finishes"
+        }
+      ],
+      "concept": "saga-compensation-and-pivot",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/saga",
+          "claim": "Pivot transactions are the point of no return; after a pivot succeeds, compensable transactions are no longer relevant and subsequent retryable transactions, which are idempotent, must complete.",
+          "title": "Saga Design Pattern - Azure Architecture Center",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "azure-cloud-design-patterns",
+        "ddia"
+      ],
+      "explanation": "A pivot transaction is the point of no return. Once it succeeds, compensation no longer applies and the remaining steps must be retryable (idempotent) so the saga reaches a consistent end state. Steps before the pivot are compensable. Sagas replace two-phase commit with local transactions (d)."
+    },
+    {
+      "id": "w07-l03-q06",
+      "type": "written",
+      "lesson": "w07-l03",
+      "prompt": "Design the order-placement saga across `Ordering`, `Payment` and `Inventory`. Choose orchestration or choreography and defend the choice, explain what happens when payment fails after stock was reserved, and name the isolation anomalies a saga introduces and how you would limit them.",
+      "concept": "saga-compensation-and-pivot",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/saga",
+          "claim": "Choreography: no central controller and no single point of failure, but confusing as steps grow and risks cyclic dependencies; orchestration suits complex workflows but introduces a point of failure. Anomalies: lost updates, dirty reads, fuzzy reads; countermeasures: semantic lock, commutative updates, pessimistic view, reread values, version files.",
+          "title": "Saga Design Pattern - Azure Architecture Center",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "azure-cloud-design-patterns",
+        "ddia"
+      ],
+      "explanation": "What separates senior answers is naming the isolation anomalies and their countermeasures, and placing the pivot step deliberately. Stopping at \"use events\" is not enough.",
+      "model_answer": {
+        "summary": "Each service commits a local transaction and triggers the next step through a message. If payment fails, compensating transactions undo the completed compensable steps (release the stock, cancel the order). Orchestration suits a workflow that will grow; choreography suits a few simple steps. Sagas have no isolation, so use countermeasures such as semantic locks (a `Pending` state), rereading values and commutative updates.",
+        "key_points": [
+          "A saga is a sequence of local transactions, each triggering the next through an event or message; there is no cross-service ACID transaction",
+          "Choreography needs no coordinator and has no single point of failure, but it becomes hard to follow and risks cyclic dependencies; orchestration centralizes the flow, suits complex or growing workflows, but adds coordination logic and a point of failure",
+          "On failure, run compensating transactions for the completed compensable steps; the steps after the pivot must be retryable and idempotent",
+          "Missing isolation causes lost updates, dirty reads and fuzzy reads; countermeasures include a semantic lock (for example an order in `Pending` state), commutative updates, the pessimistic view and rereading values",
+          "Steps must be idempotent and the saga must be monitored and traceable, because debugging distributed flows is hard"
+        ]
+      }
+    },
+    {
+      "id": "w07-l03-q07",
+      "type": "written",
+      "lesson": "w07-l03",
+      "prompt": "A travel booking reserved three flights, then the hotel reservation failed. A product owner asks, \"Why don't we just restore the database rows to how they were before the booking started?\" Explain why that's wrong, what a compensating transaction really does, and how you would explain eventual consistency to the product owner.",
+      "concept": "saga-compensation-and-pivot",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/compensating-transaction",
+          "claim": "You can't always roll back because concurrent instances might change the data; compensation is application-specific, need not reverse steps in exact order, can fail, and its steps should be idempotent; a customer should decide whether to cancel flights when a hotel booking fails.",
+          "title": "Compensating Transaction Pattern - Azure Architecture Center",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "azure-cloud-design-patterns",
+        "ddia"
+      ],
+      "explanation": "The senior move is to frame the answer in business terms (what the customer sees while the process runs) and to recognize that compensation is itself a distributed operation that can fail.",
+      "model_answer": {
+        "summary": "Restoring old values can overwrite changes made meanwhile by other users or instances, and undoing a business action often needs business rules (fees, partial refunds). A compensating transaction applies application-specific counter-actions for the steps that completed; those actions may themselves fail and need retries. For the product owner, explain that the system is temporarily inconsistent while steps run and becomes consistent when they finish.",
+        "key_points": [
+          "Restoring the original state can overwrite concurrent changes from other instances, so compensation must account for concurrent work",
+          "Compensation is application-specific and may apply business rules (for example, a cancelled flight may not be fully refunded)",
+          "Compensation need not run in exact reverse order, and some undo steps can run in parallel",
+          "Compensating steps can fail: record progress so they can resume, and make each step idempotent; escalate to a human when needed",
+          "Sometimes going forward is better than compensating (offer another hotel), and a high-impact decision should be the customer's, not the system's"
+        ]
+      }
+    },
+    {
+      "id": "w07-l03-q08",
+      "type": "written",
+      "lesson": "w07-l03",
+      "prompt": "Explain the dual-write problem to a colleague who writes to SQL and then publishes to a broker. Then describe how the transactional outbox on the producer and an idempotent inbox on the consumer together give effectively-once processing, and name what the outbox does **not** guarantee on its own.",
+      "concept": "transactional-outbox-dual-write",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/databases/guide/transactional-outbox-cosmos",
+          "claim": "An error between saving the order and publishing the event (network error, message service outage, host failure) means other services aren't notified; the outbox saves object and events in one transaction, and in practice you must also preserve event order.",
+          "title": "Implement the Transactional Outbox Pattern by Using Azure Cosmos DB",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/idempotent-consumer",
+          "claim": "It's impractical to guarantee exactly-once delivery across a distributed system; combining at-least-once delivery with a consumer that ignores duplicates gives effectively-once processing; the Inbox pattern is the consumer-side companion to the Transactional Outbox.",
+          "title": "Idempotent Consumer Pattern - Azure Architecture Center",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "azure-cloud-design-patterns",
+        "ddia"
+      ],
+      "explanation": "A strong answer states that exactly-once delivery isn't achievable across a distributed system and explains how the producer-side and consumer-side patterns complement each other.",
+      "model_answer": {
+        "summary": "Writing to the database and to the broker are two separate operations that can't be made atomic together, so a crash between them loses or orphans events. The outbox stores the event in the same local transaction and relays it later, at least once. The consumer's inbox records processed message IDs in the same transaction as its side effects, which turns at-least-once delivery into effectively-once processing. The outbox alone doesn't prevent duplicates or guarantee order.",
+        "key_points": [
+          "Dual write: the database commit and the broker publish can't be atomic, so network errors, broker outages or host failures between them lose events",
+          "Outbox: save the business change and the event in one local transaction; a relay publishes pending rows and marks them processed",
+          "The relay can publish the same event twice (a crash after publishing but before marking it processed), so delivery is at least once",
+          "Inbox and idempotent consumer: store the processed message ID with a uniqueness constraint in the same transaction as the side effect",
+          "Order must be handled explicitly (for example with sessions or version numbers); deduplication alone doesn't guarantee order"
+        ]
+      }
+    },
+    {
+      "id": "w07-l04-q01",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w07-l04",
+      "prompt": "An `HttpClient` uses `AddStandardResilienceHandler()` with its defaults, and the downstream service starts hanging and never responding. What limits how long a call takes?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Only the default `HttpClient.Timeout` of 100 seconds applies, because the standard resilience handler adds retries but no timeouts of its own"
+        },
+        {
+          "id": "b",
+          "text": "Each attempt is cancelled after 10 seconds, and the outer 30-second total timeout caps all attempts and retry delays together"
+        },
+        {
+          "id": "c",
+          "text": "The retry strategy always waits for each attempt to finish before giving up, so a hanging call can take up to 3 times 100 seconds"
+        },
+        {
+          "id": "d",
+          "text": "The circuit breaker opens the instant the first request hangs, and every later call fails instantly without reaching the network"
+        }
+      ],
+      "concept": "standard-resilience-handler-pipeline",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/resilience/http-resilience",
+          "claim": "Standard resilience handler defaults, outermost to innermost: rate limiter (1,000 permits), total timeout 30s, retry (3 retries, exponential, jitter, 2s delay), circuit breaker (10% failure ratio, min throughput 100, 30s sampling, 5s break), attempt timeout 10s.",
+          "title": "Build resilient HTTP apps: Key development patterns - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "dotnet-resilience",
+        "aspire"
+      ],
+      "explanation": "The standard pipeline, from outermost to innermost, is rate limiter, total timeout (30 s), retry (3 retries, exponential backoff with jitter), circuit breaker, and attempt timeout (10 s). The attempt timeout cuts each try short, and the total timeout bounds the whole execution including retries. The circuit breaker (d) needs a 10% failure ratio over at least 100 requests in a 30-second window, so it doesn't open on the first hang."
+    },
+    {
+      "id": "w07-l04-q02",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w07-l04",
+      "prompt": "After adding `AddStandardResilienceHandler()` to the payment client, the payment database shows duplicate charges whenever the provider has a slow patch. Why, and what is a correct mitigation?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The handler retries every HTTP method by default, including `POST`; disable retries for unsafe methods or add an idempotency key"
+        },
+        {
+          "id": "b",
+          "text": "The circuit breaker queues requests that arrive while it is open and replays every one of them once it closes again, without deduplicating"
+        },
+        {
+          "id": "c",
+          "text": "Hedging is on by default in the standard handler, so it sends several parallel copies of every request and keeps the fastest response"
+        },
+        {
+          "id": "d",
+          "text": "`IHttpClientFactory` resends the last in-flight request whenever it recycles a pooled handler in the background"
+        }
+      ],
+      "concept": "standard-resilience-handler-pipeline",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/resilience/http-resilience",
+          "claim": "By default the standard resilience handler retries all HTTP methods; a retried POST could duplicate data; DisableForUnsafeHttpMethods disables retries for POST, PATCH, PUT, DELETE and CONNECT.",
+          "title": "Build resilient HTTP apps: Key development patterns - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/retry",
+          "claim": "If an operation isn't idempotent, retries can execute it more than once, for example when a service processes the request but fails to send a response.",
+          "title": "Retry pattern - Azure Architecture Center",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "dotnet-resilience",
+        "aspire"
+      ],
+      "explanation": "By default the standard handler retries all HTTP methods. A `POST` that succeeded on the server but timed out on the client gets sent again, which creates duplicates. Disable retries for unsafe methods, or make the operation idempotent. Hedging (c) only comes with `AddStandardHedgingHandler`, which is a different handler."
+    },
+    {
+      "id": "w07-l04-q03",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w07-l04",
+      "prompt": "Which statement about combining the Retry and Circuit Breaker patterns matches the Azure Architecture Center guidance?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Retry and circuit breaker do the same job of hiding transient faults, so a well-designed client only ever needs to configure one of them"
+        },
+        {
+          "id": "b",
+          "text": "Put the circuit breaker outside the retry loop, so that every individual retry attempt independently resets the breaker's failure count"
+        },
+        {
+          "id": "c",
+          "text": "Invoke the operation through the breaker with retries, but stop retrying once the breaker signals the fault isn't transient"
+        },
+        {
+          "id": "d",
+          "text": "In the half-open state the breaker lets all queued traffic through at once, so the recovering service can be tested as quickly as possible"
+        }
+      ],
+      "concept": "retry-circuit-breaker-interplay",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/circuit-breaker",
+          "claim": "An application can use the Retry pattern to invoke an operation through a circuit breaker, but the retry logic should be sensitive to exceptions from the breaker and stop retrying if it indicates the fault isn't transient; Half-Open allows a limited number of requests through.",
+          "title": "Circuit Breaker Pattern - Azure Architecture Center",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "dotnet-resilience",
+        "aspire"
+      ],
+      "explanation": "Retry assumes the operation will eventually succeed; the circuit breaker stops calls that are likely to fail. You can retry through a breaker, but retries must respect the breaker's open-circuit signal. Half-open lets only a limited number of trial requests through, so a recovering service isn't flooded (d is wrong)."
+    },
+    {
+      "id": "w07-l04-q04",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w07-l04",
+      "prompt": "A typed client, `PricingClient`, is registered with `AddHttpClient<PricingClient>()` and injected into a singleton `PriceCache`. After a DNS cutover to new backend IPs, `PriceCache` keeps calling the old IPs for days. What's the cause and a correct fix?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The default handler lifetime is infinite unless configured; call `SetHandlerLifetime` on the registration to make it rotate handlers periodically"
+        },
+        {
+          "id": "b",
+          "text": "The singleton captured one typed-client instance, so the factory can't rotate its handler; inject `IHttpClientFactory` instead, or use `PooledConnectionLifetime`"
+        },
+        {
+          "id": "c",
+          "text": "`HttpClient` caches resolved DNS entries for the lifetime of the whole process; the only fix is to restart the pods on a schedule"
+        },
+        {
+          "id": "d",
+          "text": "Typed clients registered with `AddHttpClient<T>()` are singletons by default; register `PricingClient` as scoped in the container instead"
+        }
+      ],
+      "concept": "httpclientfactory-handler-lifetime",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/extensions/httpclient-factory",
+          "claim": "Typed clients are registered as transient and expected to be short-lived; a typed client captured in a singleton may not react to DNS changes. Use the named-client approach with IHttpClientFactory, or SocketsHttpHandler with PooledConnectionLifetime. The default handler lifetime is two minutes.",
+          "title": "Use the IHttpClientFactory - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "dotnet-resilience",
+        "aspire"
+      ],
+      "explanation": "Typed clients are transient and meant to be short-lived. Once a singleton captures one, `IHttpClientFactory` can no longer hand it a recycled handler (default lifetime two minutes), so it keeps using old connections and never sees DNS changes. Use named clients through the factory in singletons, or give the typed client a `SocketsHttpHandler` primary handler with `PooledConnectionLifetime`."
+    },
+    {
+      "id": "w07-l04-q05",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w07-l04",
+      "prompt": "In an Aspire solution, the web front end registers `client.BaseAddress = new(\"https+http://catalog\")`. What does this address mean?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It sends the request over HTTPS and HTTP in parallel as a hedging strategy and keeps whichever response comes back first"
+        },
+        {
+          "id": "b",
+          "text": "It's an invalid URI outside of Development; production hosting rejects the `+` character in a scheme and the app fails at startup"
+        },
+        {
+          "id": "c",
+          "text": "HTTPS is mandatory here; the call fails outright if the `catalog` resource has no HTTPS endpoint configured in the AppHost"
+        },
+        {
+          "id": "d",
+          "text": "`catalog` is a logical name resolved by service discovery, preferring HTTPS and falling back to HTTP"
+        }
+      ],
+      "concept": "aspire-apphost-service-discovery",
+      "sources": [
+        {
+          "url": "https://aspire.dev/fundamentals/service-discovery/",
+          "claim": "The https+http:// prefix means prefer HTTPS, fall back to HTTP; code uses logical service names and a configuration-based endpoint resolver translates them to addresses injected as services__[name]__[scheme]__0 variables.",
+          "title": "Service discovery | Aspire",
+          "accessed": "2026-09-27",
+          "publisher": "Aspire (Microsoft)"
+        }
+      ],
+      "materials": [
+        "dotnet-resilience",
+        "aspire"
+      ],
+      "explanation": "Aspire service discovery maps a logical resource name to real endpoints using configuration injected by the AppHost, such as `services__catalog__https__0`. The `https+http://` scheme means prefer HTTPS and fall back to HTTP. It isn't hedging (a), and it isn't limited to Development."
+    },
+    {
+      "id": "w07-l04-q06",
+      "type": "written",
+      "lesson": "w07-l04",
+      "prompt": "Explain two production failures caused by managing `HttpClient` by hand: socket exhaustion, and stale DNS. Then describe the two lifetime strategies Microsoft supports, and when you'd choose each.",
+      "concept": "httpclientfactory-handler-lifetime",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/extensions/httpclient-factory",
+          "claim": "Caching handlers matters because each manages its own connection pool; creating more handlers than necessary can cause socket exhaustion, and handlers that keep connections open indefinitely can't react to DNS changes. Use short-lived factory clients or long-lived clients with PooledConnectionLifetime.",
+          "title": "Use the IHttpClientFactory - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "dotnet-resilience",
+        "aspnetcore-diagnostic-scenarios"
+      ],
+      "explanation": "A senior answer explains the mechanism (connection pools per handler) instead of reciting \"use the factory\", and knows both supported strategies plus the singleton and cookie pitfalls.",
+      "model_answer": {
+        "summary": "Creating a new handler per request opens new connection pools and can exhaust sockets, while one handler kept forever holds connections open and never picks up DNS changes. Either use short-lived `HttpClient` instances from `IHttpClientFactory`, which pools and recycles handlers (default lifetime two minutes), or keep one long-lived client whose `SocketsHttpHandler` has `PooledConnectionLifetime` set.",
+        "key_points": [
+          "Each handler manages its own connection pool; creating more handlers than needed causes socket exhaustion and connection delays",
+          "Handlers that keep connections open indefinitely don't react to DNS changes",
+          "`IHttpClientFactory` caches and recycles handlers (default `HandlerLifetime` is two minutes); disposing a client it created doesn't dispose the handler",
+          "The alternative is a long-lived client with `SocketsHttpHandler.PooledConnectionLifetime`; the two can be combined, with `HandlerLifetime` set to infinite",
+          "Pitfalls: typed clients captured in singletons, and shared `CookieContainer` state when handlers are pooled"
+        ]
+      }
+    },
+    {
+      "id": "w07-l04-q07",
+      "type": "written",
+      "lesson": "w07-l04",
+      "prompt": "One slow downstream dependency (p99 went from 80 ms to 20 s) is taking down every service that calls it. Explain the mechanism of the cascade and design the resilience strategy you would put on the callers.",
+      "concept": "retry-circuit-breaker-interplay",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/circuit-breaker",
+          "claim": "Blocked requests might hold critical resources such as memory, threads and database connections, which can exhaust resources and fail unrelated parts of the system; a circuit breaker fails fast and uses Half-Open to avoid flooding a recovering service.",
+          "title": "Circuit Breaker Pattern - Azure Architecture Center",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/retry",
+          "claim": "Spread retries from multiple instances to avoid overloading a busy service; aggressive retries can further degrade it; nested retry layers add long delays, so lower layers should fail fast.",
+          "title": "Retry pattern - Azure Architecture Center",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "dotnet-resilience",
+        "azure-cloud-design-patterns"
+      ],
+      "explanation": "Senior answers explain resource exhaustion as the real cascade mechanism and warn that naive retries make the incident worse.",
+      "model_answer": {
+        "summary": "Slow calls hold threads, sockets and connections until they time out, so callers run out of resources and fail on unrelated work, and aggressive retries add load to the struggling dependency. Use short timeouts per attempt and overall, a few retries with exponential backoff and jitter only for transient faults, a circuit breaker to fail fast and probe recovery through half-open, and a fallback or degraded response.",
+        "key_points": [
+          "Blocked requests hold memory, threads and connections; exhausting them fails unrelated parts of the system (a cascading failure)",
+          "Set shorter timeouts that are still long enough for normal success, per attempt and as an overall budget",
+          "Retry only transient faults, with a small number of attempts and exponential backoff with jitter, so instances don't retry in sync; avoid stacked retries at several layers",
+          "Use a circuit breaker to fail fast while the dependency is unhealthy, with half-open trial requests for recovery",
+          "Degrade gracefully (cached or default responses) and limit concurrency to the dependency; watch breaker state changes in telemetry"
+        ]
+      }
+    },
+    {
+      "id": "w07-l04-q08",
+      "type": "written",
+      "lesson": "w07-l04",
+      "prompt": "An Aspire AppHost contains `var api = builder.AddProject<Projects.Api>(\"api\");` and `builder.AddProject<Projects.Web>(\"web\").WithReference(api).WaitFor(api);`. Walk through what Aspire does at run time so that `Web` can call `https+http://api` without a hard-coded URL, and what changes when the app runs in Kubernetes.",
+      "concept": "aspire-apphost-service-discovery",
+      "sources": [
+        {
+          "url": "https://aspire.dev/get-started/app-host/",
+          "claim": "The AppHost is the code-first place where you declare services and relationships; WithReference injects connection strings or endpoint URLs as environment variables, and WaitFor delays a service's startup until its dependency is healthy.",
+          "title": "What is the AppHost? | Aspire",
+          "accessed": "2026-09-27",
+          "publisher": "Aspire (Microsoft)"
+        },
+        {
+          "url": "https://aspire.dev/fundamentals/service-discovery/",
+          "claim": "Aspire injects endpoint URLs as environment variables such as services__basket__https__0; in Kubernetes, DNS SRV records can resolve endpoints via AddDnsSrvServiceEndpointProvider.",
+          "title": "Service discovery | Aspire",
+          "accessed": "2026-09-27",
+          "publisher": "Aspire (Microsoft)"
+        }
+      ],
+      "materials": [
+        "aspire",
+        "dotnet-resilience"
+      ],
+      "explanation": "Good answers see that service discovery is ordinary configuration plus a resolver, which keeps application code the same across environments.",
+      "model_answer": {
+        "summary": "The AppHost is the code-first model of resources and their relationships. `WithReference` injects the `api` endpoints into `web` as configuration (for example `services__api__https__0`), `WaitFor` holds `web` back until `api` is healthy, and the service discovery resolver in `web` maps the logical name `api` to those endpoints. In Kubernetes, resolution can come from DNS SRV records instead.",
+        "key_points": [
+          "The AppHost declares resources with logical names and their dependencies in code",
+          "`WithReference` injects connection details, such as endpoint URLs for services or connection strings for databases, as environment variables",
+          "Endpoint variables follow the pattern `services__<name>__<scheme>__0`; the client uses the logical name, and `https+http` prefers HTTPS",
+          "`WaitFor` delays startup until the dependency is healthy",
+          "In Kubernetes, DNS SRV records can resolve endpoints (`AddDnsSrvServiceEndpointProvider`)"
+        ]
+      }
+    }
+  ]
+}

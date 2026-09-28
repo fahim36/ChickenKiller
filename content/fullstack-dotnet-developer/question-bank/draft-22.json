@@ -1,0 +1,1312 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "aspnet-host-graceful-shutdown",
+      "name": "Generic host graceful shutdown sequence and timeout"
+    },
+    {
+      "id": "aspnet-middleware-ordering",
+      "name": "Middleware ordering, short-circuiting and started responses"
+    },
+    {
+      "id": "aspnet-endpoint-routing-constraints",
+      "name": "Endpoint routing selection, metadata and route constraints"
+    },
+    {
+      "id": "aspnet-filters-vs-minimal-endpoints",
+      "name": "Middleware vs MVC filters vs Minimal API endpoint filters"
+    },
+    {
+      "id": "di-captive-dependency-scope-validation",
+      "name": "Captive dependencies and scope validation"
+    },
+    {
+      "id": "di-keyed-and-multiple-registrations",
+      "name": "Keyed services and multiple registrations"
+    },
+    {
+      "id": "options-monitor-snapshot-validation",
+      "name": "IOptions vs IOptionsSnapshot vs IOptionsMonitor and ValidateOnStart"
+    },
+    {
+      "id": "configuration-provider-precedence",
+      "name": "Configuration provider precedence"
+    },
+    {
+      "id": "problem-details-and-endpoint-validation",
+      "name": "Problem details responses and Minimal API validation"
+    },
+    {
+      "id": "retry-safe-writes-and-stable-paging",
+      "name": "Idempotency keys for retries and keyset pagination"
+    },
+    {
+      "id": "openapi-31-document-generation",
+      "name": "OpenAPI 3.1 document generation in ASP.NET Core 10"
+    },
+    {
+      "id": "grpc-signalr-transport-choice",
+      "name": "Choosing REST, gRPC or SignalR"
+    },
+    {
+      "id": "output-cache-vs-response-cache",
+      "name": "Output caching vs response caching"
+    },
+    {
+      "id": "hybridcache-stampede-and-tags",
+      "name": "HybridCache stampede protection and tag invalidation"
+    },
+    {
+      "id": "rate-limiter-algorithms-partitioning",
+      "name": "Rate limiter algorithms, partitioning and rejection"
+    },
+    {
+      "id": "backgroundservice-shutdown-and-failures",
+      "name": "BackgroundService stopping token, exceptions and shutdown"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w03-l01-q01",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w03-l01",
+      "prompt": "An ASP.NET Core app hosted on Kestrel receives SIGTERM during a rolling deploy while requests are in flight. With default settings, what does the host do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Kestrel aborts every open connection immediately, resetting sockets with RST so the process can exit within about a second."
+        },
+        {
+          "id": "b",
+          "text": "The host waits indefinitely, with no timeout at all, until every in-flight request completes, however long a slow downstream call takes."
+        },
+        {
+          "id": "c",
+          "text": "Kestrel stops accepting new connections and sends GOAWAY; in-flight requests get the shutdown timeout, 30 seconds by default."
+        },
+        {
+          "id": "d",
+          "text": "Kestrel keeps accepting new connections on the same listener until every registered `IHostedService` has finished its own `StopAsync`."
+        }
+      ],
+      "concept": "aspnet-host-graceful-shutdown",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/extensions/generic-host",
+          "claim": "On shutdown IServer.StopAsync is called with a default 30-second timeout; Kestrel stops accepting new connections and sends GOAWAY for HTTP/2 and HTTP/3.",
+          "title": ".NET Generic Host",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "aspnetcore-middleware",
+        "aspnetcore-in-action"
+      ],
+      "explanation": "On shutdown the host signals `ApplicationStopping` and calls `IServer.StopAsync`: Kestrel stops accepting new connections, sends GOAWAY to HTTP/2 and HTTP/3 clients and lets in-flight work drain within the 30-second default timeout. The tempting 'waits indefinitely' is wrong because the timeout bounds the drain; after it the shutdown proceeds anyway."
+    },
+    {
+      "id": "w03-l01-q02",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w03-l01",
+      "prompt": "A pipeline is built as `app.UseRouting(); app.UseAuthentication(); app.UseAuthorization(); app.UseExceptionHandler(\"/error\"); app.MapControllers();`. An exception thrown inside a custom authorization handler reaches the client as an unhandled 500 with no problem details. Why?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`UseExceptionHandler` only catches exceptions thrown by `[ApiController]` actions, never by any middleware or authorization handler."
+        },
+        {
+          "id": "b",
+          "text": "Exception middleware only catches exceptions from middleware placed after it, so it must run first."
+        },
+        {
+          "id": "c",
+          "text": "Custom `IAuthorizationHandler` code always runs on a separate background thread, so ASP.NET Core middleware can never observe its exceptions."
+        },
+        {
+          "id": "d",
+          "text": "`UseExceptionHandler` silently no-ops unless `UseStatusCodePages` is registered earlier in the same pipeline."
+        }
+      ],
+      "concept": "aspnet-middleware-ordering",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/middleware/",
+          "claim": "Exception/error handling middleware is called early in the pipeline so it can catch exceptions that occur in later calls.",
+          "title": "ASP.NET Core middleware",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "aspnetcore-middleware",
+        "aspnetcore-in-action"
+      ],
+      "explanation": "Middleware wraps what comes after it. Exception handling is placed first so it can catch exceptions thrown in later middleware; here authorization runs before it and is outside its `try`. The distractor about controllers is wrong: the handler catches anything thrown downstream of it, middleware included."
+    },
+    {
+      "id": "w03-l01-q03",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w03-l01",
+      "prompt": "A custom logging middleware calls `await context.Response.WriteAsync(\"trace-start\")` and then `await next(context)`. A later middleware sets `context.Response.Headers[\"X-Trace\"] = id` and the request fails. What is the root cause and the correct fix?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The response body must be written with `Response.Body.WriteAsync` instead; the higher-level `WriteAsync` helper is not supported inside middleware at all."
+        },
+        {
+          "id": "b",
+          "text": "Headers can only be set by terminal middleware added with `Run`."
+        },
+        {
+          "id": "c",
+          "text": "`next` cannot be called after any `await`; the middleware must be synchronous."
+        },
+        {
+          "id": "d",
+          "text": "Writing the body starts the response, so later header changes throw; check `Response.HasStarted` before changing headers."
+        }
+      ],
+      "concept": "aspnet-middleware-ordering",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/middleware/",
+          "claim": "Changes to HttpResponse after the response has started throw an exception; HasStarted indicates whether headers have been sent. Don't call next after writing to the response body.",
+          "title": "ASP.NET Core middleware",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "aspnetcore-middleware",
+        "aspnetcore-in-action"
+      ],
+      "explanation": "Once the response has started, changes to headers or status throw. A middleware that passes control on must not write to the body first; `HttpResponse.HasStarted` tells you whether headers were already sent. The `Run` distractor confuses terminal middleware (which short-circuits) with who may set headers."
+    },
+    {
+      "id": "w03-l01-q04",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w03-l01",
+      "prompt": "A middleware placed between `app.UseRouting()` and `app.UseEndpoints(...)` calls `context.GetEndpoint()`. Which statement is correct?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It returns the matched endpoint and its metadata, letting `UseAuthorization` and `UseCors` read `[Authorize]` early."
+        },
+        {
+          "id": "b",
+          "text": "It always returns `null` at this point in the pipeline, because the endpoint is only actually selected once `UseEndpoints` executes it."
+        },
+        {
+          "id": "c",
+          "text": "It returns the endpoint only for controllers; Minimal API endpoints are resolved lazily inside `UseEndpoints`."
+        },
+        {
+          "id": "d",
+          "text": "It returns every candidate endpoint for the path, and the middleware must choose one before calling `next`."
+        }
+      ],
+      "concept": "aspnet-endpoint-routing-constraints",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/routing",
+          "claim": "Before UseRouting is called the endpoint is always null; between UseRouting and UseEndpoints it is non-null when a match was found, and middleware there can inspect endpoint metadata, as UseAuthorization and UseCors do.",
+          "title": "Routing in ASP.NET Core",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "aspnetcore-middleware",
+        "aspnetcore-in-action"
+      ],
+      "explanation": "Endpoint routing separates selection (`UseRouting`) from execution (`UseEndpoints`). In between, `GetEndpoint()` returns the matched endpoint and its metadata, which is what lets authorization and CORS apply per-endpoint policy. Before `UseRouting` it is `null`; the 'always null' choice confuses selection with execution."
+    },
+    {
+      "id": "w03-l01-q05",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w03-l01",
+      "prompt": "You are starting a new HTTP API in ASP.NET Core. Which requirement is a documented reason to choose controllers over Minimal APIs?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "You need filters that run before and after each handler, since Minimal APIs cannot run any code around a handler."
+        },
+        {
+          "id": "b",
+          "text": "You need an OpenAPI document generated for the endpoints, since Minimal API parameters aren't visible to `AddOpenApi`."
+        },
+        {
+          "id": "c",
+          "text": "You rely on model binding extensibility (`IModelBinderProvider`), `IModelValidator`, application parts, or OData."
+        },
+        {
+          "id": "d",
+          "text": "You need the best raw throughput, since controllers add per-request overhead that Minimal APIs eliminate entirely."
+        }
+      ],
+      "concept": "aspnet-filters-vs-minimal-endpoints",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/apis",
+          "claim": "Minimal APIs are recommended for new projects; controllers are needed for features such as IModelBinderProvider/IModelBinder, IModelValidator, application parts or the application model, and OData.",
+          "title": "APIs overview",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "aspnetcore-apis",
+        "aspnetcore-in-action"
+      ],
+      "explanation": "Microsoft recommends Minimal APIs for new projects, but controllers remain the choice when you need model binding extensibility (`IModelBinderProvider`, `IModelBinder`), advanced validation (`IModelValidator`), application parts and the application model, or OData. Filters are not a reason: Minimal APIs have endpoint filters. OpenAPI works with both."
+    },
+    {
+      "id": "w03-l01-q06",
+      "type": "written",
+      "lesson": "w03-l01",
+      "prompt": "During every rolling deploy to Kubernetes, users of your ASP.NET Core API see a burst of failed requests and some half-finished work. Walk through what the .NET generic host does from SIGTERM to process exit, and what you would check or change in the app so shutdowns are graceful.",
+      "concept": "aspnet-host-graceful-shutdown",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/extensions/generic-host",
+          "claim": "Shutdown sequence: ApplicationStopping, StoppingAsync, StopAsync, StoppedAsync, ApplicationStopped; IServer.StopAsync has a default 30-second timeout and Kestrel stops accepting new connections.",
+          "title": ".NET Generic Host",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/host/hosted-services",
+          "claim": "StopAsync is bounded by a default 30-second timeout (HostOptions.ShutdownTimeout); work still running is abandoned when it expires.",
+          "title": "Background tasks with hosted services in ASP.NET Core",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "aspnetcore-middleware",
+        "aspnetcore-in-action"
+      ],
+      "explanation": "A senior answer knows the actual ordering and the timeout, and treats graceful shutdown as a contract between the host timeout, the orchestrator's grace period and code that honours cancellation. Weak answers only say 'handle SIGTERM'.",
+      "model_answer": {
+        "summary": "The host runs an ordered shutdown: it signals `ApplicationStopping`, stops the server from accepting new connections, stops hosted services, then signals `ApplicationStopped`, all bounded by a shutdown timeout. Graceful shutdown means in-flight work honours cancellation and finishes inside that timeout, and the timeout fits inside the orchestrator's grace period.",
+        "key_points": [
+          "Describes the sequence: `IHostApplicationLifetime.ApplicationStopping`, lifecycle `StoppingAsync`, hosted services' `StopAsync`, `StoppedAsync`, then `ApplicationStopped`.",
+          "Explains that Kestrel stops accepting new connections (GOAWAY on HTTP/2 and HTTP/3) while in-flight requests drain.",
+          "Names the 30-second default shutdown timeout (`HostOptions.ShutdownTimeout`) and says work still running after it is cut off, so the timeout must fit within the platform's termination grace period.",
+          "Says request handlers and background work must observe cancellation (`HttpContext.RequestAborted`, the stopping token) and keep units of work short or resumable.",
+          "Mentions using `ApplicationStopping` to stop taking new work (for example, fail readiness or stop consuming a queue) before the process is killed."
+        ]
+      }
+    },
+    {
+      "id": "w03-l01-q07",
+      "type": "written",
+      "lesson": "w03-l01",
+      "prompt": "A colleague adds route templates such as `/orders/{id:int:min(1)}` and `/users/{email:regex(...)}` \"to validate input\". Clients that send `/orders/abc` now get 404 instead of a useful error. Critique the approach, explain what route constraints are for, and describe how the router chooses between overlapping templates.",
+      "concept": "aspnet-endpoint-routing-constraints",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/routing",
+          "claim": "Don't use constraints for input validation: invalid input then results in a 404 Not Found instead of a 400; constraints are for disambiguating similar routes. Literal segments are more specific than parameter segments, constrained parameters more specific than unconstrained, and catch-all least specific.",
+          "title": "Routing in ASP.NET Core",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "aspnetcore-middleware",
+        "aspnetcore-in-action"
+      ],
+      "explanation": "Seniors distinguish routing (which endpoint?) from validation (is this input acceptable?) and can explain precedence without guessing. The 404-versus-400 consequence is the key insight.",
+      "model_answer": {
+        "summary": "Route constraints exist to disambiguate routes, not to validate input: a failed constraint means 'this route doesn't match', which surfaces as 404. Validate in the endpoint or with validation that returns 400 problem details, and rely on route precedence rules for overlapping templates.",
+        "key_points": [
+          "States that a failing constraint makes the route not match, so the client gets 404 rather than 400 with a validation message.",
+          "Cites the guidance that constraints should be used to disambiguate similar routes, not to validate input.",
+          "Proposes validating in the handler or with model/endpoint validation and returning 400 with a problem details body.",
+          "Explains precedence: literal segments beat parameter segments, constrained parameters beat unconstrained ones, and catch-all parameters are least specific.",
+          "Notes the security/performance angle of complex regex constraints (cost per request) as another reason to keep them simple."
+        ]
+      }
+    },
+    {
+      "id": "w03-l01-q08",
+      "type": "written",
+      "lesson": "w03-l01",
+      "prompt": "Your API mixes MVC controllers and Minimal API endpoints. You need (1) a single place that turns unhandled exceptions into problem details, (2) a check that rejects a request based on the bound action arguments and `ModelState`, and (3) per-endpoint auditing of arguments and results on a few Minimal API endpoints. For each, choose middleware, an MVC filter or an endpoint filter, and justify the choice.",
+      "concept": "aspnet-filters-vs-minimal-endpoints",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/mvc/controllers/filters",
+          "claim": "Prefer middleware for exception handling; use exception filters only where handling differs by action. Exception filters don't catch exceptions in resource filters, result filters or result execution. Filter order: authorization, resource, action, exception, result; filters can access ActionArguments and ModelState.",
+          "title": "Filters in ASP.NET Core",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/apis",
+          "claim": "Minimal APIs support endpoint filters, which can run code before and after a handler and inspect or modify arguments and results.",
+          "title": "APIs overview",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "aspnetcore-middleware",
+        "aspnetcore-apis"
+      ],
+      "explanation": "The senior signal is knowing what context each mechanism can see and what it misses. Putting global error handling in an exception filter is the common mistake.",
+      "model_answer": {
+        "summary": "Use middleware for global exception handling, an MVC action filter where you need MVC context such as action arguments and model state, and endpoint filters for Minimal API per-endpoint concerns.",
+        "key_points": [
+          "Picks middleware (for example `UseExceptionHandler`) for (1), citing the guidance to prefer middleware for exception handling and use exception filters only when handling differs per action.",
+          "Notes that exception filters don't catch exceptions thrown in resource filters, result filters or result execution, so they are not a complete global handler.",
+          "Picks an action filter for (2) because filters can access MVC context such as `ActionArguments` and `ModelState`, which middleware cannot.",
+          "Knows the MVC filter order: authorization, resource, action, exception, result.",
+          "Picks endpoint filters for (3), which run around Minimal API handlers and can inspect or change arguments and results."
+        ]
+      }
+    },
+    {
+      "id": "w03-l02-q01",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w03-l02",
+      "prompt": "A singleton `PricingCache` takes the scoped `AppDbContext` in its constructor. In Development the app fails with \"Cannot consume scoped service ... from singleton ...\". In Production it starts fine. What is actually happening in Production?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The container notices the constructor's lifetime mismatch and transparently rebuilds `AppDbContext` on every incoming request."
+        },
+        {
+          "id": "b",
+          "text": "The one `AppDbContext` resolved at startup is captured for the app's lifetime and shared across all requests."
+        },
+        {
+          "id": "c",
+          "text": "Production also throws the same validation exception, but only lazily, on the first request that touches `PricingCache`."
+        },
+        {
+          "id": "d",
+          "text": "Scoped services resolved from a singleton constructor are automatically downgraded to transient by the container."
+        }
+      ],
+      "concept": "di-captive-dependency-scope-validation",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/extensions/dependency-injection/service-lifetimes",
+          "claim": "Resolving a scoped service from a singleton makes it behave like a singleton; in Development scope validation throws when a longer-lived service resolves a shorter-lived one.",
+          "title": "Service lifetimes (dependency injection)",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/extensions/dependency-injection/overview",
+          "claim": "In the development environment the default service provider checks that scoped services aren't resolved from the root provider and aren't injected into singletons.",
+          "title": "Dependency injection - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "aspnetcore-di",
+        "di-principles-patterns"
+      ],
+      "explanation": "This is a captive dependency: a scoped service resolved by a singleton lives as long as the singleton. Scope validation, which catches it, is enabled by default only in Development, which is why Production starts. The 'fresh per request' answer is the dangerous misconception; nothing re-resolves the constructor argument."
+    },
+    {
+      "id": "w03-l02-q02",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w03-l02",
+      "prompt": "Services are registered with `AddKeyedSingleton<IRegionStore, EuStore>(new RegionKey(\"eu\"))`, where `RegionKey` is a plain `class` that does not override `Equals`. A consumer resolves it with `GetRequiredKeyedService<IRegionStore>(new RegionKey(\"eu\"))`. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It resolves `EuStore`, because the container compares keys structurally by each public property value, like a record."
+        },
+        {
+          "id": "b",
+          "text": "It resolves `EuStore`, because keyed services are matched by the compile-time type of the key object only."
+        },
+        {
+          "id": "c",
+          "text": "It resolves whichever `IRegionStore` registration executed last during startup, silently ignoring the key."
+        },
+        {
+          "id": "d",
+          "text": "It fails to resolve: without an `Equals` override, the new key isn't reference-equal to the registered one; use a string, enum or record."
+        }
+      ],
+      "concept": "di-keyed-and-multiple-registrations",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/extensions/dependency-injection/overview",
+          "claim": "Keyed services are registered with AddKeyedSingleton/AddKeyedScoped/AddKeyedTransient and consumed with [FromKeyedServices]; the key can be any object that implements Equals correctly.",
+          "title": "Dependency injection - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "aspnetcore-di",
+        "di-principles-patterns"
+      ],
+      "explanation": "A service key can be any object, but lookup relies on equality. A class without an `Equals` override compares by reference, so a new instance never matches. Strings, enums and records compare by value. The 'property values' answer assumes record semantics the class doesn't have."
+    },
+    {
+      "id": "w03-l02-q03",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w03-l02",
+      "prompt": "Given `services.AddSingleton<IClock, SystemClock>(); services.AddSingleton<IClock, FakeClock>();`, one class takes `IClock` and another takes `IEnumerable<IClock>`. What does each receive?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`IClock` gets `FakeClock` (the last registration wins); `IEnumerable<IClock>` gets both, in registration order."
+        },
+        {
+          "id": "b",
+          "text": "`IClock` gets `SystemClock` (the first registration wins); `IEnumerable<IClock>` gets only `SystemClock`."
+        },
+        {
+          "id": "c",
+          "text": "The container throws at startup because `IClock` is registered twice."
+        },
+        {
+          "id": "d",
+          "text": "`IClock` gets `FakeClock`; `IEnumerable<IClock>` gets only `FakeClock` because the second registration replaced the first."
+        }
+      ],
+      "concept": "di-keyed-and-multiple-registrations",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/dependency-injection",
+          "claim": "When AddSingleton is called twice for the same service type, the second registration overrides the first when resolved as the service and adds to it when resolved via IEnumerable<T>, in registration order.",
+          "title": "Dependency injection in ASP.NET Core",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "aspnetcore-di",
+        "di-principles-patterns"
+      ],
+      "explanation": "Multiple registrations for a service type are all kept. Resolving a single `T` returns the last one registered; resolving `IEnumerable<T>` returns all of them in registration order. That is why `TryAdd*` exists for libraries that shouldn't override an app's choice. The 'replaced' answer is wrong: nothing is removed."
+    },
+    {
+      "id": "w03-l02-q04",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w03-l02",
+      "prompt": "A singleton `BackgroundService` must pick up changes to `appsettings.json` section `Limits` while the app runs, without a restart. Which options interface should it take?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`IOptions<Limits>`, because it is a singleton and re-reads the file whenever it changes."
+        },
+        {
+          "id": "b",
+          "text": "`IOptionsSnapshot<Limits>`, because it recomputes the value on every access and can be injected into any singleton safely."
+        },
+        {
+          "id": "c",
+          "text": "`IOptionsMonitor<Limits>`, a singleton that exposes the current value and change notifications."
+        },
+        {
+          "id": "d",
+          "text": "Any of them; all three reload identically once `reloadOnChange` is set."
+        }
+      ],
+      "concept": "options-monitor-snapshot-validation",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/extensions/options",
+          "claim": "IOptions<T> is a singleton and doesn't read configuration changes after startup; IOptionsSnapshot<T> is scoped and can't be injected into a singleton; IOptionsMonitor<T> is a singleton that supports change notifications and reload.",
+          "title": "Options pattern - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "aspnetcore-di",
+        "andrew-lock-blog"
+      ],
+      "explanation": "`IOptionsMonitor<T>` is registered as a singleton, supports reload and exposes `OnChange`. `IOptionsSnapshot<T>` is scoped (recomputed per request), so it cannot be injected into a singleton. `IOptions<T>` is a singleton that doesn't read configuration changes after the app starts, which rules out the first choice."
+    },
+    {
+      "id": "w03-l02-q05",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w03-l02",
+      "prompt": "An app uses the default host builder and runs with environment `Production`. `appsettings.json` sets `Db:Timeout` to 30, `appsettings.Production.json` sets 60, the environment variable `Db__Timeout` is 90, and the process is started with `--Db:Timeout=120`. What value does `IConfiguration[\"Db:Timeout\"]` return?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "30, because `appsettings.json` is the base file."
+        },
+        {
+          "id": "b",
+          "text": "60, because the environment-specific file always overrides environment variables and command-line arguments."
+        },
+        {
+          "id": "c",
+          "text": "120, because command-line arguments are added last and the provider added last wins."
+        },
+        {
+          "id": "d",
+          "text": "90, because environment variables always take precedence in containers."
+        }
+      ],
+      "concept": "configuration-provider-precedence",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/extensions/configuration",
+          "claim": "Default configuration sources in order of priority: command-line arguments, environment variables, user secrets (Development), appsettings.{Environment}.json, appsettings.json; the provider added last overrides earlier ones.",
+          "title": "Configuration - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "aspnetcore-di",
+        "andrew-lock-blog"
+      ],
+      "explanation": "Configuration providers are layered and the one added last wins. The default order, from lowest to highest priority, is `appsettings.json`, `appsettings.{Environment}.json`, user secrets (Development only), environment variables, then command-line arguments. The environment-specific file is a common wrong guess: it only beats the base file."
+    },
+    {
+      "id": "w03-l02-q06",
+      "type": "written",
+      "lesson": "w03-l02",
+      "prompt": "A `BackgroundService` polls a queue and needs `AppDbContext` (registered as scoped) for each message. A teammate injects `AppDbContext` into its constructor. Explain what goes wrong, how scope validation would surface it, and show the correct pattern. Also explain how you would use a scoped service inside a custom middleware class.",
+      "concept": "di-captive-dependency-scope-validation",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/extensions/dependency-injection/overview",
+          "claim": "In IHostedService implementations such as BackgroundService, don't constructor-inject scoped dependencies; inject IServiceScopeFactory (always a singleton), create a scope and resolve from it.",
+          "title": "Dependency injection - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/dependency-injection",
+          "claim": "Scoped services used by middleware must be injected into InvokeAsync, not the constructor; factory-based middleware (IMiddleware) is activated per request.",
+          "title": "Dependency injection in ASP.NET Core",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "aspnetcore-di",
+        "di-principles-patterns"
+      ],
+      "explanation": "A senior answer names the lifetime rule, knows scope validation is a Development-default safety net, and uses one scope per unit of work rather than one per service.",
+      "model_answer": {
+        "summary": "A hosted service is effectively a singleton, so a scoped `DbContext` injected into it becomes a captive dependency shared across all messages. Create a scope per unit of work with `IServiceScopeFactory` and resolve the context from it; in conventional middleware, take scoped services as `InvokeAsync` parameters.",
+        "key_points": [
+          "Identifies the captive dependency: the scoped context lives as long as the hosted service, shared across messages and never disposed per unit of work.",
+          "Explains that scope validation (on by default in Development) throws \"Cannot consume scoped service ... from singleton ...\" and also rejects resolving scoped services from the root provider.",
+          "Shows injecting `IServiceScopeFactory` (always a singleton), calling `CreateScope()` per message, resolving `AppDbContext` from `scope.ServiceProvider`, and disposing the scope afterwards.",
+          "For middleware: inject scoped services into `InvokeAsync` rather than the constructor (constructor injection throws at runtime), or use factory-based `IMiddleware`, which is activated per request.",
+          "Notes that disposable transients resolved from the root provider are held until shutdown, which leaks memory; explicit scopes avoid this."
+        ]
+      }
+    },
+    {
+      "id": "w03-l02-q07",
+      "type": "written",
+      "lesson": "w03-l02",
+      "prompt": "A typo in a production config value (`Payments:RetryCount` set to `-5`) went unnoticed until hours after deploy, when a rarely used path first read `IOptions<PaymentOptions>.Value` and threw. Redesign the options setup so bad configuration fails the deployment instead, including nested objects and rules that span several properties. Mention any caveat about reloading options in containers.",
+      "concept": "options-monitor-snapshot-validation",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/extensions/options",
+          "claim": "Options validation runs when .Value is first accessed unless ValidateOnStart or AddOptionsWithValidateOnStart is used; IValidateOptions<T>, ValidateDataAnnotations, and [ValidateObjectMembers]/[ValidateEnumeratedItems] support complex validation; in Docker, DOTNET_USE_POLLING_FILE_WATCHER may be needed for change notifications.",
+          "title": "Options pattern - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "aspnetcore-di",
+        "andrew-lock-blog"
+      ],
+      "explanation": "Seniors know validation is lazy by default and turn config errors into startup failures. They also know nested objects aren't validated unless you opt in.",
+      "model_answer": {
+        "summary": "Options validation normally runs lazily on first access. Add validation (DataAnnotations or `IValidateOptions<T>`) and make it run at startup with `ValidateOnStart()` or `AddOptionsWithValidateOnStart<T>()`, so a bad value stops the app during rollout.",
+        "key_points": [
+          "States that by default validation runs the first time `.Value` is accessed, not at startup.",
+          "Uses `AddOptions<PaymentOptions>().Bind(...).ValidateDataAnnotations().ValidateOnStart()` or `AddOptionsWithValidateOnStart<T>()`.",
+          "Uses `IValidateOptions<T>` (or `Validate(...)`) for rules that span properties, and `[ValidateObjectMembers]` / `[ValidateEnumeratedItems]` for nested objects and collections.",
+          "Explains the rollout benefit: a failing startup keeps the new version from becoming healthy, so the bad config never takes traffic.",
+          "Caveat: reload notifications rely on file watching; in Docker containers you may need `DOTNET_USE_POLLING_FILE_WATCHER`, and only `IOptionsMonitor`/`IOptionsSnapshot` observe reloaded values."
+        ]
+      }
+    },
+    {
+      "id": "w03-l02-q08",
+      "type": "written",
+      "lesson": "w03-l02",
+      "prompt": "In staging, ops set the environment variable `ConnectionStrings__Main` on the pod, but the app still connects to a developer database. Separately, a developer's user secrets work on their laptop but not in staging. Diagnose both using how .NET configuration is layered.",
+      "concept": "configuration-provider-precedence",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/extensions/configuration",
+          "claim": "Configuration providers are applied in order and later providers override earlier ones; defaults from lowest to highest are appsettings.json, appsettings.{Environment}.json, user secrets in Development, environment variables, command-line arguments.",
+          "title": "Configuration - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "aspnetcore-di",
+        "andrew-lock-blog"
+      ],
+      "explanation": "The senior move is reasoning from provider order instead of guessing, and knowing user secrets are a Development-only convenience rather than a deployment mechanism.",
+      "model_answer": {
+        "summary": "Configuration is a stack of providers where the last one added wins. Something with higher precedence than environment variables (a command-line argument or a provider added later in code) is overriding the value, and user secrets are only loaded in the Development environment.",
+        "key_points": [
+          "Explains the default layering and that the provider added last wins: `appsettings.json` < `appsettings.{Env}.json` < user secrets (Development only) < environment variables < command line.",
+          "Checks for a command-line argument or a provider added after environment variables (for example, a custom `AddJsonFile` added later in `Program.cs`) that overrides the value.",
+          "Explains that `__` in environment variable names maps to the `:` separator, and checks the name matches the key exactly.",
+          "Explains that user secrets are loaded only when the environment is Development, so staging never sees them; staging secrets belong in environment variables or a secret store.",
+          "Suggests verifying the effective environment name and dumping the providers or the effective value at startup to see which source wins."
+        ]
+      }
+    },
+    {
+      "id": "w03-l03-q01",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w03-l03",
+      "prompt": "An API calls `builder.Services.AddProblemDetails()` and uses `app.UseExceptionHandler()` and `app.UseStatusCodePages()`. Which statement about the resulting behaviour is correct?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Every response, including 200s, is wrapped in a problem details envelope."
+        },
+        {
+          "id": "b",
+          "text": "Error responses without a body yet get an RFC 9457 problem details body when the client accepts JSON or a wildcard."
+        },
+        {
+          "id": "c",
+          "text": "Problem details are only produced when each endpoint explicitly returns `TypedResults.Problem`."
+        },
+        {
+          "id": "d",
+          "text": "When the client sends `Accept: application/xml`, the default writer produces XML problem details."
+        }
+      ],
+      "concept": "problem-details-and-endpoint-validation",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/error-handling-api",
+          "claim": "After AddProblemDetails, ExceptionHandlerMiddleware, StatusCodePagesMiddleware and DeveloperExceptionPageMiddleware generate problem details for error responses without a body; the default writer supports application/json, application/problem+json and wildcards.",
+          "title": "Handle errors in ASP.NET Core APIs",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "aspnetcore-apis",
+        "aspnetcore-openapi"
+      ],
+      "explanation": "`AddProblemDetails` registers `IProblemDetailsService`; the exception handler, status code pages and developer exception page middleware then produce problem details for error responses that don't already have a body. The default writer handles `application/json`, `application/problem+json` and wildcards; an XML-only `Accept` falls back instead of producing XML."
+    },
+    {
+      "id": "w03-l03-q02",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w03-l03",
+      "prompt": "Your payments API implements the IETF `Idempotency-Key` header draft. A client sends `POST /payments` with key `k1`, it completes, and later a request arrives with the same key `k1` but a different request body. What should the server return?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "409 Conflict, because the key has already been used."
+        },
+        {
+          "id": "b",
+          "text": "The stored response of the first request, because a reused key always replays regardless of the payload sent."
+        },
+        {
+          "id": "c",
+          "text": "422 Unprocessable Content, because the same key was reused with a different payload."
+        },
+        {
+          "id": "d",
+          "text": "It should process the new payload as a new payment, since the bodies differ."
+        }
+      ],
+      "concept": "retry-safe-writes-and-stable-paging",
+      "sources": [
+        {
+          "url": "https://www.ietf.org/archive/id/draft-ietf-httpapi-idempotency-key-header-07.html",
+          "claim": "If a request is retried with the same key but a different payload, the server should reply 422; a retry while the original is still processing gets 409 Conflict; a retry after completion returns the stored result. (Expired Internet-Draft, version 07.)",
+          "title": "The Idempotency-Key HTTP Header Field (draft-ietf-httpapi-idempotency-key-header-07)",
+          "accessed": "2026-09-27",
+          "publisher": "IETF"
+        }
+      ],
+      "materials": [
+        "aspnetcore-apis"
+      ],
+      "explanation": "The draft recommends fingerprinting the payload. Reusing a key with a different payload is a client error, answered with 422. 409 is for a retry that arrives while the original request is still being processed. Replay applies to an identical retry after completion."
+    },
+    {
+      "id": "w03-l03-q03",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w03-l03",
+      "prompt": "A .NET 10 API calls `builder.Services.AddOpenApi()` and `app.MapOpenApi()`. An older client generator breaks on the new document. Which statement is correct?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It's OpenAPI 3.1 by default; nullable types become a type array. Set `OpenApiVersion = OpenApi3_0` for older tools."
+        },
+        {
+          "id": "b",
+          "text": "The document is OpenAPI 3.0 using `nullable: true` on schemas, and Swagger UI is served automatically at `/swagger` with no extra setup."
+        },
+        {
+          "id": "c",
+          "text": "The document is generated once at build time and can't be changed at runtime."
+        },
+        {
+          "id": "d",
+          "text": "OpenAPI 3.1 is only emitted if the `Swashbuckle.AspNetCore` package is referenced."
+        }
+      ],
+      "concept": "openapi-31-document-generation",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/openapi/aspnetcore-openapi",
+          "claim": "The default OpenAPI version is 3.1 in .NET 10 and can be changed with options.OpenApiVersion; the default route is /openapi/{documentName}.json; ASP.NET Core doesn't include a UI such as Swagger UI or Scalar.",
+          "title": "Generate OpenAPI documents",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/release-notes/aspnetcore-10.0",
+          "claim": "OpenAPI 3.1 represents nullable types as a type array including null, replacing the 3.0 nullable keyword.",
+          "title": "What's new in ASP.NET Core in .NET 10",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "aspnetcore-openapi"
+      ],
+      "explanation": "In .NET 10 `Microsoft.AspNetCore.OpenApi` emits OpenAPI 3.1 by default, where nullability is a type array rather than `nullable: true`. That change is what breaks older tooling. You can pin 3.0 through `OpenApiVersion`. No UI is bundled, and by default the document is generated at runtime per request (build-time generation is opt-in)."
+    },
+    {
+      "id": "w03-l03-q04",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w03-l03",
+      "prompt": "In a .NET 10 Minimal API, a handler takes a record body parameter whose properties have `[Range(1, 100)]` and `[Required]`. Invalid values still reach the handler. What is missing?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Adding the `[ApiController]` attribute to the endpoint group, which Minimal APIs don't otherwise support."
+        },
+        {
+          "id": "b",
+          "text": "A route constraint such as `{quantity:range(1,100)}` added next to the parameter in the template."
+        },
+        {
+          "id": "c",
+          "text": "Nothing is missing: OpenAPI schema generation already enforces DataAnnotations at runtime once `AddOpenApi()` is called."
+        },
+        {
+          "id": "d",
+          "text": "Calling `builder.Services.AddValidation()`, which enables DataAnnotations validation and returns 400 on failure."
+        }
+      ],
+      "concept": "problem-details-and-endpoint-validation",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/release-notes/aspnetcore-10.0",
+          "claim": "ASP.NET Core 10 adds built-in validation for Minimal APIs, enabled with builder.Services.AddValidation(); DataAnnotations on query, header and request body are validated and failures return 400 Bad Request.",
+          "title": "What's new in ASP.NET Core in .NET 10",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "aspnetcore-apis",
+        "aspnetcore-openapi"
+      ],
+      "explanation": ".NET 10 adds built-in Minimal API validation, opted into with `AddValidation()`; failing parameters produce a 400 before the handler runs. `[ApiController]` applies to controllers only, and route constraints don't validate bodies (and turn failures into 404s)."
+    },
+    {
+      "id": "w03-l03-q05",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w03-l03",
+      "prompt": "A browser SPA needs to call an internal ASP.NET Core gRPC service directly. What is required?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Nothing special: browsers speak HTTP/2, so `fetch` can call gRPC endpoints natively."
+        },
+        {
+          "id": "b",
+          "text": "gRPC-Web or gRPC JSON transcoding, because browsers can't call gRPC services directly."
+        },
+        {
+          "id": "c",
+          "text": "Replacing gRPC with SignalR using the MessagePack protocol, which is the only browser option."
+        },
+        {
+          "id": "d",
+          "text": "Enabling HTTP/3 on Kestrel, which lets browsers use full gRPC with bidirectional streaming."
+        }
+      ],
+      "concept": "grpc-signalr-transport-choice",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/grpc/comparison",
+          "claim": "It's impossible to directly call a gRPC service from a browser; gRPC-Web and gRPC JSON transcoding provide browser support.",
+          "title": "Compare gRPC services with HTTP APIs",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "aspnetcore-apis",
+        "signalr-intro"
+      ],
+      "explanation": "Browser APIs don't give the low-level HTTP/2 control that gRPC needs, so gRPC can't be called directly from a browser. gRPC-Web or gRPC JSON transcoding bridge the gap. The HTTP/2 distractor mixes up 'browser supports HTTP/2' with 'browser exposes frames and trailers to JavaScript'."
+    },
+    {
+      "id": "w03-l03-q06",
+      "type": "written",
+      "lesson": "w03-l03",
+      "prompt": "You are adopting built-in OpenAPI generation in a .NET 10 API. A security reviewer asks why `/openapi/v1.json` is reachable in production, a front-end team's generated client broke after the upgrade, and someone asks whether generating the document costs anything per request. Address all three and describe how you would ship the document to consumers.",
+      "concept": "openapi-31-document-generation",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/openapi/aspnetcore-openapi",
+          "claim": "The template calls MapOpenApi only in Development; the document is generated at runtime on each request; build-time generation uses Microsoft.Extensions.ApiDescription.Server; no UI is included.",
+          "title": "Generate OpenAPI documents",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/release-notes/aspnetcore-10.0",
+          "claim": "OpenAPI 3.1 is the default in .NET 10 and nullable types use a type array including null.",
+          "title": "What's new in ASP.NET Core in .NET 10",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "aspnetcore-openapi"
+      ],
+      "explanation": "Senior engineers treat the OpenAPI document as a versioned contract artifact, not a debugging page, and understand the 3.0 to 3.1 differences that break tooling.",
+      "model_answer": {
+        "summary": "The built-in generator emits OpenAPI 3.1 at runtime from endpoint metadata. The template maps it only in Development; 3.1 changes how nullability is expressed; and generation can move to build time so the document is a versioned artifact.",
+        "key_points": [
+          "Explains that the template maps `MapOpenApi()` only in Development; exposing it in production is a deliberate choice (possibly behind authorization).",
+          "Explains the break: .NET 10 defaults to OpenAPI 3.1, where nullable is expressed as a type array including `null`; pin `OpenApiSpecVersion.OpenApi3_0` or upgrade the generator.",
+          "States that the document is regenerated on each request by default, and that build-time generation with `Microsoft.Extensions.ApiDescription.Server` produces a file you can commit, diff and publish.",
+          "Notes that ASP.NET Core doesn't bundle Swagger UI or Scalar; a UI must be added separately if wanted.",
+          "Recommends checking contract changes in CI (diffing the generated document) so breaking changes are caught before consumers are."
+        ]
+      }
+    },
+    {
+      "id": "w03-l03-q07",
+      "type": "written",
+      "lesson": "w03-l03",
+      "prompt": "A mobile app on a flaky network sometimes creates duplicate orders with `POST /orders`, and while scrolling `GET /orders?page=N&size=50` users see duplicate or skipped orders when new orders arrive. Diagnose both problems and design an API contract that fixes them.",
+      "concept": "retry-safe-writes-and-stable-paging",
+      "sources": [
+        {
+          "url": "https://www.ietf.org/archive/id/draft-ietf-httpapi-idempotency-key-header-07.html",
+          "claim": "Servers should return the stored result for a completed request, 409 for a concurrent retry, 422 for key reuse with a different payload, and document the key expiry; a payload fingerprint is recommended.",
+          "title": "The Idempotency-Key HTTP Header Field (draft-ietf-httpapi-idempotency-key-header-07)",
+          "accessed": "2026-09-27",
+          "publisher": "IETF"
+        },
+        {
+          "url": "https://use-the-index-luke.com/no-offset",
+          "claim": "OFFSET makes the database fetch and discard skipped rows; keyset pagination filters on the values of the last row seen using a deterministic order, and can't jump to arbitrary pages, but new rows don't cause duplicates.",
+          "title": "Paging Through Results: We need tool support for keyset pagination",
+          "accessed": "2026-09-27",
+          "publisher": "Use The Index, Luke (Markus Winand)"
+        }
+      ],
+      "materials": [
+        "aspnetcore-apis"
+      ],
+      "explanation": "The senior signal is treating both as contract problems (retry semantics and stable ordering) rather than client bugs, and knowing the precise status codes and the keyset trade-off.",
+      "model_answer": {
+        "summary": "POST is not idempotent, so blind retries duplicate work; add an `Idempotency-Key` with stored results. Offset paging shifts when rows are inserted; use keyset (cursor) pagination on a deterministic, unique ordering.",
+        "key_points": [
+          "Explains that per RFC 9110 POST is not idempotent (unlike PUT, DELETE and safe methods), so clients and intermediaries can't safely retry it automatically.",
+          "Designs `Idempotency-Key`: store key plus a payload fingerprint, replay the stored result (success or error) for a repeat, return 409 while the original is in flight and 422 when the key is reused with a different payload, and document the key expiry.",
+          "Explains that OFFSET paging makes the database fetch and discard the skipped rows, and that inserts between page requests shift rows, causing duplicates or skips.",
+          "Designs keyset pagination: return a cursor holding the last row's sort values and filter `WHERE (created_at, id) < (@lastCreated, @lastId)` with a deterministic order that includes a unique tiebreaker.",
+          "Names the trade-off: keyset can't jump to an arbitrary page number, which is usually fine for infinite scroll."
+        ]
+      }
+    },
+    {
+      "id": "w03-l03-q08",
+      "type": "written",
+      "lesson": "w03-l03",
+      "prompt": "You need (1) a live dashboard pushing updates to thousands of browser users across several API instances and (2) high-throughput streaming of telemetry between a .NET service and a Go service. Choose between REST, SignalR and gRPC for each and justify the choice, including how each scales and fails.",
+      "concept": "grpc-signalr-transport-choice",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/signalr/introduction",
+          "claim": "SignalR uses WebSockets, Server-Sent Events or Long Polling, in that order of fallback; hub protocols are JSON or MessagePack; scale-out uses Azure SignalR Service or a Redis backplane.",
+          "title": "Overview of ASP.NET Core SignalR",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/grpc/comparison",
+          "claim": "gRPC uses a .proto contract, HTTP/2, Protobuf and supports bidirectional streaming and deadlines; it's recommended for microservices, point-to-point real-time and polyglot environments, while SignalR is better for broadcast to browsers.",
+          "title": "Compare gRPC services with HTTP APIs",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "signalr-intro",
+        "aspnetcore-apis"
+      ],
+      "explanation": "Seniors match the transport to who the client is (browser versus service) and to the fan-out pattern, and plan for scale-out before it bites.",
+      "model_answer": {
+        "summary": "Use SignalR for real-time browser push and broadcast, scaled out with Azure SignalR Service or a Redis backplane. Use gRPC for contract-first, polyglot service-to-service streaming over HTTP/2 with Protobuf, deadlines and cancellation.",
+        "key_points": [
+          "For (1), picks SignalR: it negotiates WebSockets, then falls back to Server-Sent Events and long polling, and suits broadcast to many clients.",
+          "Explains that multiple instances need a scale-out mechanism (Azure SignalR Service or a Redis backplane) so a message reaches clients connected to other servers.",
+          "For (2), picks gRPC: a `.proto` contract with generated clients in many languages, HTTP/2, a compact Protobuf format, and bidirectional streaming.",
+          "Mentions gRPC deadlines and cancellation for bounding calls, and that gRPC isn't human-readable or directly browser-callable.",
+          "Mentions SignalR hub protocols (JSON by default, MessagePack for a smaller binary format)."
+        ]
+      }
+    },
+    {
+      "id": "w03-l04-q01",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w03-l04",
+      "prompt": "A team adds `app.UseOutputCache()` before `app.UseAuthentication()` and `app.UseAuthorization()` and turns on output caching for an endpoint that needs a policy. What is the documented risk?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Cached responses can reach unauthorized requests, since the cache answers before authorization runs."
+        },
+        {
+          "id": "b",
+          "text": "None: output caching only reads endpoint metadata, so where it sits in the middleware pipeline doesn't matter."
+        },
+        {
+          "id": "c",
+          "text": "The app throws at startup, because output caching middleware must be registered strictly after authorization."
+        },
+        {
+          "id": "d",
+          "text": "Output caching automatically varies each entry per authenticated user, so misuse here only wastes memory."
+        }
+      ],
+      "concept": "output-cache-vs-response-cache",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/performance/caching/output",
+          "claim": "UseOutputCache must be called after UseCors, after UseRouting for controllers and Razor Pages, and after UseAuthentication/UseAuthorization; otherwise cached content may be served to unauthorized users.",
+          "title": "Output caching middleware in ASP.NET Core",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "hybridcache",
+        "andrew-lock-blog"
+      ],
+      "explanation": "Output caching must come after `UseCors`, after `UseRouting` for controllers and Razor Pages, and after authentication and authorization. Placed earlier, it can serve cached content to unauthorized users. Endpoint metadata tells it what to cache but doesn't move its place in the pipeline, which rules out the 'order doesn't matter' answer."
+    },
+    {
+      "id": "w03-l04-q02",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w03-l04",
+      "prompt": "A public product page is cached with the response caching middleware (`UseResponseCaching`). A browser extension sends `Cache-Control: no-cache` on every request, and the server keeps regenerating the page. Which statement is correct?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Response caching ignores client headers entirely, so the extension's behavior must come from somewhere else."
+        },
+        {
+          "id": "b",
+          "text": "Setting a longer `Duration` on `[ResponseCache]` forces the server-side cache to override the client's explicit `no-cache`."
+        },
+        {
+          "id": "c",
+          "text": "Response caching honours a client's `no-cache` per HTTP semantics and can't override it; output caching ignores headers and is recommended instead."
+        },
+        {
+          "id": "d",
+          "text": "Both middlewares implement identical HTTP caching semantics, so switching between them wouldn't change observed behavior."
+        }
+      ],
+      "concept": "output-cache-vs-response-cache",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/performance/caching/middleware",
+          "claim": "Response caching follows HTTP caching (RFC 9111); a client Cache-Control: no-cache header forces regeneration and can't be overridden by the developer; for UI apps output caching is recommended.",
+          "title": "Response caching middleware in ASP.NET Core",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/performance/caching/output",
+          "claim": "Output caching is configured on the server independently of HTTP headers.",
+          "title": "Output caching middleware in ASP.NET Core",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "hybridcache",
+        "andrew-lock-blog"
+      ],
+      "explanation": "Response caching implements RFC 9111 semantics driven by headers, including honouring a client's `Cache-Control: no-cache`, which the developer can't override. Output caching is configured on the server and isn't driven by request headers. The `Duration` distractor confuses setting response headers with overriding request directives."
+    },
+    {
+      "id": "w03-l04-q03",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w03-l04",
+      "prompt": "Three API instances use `HybridCache` with a shared Redis L2. A hot key expires and 300 requests for it arrive at the same moment, spread across the three instances. How many times can the `GetOrCreateAsync` factory run?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Exactly once across the cluster, because L2 coordinates the lock."
+        },
+        {
+          "id": "b",
+          "text": "Up to once per instance (up to 3), because stampede protection coordinates callers within one instance, not across servers."
+        },
+        {
+          "id": "c",
+          "text": "Up to 300 times, because stampede protection only works when L2 is disabled."
+        },
+        {
+          "id": "d",
+          "text": "Once per instance, but only if an L2 cache is configured; without an L2 cache, every single caller runs the factory."
+        }
+      ],
+      "concept": "hybridcache-stampede-and-tags",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/performance/caching/hybrid",
+          "claim": "HybridCache ensures only one concurrent caller for a given key executes the factory; this doesn't coordinate across instances sharing L2; stampede protection works even without an L2 cache.",
+          "title": "HybridCache library in ASP.NET Core",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "hybridcache"
+      ],
+      "explanation": "HybridCache makes sure only one concurrent caller per key runs the factory within an instance; the others wait for that result. That coordination doesn't span servers even when they share L2. Stampede protection also works without L2, which rules out the last choice."
+    },
+    {
+      "id": "w03-l04-q04",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w03-l04",
+      "prompt": "After adding `builder.Services.AddRateLimiter(o => o.AddFixedWindowLimiter(\"api\", ...))` and `app.UseRateLimiter()`, clients that exceed the limit receive `503 Service Unavailable`, and client retry logic treats the API as down. Why, and what fixes it?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The fixed window limiter always returns 503; switch to the token bucket limiter, which returns 429."
+        },
+        {
+          "id": "b",
+          "text": "`UseRateLimiter` was placed before `UseRouting`, which changes the status code."
+        },
+        {
+          "id": "c",
+          "text": "503 means the queue is full; raising `QueueLimit` makes it return 429."
+        },
+        {
+          "id": "d",
+          "text": "`RejectionStatusCode` defaults to 503; set it to 429, or handle `OnRejected` to write a 429 with a retry hint."
+        }
+      ],
+      "concept": "rate-limiter-algorithms-partitioning",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/api/microsoft.aspnetcore.ratelimiting.ratelimiteroptions.rejectionstatuscode",
+          "claim": "RateLimiterOptions.RejectionStatusCode defaults to 503 Service Unavailable.",
+          "title": "RateLimiterOptions.RejectionStatusCode Property",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/performance/rate-limit",
+          "claim": "OnRejected is invoked when a request is rejected and can set the response; RejectionStatusCode can be set to 429.",
+          "title": "Rate limiting middleware in ASP.NET Core",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "aspnetcore-rate-limit"
+      ],
+      "explanation": "The rate limiter's `RejectionStatusCode` defaults to 503 regardless of the algorithm. Set it to 429 Too Many Requests, or use `OnRejected`, which runs for rejected requests and can set the status and a Retry-After hint. The algorithm and the queue settings don't change the default status."
+    },
+    {
+      "id": "w03-l04-q05",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w03-l04",
+      "prompt": "On .NET 8, a `BackgroundService` hits an unhandled exception in `ExecuteAsync` during a database outage. With default hosting settings, what happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The exception is swallowed and the service silently stops, while the rest of the app keeps running."
+        },
+        {
+          "id": "b",
+          "text": "The host restarts `ExecuteAsync` automatically with exponential backoff."
+        },
+        {
+          "id": "c",
+          "text": "The exception is logged and the host stops, unless `BackgroundServiceExceptionBehavior` is set to `Ignore`."
+        },
+        {
+          "id": "d",
+          "text": "The exception is rethrown on the request thread of the next HTTP request."
+        }
+      ],
+      "concept": "backgroundservice-shutdown-and-failures",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/compatibility/core-libraries/6.0/hosting-exception-handling",
+          "claim": "Starting in .NET 6, when a BackgroundService throws an unhandled exception, the exception is logged and the host is stopped; set HostOptions.BackgroundServiceExceptionBehavior to Ignore for the previous behavior.",
+          "title": "Breaking change: Exception handling in hosting (.NET 6)",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "andrew-lock-blog",
+        "aspnetcore-in-action"
+      ],
+      "explanation": "Since .NET 6, an unhandled exception in a `BackgroundService` is logged and stops the host by default (`BackgroundServiceExceptionBehavior.StopHost`). Before .NET 6 it was ignored, which is where the 'swallowed' misconception comes from. Nothing restarts the service for you; handle per-item errors inside the loop."
+    },
+    {
+      "id": "w03-l04-q06",
+      "type": "written",
+      "lesson": "w03-l04",
+      "prompt": "Your product catalog uses `HybridCache` on six instances with Redis as L2. After an admin updates product 42, the code calls `RemoveByTagAsync(\"product:42\")`, yet some users see the old product for minutes. Explain why and redesign the caching so updates show up quickly, covering stampedes, key design and payload sizes.",
+      "concept": "hybridcache-stampede-and-tags",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/performance/caching/hybrid",
+          "claim": "Invalidation by key or tag affects the current server and L2 but not other servers' in-memory caches; RemoveByTagAsync is logical, not a physical delete; MaximumPayloadBytes defaults to 1 MB and MaximumKeyLength to 1024; avoid user input in keys; sealed immutable types enable instance reuse.",
+          "title": "HybridCache library in ASP.NET Core",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "hybridcache"
+      ],
+      "explanation": "Seniors understand the two-level topology and know exactly what is invalidated where. The common wrong answer is 'Redis is shared, so everything is consistent'.",
+      "model_answer": {
+        "summary": "Tag and key invalidation clears the current server's L1 and the shared L2, but not other servers' in-memory L1 copies, so they serve stale data until their local entries expire. Keep L1 lifetimes short (or add cross-instance invalidation), and design keys, tags and payloads within HybridCache's limits.",
+        "key_points": [
+          "Explains that invalidation by key or tag affects the current server and L2 but not the in-memory caches of other servers.",
+          "Explains that `RemoveByTagAsync` is logical: it records that entries created before a point are ignored, and old values remain until they expire.",
+          "Proposes a short local (L1) expiration relative to the overall expiration, or an explicit cross-instance invalidation mechanism, for data that must update quickly.",
+          "Notes that stampede protection is per instance, so an expired hot key can still cause one factory run per server.",
+          "Mentions limits and hygiene: payloads over `MaximumPayloadBytes` (1 MB by default) aren't cached, keys over `MaximumKeyLength` (1024) are rejected, raw user input shouldn't be used in keys, and `sealed` immutable types allow instance reuse."
+        ]
+      }
+    },
+    {
+      "id": "w03-l04-q07",
+      "type": "written",
+      "lesson": "w03-l04",
+      "prompt": "Design rate limiting for a public ASP.NET Core API with a login endpoint, a cheap read endpoint that sees bursty traffic, and an expensive report endpoint that runs for several seconds. A teammate proposes partitioning all limits by the client IP taken from `X-Forwarded-For`. Choose limiter algorithms, critique the partitioning, and state what rate limiting doesn't protect you from.",
+      "concept": "rate-limiter-algorithms-partitioning",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/performance/rate-limit",
+          "claim": "Fixed window, sliding window, token bucket and concurrency limiters are available; the concurrency limiter only caps concurrent requests; partitioning on user input or client IP can enable denial-of-service; UseRateLimiter must come after UseRouting for endpoint-specific policies; rate limiting isn't a complete DDoS defence.",
+          "title": "Rate limiting middleware in ASP.NET Core",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "aspnetcore-rate-limit"
+      ],
+      "explanation": "A senior answer ties each algorithm to a resource shape and sees the security flaw in partition keys that clients control.",
+      "model_answer": {
+        "summary": "Match the algorithm to the resource: token bucket or sliding window for bursty reads, a concurrency limiter for the long-running report, and strict limits on login. Partition by a trustworthy, bounded key, because partitioning on client-controlled input invites spoofing and unbounded partition growth.",
+        "key_points": [
+          "Describes the algorithms: fixed window, sliding window (segments smooth window-boundary bursts), token bucket (tokens per period, bucket size allows controlled bursts) and concurrency (limits simultaneous requests only, with no time component).",
+          "Picks a concurrency limiter for the report endpoint and a token bucket or sliding window for bursty reads, applied with endpoint policies (which requires `UseRateLimiter` after `UseRouting`).",
+          "Warns that partitioning on user input or client IP from headers is a denial-of-service risk: headers can be spoofed, and many unique keys create unbounded partitions that exhaust memory.",
+          "Configures rejection properly: 429 through `RejectionStatusCode` or `OnRejected`, and considers queueing (`QueueLimit`, `QueueProcessingOrder`) versus rejecting.",
+          "States that app-level rate limiting isn't a complete DDoS defence, and that in chained limiters, time-based limiters don't give permits back when a later limiter rejects."
+        ]
+      }
+    },
+    {
+      "id": "w03-l04-q08",
+      "type": "written",
+      "lesson": "w03-l04",
+      "prompt": "A `BackgroundService` consumes messages from a queue. During deploys some messages are processed twice or lost, and once an exception in the loop took the whole API down. Review the design: how should `ExecuteAsync` handle the stopping token, errors and shutdown timing? Mention anything that differs in .NET 10.",
+      "concept": "backgroundservice-shutdown-and-failures",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/host/hosted-services",
+          "claim": "The stopping token is triggered when StopAsync is called; the default shutdown timeout is 30 seconds; StopAsync might not be called if the app shuts down unexpectedly; in .NET 10 ExecuteAsync runs on the thread pool, while earlier versions block other services until it goes asynchronous.",
+          "title": "Background tasks with hosted services in ASP.NET Core",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/compatibility/core-libraries/6.0/hosting-exception-handling",
+          "claim": "Since .NET 6 an unhandled BackgroundService exception is logged and stops the host by default.",
+          "title": "Breaking change: Exception handling in hosting (.NET 6)",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "andrew-lock-blog",
+        "aspnetcore-in-action"
+      ],
+      "explanation": "Seniors design for at-least-once delivery and bounded shutdown instead of assuming a clean stop, and they know the host-stopping default for unhandled exceptions.",
+      "model_answer": {
+        "summary": "Honour the stopping token everywhere, finish or abandon the current message cleanly within the shutdown timeout, acknowledge only after processing, catch per-message exceptions so one failure doesn't stop the host, and design for `StopAsync` never being called after a crash.",
+        "key_points": [
+          "Explains that the stopping token is triggered when `StopAsync` is called, and it must be passed to every awaited call so the loop exits promptly.",
+          "Notes the host waits for `ExecuteAsync` only up to the shutdown timeout (30 s by default, `HostOptions.ShutdownTimeout`), after which shutdown is ungraceful.",
+          "Explains that since .NET 6 an unhandled exception in `ExecuteAsync` stops the host by default, so per-message errors should be caught, logged and retried or dead-lettered inside the loop.",
+          "States that `StopAsync` might not be called on a crash, so processing must be idempotent and messages acknowledged only after success (at-least-once delivery).",
+          "Mentions that in .NET 10 `ExecuteAsync` is started on the thread pool, whereas in .NET 8 and 9 synchronous work before the first `await` blocks other services from starting."
+        ]
+      }
+    }
+  ]
+}

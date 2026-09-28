@@ -1,0 +1,1327 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "async-state-machine-sync-completion",
+      "name": "The compiler-generated async state machine and synchronous completion"
+    },
+    {
+      "id": "valuetask-consume-once-contract",
+      "name": "Task vs ValueTask vs IAsyncEnumerable, and ValueTask's consume-once contract"
+    },
+    {
+      "id": "sync-over-async-context-deadlock",
+      "name": "Sync-over-async deadlocks, SynchronizationContext and ConfigureAwait"
+    },
+    {
+      "id": "async-fault-and-cancellation-propagation",
+      "name": "How faults and cancellation propagate: async void, WhenAll, CancellationToken"
+    },
+    {
+      "id": "threadpool-starvation-signals",
+      "name": "Recognizing and fixing thread-pool starvation"
+    },
+    {
+      "id": "lock-semaphore-interlocked-choice",
+      "name": "Choosing between lock, SemaphoreSlim and Interlocked"
+    },
+    {
+      "id": "concurrentdictionary-getoradd-factory-race",
+      "name": "ConcurrentDictionary.GetOrAdd factories run outside the lock"
+    },
+    {
+      "id": "channel-backpressure-bounded-parallelism",
+      "name": "Back pressure with bounded Channels and Parallel.ForEachAsync"
+    },
+    {
+      "id": "gc-generations-loh-poh",
+      "name": "GC generations, the large object heap and the pinned object heap"
+    },
+    {
+      "id": "server-workstation-datas-modes",
+      "name": "Workstation GC, Server GC and DATAS"
+    },
+    {
+      "id": "dispose-finalizer-leak-patterns",
+      "name": "IDisposable, finalizers and managed memory leaks"
+    },
+    {
+      "id": "span-memory-arraypool-ownership",
+      "name": "Span, Memory and ArrayPool ownership and lifetime rules"
+    },
+    {
+      "id": "dotnet-diagnostics-tool-escalation",
+      "name": "Escalating from dotnet-counters to dotnet-trace and dotnet-dump"
+    },
+    {
+      "id": "dotnet10-jit-escape-analysis",
+      "name": ".NET 10 JIT escape analysis, stack allocation and devirtualization"
+    },
+    {
+      "id": "tail-latency-red-use-signals",
+      "name": "Tail latency percentiles and the RED/USE methods"
+    },
+    {
+      "id": "benchmarkdotnet-measurement-pitfalls",
+      "name": "BenchmarkDotNet methodology and measurement pitfalls"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w02-l01-q01",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w02-l01",
+      "prompt": "```csharp\nasync Task<int> GetAsync(string key)\n{\n    int v = await _cache.GetAsync(key);\n    return v + 1;\n}\n```\n\nOn a cache hit, `_cache.GetAsync` returns an already-completed task. What happens inside `GetAsync`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The awaiter reports `IsCompleted == true`, so the method continues synchronously with no scheduled continuation"
+        },
+        {
+          "id": "b",
+          "text": "The method always yields once to the thread pool here, because every single `await` schedules a continuation"
+        },
+        {
+          "id": "c",
+          "text": "The continuation is posted to the current `SynchronizationContext` anyway, even though the task is already complete"
+        },
+        {
+          "id": "d",
+          "text": "The state machine is always allocated on the heap immediately, before the first `await` even runs"
+        }
+      ],
+      "concept": "async-state-machine-sync-completion",
+      "sources": [
+        {
+          "url": "https://devblogs.microsoft.com/dotnet/how-async-await-really-works/",
+          "claim": "The compiler-generated code checks the awaiter's IsCompleted and calls GetResult directly when it is complete; if the async method completes synchronously, the state machine never leaves the stack and nothing is allocated for it.",
+          "title": "How Async/Await Really Works in C#",
+          "accessed": "2026-09-27",
+          "publisher": ".NET Blog (Microsoft)"
+        }
+      ],
+      "materials": [
+        "dotnet-async"
+      ],
+      "explanation": "The generated code calls `GetAwaiter()` and checks `IsCompleted`. If the task is already complete it calls `GetResult()` inline and keeps going; only an incomplete awaiter causes the method to register a continuation and return. If the whole method completes synchronously, the state machine struct never leaves the stack. The belief that `await` always yields is the common misconception."
+    },
+    {
+      "id": "w02-l01-q02",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w02-l01",
+      "prompt": "```csharp\nValueTask<int> vt = reader.ReadAsync(buffer);\nint first = await vt;\nint second = await vt;\n```\n\nWhat is true about this code?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It is fine here and completely safe to do: `second` is simply the cached result, exactly as with `Task<int>`"
+        },
+        {
+          "id": "b",
+          "text": "It does not compile at all: a `ValueTask<T>` variable cannot ever be awaited twice"
+        },
+        {
+          "id": "c",
+          "text": "The second `await` is undefined behavior: it may be backed by a pooled source reused after consumption"
+        },
+        {
+          "id": "d",
+          "text": "The second `await` always throws an `InvalidOperationException` immediately when it runs"
+        }
+      ],
+      "concept": "valuetask-consume-once-contract",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/api/system.threading.tasks.valuetask-1",
+          "claim": "A ValueTask<TResult> should be awaited only once, AsTask called at most once, and results not read before completion; doing otherwise gives undefined results.",
+          "title": "ValueTask<TResult> Struct (System.Threading.Tasks)",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "dotnet-async"
+      ],
+      "explanation": "A `ValueTask<T>` must be consumed exactly once: await it once, never call `AsTask()` more than once, never read `.Result` before it completes, and don't mix techniques. It can wrap a reusable `IValueTaskSource`, so a second await may observe another operation's result. It isn't a compile error and it isn't guaranteed to throw, which makes the bug hard to see. If you need to await it more than once, call `.AsTask()` once and use the `Task`."
+    },
+    {
+      "id": "w02-l01-q03",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w02-l01",
+      "prompt": "In a WPF button handler, `var s = GetDataAsync().Result;` calls a method that does `return await httpClient.GetStringAsync(url);` with no `ConfigureAwait`. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It works but is slower, because `.Result` just waits on the thread pool"
+        },
+        {
+          "id": "b",
+          "text": "It deadlocks: the continuation was captured to the UI context, and the only UI thread is blocked in `.Result`"
+        },
+        {
+          "id": "c",
+          "text": "It throws `AggregateException` immediately, because `.Result` cannot be used on the UI thread"
+        },
+        {
+          "id": "d",
+          "text": "It deadlocks the same way if the identical code runs in an ASP.NET Core controller"
+        }
+      ],
+      "concept": "sync-over-async-context-deadlock",
+      "sources": [
+        {
+          "url": "https://blog.stephencleary.com/2012/07/dont-block-on-async-code.html",
+          "claim": "The deadlock happens because the awaited task captures the context, the continuation needs that context, and the top-level method blocks the context thread waiting for the task.",
+          "title": "Don't Block on Async Code",
+          "accessed": "2026-09-27",
+          "publisher": "Stephen Cleary"
+        },
+        {
+          "url": "https://devblogs.microsoft.com/dotnet/configureawait-faq/",
+          "claim": "ASP.NET Core has no SynchronizationContext; ConfigureAwait(false) avoids queuing the continuation back to the captured context.",
+          "title": "ConfigureAwait FAQ",
+          "accessed": "2026-09-27",
+          "publisher": ".NET Blog (Microsoft)"
+        }
+      ],
+      "materials": [
+        "dotnet-async",
+        "cleary-blog"
+      ],
+      "explanation": "`await` captures the current `SynchronizationContext` (the UI context). When the HTTP call finishes, the continuation is queued to that context, but its only thread is blocked waiting on `.Result`, so neither can proceed. ASP.NET Core has no `SynchronizationContext`, so it doesn't deadlock this way there (though blocking still wastes thread-pool threads). Fixes: go async all the way, and use `ConfigureAwait(false)` in library code."
+    },
+    {
+      "id": "w02-l01-q04",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w02-l01",
+      "prompt": "An ASP.NET Core app calls `FireAndForget()` inside a `try/catch`. `FireAndForget` is `async void` and throws after its first `await`. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The caller's `catch` block handles the exception"
+        },
+        {
+          "id": "b",
+          "text": "The exception is stored in a task and silently swallowed"
+        },
+        {
+          "id": "c",
+          "text": "The exception is raised through `TaskScheduler.UnobservedTaskException` when the task is collected"
+        },
+        {
+          "id": "d",
+          "text": "The caller cannot catch it; the exception is rethrown outside any task and crashes the process"
+        }
+      ],
+      "concept": "async-fault-and-cancellation-propagation",
+      "sources": [
+        {
+          "url": "https://github.com/davidfowl/AspNetCoreDiagnosticScenarios/blob/master/AsyncGuidance.md",
+          "claim": "Async void methods crash the process when an exception is thrown; prefer async Task.",
+          "title": "AsyncGuidance.md - AspNetCoreDiagnosticScenarios",
+          "accessed": "2026-09-27",
+          "publisher": "David Fowler (GitHub)"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/csharp/asynchronous-programming/async-scenarios",
+          "claim": "async void should only be used for event handlers; exceptions thrown in it can't be caught outside that method.",
+          "title": "Asynchronous programming scenarios - C#",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "dotnet-async",
+        "aspnetcore-diagnostic-scenarios"
+      ],
+      "explanation": "An `async void` method has no task for callers to observe. The caller's `try/catch` only covers the part before the first `await`; after that, the exception is raised on the captured context or the thread pool, and an unhandled exception there crashes the process. Unobserved task exceptions only apply to `async Task` methods whose tasks nobody awaits. Use `async Task` and handle errors inside background work."
+    },
+    {
+      "id": "w02-l01-q05",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w02-l01",
+      "prompt": "In an async method, the local `var buffer = new byte[4096];` is declared before an `await` that really suspends, and it is used after the `await`. Where does `buffer`'s reference live while the method is suspended?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "On the original thread's stack, which the runtime keeps pinned until the method resumes"
+        },
+        {
+          "id": "b",
+          "text": "In a field of the compiler-generated state machine, which is kept on the heap while the method is suspended"
+        },
+        {
+          "id": "c",
+          "text": "In thread-local storage, so the method must resume on the same thread"
+        },
+        {
+          "id": "d",
+          "text": "Nowhere: locals do not survive an `await`, so the compiler reports an error"
+        }
+      ],
+      "concept": "async-state-machine-sync-completion",
+      "sources": [
+        {
+          "url": "https://devblogs.microsoft.com/dotnet/how-async-await-really-works/",
+          "claim": "The compiler generates a state machine struct implementing IAsyncStateMachine with a <>1__state field, and locals used across awaits are hoisted into fields of that struct.",
+          "title": "How Async/Await Really Works in C#",
+          "accessed": "2026-09-27",
+          "publisher": ".NET Blog (Microsoft)"
+        }
+      ],
+      "materials": [
+        "dotnet-async"
+      ],
+      "explanation": "The compiler rewrites the method into a state machine struct implementing `IAsyncStateMachine`. Locals whose values are needed after an `await` are hoisted into its fields, and a `<>1__state` field records where to resume. When the method actually suspends, the state machine is moved to the heap so it survives after the stack frame is gone. That is why the method can resume on a different thread, which rules out the thread-local answer."
+    },
+    {
+      "id": "w02-l01-q06",
+      "type": "written",
+      "lesson": "w02-l01",
+      "prompt": "Your team proposes (1) changing every `Task<T>`-returning repository method to `ValueTask<T>` 'for performance', and (2) returning `IAsyncEnumerable<T>` from a method that currently buffers 100,000 rows into a `List<T>`. Evaluate both proposals.",
+      "concept": "valuetask-consume-once-contract",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/api/system.threading.tasks.valuetask-1",
+          "claim": "The default choice should be Task; ValueTask should be used only when profiling shows a benefit, it contains multiple fields, and it must be consumed only once.",
+          "title": "ValueTask<TResult> Struct (System.Threading.Tasks)",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/csharp/asynchronous-programming/generate-consume-asynchronous-stream",
+          "claim": "Async streams let you consume data as each page is retrieved using await foreach, and cancellation is passed with EnumeratorCancellation and WithCancellation.",
+          "title": "Generate and consume async streams - C#",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "dotnet-async"
+      ],
+      "explanation": "A senior answer rejects the blanket change, explains the consume-once contract and when `ValueTask` actually pays off, and treats streaming as a memory and latency trade-off with cancellation handled.",
+      "model_answer": {
+        "summary": "Default to `Task<T>` and use `ValueTask<T>` only where profiling shows frequent synchronous completion, because it has stricter consumption rules; `IAsyncEnumerable<T>` is a good fit for streaming large results, with attention to cancellation and disposal.",
+        "key_points": [
+          "`ValueTask<T>` helps only when results often complete synchronously (for example cache hits); the guidance is to default to `Task` and switch only when profiling shows a benefit.",
+          "`ValueTask<T>` is larger (several fields), so it makes calling state machines bigger, and it must be consumed once: no double `await`, no multiple `AsTask()`, no `.Result` before completion.",
+          "Changing a public return type from `Task<T>` to `ValueTask<T>` also changes what callers can safely do (for example caching and awaiting the task twice).",
+          "`IAsyncEnumerable<T>` with `await foreach` streams rows as each page arrives instead of buffering everything, and the enumerator is disposed asynchronously.",
+          "Flow cancellation into the stream with `[EnumeratorCancellation]` on the token parameter and `WithCancellation` at the call site."
+        ]
+      }
+    },
+    {
+      "id": "w02-l01-q07",
+      "type": "written",
+      "lesson": "w02-l01",
+      "prompt": "A shared library is used by a legacy ASP.NET (.NET Framework) app and a new ASP.NET Core app. Callers in both use `.Result` on its async methods. The legacy app hangs intermittently; the ASP.NET Core app is fine at low load but latency climbs sharply under load. Diagnose both and give fixes.",
+      "concept": "sync-over-async-context-deadlock",
+      "sources": [
+        {
+          "url": "https://blog.stephencleary.com/2012/07/dont-block-on-async-code.html",
+          "claim": "To prevent the deadlock, use ConfigureAwait(false) in library async methods (on every await) and don't block on tasks: use async all the way down; both are best practices.",
+          "title": "Don't Block on Async Code",
+          "accessed": "2026-09-27",
+          "publisher": "Stephen Cleary"
+        },
+        {
+          "url": "https://github.com/davidfowl/AspNetCoreDiagnosticScenarios/blob/master/AsyncGuidance.md",
+          "claim": "Using Task.Result or Task.Wait to block on asynchronous work is much worse than calling a truly synchronous API and can lead to thread-pool starvation.",
+          "title": "AsyncGuidance.md - AspNetCoreDiagnosticScenarios",
+          "accessed": "2026-09-27",
+          "publisher": "David Fowler (GitHub)"
+        }
+      ],
+      "materials": [
+        "cleary-blog",
+        "aspnetcore-diagnostic-scenarios",
+        "dotnet-async"
+      ],
+      "explanation": "Strong answers explain why the same code fails differently in two hosts, and treat `ConfigureAwait(false)` as a library hygiene rule rather than a cure for blocking callers.",
+      "model_answer": {
+        "summary": "The legacy app deadlocks because continuations are queued to a request context whose thread is blocked; ASP.NET Core has no context so it doesn't deadlock, but blocking thread-pool threads causes starvation. Fix the callers (async all the way) and add `ConfigureAwait(false)` in the library.",
+        "key_points": [
+          "Legacy ASP.NET has a `SynchronizationContext`: `await` captures it, the continuation needs it, and the request thread is blocked in `.Result`, so it deadlocks.",
+          "`ConfigureAwait(false)` in library code avoids capturing the context, but it has to be on every `await` in the call chain; one missed `await` can still deadlock.",
+          "ASP.NET Core has no `SynchronizationContext`, so there's no deadlock, but `.Result`/`.Wait()` block thread-pool threads and cause starvation under load, which is worse than a truly synchronous API.",
+          "The real fix is async all the way: make callers `await`. If blocking is unavoidable, `GetAwaiter().GetResult()` at least avoids wrapping the exception in `AggregateException`."
+        ]
+      }
+    },
+    {
+      "id": "w02-l01-q08",
+      "type": "written",
+      "lesson": "w02-l01",
+      "prompt": "An endpoint calls three downstream services concurrently with `Task.WhenAll`, must give up after 2 seconds, and must stop work when the client disconnects. Two of the calls can fail at the same time. Describe how you would implement cancellation, timeouts and error handling, and the traps.",
+      "concept": "async-fault-and-cancellation-propagation",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/standard/threading/cancellation-in-managed-threads",
+          "claim": "Cancellation is cooperative; CancellationTokenSource (including linked sources) should be disposed; callbacks registered with Register run synchronously when Cancel is called.",
+          "title": "Cancellation in Managed Threads - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/api/system.threading.tasks.task.whenall",
+          "claim": "If any supplied task completes in a faulted state, the returned task completes Faulted, and its exceptions contain the aggregation of the unwrapped exceptions from each supplied task.",
+          "title": "Task.WhenAll Method (System.Threading.Tasks)",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "dotnet-async",
+        "aspnetcore-diagnostic-scenarios"
+      ],
+      "explanation": "A senior answer knows the exact propagation semantics (single rethrown exception vs aggregated task exceptions) and designs cancellation as a contract across the call chain.",
+      "model_answer": {
+        "summary": "Pass one token down every call, combine the request token with a timeout through a linked source that you dispose, and remember that `await Task.WhenAll` throws one exception while the returned task holds all of them.",
+        "key_points": [
+          "Cancellation is cooperative: accept a `CancellationToken` and pass it to every downstream call; nothing stops work that doesn't observe it.",
+          "Combine the request-aborted token with a 2-second timeout using a linked `CancellationTokenSource` (and dispose it), and treat `OperationCanceledException` as cancellation rather than failure.",
+          "When several tasks fault, the task returned by `WhenAll` holds all the unwrapped exceptions; `await` rethrows only one of them, so inspect `whenAllTask.Exception` to log every failure.",
+          "Start all calls before awaiting (for example with `ToArray()` on a LINQ `Select` of async calls); a lazy query does not start the tasks.",
+          "Keep `Register` callbacks short, because `Cancel` runs them synchronously."
+        ]
+      }
+    },
+    {
+      "id": "w02-l02-q01",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w02-l02",
+      "prompt": "An API's latency jumps from about 500 ms to several seconds under load. Which `dotnet-counters` pattern points most strongly to thread-pool starvation?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "CPU near 100% the whole time, with a stable thread-pool thread count throughout"
+        },
+        {
+          "id": "b",
+          "text": "A thread-pool thread count that climbs slowly while CPU stays well below 100%"
+        },
+        {
+          "id": "c",
+          "text": "A high gen0 GC count paired with an otherwise constant working set over time"
+        },
+        {
+          "id": "d",
+          "text": "A large number of loaded assemblies combined with a low exception rate overall"
+        }
+      ],
+      "concept": "threadpool-starvation-signals",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/diagnostics/debug-threadpool-starvation",
+          "claim": "Starvation shows as a slow, steady increase in the thread-pool thread count while CPU usage is well under 100%, often with a large dotnet.thread_pool.queue.length; after reaching roughly the core count the pool adds about 1-2 threads per second.",
+          "title": "Debug ThreadPool Starvation - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "aspnetcore-diagnostic-scenarios"
+      ],
+      "explanation": "When blocking code holds thread-pool threads, the pool grows quickly to about the core count and then injects only a thread or two per second. That shows up as a slowly rising thread count, a growing queue of work items, and CPU far below saturation, because the threads are waiting rather than working. High CPU with a flat thread count points at CPU-bound work instead."
+    },
+    {
+      "id": "w02-l02-q02",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w02-l02",
+      "prompt": "```csharp\nprivate readonly object _gate = new();\n\npublic async Task SaveAsync()\n{\n    lock (_gate)\n    {\n        await _repo.SaveAsync();\n    }\n}\n```\n\nWhat happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It works: the lock is released while awaiting and re-acquired afterwards"
+        },
+        {
+          "id": "b",
+          "text": "It deadlocks the first time two requests call it"
+        },
+        {
+          "id": "c",
+          "text": "It does not compile: you can't use `await` in the body of a `lock` statement"
+        },
+        {
+          "id": "d",
+          "text": "It throws `SynchronizationLockException` at run time when the method resumes on another thread"
+        }
+      ],
+      "concept": "lock-semaphore-interlocked-choice",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/statements/lock",
+          "claim": "You can't use the await expression in the body of a lock statement.",
+          "title": "The lock statement - synchronize access to shared resources - C# reference",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/standard/threading/overview-of-synchronization-primitives",
+          "claim": "Monitor has thread affinity; SemaphoreSlim does not, so it can be acquired on one thread and released on another.",
+          "title": "Overview of synchronization primitives - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "concurrency-in-csharp"
+      ],
+      "explanation": "The compiler rejects `await` inside a `lock` body. `lock` (via `Monitor` or `System.Threading.Lock`) has thread affinity: it must be released by the thread that took it, and an `await` may resume on another thread. For mutual exclusion across `await`, use `SemaphoreSlim` with `await WaitAsync()` and `Release()` in a `finally`."
+    },
+    {
+      "id": "w02-l02-q03",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w02-l02",
+      "prompt": "A service must (1) count requests from many threads, and (2) allow at most 10 concurrent outbound HTTP calls, where each call spans several `await`s. Which pair of primitives fits best?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "(1) `lock` around `count++`, (2) `Mutex`"
+        },
+        {
+          "id": "b",
+          "text": "(1) `SemaphoreSlim`, (2) `lock` around the HTTP call"
+        },
+        {
+          "id": "c",
+          "text": "(1) `volatile int` with `count++`, (2) `Monitor.Enter`"
+        },
+        {
+          "id": "d",
+          "text": "(1) `Interlocked.Increment`, (2) `SemaphoreSlim` with `WaitAsync`"
+        }
+      ],
+      "concept": "lock-semaphore-interlocked-choice",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/standard/threading/overview-of-synchronization-primitives",
+          "claim": "Interlocked provides atomic operations such as increment and compare-exchange; SemaphoreSlim limits concurrent access, has no thread affinity and is lightweight for in-process use; Monitor and Mutex have thread affinity.",
+          "title": "Overview of synchronization primitives - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "concurrency-in-csharp"
+      ],
+      "explanation": "`Interlocked.Increment` is an atomic read-modify-write for a single variable, with no lock needed. `SemaphoreSlim` limits concurrency to a count and has no thread affinity, so it can be released after an `await` resumes on a different thread; `WaitAsync` avoids blocking a thread. `Mutex` and `Monitor` have thread affinity, and `volatile` does not make `count++` atomic."
+    },
+    {
+      "id": "w02-l02-q04",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w02-l02",
+      "prompt": "Two threads call `_cache.GetOrAdd(key, k => LoadFromDb(k))` at the same time for a key that is missing. What can happen?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`LoadFromDb` runs exactly once here, because `GetOrAdd` fully holds the dictionary lock while the factory runs"
+        },
+        {
+          "id": "b",
+          "text": "Both entries are stored, and the last write wins"
+        },
+        {
+          "id": "c",
+          "text": "The second caller blocks until the first factory finishes, then gets its value"
+        },
+        {
+          "id": "d",
+          "text": "`LoadFromDb` may run on both threads; only one result is stored, and both calls return that stored value"
+        }
+      ],
+      "concept": "concurrentdictionary-getoradd-factory-race",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/api/system.collections.concurrent.concurrentdictionary-2.getoradd",
+          "claim": "valueFactory is called outside the locks, so GetOrAdd is not atomic; it may be called multiple times concurrently, but only one key/value pair is added and the value returned may come from another thread's call.",
+          "title": "ConcurrentDictionary<TKey,TValue>.GetOrAdd Method",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "concurrency-in-csharp"
+      ],
+      "explanation": "`valueFactory` is called outside the dictionary's locks to avoid running unknown code under a lock. So `GetOrAdd` is not atomic with respect to the factory: it can run concurrently on several threads, only one key/value pair is added, and a caller may receive the value another thread produced. If the factory is expensive or has side effects, wrap values in `Lazy<T>` or deduplicate the work another way."
+    },
+    {
+      "id": "w02-l02-q05",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w02-l02",
+      "prompt": "A producer writes to `Channel.CreateBounded<Job>(100)`, which is full because the consumer is slow. With the default options, what do `WriteAsync` and `TryWrite` do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`WriteAsync` waits until space is available; `TryWrite` returns `false`"
+        },
+        {
+          "id": "b",
+          "text": "Both drop the oldest item to make room"
+        },
+        {
+          "id": "c",
+          "text": "Both throw `ChannelClosedException`"
+        },
+        {
+          "id": "d",
+          "text": "The channel grows past 100 items, because bounded capacity is only a hint"
+        }
+      ],
+      "concept": "channel-backpressure-bounded-parallelism",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/extensions/channels",
+          "claim": "For a bounded channel the default BoundedChannelFullMode is Wait: WriteAsync waits for space and TryWrite returns false; other modes are DropNewest, DropOldest and DropWrite.",
+          "title": "Channels - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "dotnet-channels"
+      ],
+      "explanation": "A bounded channel's default `FullMode` is `Wait`, which gives back pressure: `WriteAsync` does not complete until there is room, and the synchronous `TryWrite` returns `false`. Dropping items only happens if you choose `DropOldest`, `DropNewest` or `DropWrite`. `ChannelClosedException` is for writing after the writer has been completed."
+    },
+    {
+      "id": "w02-l02-q06",
+      "type": "written",
+      "lesson": "w02-l02",
+      "prompt": "Production latency spikes to several seconds during traffic peaks while CPU sits at 20%. Restarting helps for a while. Walk through how you would confirm thread-pool starvation and find the code responsible, then fix it.",
+      "concept": "threadpool-starvation-signals",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/diagnostics/debug-threadpool-starvation",
+          "claim": "Use dotnet-counters to spot a slowly rising thread count with low CPU, dotnet-stack to find threads blocked in Task.Wait/GetResultCore, and dotnet-trace with the WaitHandleWait event for intermittent cases; fix by using await instead of Result.",
+          "title": "Debug ThreadPool Starvation - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "aspnetcore-diagnostic-scenarios",
+        "concurrency-in-csharp"
+      ],
+      "explanation": "A senior answer reasons from signals to tools to code, and knows why low CPU with high latency implies blocked threads rather than too much work.",
+      "model_answer": {
+        "summary": "Confirm starvation with counters (slowly rising thread count, growing queue, low CPU), find blocking frames with stack or trace tools, and replace sync-over-async with `await`.",
+        "key_points": [
+          "Watch `dotnet-counters`: a thread count that keeps rising by 1-2 per second while CPU stays low, with a large `dotnet.thread_pool.queue.length`, is the starvation signature.",
+          "A thread count that settles well above about three times the core count also means code is blocking thread-pool threads.",
+          "Capture stacks with `dotnet-stack` (or a `dotnet-dump`): many threads parked in `Task.Wait`/`GetResultCore` frames point to `.Result`/`.Wait()` over async code.",
+          "For intermittent cases, record a `dotnet-trace` with the wait-handle events (`--clrevents waithandle`, .NET 9+) to see which code blocks.",
+          "Fix by awaiting instead of blocking; raising the minimum thread count only hides the problem."
+        ]
+      }
+    },
+    {
+      "id": "w02-l02-q07",
+      "type": "written",
+      "lesson": "w02-l02",
+      "prompt": "A teammate builds a per-tenant configuration cache as `ConcurrentDictionary<string, TenantConfig>` with `GetOrAdd(tenantId, id => LoadAndAuditAsync(id).Result)`. The factory calls the database and writes an audit row. Review this design.",
+      "concept": "concurrentdictionary-getoradd-factory-race",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/api/system.collections.concurrent.concurrentdictionary-2.getoradd",
+          "claim": "valueFactory is called outside the locks and may be called multiple times; only one pair is added to the dictionary; AddOrUpdate is used for update scenarios.",
+          "title": "ConcurrentDictionary<TKey,TValue>.GetOrAdd Method",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "concurrency-in-csharp",
+        "aspnetcore-diagnostic-scenarios"
+      ],
+      "explanation": "Strong answers state the exact concurrency guarantee (one value stored, not one factory call), and fix both the duplication and the blocking.",
+      "model_answer": {
+        "summary": "The factory runs outside the dictionary lock and can execute more than once per key, so side effects and load can be duplicated; blocking on `.Result` inside it adds sync-over-async. Make the factory idempotent or deduplicate the work.",
+        "key_points": [
+          "`GetOrAdd` calls the factory outside its locks, so concurrent misses for one tenant can run it several times: several database loads and duplicate audit rows.",
+          "Only one value is stored, and all callers get that stored value, so the extra work is wasted and its side effects are not undone.",
+          "Blocking with `.Result` inside the factory is sync-over-async and holds thread-pool threads during a cold-cache burst.",
+          "Fixes: keep factories cheap and free of side effects, store `Lazy<Task<TenantConfig>>` so only one load runs per key, and move auditing out of the factory.",
+          "`AddOrUpdate` has the same property: its delegates also run outside the lock and can run more than once."
+        ]
+      }
+    },
+    {
+      "id": "w02-l02-q08",
+      "type": "written",
+      "lesson": "w02-l02",
+      "prompt": "Design an in-process pipeline: several producers read messages from a queue, and a stage calls a rate-limited HTTP API for each one. Memory must stay bounded if the API slows down. How would you use `Channel<T>` and `Parallel.ForEachAsync`, and what mistakes would you avoid?",
+      "concept": "channel-backpressure-bounded-parallelism",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/extensions/channels",
+          "claim": "Bounded channels apply back pressure; with multiple producers Complete should be called only after all producers finish; writing to a completed channel throws ChannelClosedException; drop modes can report dropped items with a callback.",
+          "title": "Channels - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/api/system.threading.tasks.parallel.foreachasync",
+          "claim": "Without ParallelOptions, Parallel.ForEachAsync runs at most ProcessorCount operations in parallel, and the body receives a CancellationToken.",
+          "title": "Parallel.ForEachAsync Method",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "dotnet-channels",
+        "concurrency-in-csharp"
+      ],
+      "explanation": "A senior design names where back pressure happens, how completion is signalled, and how parallelism is bounded by the downstream limit rather than CPU count.",
+      "model_answer": {
+        "summary": "Use a bounded channel for back pressure, complete it only after all producers finish, and consume with `Parallel.ForEachAsync` with an explicit degree of parallelism and cancellation.",
+        "key_points": [
+          "Use `Channel.CreateBounded` so producers wait when the consumer falls behind (default `FullMode.Wait`); an unbounded channel lets memory grow without limit.",
+          "Choose `FullMode` deliberately: `DropOldest`/`DropNewest`/`DropWrite` lose data (use the item-dropped callback to log), which is only acceptable for telemetry-like data.",
+          "With several producers, call `Writer.Complete()` only after all of them finish; writing after completion throws `ChannelClosedException`.",
+          "Consume with `ReadAllAsync` feeding `Parallel.ForEachAsync`; by default it runs up to `ProcessorCount` bodies at once, so set `MaxDegreeOfParallelism` to match the API's limit.",
+          "Pass the `CancellationToken` the body receives to the HTTP call; cancellation surfaces as `OperationCanceledException` in the returned task."
+        ]
+      }
+    },
+    {
+      "id": "w02-l03-q01",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w02-l03",
+      "prompt": "Each request allocates a temporary `new byte[100_000]`. What does the GC do with these arrays?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "They go in gen0 and die cheaply there, just like any other short-lived object would"
+        },
+        {
+          "id": "b",
+          "text": "They go on the large object heap, collected only during gen2 and swept, not compacted, by default"
+        },
+        {
+          "id": "c",
+          "text": "They are allocated on the stack instead, because they never escape the request scope"
+        },
+        {
+          "id": "d",
+          "text": "They go on the pinned object heap instead, which is never collected by the GC at all"
+        }
+      ],
+      "concept": "gc-generations-loh-poh",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/standard/garbage-collection/large-object-heap",
+          "claim": "Objects of 85,000 bytes or more go on the LOH, which is collected only during generation 2 collections and swept rather than compacted; many temporary large objects can cause frequent gen2 GCs, so pool large objects instead.",
+          "title": "Large object heap (LOH) on Windows - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "dotnet-gc-fundamentals"
+      ],
+      "explanation": "Objects of 85,000 bytes or more go on the LOH. The LOH is logically part of gen2 and is collected only with it, so allocating many temporary large arrays uses up the LOH budget and triggers gen2 (full) GCs. The LOH is normally swept into a free list rather than compacted, which can fragment it. The recommended fix is to pool and reuse large buffers."
+    },
+    {
+      "id": "w02-l03-q02",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w02-l03",
+      "prompt": "After moving a Server GC service from .NET 8 to .NET 9 on a 48-core Linux host, working set drops sharply, gen0/gen1 GC counts rise, and throughput falls by a few percent. What is the most likely cause?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "DATAS is enabled by default since .NET 9: it sizes the heap to the long-lived data"
+        },
+        {
+          "id": "b",
+          "text": "The upgrade silently and unexpectedly switched the entire app over to Workstation GC"
+        },
+        {
+          "id": "c",
+          "text": "Background GC was quietly turned off by default as part of this particular upgrade"
+        },
+        {
+          "id": "d",
+          "text": "The LOH threshold was lowered here, so many more objects are now counted as large"
+        }
+      ],
+      "concept": "server-workstation-datas-modes",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/standard/garbage-collection/datas",
+          "claim": "DATAS was opt-in in .NET 8 and is enabled by default in .NET 9; it starts with one heap and adjusts the number of heaps, and benchmarks showed an over 80% working-set reduction with a 2-3% throughput drop and more gen0/gen1 GCs.",
+          "title": "Dynamic adaptation to application sizes (DATAS) - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/runtime-config/garbage-collector",
+          "claim": "DATAS can be disabled with GarbageCollectionAdaptationMode, System.GC.DynamicAdaptationMode or DOTNET_GCDynamicAdaptationMode set to 0, and it is a Server GC setting.",
+          "title": "Garbage collector config settings - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "dotnet-gc-fundamentals"
+      ],
+      "explanation": "DATAS (dynamic adaptation to application sizes) was opt-in in .NET 8 and is on by default in .NET 9 for Server GC. It keeps the heap roughly proportional to long-lived data and grows or shrinks the heap count as needed, which cuts memory a lot, runs more gen0/gen1 GCs, and can cost a few percent of peak throughput. If that trade-off is wrong for the service, disable it with `GarbageCollectionAdaptationMode=0` (or the equivalent runtime setting)."
+    },
+    {
+      "id": "w02-l03-q03",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w02-l03",
+      "prompt": "Which statement about Server GC is correct?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It runs the collection right on the user thread that triggered it, at normal priority"
+        },
+        {
+          "id": "b",
+          "text": "It is always used automatically on any machine with a single logical CPU when configured"
+        },
+        {
+          "id": "c",
+          "text": "It creates a heap and a dedicated, high-priority GC thread per logical CPU, so processes can interfere"
+        },
+        {
+          "id": "d",
+          "text": "It shares just one single heap across every process running on the whole machine"
+        }
+      ],
+      "concept": "server-workstation-datas-modes",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/standard/garbage-collection/workstation-server-gc",
+          "claim": "Server GC provides a heap and a dedicated high-priority GC thread per logical CPU; many processes using server GC on the same machine can interfere; workstation GC is always used on a machine with one logical CPU.",
+          "title": "Workstation vs. server garbage collection (GC) - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "dotnet-gc-fundamentals"
+      ],
+      "explanation": "Server GC collects on multiple dedicated threads (at `THREAD_PRIORITY_HIGHEST` on Windows), with one heap and thread per logical CPU, which is fast for a dominant server process. If many Server GC processes run on the same machine (for example 12 processes on 4 CPUs), their GC threads compete. The docs suggest considering Workstation GC for hundreds of instances. The 'user thread at normal priority' option describes Workstation GC, which is also forced on single-CPU machines."
+    },
+    {
+      "id": "w02-l03-q04",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w02-l03",
+      "prompt": "In the standard dispose pattern, `Dispose(bool disposing)` is called with `disposing == false`. What may that code path do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Dispose owned managed objects such as open streams and connections first, then also free unmanaged resources"
+        },
+        {
+          "id": "b",
+          "text": "Free only unmanaged resources, without touching other managed objects, already finalized"
+        },
+        {
+          "id": "c",
+          "text": "Nothing at all: the `false` path exists purely for use by derived classes only"
+        },
+        {
+          "id": "d",
+          "text": "Call `GC.SuppressFinalize(this)` here so the finalizer never ends up running twice"
+        }
+      ],
+      "concept": "dispose-finalizer-leak-patterns",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/standard/garbage-collection/implementing-dispose",
+          "claim": "disposing is false when Dispose(bool) is called from a finalizer; then only unmanaged resources should be freed, because finalization order of managed objects is nondeterministic; SafeHandle is recommended instead of writing a finalizer.",
+          "title": "Implement a Dispose method - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "dotnet-gc-fundamentals",
+        "pro-dotnet-memory"
+      ],
+      "explanation": "`disposing == false` means the call came from a finalizer, at a nondeterministic time. The order in which the GC finalizes objects is not defined, so the code must not use other managed objects. It should only release unmanaged resources. Disposing managed state belongs on the `true` path, called from `Dispose()`, which then calls `GC.SuppressFinalize(this)`. Most types should avoid finalizers entirely by wrapping handles in a `SafeHandle`."
+    },
+    {
+      "id": "w02-l03-q05",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w02-l03",
+      "prompt": "```csharp\nbyte[] buf = ArrayPool<byte>.Shared.Rent(1000);\nint read = stream.Read(buf, 0, 1000);\nvar hash = SHA256.HashData(buf);\nArrayPool<byte>.Shared.Return(buf);\n```\n\nWhat is wrong?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Nothing here: `Rent(1000)` actually returns a zeroed array of exactly 1000 bytes"
+        },
+        {
+          "id": "b",
+          "text": "`Return` must always be called with `clearArray: true` set, or else it throws"
+        },
+        {
+          "id": "c",
+          "text": "The rented array must instead be explicitly disposed of, rather than simply being returned to the pool"
+        },
+        {
+          "id": "d",
+          "text": "`buf` may be longer and hold old data; hashing the whole array is wrong; hash a slice"
+        }
+      ],
+      "concept": "span-memory-arraypool-ownership",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/api/system.buffers.arraypool-1.rent",
+          "claim": "Rent returns an array that is at least minimumLength long, and the returned array may not be zero-initialized.",
+          "title": "ArrayPool<T>.Rent(Int32) Method (System.Buffers)",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/api/system.buffers.arraypool-1.return",
+          "claim": "After Return the caller must not use the buffer; returning the same array twice or using it after returning is a high-severity security issue.",
+          "title": "ArrayPool<T>.Return(T[], Boolean) Method (System.Buffers)",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "dotnet-memory-and-spans"
+      ],
+      "explanation": "`Rent` returns an array that is at least the requested length and may not be zero-initialized, so it can be longer and contain another caller's data. Always track the used length and work with a slice. `clearArray` is optional; it only matters for data another renter must not see. After `Return`, never touch the array again: using it after return or returning it twice is a high-severity bug."
+    },
+    {
+      "id": "w02-l03-q06",
+      "type": "written",
+      "lesson": "w02-l03",
+      "prompt": "A file-processing API shows periodic p99 spikes. A GC trace shows almost every collection is gen2 with trigger reason `AllocLarge`, and a low LOH survival rate. Explain what is going on and how you would fix it, including where pinned buffers for native I/O should live.",
+      "concept": "gc-generations-loh-poh",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/standard/garbage-collection/large-object-heap",
+          "claim": "GCs triggered by AllocLarge with a low LOH survival rate indicate temporary large objects; LOH and gen2 are collected together; allocation cost is dominated by clearing memory; pool large objects instead.",
+          "title": "Large object heap (LOH) on Windows - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/runtime-config/garbage-collector",
+          "claim": "The GC's object heaps are the small object heap (SOH), large object heap (LOH) and pinned object heap (POH), each of which can be given a hard limit.",
+          "title": "Garbage collector config settings - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "dotnet-gc-fundamentals",
+        "pro-dotnet-memory"
+      ],
+      "explanation": "A senior answer connects the trigger reason to the LOH-gen2 coupling, measures before tuning, and prefers reuse over GC configuration tweaks.",
+      "model_answer": {
+        "summary": "Temporary large allocations keep exhausting the LOH budget, and since the LOH is collected only with gen2, every one triggers a full GC; pool the buffers, and allocate long-lived pinned buffers on the pinned object heap.",
+        "key_points": [
+          "Allocations of 85,000 bytes or more go on the LOH, which is collected only in gen2, so temporary large buffers trigger full GCs (trigger reason `AllocLarge`, low survival).",
+          "Large allocations are also expensive by themselves, because the runtime clears the memory it hands out.",
+          "The LOH is swept into a free list rather than compacted by default, so it can fragment; `GCSettings.LargeObjectHeapCompactionMode` compacts on demand, and a container memory limit or heap hard limit enables automatic compaction.",
+          "Fix: reuse large buffers (for example with `ArrayPool<T>`) instead of allocating per request.",
+          "Buffers that must stay pinned can be allocated with `GC.AllocateArray<T>(length, pinned: true)`; the GC keeps a separate pinned object heap (POH), visible in `dotnet-counters`, alongside the SOH and LOH."
+        ]
+      }
+    },
+    {
+      "id": "w02-l03-q07",
+      "type": "written",
+      "lesson": "w02-l03",
+      "prompt": "A service's memory grows until the container is OOM-killed. A teammate proposes adding finalizers to all service classes 'so the GC cleans up'. Explain why that is the wrong fix, how you would find the real leak, and how disposal should be implemented.",
+      "concept": "dispose-finalizer-leak-patterns",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/standard/garbage-collection/implementing-dispose",
+          "claim": "A finalizer is only required if you directly reference unmanaged resources, and SafeHandle is recommended; Dispose should be idempotent and call Dispose(true) and GC.SuppressFinalize; DI containers dispose services at the end of their lifetime.",
+          "title": "Implement a Dispose method - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/diagnostics/debug-memory-leak",
+          "claim": "Memory leaks happen when the app references objects it no longer needs; the tutorial confirms growth with dotnet-counters, collects a dump with dotnet-dump and uses dumpheap -stat and gcroot to find that a CustomerCache holds the objects.",
+          "title": "Debug a memory leak tutorial - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "dotnet-gc-fundamentals",
+        "pro-dotnet-memory"
+      ],
+      "explanation": "Strong answers separate unmanaged-resource cleanup from managed memory leaks and show a concrete, tool-based way to find the root holding memory.",
+      "model_answer": {
+        "summary": "Managed leaks come from objects that are still reachable, which finalizers cannot fix; confirm growth with counters, find the roots in a dump, and implement `IDisposable` correctly, with finalizers only for directly owned unmanaged resources (preferably through `SafeHandle`).",
+        "key_points": [
+          "The GC only reclaims unreachable objects; a leak means something (a static cache, an event subscription, a long-lived collection) still references them, and a finalizer does not change reachability.",
+          "Confirm growth with `dotnet-counters` (committed size or heap size rising), capture two dumps with `dotnet-dump collect`, then use `dumpheap -stat` and `gcroot` to see what keeps the objects alive (for example a cache holding every `Customer`).",
+          "Finalizers are only needed when a class directly holds unmanaged resources; wrap those in a `SafeHandle` instead of writing one.",
+          "Implement `Dispose()` to call `Dispose(true)` and `GC.SuppressFinalize(this)`, cascade to owned disposables, and make it idempotent (safe to call more than once).",
+          "Let the DI container dispose services it created at the end of their lifetime, rather than disposing them manually."
+        ]
+      }
+    },
+    {
+      "id": "w02-l03-q08",
+      "type": "written",
+      "lesson": "w02-l03",
+      "prompt": "You're designing a message-parsing library with a synchronous `Parse` method and an asynchronous `ProcessAsync` method that reads from a socket. Buffers come from a pool. Explain when to take `Span<T>` versus `Memory<T>`, and the ownership rules the library and its callers must follow.",
+      "concept": "span-memory-arraypool-ownership",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/standard/memory-and-spans/memory-t-usage-guidelines",
+          "claim": "Span<T> can only be stored on the stack while Memory<T> can be stored on the managed heap; synchronous APIs should take Span<T>; a method must not use a Memory<T> after it returns or after its Task completes; an IMemoryOwner<T> must be disposed or transferred but not both.",
+          "title": "Memory<T> and Span<T> usage guidelines - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/api/system.buffers.arraypool-1.return",
+          "claim": "Once a buffer has been returned to the pool the caller must not use it, and each rented reference must be returned only once.",
+          "title": "ArrayPool<T>.Return(T[], Boolean) Method (System.Buffers)",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "dotnet-memory-and-spans"
+      ],
+      "explanation": "A senior answer turns the lifetime rules into API shapes (span for sync, memory for async, owner types for transfer) and names the use-after-return risk.",
+      "model_answer": {
+        "summary": "Take `Span<T>`/`ReadOnlySpan<T>` for synchronous work and `Memory<T>` where the buffer must survive across `await`; make buffer ownership explicit, and never use a buffer after its lease ends or after it goes back to the pool.",
+        "key_points": [
+          "`Span<T>` can live only on the stack, so it can't be stored on the heap or held across an `await`; `Memory<T>` can be stored on the heap and used in async code.",
+          "Rule 1 and Rule 2: synchronous APIs should take `Span<T>` (callers holding `Memory<T>` can pass `.Span`), and read-only parameters should use `ReadOnlySpan<T>`/`ReadOnlyMemory<T>`.",
+          "Leases: a method taking `Memory<T>` must not use it after it returns (void) or after its returned task completes; background use needs a copy.",
+          "Ownership: whoever holds an `IMemoryOwner<T>` must either dispose it or transfer it, never both; accepting `IMemoryOwner<T>` in an API means taking ownership.",
+          "Pooled arrays: use only the length you asked for, return them exactly once, and never touch them after returning them."
+        ]
+      }
+    },
+    {
+      "id": "w02-l04-q01",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w02-l04",
+      "prompt": "A production container starts showing slow responses and you don't yet know why. Which first step is most appropriate?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Capture a full `dotnet-dump` immediately and start analyzing the entire managed heap"
+        },
+        {
+          "id": "b",
+          "text": "Attach a debugger directly to the running container and step through live requests"
+        },
+        {
+          "id": "c",
+          "text": "Run `dotnet-counters monitor` to check CPU, GC and thread-pool counters before going deeper"
+        },
+        {
+          "id": "d",
+          "text": "Record a very long and thorough `dotnet-trace` session with absolutely every single provider enabled at once"
+        }
+      ],
+      "concept": "dotnet-diagnostics-tool-escalation",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/diagnostics/dotnet-counters",
+          "claim": "dotnet-counters is a performance monitoring tool for ad-hoc health monitoring and first-level performance investigation, used to check counters such as CPU usage or exception rate before a deeper investigation with PerfView or dotnet-trace.",
+          "title": "dotnet-counters diagnostic tool - .NET CLI - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "dotnet-diagnostics"
+      ],
+      "explanation": "`dotnet-counters` is meant for ad-hoc health monitoring and first-level investigation: it shows CPU, GC heap sizes, exception rate and thread-pool counters with little overhead, so you can see whether the problem is CPU, memory, blocking or errors. Then pick `dotnet-trace` (timing, events) or `dotnet-dump` (heap, stacks). Dumping or tracing everything first is expensive and often aimed at the wrong thing."
+    },
+    {
+      "id": "w02-l04-q02",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w02-l04",
+      "prompt": "Which allocation can the .NET 10 JIT remove by allocating the object on the stack?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A `List<int>` that gets returned directly from the enclosing method to its caller"
+        },
+        {
+          "id": "b",
+          "text": "An object that ends up stored into a static field somewhere in the class"
+        },
+        {
+          "id": "c",
+          "text": "A lambda used only inside the method, where escape analysis proves it never escapes"
+        },
+        {
+          "id": "d",
+          "text": "A boxed `int` passed to another assembly entirely, whose method goes on to store it"
+        }
+      ],
+      "concept": "dotnet10-jit-escape-analysis",
+      "sources": [
+        {
+          "url": "https://devblogs.microsoft.com/dotnet/performance-improvements-in-net-10/",
+          "claim": "If the compiler can prove an object doesn't escape, it can be allocated on the stack instead of the heap; in .NET 10 the JIT can stack-allocate delegate instances such as Func<int,int> addY = x => x + y and small arrays that don't escape.",
+          "title": "Performance Improvements in .NET 10",
+          "accessed": "2026-09-27",
+          "publisher": ".NET Blog (Microsoft)"
+        }
+      ],
+      "materials": [
+        "dotnet-10-performance"
+      ],
+      "explanation": "Escape analysis proves an object's lifetime is limited to the method. When it can prove this, the JIT allocates the object on the stack. .NET 10 extends this to delegates and small arrays that don't escape. Anything returned, stored in a field or static, or handed to code that keeps it, escapes and must stay on the heap."
+    },
+    {
+      "id": "w02-l04-q03",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w02-l04",
+      "prompt": "A dashboard shows average latency of 100 ms at 1,000 requests per second, and the team calls the service healthy. Why is that conclusion weak?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Averages are perfectly accurate at that particular request rate, so the conclusion holds"
+        },
+        {
+          "id": "b",
+          "text": "The average can hide a tail: 1% of requests might take 5 seconds; use percentiles like p99"
+        },
+        {
+          "id": "c",
+          "text": "Latency should only ever be measured from the client side, and never from the server at all"
+        },
+        {
+          "id": "d",
+          "text": "Only traffic and saturation actually matter here; latency is already covered by error rates"
+        }
+      ],
+      "concept": "tail-latency-red-use-signals",
+      "sources": [
+        {
+          "url": "https://sre.google/sre-book/monitoring-distributed-systems/",
+          "claim": "With an average latency of 100 ms at 1,000 requests per second, 1% of requests might easily take 5 seconds; collect request counts bucketed by latency into histograms, and distinguish the latency of successful and failed requests.",
+          "title": "Monitoring Distributed Systems (Site Reliability Engineering book)",
+          "accessed": "2026-09-27",
+          "publisher": "Google SRE"
+        }
+      ],
+      "materials": [
+        "dotnet-diagnostics"
+      ],
+      "explanation": "A mean flattens the distribution: at 100 ms average and 1,000 rps, 1% of requests can still take 5 s, and at scale many users hit that tail. Collect request counts in latency buckets (histograms, with exponential bucket boundaries) and alert on percentiles. Also separate the latency of failed requests: fast errors pull the average down and hide problems."
+    },
+    {
+      "id": "w02-l04-q04",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w02-l04",
+      "prompt": "A BenchmarkDotNet method computes a checksum into a local variable and returns `void`. It's run from the IDE in Debug with the debugger attached, and reports about 0.3 ns. What's the main problem?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Nothing is wrong: modern CPUs really are genuinely that fast for simple checksums"
+        },
+        {
+          "id": "b",
+          "text": "BenchmarkDotNet specifically needs a `[MemoryDiagnoser]` attached to measure time correctly"
+        },
+        {
+          "id": "c",
+          "text": "Two problems: Debug builds distort timing, and the unused result lets the JIT eliminate it"
+        },
+        {
+          "id": "d",
+          "text": "The benchmark simply needs more iterations configured to reduce measurement noise"
+        }
+      ],
+      "concept": "benchmarkdotnet-measurement-pitfalls",
+      "sources": [
+        {
+          "url": "https://benchmarkdotnet.org/articles/guides/good-practices.html",
+          "claim": "Never use the Debug build for benchmarking (it can be 10-100 times slower), run without a debugger, and use the result of the calculation to avoid dead code elimination.",
+          "title": "Good Practices",
+          "accessed": "2026-09-27",
+          "publisher": "BenchmarkDotNet"
+        }
+      ],
+      "materials": [
+        "benchmarkdotnet"
+      ],
+      "explanation": "An unused result lets the JIT remove the work (dead code elimination), which explains the impossibly small time. Return or otherwise consume the result. Benchmarks must also run as Release builds without a debugger, because Debug code can be 10-100x slower. `MemoryDiagnoser` adds allocation data but doesn't fix timing, and more iterations don't bring back eliminated code."
+    },
+    {
+      "id": "w02-l04-q05",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w02-l04",
+      "prompt": "After upgrading to .NET 10, a benchmark of `IEnumerable<int> e = array; e.Skip(10).Take(100).Sum();` gets much faster without any code change. Which JIT improvement best explains it?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The JIT can now devirtualize calls through interfaces that arrays implement, unlocking inlining"
+        },
+        {
+          "id": "b",
+          "text": "LINQ method calls are now magically compiled straight into equivalent SQL statements"
+        },
+        {
+          "id": "c",
+          "text": "The JIT now simply turns off all array bounds checks everywhere, unconditionally"
+        },
+        {
+          "id": "d",
+          "text": "Arrays are now allocated directly on the pinned object heap instead of the usual small object heap"
+        }
+      ],
+      "concept": "dotnet10-jit-escape-analysis",
+      "sources": [
+        {
+          "url": "https://devblogs.microsoft.com/dotnet/performance-improvements-in-net-10/",
+          "claim": "In .NET 10 the JIT can devirtualize array interface implementations, which it previously couldn't, improving LINQ operations such as Skip().Take().Sum() by about 50%.",
+          "title": "Performance Improvements in .NET 10",
+          "accessed": "2026-09-27",
+          "publisher": ".NET Blog (Microsoft)"
+        }
+      ],
+      "materials": [
+        "dotnet-10-performance"
+      ],
+      "explanation": "Before .NET 10, the JIT couldn't apply its devirtualization to interface calls on arrays (for example `IEnumerable<T>` implemented by `T[]`). .NET 10 fixes that, so LINQ pipelines over arrays typed as interfaces get much faster. Bounds-check elimination was also improved, but only where it can be proven safe, not everywhere."
+    },
+    {
+      "id": "w02-l04-q06",
+      "type": "written",
+      "lesson": "w02-l04",
+      "prompt": "Describe your escalation path with the .NET diagnostics CLI tools for three production incidents: (a) memory grows steadily, (b) CPU is pegged at 100%, (c) requests hang with low CPU. What does each tool give you, and what do you capture before restarting the process?",
+      "concept": "dotnet-diagnostics-tool-escalation",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/diagnostics/dotnet-trace",
+          "claim": "dotnet-trace collects traces from a running process via EventPipe without a native profiler; with no profile it enables dotnet-common and dotnet-sampled-thread-time; --duration bounds the trace; traces can be viewed in PerfView or Visual Studio or converted to Speedscope.",
+          "title": "dotnet-trace diagnostic tool - .NET CLI - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/diagnostics/debug-memory-leak",
+          "claim": "After confirming memory growth with dotnet-counters, collect dumps with dotnet-dump (two dumps over time to compare), restart the process as short-term remediation, and analyze with dumpheap -stat and gcroot.",
+          "title": "Debug a memory leak tutorial - .NET",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "dotnet-diagnostics"
+      ],
+      "explanation": "A senior answer picks the cheapest tool that can separate hypotheses, then targets the right deep tool, and plans evidence capture around the restart.",
+      "model_answer": {
+        "summary": "Start with `dotnet-counters` to classify the problem, then use `dotnet-dump` for memory and hangs and `dotnet-trace` for CPU and timing, capturing evidence before the restart that removes it.",
+        "key_points": [
+          "`dotnet-counters monitor`/`collect` gives low-overhead health data (heap size per generation, committed memory, CPU, thread pool, exceptions) to classify the problem first.",
+          "(a) Memory: take two `dotnet-dump collect` dumps some time apart, then use `dumpheap -stat` and `gcroot` in `dotnet-dump analyze` to find what roots the growing objects.",
+          "(b) CPU: `dotnet-trace collect` (default profiles `dotnet-common` plus `dotnet-sampled-thread-time`) for a bounded `--duration`; view it in PerfView/Visual Studio, or convert it to Speedscope on Linux.",
+          "(c) Hangs with low CPU: capture stacks (`dotnet-stack` or a dump) to find blocked threads, which often reveals sync-over-async and thread-pool starvation.",
+          "Capture dumps and traces before restarting, since a restart is the short-term fix but destroys the evidence; in containers, use the diagnostic port and run the tools as the same user as the process."
+        ]
+      }
+    },
+    {
+      "id": "w02-l04-q07",
+      "type": "written",
+      "lesson": "w02-l04",
+      "prompt": "You're asked to design the default dashboard and alerts for a set of ASP.NET Core services and the hosts they run on. Compare the RED and USE methods, say what you would show for each, and explain how you'd treat latency.",
+      "concept": "tail-latency-red-use-signals",
+      "sources": [
+        {
+          "url": "https://grafana.com/blog/2018/08/02/the-red-method-how-to-instrument-your-services/",
+          "claim": "The RED method tracks Rate (requests per second), Errors (the number of failing requests) and Duration (time taken) for request-driven services, while the USE method applies to hardware resources; they are two views of the same system.",
+          "title": "The RED Method: How to instrument your services",
+          "accessed": "2026-09-27",
+          "publisher": "Grafana Labs"
+        },
+        {
+          "url": "https://www.brendangregg.com/usemethod.html",
+          "claim": "The USE method: for every resource, check utilization (average time busy), saturation (extra work that can't be serviced, often queued) and errors (count of error events).",
+          "title": "The USE Method",
+          "accessed": "2026-09-27",
+          "publisher": "Brendan Gregg"
+        }
+      ],
+      "materials": [
+        "dotnet-diagnostics"
+      ],
+      "explanation": "A strong answer knows which method applies to which layer, and why averages and mixed success/failure latency hide incidents.",
+      "model_answer": {
+        "summary": "Use RED (rate, errors, duration) for each request-driven service and USE (utilization, saturation, errors) for each resource; show latency as a histogram with percentiles, and keep failed-request latency separate.",
+        "key_points": [
+          "RED, for services: request rate, the number of those requests that fail, and how long they take; it reflects what users experience.",
+          "USE, for resources (CPU, memory, disks, network): utilization (time busy), saturation (extra work queued that can't be serviced) and errors.",
+          "The two are complementary views of one system, and together they cover Google's four golden signals (latency, traffic, errors, saturation).",
+          "Show duration as a histogram with p50/p95/p99, not only the mean, and separate the latency of successful and failed requests.",
+          "Map runtime signals: for example, thread-pool queue length is a saturation signal for a .NET process."
+        ]
+      }
+    },
+    {
+      "id": "w02-l04-q08",
+      "type": "written",
+      "lesson": "w02-l04",
+      "prompt": "A pull request claims a 3x speedup and 'zero allocations' for a new parser, backed by a BenchmarkDotNet run on the author's laptop. What would you check before accepting the numbers?",
+      "concept": "benchmarkdotnet-measurement-pitfalls",
+      "sources": [
+        {
+          "url": "https://benchmarkdotnet.org/articles/guides/good-practices.html",
+          "claim": "Use a Release build without a debugger, use the calculation's result to avoid dead code elimination, don't extrapolate results across environments, and keep a laptop plugged in in maximum performance mode.",
+          "title": "Good Practices",
+          "accessed": "2026-09-27",
+          "publisher": "BenchmarkDotNet"
+        },
+        {
+          "url": "https://benchmarkdotnet.org/articles/configs/diagnosers.html",
+          "claim": "MemoryDiagnoser reports allocated bytes per operation, and the Gen X columns are the number of GC collections per 1000 operations for that generation.",
+          "title": "Diagnosers",
+          "accessed": "2026-09-27",
+          "publisher": "BenchmarkDotNet"
+        }
+      ],
+      "materials": [
+        "benchmarkdotnet",
+        "dotnet-10-performance"
+      ],
+      "explanation": "A senior reviewer checks both the measurement setup and the scope of the claim, and asks for a baseline and a representative environment.",
+      "model_answer": {
+        "summary": "Check that the benchmark measures real work in a valid build and environment, that allocation claims come from `MemoryDiagnoser`, and that the results are not extrapolated beyond the environment measured.",
+        "key_points": [
+          "Release build, run from the command line without a debugger (Debug can be 10-100x slower).",
+          "The benchmark consumes or returns its results, so dead code elimination can't delete the work.",
+          "'Zero allocations' is backed by `[MemoryDiagnoser]`: the Allocated column shows bytes per operation, and the Gen0/Gen1/Gen2 columns show collections per 1,000 operations.",
+          "Environment: laptop plugged in, high-performance power mode, background apps closed; results are valid only for that runtime, OS and CPU, so rerun on hardware like production before extrapolating.",
+          "Compare against a baseline in the same run, with realistic inputs."
+        ]
+      }
+    }
+  ]
+}

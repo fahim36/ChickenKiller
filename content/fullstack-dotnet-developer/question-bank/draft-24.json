@@ -1,0 +1,1344 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "oauth-pkce-code-exchange",
+      "name": "Authorization code flow with PKCE (and when to use client credentials)"
+    },
+    {
+      "id": "jwt-access-token-validation",
+      "name": "Validating JWT access tokens (and not accepting ID tokens)"
+    },
+    {
+      "id": "refresh-token-rotation-and-revocation",
+      "name": "Refresh token rotation, replay detection and revocation limits"
+    },
+    {
+      "id": "bff-cookie-session-for-spa",
+      "name": "The BFF pattern: server-side tokens and cookie sessions for SPAs"
+    },
+    {
+      "id": "authorization-handler-evaluation",
+      "name": "How ASP.NET Core evaluates requirements, handlers and resource-based policies"
+    },
+    {
+      "id": "auth-scheme-challenge-forbid",
+      "name": "Authentication schemes and challenge vs forbid"
+    },
+    {
+      "id": "entra-scopes-vs-app-roles",
+      "name": "Entra ID delegated scopes (scp) vs application roles (roles)"
+    },
+    {
+      "id": "passkey-origin-bound-credentials",
+      "name": "Passkeys: origin-bound public-key credentials in ASP.NET Core Identity"
+    },
+    {
+      "id": "ef-core-raw-sql-parameterization",
+      "name": "Parameterizing raw SQL in EF Core and Dapper"
+    },
+    {
+      "id": "csrf-antiforgery-cookie-auth",
+      "name": "CSRF, antiforgery tokens and why XSS defeats them"
+    },
+    {
+      "id": "server-side-untrusted-input-execution",
+      "name": "SSRF and unsafe deserialization: the server acting on attacker-chosen input"
+    },
+    {
+      "id": "secrets-managed-identity-key-vault",
+      "name": "Where secrets live: user secrets, Key Vault and managed identities"
+    },
+    {
+      "id": "sast-dast-pipeline-coverage",
+      "name": "What SAST and DAST each catch in a delivery pipeline"
+    },
+    {
+      "id": "dependency-and-image-scanning-gates",
+      "name": "Dependency and container image scanning as merge gates"
+    },
+    {
+      "id": "stride-threat-modeling",
+      "name": "Threat modelling with STRIDE and data flow diagrams"
+    },
+    {
+      "id": "coordinated-vulnerability-disclosure",
+      "name": "Receiving and handling a vulnerability disclosure"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w05-l01-q01",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w05-l01",
+      "prompt": "A public client (a SPA) uses the authorization code flow with PKCE and `code_challenge_method=S256`. Which attack does PKCE primarily defeat, and how does the authorization server enforce it?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It replaces the `state` parameter as the CSRF defense on the redirect; the server just compares the two returned `state` request values."
+        },
+        {
+          "id": "b",
+          "text": "It defeats code interception: the token endpoint recomputes the challenge from the verifier and rejects a mismatch with `invalid_grant`."
+        },
+        {
+          "id": "c",
+          "text": "It encrypts the access token so a stolen token cannot be replayed against the API."
+        },
+        {
+          "id": "d",
+          "text": "It authenticates the SPA with a client secret derived mathematically from the verifier, turning it into a confidential client."
+        }
+      ],
+      "concept": "oauth-pkce-code-exchange",
+      "sources": [
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc7636",
+          "claim": "PKCE mitigates the authorization code interception attack; with S256 the server checks BASE64URL-ENCODE(SHA256(ASCII(code_verifier))) == code_challenge and returns invalid_grant on mismatch.",
+          "title": "RFC 7636: Proof Key for Code Exchange by OAuth Public Clients",
+          "accessed": "2026-09-27",
+          "publisher": "RFC Editor (IETF)"
+        },
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc9700",
+          "claim": "Public clients MUST use PKCE, and PKCE is RECOMMENDED for confidential clients too.",
+          "title": "RFC 9700: Best Current Practice for OAuth 2.0 Security",
+          "accessed": "2026-09-27",
+          "publisher": "RFC Editor (IETF)"
+        }
+      ],
+      "materials": [
+        "oauth2",
+        "jwt-introduction",
+        "aspnetcore-authentication"
+      ],
+      "explanation": "PKCE binds the code to a secret only the original client knows: the challenge goes out with the authorization request, the verifier only with the token request, so an intercepted code is useless. The tempting answer (a) confuses PKCE with `state`; PKCE does not encrypt tokens (c) and does not make a public client confidential (d). RFC 9700 makes PKCE mandatory for public clients."
+    },
+    {
+      "id": "w05-l01-q02",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w05-l01",
+      "prompt": "Your API validates `RS256` access tokens. A pentester edits a token's claims, sets the header to `alg: HS256` and signs it with HMAC using the issuer's *public* RSA key as the secret. A naive validator accepts it. What is the right fix?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Shorten the access token lifetime to just five minutes so any forged token expires quickly on its own."
+        },
+        {
+          "id": "b",
+          "text": "Validate only the `iss` claim in the token, since a network attacker supposedly cannot ever change the issuer claim's value at all."
+        },
+        {
+          "id": "c",
+          "text": "Configure the validator with an explicit allowed-algorithm set and the issuer's keys; never trust the header's chosen algorithm."
+        },
+        {
+          "id": "d",
+          "text": "Encrypt the entire token payload with JWE so its algorithm header can never be read or tampered with."
+        }
+      ],
+      "concept": "jwt-access-token-validation",
+      "sources": [
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc8725",
+          "claim": "Changing RS256 to HS256 can make a vulnerable library validate with the RSA public key as the HMAC secret; libraries MUST let the caller specify a supported set of algorithms and MUST NOT use any others.",
+          "title": "RFC 8725: JSON Web Token Best Current Practices",
+          "accessed": "2026-09-27",
+          "publisher": "RFC Editor (IETF)"
+        }
+      ],
+      "materials": [
+        "oauth2",
+        "jwt-introduction",
+        "aspnetcore-authentication"
+      ],
+      "explanation": "This is the algorithm-confusion attack: the library trusted the `alg` header and used the RSA public key as an HMAC secret. RFC 8725 requires libraries to let callers specify the supported algorithms and to use no others. A short lifetime (a) only limits the window, and the forged token can carry any `iss` it likes (b)."
+    },
+    {
+      "id": "w05-l01-q03",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w05-l01",
+      "prompt": "Your authorization server uses refresh token rotation for a SPA. An attacker steals refresh token R1, but the legitimate client has already exchanged R1 for R2. The attacker now presents R1. What should a correctly implemented server do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Issue new access and refresh tokens anyway, because R1 was still valid at the exact moment it was stolen."
+        },
+        {
+          "id": "b",
+          "text": "Reject only this specific request and leave R2 valid and usable, so the real legitimate user isn't disturbed at all."
+        },
+        {
+          "id": "c",
+          "text": "Extend R1's lifetime a bit further so that both the attacker and the legitimate client can continue working."
+        },
+        {
+          "id": "d",
+          "text": "Treat reuse of an already-used token as replay and revoke the grant's active refresh token, forcing a fresh sign-in."
+        }
+      ],
+      "concept": "refresh-token-rotation-and-revocation",
+      "sources": [
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc9700",
+          "claim": "Refresh tokens for public clients must be sender-constrained or use rotation; with rotation, reuse of a previously used refresh token is recognised as replay and the server can revoke the associated tokens.",
+          "title": "RFC 9700: Best Current Practice for OAuth 2.0 Security",
+          "accessed": "2026-09-27",
+          "publisher": "RFC Editor (IETF)"
+        }
+      ],
+      "materials": [
+        "oauth2",
+        "jwt-introduction",
+        "aspnetcore-authentication"
+      ],
+      "explanation": "Rotation makes every refresh token single-use. When a used token appears again the server cannot tell which party is the attacker, so it revokes the grant's active tokens; that is what makes rotation a theft detector. Rejecting only the second request (b) leaves the attacker able to win the race next time. RFC 9700 requires public-client refresh tokens to be either sender-constrained or rotated."
+    },
+    {
+      "id": "w05-l01-q04",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w05-l01",
+      "prompt": "A user reports a stolen laptop. You revoke their refresh token at the authorization server's RFC 7009 revocation endpoint. Your API validates self-contained JWT access tokens locally with `AddJwtBearer`. What happens to an access token the attacker already holds?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It keeps working until it expires, since the API validates it locally without contacting the authorization server."
+        },
+        {
+          "id": "b",
+          "text": "It stops working immediately and completely, because the revocation call rotates the issuer's entire signing key pair."
+        },
+        {
+          "id": "c",
+          "text": "It stops working at once, because the JWT bearer handler silently calls the revocation endpoint on every incoming request."
+        },
+        {
+          "id": "d",
+          "text": "It stops working only after the default five-minute clock skew window configured for token validation has passed."
+        }
+      ],
+      "concept": "refresh-token-rotation-and-revocation",
+      "sources": [
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc7009",
+          "claim": "Access tokens may be self-contained so the resource server needs no interaction with the authorization server; immediate revocation of such tokens is hard without back-end mechanisms or short-lived tokens.",
+          "title": "RFC 7009: OAuth 2.0 Token Revocation",
+          "accessed": "2026-09-27",
+          "publisher": "RFC Editor (IETF)"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/security/authentication/configure-jwt-bearer-authentication",
+          "claim": "The article notes that when you use OAuth introspection you use a reference token, and that access tokens expire and need to be rotated.",
+          "title": "Configure JWT bearer authentication in ASP.NET Core",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "oauth2",
+        "jwt-introduction",
+        "aspnetcore-authentication"
+      ],
+      "explanation": "RFC 7009 says revoking a refresh token should also invalidate access tokens from the same grant *where the server can*, but a self-contained JWT is checked by signature and expiry alone, so the API never learns of the revocation. The JWT bearer handler does not call a revocation endpoint (c). Clock skew only widens the expiry check (d)."
+    },
+    {
+      "id": "w05-l01-q05",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w05-l01",
+      "prompt": "Which statement correctly describes the Backend-for-Frontend (BFF) pattern for a React SPA calling your APIs?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The SPA stays the OAuth client and keeps the access token in `sessionStorage`; the BFF is only a reverse proxy."
+        },
+        {
+          "id": "b",
+          "text": "Because the session cookie is `HttpOnly`, XSS anywhere in the SPA can no longer cause any harm whatsoever, so CSP and output encoding become fully optional."
+        },
+        {
+          "id": "c",
+          "text": "The BFF is a confidential client keeping tokens server-side; the browser holds only a `Secure`, `HttpOnly` cookie, and CSRF defenses are still needed."
+        },
+        {
+          "id": "d",
+          "text": "The BFF signs every API request with a key stored in the browser's IndexedDB."
+        }
+      ],
+      "concept": "bff-cookie-session-for-spa",
+      "sources": [
+        {
+          "url": "https://datatracker.ietf.org/doc/html/draft-ietf-oauth-browser-based-apps",
+          "claim": "In the BFF pattern the BFF is the confidential OAuth client, tokens stay server-side, and the browser authenticates with cookies that MUST be Secure and HttpOnly (SameSite=Strict recommended); the BFF also applies CSRF protections.",
+          "title": "OAuth 2.0 for Browser-Based Applications (draft-ietf-oauth-browser-based-apps-27)",
+          "accessed": "2026-09-27",
+          "publisher": "IETF Datatracker"
+        }
+      ],
+      "materials": [
+        "oauth2",
+        "jwt-introduction",
+        "aspnetcore-authentication"
+      ],
+      "explanation": "In the BFF pattern the browser never sees OAuth tokens, which removes token theft by script, but any cookie-authenticated backend is exposed to CSRF, so SameSite, CORS preflight with custom headers or antiforgery tokens are still required. Answer (b) is the tempting over-claim: `HttpOnly` stops injected script from reading the cookie, not from making requests from the victim's page."
+    },
+    {
+      "id": "w05-l01-q06",
+      "type": "written",
+      "lesson": "w05-l01",
+      "prompt": "Walk through the OAuth 2.0 authorization code flow with PKCE for a React SPA that signs users in with OIDC and calls your ASP.NET Core API. Then explain when you would use the client credentials grant instead, and what changes.",
+      "concept": "oauth-pkce-code-exchange",
+      "sources": [
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc7636",
+          "claim": "The code verifier is a 43-128 character high-entropy random string; clients capable of S256 MUST use it, and the server compares the transformed verifier with the stored challenge at the token endpoint.",
+          "title": "RFC 7636: Proof Key for Code Exchange by OAuth Public Clients",
+          "accessed": "2026-09-27",
+          "publisher": "RFC Editor (IETF)"
+        },
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc6749",
+          "claim": "The client credentials grant MUST only be used by confidential clients, and a refresh token SHOULD NOT be included in its token response.",
+          "title": "RFC 6749: The OAuth 2.0 Authorization Framework",
+          "accessed": "2026-09-27",
+          "publisher": "RFC Editor (IETF)"
+        }
+      ],
+      "materials": [
+        "oauth2",
+        "jwt-introduction",
+        "aspnetcore-authentication"
+      ],
+      "explanation": "A senior answer explains *why* each step exists (what PKCE, `state` and `nonce` each defend against) rather than listing redirects, and knows that RFC 9700 retires the implicit and password grants. Mentioning that client credentials must never run in a browser, because it needs a secret, separates good from average answers.",
+      "model_answer": {
+        "summary": "The client sends an S256 code challenge with the authorization request, redeems the returned code with the matching verifier, and receives an ID token for itself and an audience-restricted access token for the API. Client credentials is for a confidential client acting as itself, with no user.",
+        "key_points": [
+          "The client generates a high-entropy `code_verifier` and sends `code_challenge = BASE64URL(SHA256(verifier))` with `code_challenge_method=S256` (plus `state` and an OIDC `nonce`) on the authorization request",
+          "After the user authenticates, the code returns on the registered redirect URI; the client redeems it at the token endpoint with the `code_verifier`, and the server rejects a mismatch with `invalid_grant`, so an intercepted code is useless",
+          "The response carries an ID token (for the client, proving authentication) and an access token audience-restricted to the API; implicit and password grants are not used",
+          "Client credentials: only for confidential clients with no user involved (service-to-service); it yields an application token and a refresh token should not be issued",
+          "When a user is involved, prefer delegated tokens over a client-credentials token that has full application access"
+        ]
+      }
+    },
+    {
+      "id": "w05-l01-q07",
+      "type": "written",
+      "lesson": "w05-l01",
+      "prompt": "A teammate's React app sends the OIDC ID token as the bearer token to your ASP.NET Core API, and the API accepts it. Explain what is wrong, and list the JWT bearer validation settings you would configure, with the reason for each.",
+      "concept": "jwt-access-token-validation",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/security/authentication/configure-jwt-bearer-authentication",
+          "claim": "ID tokens should never be used to access APIs; an API should validate the signature, the issuer, the audience and the token expiration, and return 401 if any is incorrect.",
+          "title": "Configure JWT bearer authentication in ASP.NET Core",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://openid.net/specs/openid-connect-core-1_0.html",
+          "claim": "An ID token's aud claim must contain the OAuth 2.0 client_id of the relying party, and clients must validate signature, issuer, audience and expiry.",
+          "title": "OpenID Connect Core 1.0 incorporating errata set 2",
+          "accessed": "2026-09-27",
+          "publisher": "OpenID Foundation"
+        }
+      ],
+      "materials": [
+        "oauth2",
+        "jwt-introduction",
+        "aspnetcore-authentication"
+      ],
+      "explanation": "The key insight is audience: accepting a token minted for someone else is how the confused-deputy problem arises. Strong candidates also know that the defaults in `AddJwtBearer` with `Authority` and `Audience` already cover most of this, and that clients should treat access tokens as opaque.",
+      "model_answer": {
+        "summary": "An ID token is proof of authentication for the client (its `aud` is the client ID) and must never be used to call APIs. The API should accept only access tokens issued for it, fully validated: signature, issuer, audience and lifetime.",
+        "key_points": [
+          "ID tokens are for the relying party (`aud` contains the client_id); the API must accept only access tokens whose `aud` is the API itself, otherwise it acts as a confused deputy",
+          "Signature: keys come from the issuer's metadata (`Authority`/`MetadataAddress`, JWKS); use asymmetric keys and a fixed algorithm set",
+          "Issuer and audience: `ValidateIssuer`/`ValidIssuers` and `Audience`/`ValidAudiences` set to the expected values",
+          "Lifetime: reject expired tokens (`exp`) with only a small clock skew",
+          "Return 401 for an invalid token and 403 for insufficient permissions; the API does not redirect to the identity provider, and a fallback policy requires authentication by default"
+        ]
+      }
+    },
+    {
+      "id": "w05-l01-q08",
+      "type": "written",
+      "lesson": "w05-l01",
+      "prompt": "Cookies or tokens for a React SPA calling your own ASP.NET Core API? Make a recommendation, justify it, and name the risks each option still leaves you with.",
+      "concept": "bff-cookie-session-for-spa",
+      "sources": [
+        {
+          "url": "https://datatracker.ietf.org/doc/html/draft-ietf-oauth-browser-based-apps",
+          "claim": "The BFF keeps tokens server-side and uses HttpOnly, Secure cookies (SameSite=Strict recommended), applies CSRF defenses, and never exposes tokens to browser JavaScript.",
+          "title": "OAuth 2.0 for Browser-Based Applications (draft-ietf-oauth-browser-based-apps-27)",
+          "accessed": "2026-09-27",
+          "publisher": "IETF Datatracker"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/security/authentication/configure-jwt-bearer-authentication",
+          "claim": "Storing access tokens in browser local storage, session storage or web workers is insecure; secure web apps need a backend that stores the tokens, with only a secure HTTP-only cookie on the client.",
+          "title": "Configure JWT bearer authentication in ASP.NET Core",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "oauth2",
+        "jwt-introduction",
+        "aspnetcore-authentication"
+      ],
+      "explanation": "The weak answer is \"JWTs are stateless, so use tokens\". A senior answer frames it as XSS exposure against CSRF exposure, explains why a server-side session reduces what an XSS attacker can steal, and names the CSRF mitigations that cookies then require.",
+      "model_answer": {
+        "summary": "Prefer a BFF: the server holds the tokens and the browser holds only a Secure, HttpOnly, SameSite session cookie. Tokens in browser storage are exposed to any script that runs on the page, while cookies bring CSRF, which you must defend against explicitly.",
+        "key_points": [
+          "Access tokens in `localStorage`/`sessionStorage` can be read by any script on the origin, so one XSS bug can exfiltrate them; Microsoft's guidance advises against storing access tokens in browser storage",
+          "In a BFF, the BFF is a confidential client that stores tokens server-side; the browser gets a `Secure`, `HttpOnly` cookie, ideally `SameSite=Strict`",
+          "Cookies are attached automatically, so CSRF defenses are required (SameSite, CORS preflight with a custom header, or antiforgery tokens); a bearer header is not CSRF-prone but moves the risk to XSS",
+          "Refresh tokens held in a browser must be rotated or sender-constrained",
+          "The trade-off: the BFF is an extra component and hop, which is justified for sensitive data and when the SPA and API share a site"
+        ]
+      }
+    },
+    {
+      "id": "w05-l02-q01",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w05-l02",
+      "prompt": "Policy `CanEditDocument` has one requirement, `EditDocumentRequirement`. Two handlers are registered for it: `OwnerHandler` calls `context.Succeed(requirement)` when the user owns the document, and `AdminHandler` does so when the user is in role `Admin`. Neither ever calls `context.Fail()`. An admin who is not the owner tries to edit. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Denied, because every single registered handler for the requirement must independently succeed to pass."
+        },
+        {
+          "id": "b",
+          "text": "Allowed: several handlers act as OR, so one `Succeed` meets it, and returning without succeeding doesn't fail it."
+        },
+        {
+          "id": "c",
+          "text": "It depends entirely on registration order, because whichever handler happens to run first always decides the outcome."
+        },
+        {
+          "id": "d",
+          "text": "It throws an exception at application startup, because a single requirement is only allowed to have one handler."
+        }
+      ],
+      "concept": "authorization-handler-evaluation",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/security/authorization/policies",
+          "claim": "Multiple handlers for one requirement give OR evaluation; a handler need not handle failure because other handlers may succeed; context.Fail guarantees failure; multiple requirements in a policy are ANDed; handlers can run in any order.",
+          "title": "Policy-based authorization in ASP.NET Core",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "aspnetcore-authorization",
+        "entra-identity-platform",
+        "aspnetcore-passkeys"
+      ],
+      "explanation": "ASP.NET Core documents several handlers per requirement as the way to get OR semantics, and says a handler does not need to handle failure because another handler may succeed. Only `context.Fail()` vetoes. AND semantics (a) apply between *requirements* in one policy, not between handlers. Handlers run in any order, so order never decides (c)."
+    },
+    {
+      "id": "w05-l02-q02",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w05-l02",
+      "prompt": "A daemon service calls your Entra ID-protected API with a token it obtained through the client credentials flow. The action has `[RequiredScope(\"access_as_user\")]` and rejects the call. Why, and what should the API check instead?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The token's signature is invalid, because daemon tokens are signed with the client secret."
+        },
+        {
+          "id": "b",
+          "text": "The daemon must send an ID token rather than an access token."
+        },
+        {
+          "id": "c",
+          "text": "Entra ID never issues tokens to daemon apps for custom APIs at all; the daemon must impersonate a service account instead."
+        },
+        {
+          "id": "d",
+          "text": "App-only tokens carry permissions in the `roles` claim, not `scp`; require an app role such as `access_as_application`."
+        }
+      ],
+      "concept": "entra-scopes-vs-app-roles",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/entra/identity-platform/scenario-protected-web-api-verification-scope-app-roles",
+          "claim": "APIs verify scopes (scp) when called on behalf of users and app roles (the roles claim) when called by daemon apps, for example with [Authorize(Roles = \"access_as_application\")]; declare different roles for users and apps.",
+          "title": "Verify scopes and app roles protected web API - Microsoft identity platform",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "aspnetcore-authorization",
+        "entra-identity-platform",
+        "aspnetcore-passkeys"
+      ],
+      "explanation": "`[RequiredScope]` checks the `scp` (or scope) claim, which exists only in delegated, on-behalf-of-a-user tokens. A daemon has application permissions, which Entra ID puts in `roles`. Microsoft recommends different role names for users and for apps, so that a check on a role never lets a user pass as an app or the reverse."
+    },
+    {
+      "id": "w05-l02-q03",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w05-l02",
+      "prompt": "An API uses JWT bearer as its only authentication scheme. An anonymous caller and an authenticated caller who lacks the required policy both call the same protected endpoint. What does each receive?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Both receive 401, because authorization failed in both cases."
+        },
+        {
+          "id": "b",
+          "text": "The anonymous caller gets a 302 redirect to a login page instead of an error, while the authenticated caller simply gets 403."
+        },
+        {
+          "id": "c",
+          "text": "The anonymous caller gets a *challenge* (401, `WWW-Authenticate: Bearer`); the authenticated one gets a *forbid* (403)."
+        },
+        {
+          "id": "d",
+          "text": "The anonymous caller gets 403 and the authenticated caller gets 401."
+        }
+      ],
+      "concept": "auth-scheme-challenge-forbid",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/security/authentication/",
+          "claim": "A JWT bearer challenge returns 401 with a www-authenticate: bearer header, a cookie challenge redirects to a login page, and a JWT bearer forbid returns 403; with a single registered scheme it becomes the default.",
+          "title": "Overview of ASP.NET Core Authentication",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "aspnetcore-authorization",
+        "aspnetcore-authentication",
+        "entra-identity-platform"
+      ],
+      "explanation": "Authorization calls the scheme's challenge when the user is unauthenticated and its forbid when an authenticated user is not permitted. For JWT bearer those are 401 with a `WWW-Authenticate` header and 403. A login redirect (b) is the *cookie* scheme's challenge, which is why a mixed-scheme app must stop cookie redirects on API routes."
+    },
+    {
+      "id": "w05-l02-q04",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w05-l02",
+      "prompt": "Your ASP.NET Core API is protected by Microsoft Entra ID and every controller has only `[Authorize]`. According to Microsoft's guidance, what gap remains?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`[Authorize]` only checks that a token was validated; also check `scp` for delegated calls and `roles` for daemon calls."
+        },
+        {
+          "id": "b",
+          "text": "None: `[Authorize]` automatically checks the API's expected scopes whenever `AddMicrosoftIdentityWebApi` is used in Startup."
+        },
+        {
+          "id": "c",
+          "text": "The API must also validate the caller's ID token on each request."
+        },
+        {
+          "id": "d",
+          "text": "The API must call Microsoft Graph on every request to confirm the user still exists."
+        }
+      ],
+      "concept": "entra-scopes-vs-app-roles",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/entra/identity-platform/scenario-protected-web-api-verification-scope-app-roles",
+          "claim": "Adding [Authorize] guarantees only that ASP.NET Core validates the token; the API must also verify scopes for calls on behalf of users and app roles for daemon apps.",
+          "title": "Verify scopes and app roles protected web API - Microsoft identity platform",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "aspnetcore-authorization",
+        "entra-identity-platform",
+        "aspnetcore-passkeys"
+      ],
+      "explanation": "Microsoft is explicit that `[Authorize]` alone \"isn't enough\": any token issued to your API's audience passes, including a token issued to some other client app with no permission for this operation. Scope and role checks are what make the API's permission model real. Answer (b) is the common assumption."
+    },
+    {
+      "id": "w05-l02-q05",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w05-l02",
+      "prompt": "Why are passkeys in ASP.NET Core Identity (.NET 10) considered phishing-resistant, and which deployment detail can undermine that?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The server stores a salted hash of the private key itself, so a leaked database cannot ever be replayed; the risk is a weak hash algorithm choice."
+        },
+        {
+          "id": "b",
+          "text": "The credential is bound to the RP's domain; the server stores only a public key. Without `ServerDomain` set, the RP ID comes from the Host header."
+        },
+        {
+          "id": "c",
+          "text": "Each sign-in sends a one-time code by SMS, so phishing is useless; the risk is SIM swapping."
+        },
+        {
+          "id": "d",
+          "text": "The browser encrypts the password with TLS client certificates; the risk is an expired certificate."
+        }
+      ],
+      "concept": "passkey-origin-bound-credentials",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/security/authentication/passkeys",
+          "claim": "Passkeys are phishing-resistant because they are bound to specific websites; the server stores only public keys; when ServerDomain isn't configured the RP ID is inferred from the host header, which the hosting environment must validate.",
+          "title": "Enable Web Authentication API (WebAuthn) passkeys",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "aspnetcore-authorization",
+        "entra-identity-platform",
+        "aspnetcore-passkeys"
+      ],
+      "explanation": "A passkey's private key never leaves the authenticator, and the credential only works for the site it was registered with, so a look-alike domain gets nothing usable. The server keeps only public keys. Microsoft warns that with `ServerDomain` unset the RP ID comes from the Host header, so either set it explicitly or make Kestrel, IIS or the proxy validate host headers."
+    },
+    {
+      "id": "w05-l02-q06",
+      "type": "written",
+      "lesson": "w05-l02",
+      "prompt": "Implement \"only the document's owner or an admin can edit it\" in ASP.NET Core. Explain why `[Authorize(Policy = \"CanEdit\")]` on the endpoint is not enough, describe the requirement and handler(s) and their registration, and say what the endpoint returns when authorization fails.",
+      "concept": "authorization-handler-evaluation",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/security/authorization/resourcebased",
+          "claim": "Attribute evaluation occurs before data binding and before any method that loads a resource, so resource-based authorization needs imperative calls to IAuthorizationService.AuthorizeAsync, with handlers such as AuthorizationHandler<SameAuthorRequirement, Document> or OperationAuthorizationRequirement.",
+          "title": "Resource-based authorization in ASP.NET Core",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/security/authorization/policies",
+          "claim": "Handlers are registered in the service collection with any built-in lifetime; context.Succeed marks a requirement met and context.Fail guarantees failure.",
+          "title": "Policy-based authorization in ASP.NET Core",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "aspnetcore-authorization",
+        "entra-identity-platform",
+        "aspnetcore-passkeys"
+      ],
+      "explanation": "Candidates often put the ownership check inline in the controller. A senior answer uses the framework's resource-based model so the rule is reusable and testable, knows why the attribute cannot see the resource, and has a deliberate 403-versus-404 policy.",
+      "model_answer": {
+        "summary": "Attribute authorization runs before the document is loaded, so the check must be imperative: load the document, then call `IAuthorizationService.AuthorizeAsync(user, document, requirement)` with a resource-based handler. Return 403 (or 404) to an authenticated user who is refused, and challenge an anonymous one.",
+        "key_points": [
+          "Attribute evaluation happens before data binding and before the resource is loaded, so resource-based rules need imperative authorization with `IAuthorizationService.AuthorizeAsync(user, resource, policy or requirements)`",
+          "A handler derives from `AuthorizationHandler<TRequirement, Document>` (for example with `OperationAuthorizationRequirement` for Update) and calls `context.Succeed` when the user is the owner or is in role `Admin`; two separate handlers would also give OR semantics",
+          "Register the handler as `IAuthorizationHandler` in DI, with a lifetime that suits its dependencies, and register the policy with `AddAuthorizationBuilder().AddPolicy(...)`",
+          "When authorization fails: an authenticated user gets Forbid (403), or 404 to avoid revealing that the document exists; an unauthenticated user gets a Challenge (401)",
+          "Call `context.Fail()` only to veto, and never rely on the order in which handlers run"
+        ]
+      }
+    },
+    {
+      "id": "w05-l02-q07",
+      "type": "written",
+      "lesson": "w05-l02",
+      "prompt": "Your ASP.NET Core app serves Razor Pages with cookie authentication and also exposes `/api` endpoints that mobile clients call with JWT bearer tokens. Explain how authentication schemes, the default scheme and challenge/forbid behave here, and how you would configure it so API calls get 401/403 rather than login redirects.",
+      "concept": "auth-scheme-challenge-forbid",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/security/authentication/",
+          "claim": "Schemes are handlers plus options with authenticate, challenge and forbid actions; cookie challenges redirect to login while JWT challenges return 401; with multiple schemes and no default an InvalidOperationException is thrown.",
+          "title": "Overview of ASP.NET Core Authentication",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/security/authentication/configure-jwt-bearer-authentication",
+          "claim": "AddPolicyScheme can select an authentication scheme based on token properties; SetFallbackPolicy requires authentication when no endpoint policy applies; with multiple schemes, specify the bearer scheme in [Authorize].",
+          "title": "Configure JWT bearer authentication in ASP.NET Core",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "aspnetcore-authorization",
+        "aspnetcore-authentication",
+        "entra-identity-platform"
+      ],
+      "explanation": "The classic production bug is a mobile client receiving an HTML login page with a 302 because the cookie scheme's challenge ran. A senior answer ties that symptom to the scheme model and names both fixes: a per-endpoint scheme or a policy scheme.",
+      "model_answer": {
+        "summary": "Each scheme is a handler plus options, with its own authenticate, challenge and forbid behaviour. With two schemes you must choose defaults deliberately and tell API endpoints to use the bearer scheme, directly or through a policy scheme that forwards by request.",
+        "key_points": [
+          "A scheme is a named handler plus its options; it implements authenticate, challenge and forbid",
+          "The cookie challenge redirects to the login page and its forbid redirects to an access-denied page; the JWT challenge returns 401 with `WWW-Authenticate: Bearer` and its forbid returns 403",
+          "With several schemes and no default scheme, an `InvalidOperationException` is thrown; set the default scheme explicitly and specify `AuthenticationSchemes` on the API endpoints or policies",
+          "Alternatively, `AddPolicyScheme` can forward to the bearer or cookie scheme based on the request (for example, whether an `Authorization` header is present)",
+          "Authentication alone does not restrict access; use a fallback policy that requires an authenticated user, and `AllowAnonymous` for public endpoints"
+        ]
+      }
+    },
+    {
+      "id": "w05-l02-q08",
+      "type": "written",
+      "lesson": "w05-l02",
+      "prompt": "Product wants passkey sign-in in your ASP.NET Core 10 app. Explain how passkey registration and sign-in work, what the server stores, and the security caveats you would raise before shipping.",
+      "concept": "passkey-origin-bound-credentials",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/security/authentication/passkeys",
+          "claim": "Attestation registers a new key pair and stores the public key; assertion verifies a signed challenge; the implementation doesn't validate attestation statements by default, is scoped to authentication, ships in the Blazor Web App template, and infers the RP ID from the host header when ServerDomain is unset.",
+          "title": "Enable Web Authentication API (WebAuthn) passkeys",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "aspnetcore-authorization",
+        "entra-identity-platform",
+        "aspnetcore-passkeys"
+      ],
+      "explanation": "Most candidates can say \"public-key crypto, phishing-resistant\". A senior answer knows the operational caveats: RP ID scoping, account recovery when a device is lost, and what the framework deliberately leaves out.",
+      "model_answer": {
+        "summary": "Registration (attestation) creates a key pair on the authenticator and stores its public key on the server. Sign-in (assertion) signs a server challenge with the private key. The caveats concern domain scoping, attestation validation, account recovery and the scope of the built-in implementation.",
+        "key_points": [
+          "Attestation: the server issues a challenge, the authenticator creates a key pair and returns the public key with attestation data, and the server verifies it and stores the public key",
+          "Assertion: the server issues a challenge, the authenticator signs it with the private key, and the server verifies the signature with the stored public key",
+          "Phishing resistance and no shared secrets: credentials are bound to the site, the private key never leaves the device, and the database holds only public keys",
+          "Set `ServerDomain` explicitly or validate host headers, and do not host untrusted content on subdomains within its scope",
+          "Attestation statements are not validated by default (use `VerifyAttestationStatement` if you must restrict authenticators); keep a backup sign-in method for recovery; the built-in support is scoped to authentication, is only in the Blazor Web App template, and calling `IPasskeyHandler` directly makes you responsible for protecting the attestation state"
+        ]
+      }
+    },
+    {
+      "id": "w05-l03-q01",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w05-l03",
+      "prompt": "`name` comes straight from the query string. Which EF Core call is vulnerable to SQL injection?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`context.Users.FromSql($\"SELECT * FROM Users WHERE Name = {name}\")`"
+        },
+        {
+          "id": "b",
+          "text": "`context.Users.Where(u => u.Name == name)`"
+        },
+        {
+          "id": "c",
+          "text": "`context.Users.FromSqlRaw($\"SELECT * FROM Users WHERE Name = '{name}'\")`"
+        },
+        {
+          "id": "d",
+          "text": "`context.Database.ExecuteSql($\"UPDATE Users SET Active = 0 WHERE Name = {name}\")`"
+        }
+      ],
+      "concept": "ef-core-raw-sql-parameterization",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/ef/core/querying/sql-queries",
+          "claim": "FromSql and FromSqlInterpolated wrap interpolated values in a DbParameter and are safe against SQL injection, while FromSqlRaw can be vulnerable if improperly used; ExecuteSql parameterizes like FromSql.",
+          "title": "SQL Queries - EF Core",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "owasp-top-ten",
+        "owasp-cheat-sheets"
+      ],
+      "explanation": "`FromSql` and `ExecuteSql` take a `FormattableString`, and EF Core turns each interpolated hole into a `DbParameter`, so (a) and (d) are safe even though they look like string interpolation. `FromSqlRaw` receives an ordinary, already-built string, so the value is spliced directly into the SQL text. The trap is that (a) and (c) look almost identical."
+    },
+    {
+      "id": "w05-l03-q02",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w05-l03",
+      "prompt": "Which endpoint needs antiforgery (CSRF) protection?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A `POST` endpoint that a browser form submits to, authenticated by the site's session cookie."
+        },
+        {
+          "id": "b",
+          "text": "An API called by a SPA that sends an access token in the `Authorization: Bearer` header and uses no cookies."
+        },
+        {
+          "id": "c",
+          "text": "A machine-to-machine webhook that authenticates each call with an HMAC signature header."
+        },
+        {
+          "id": "d",
+          "text": "A `GET` endpoint that returns only public, non-personalised data."
+        }
+      ],
+      "concept": "csrf-antiforgery-cookie-auth",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/security/anti-request-forgery",
+          "claim": "CSRF is a concern for cookie-based authentication because browsers send cookies automatically; APIs that use bearer tokens in the Authorization header aren't vulnerable; Minimal API form binding requires antiforgery validation from .NET 8.",
+          "title": "Prevent Cross-Site Request Forgery (XSRF/CSRF) attacks in ASP.NET Core",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "owasp-top-ten",
+        "owasp-cheat-sheets"
+      ],
+      "explanation": "CSRF works because browsers attach cookies to cross-site requests automatically. A cookie-authenticated, state-changing form post is the textbook target, and Razor Pages, MVC and Minimal API form binding validate antiforgery tokens for it. Credentials a malicious site cannot make the browser attach, such as a bearer header (b) or an HMAC signature (c), are not CSRF-prone."
+    },
+    {
+      "id": "w05-l03-q03",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w05-l03",
+      "prompt": "A \"generate a link preview for any URL\" feature must be hardened against SSRF. Which set of controls follows OWASP's guidance?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Reject URLs whose visible text merely matches `localhost` or `127.0.0.1` using a simple regular expression check."
+        },
+        {
+          "id": "b",
+          "text": "Allow only `https://` URLs, since TLS alone reliably and completely stops requests from ever reaching internal network hosts entirely."
+        },
+        {
+          "id": "c",
+          "text": "Validate the URL once when the user first submits it, then cache that same decision for all future fetches."
+        },
+        {
+          "id": "d",
+          "text": "Allowlist destinations, validate every resolved IP against private ranges and the metadata endpoint, disable redirects, and restrict egress."
+        }
+      ],
+      "concept": "server-side-untrusted-input-execution",
+      "sources": [
+        {
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html",
+          "claim": "Allowlists are preferred and denylists are bypass-prone; validate all resolved A/AAAA records against DNS rebinding, disable redirects, block cloud metadata at 169.254.169.254, use network-layer egress controls, and validate IPs with libraries such as IPAddress.TryParse.",
+          "title": "Server-Side Request Forgery Prevention Cheat Sheet",
+          "accessed": "2026-09-27",
+          "publisher": "OWASP Cheat Sheet Series"
+        }
+      ],
+      "materials": [
+        "owasp-top-ten",
+        "owasp-cheat-sheets"
+      ],
+      "explanation": "String denylists (a) are bypassed with alternative IP encodings and DNS names that resolve to internal addresses. Validating once (c) opens a DNS rebinding and time-of-check-to-time-of-use (TOCTOU) window. Redirects can bounce an approved URL to an internal one. OWASP prefers allowlists, IP validation with a proper parser such as `IPAddress.TryParse`, redirects turned off, and network egress controls as a second layer."
+    },
+    {
+      "id": "w05-l03-q04",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w05-l03",
+      "prompt": "Which statement about secrets in an ASP.NET Core app is correct?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Secret Manager encrypts `secrets.json` with DPAPI, so it is fine to use on staging servers."
+        },
+        {
+          "id": "b",
+          "text": "Secret Manager stores values unencrypted in a JSON file in the user profile and is dev-only; production secrets belong in a store like Key Vault."
+        },
+        {
+          "id": "c",
+          "text": "Environment variables are always encrypted at rest by the operating system, so they are the safest possible place for production connection strings."
+        },
+        {
+          "id": "d",
+          "text": "`appsettings.Production.json` is a safe place for secrets as long as it is excluded from the Docker image."
+        }
+      ],
+      "concept": "secrets-managed-identity-key-vault",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/security/app-secrets",
+          "claim": "Secret Manager doesn't encrypt stored secrets and is for development only; environment variables are commonly stored as plain text; production secrets should be accessed through a controlled means like Azure Key Vault.",
+          "title": "Safe storage of app secrets in development",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "owasp-top-ten",
+        "owasp-cheat-sheets"
+      ],
+      "explanation": "Microsoft warns that Secret Manager does not encrypt secrets and is not a trusted store; its only benefit is keeping secrets out of the project tree and source control. Environment variables are typically plain text and readable if the machine or process is compromised (c). Configuration files that can be committed must never hold secrets (d)."
+    },
+    {
+      "id": "w05-l03-q05",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w05-l03",
+      "prompt": "A legacy service deserializes a cookie payload with `BinaryFormatter`, using a custom `SerializationBinder` that allowlists types. It runs on .NET 8, and the team asks whether that is acceptable. What is accurate?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It is fully acceptable and safe, since the custom binder thoroughly blocks every dangerous type from loading."
+        },
+        {
+          "id": "b",
+          "text": "It is acceptable, because the cookie payload was originally created and signed by our own trusted application code."
+        },
+        {
+          "id": "c",
+          "text": "Switch immediately to `NetDataContractSerializer` instead, since it is a fully safe and secure drop-in replacement for this exact purpose."
+        },
+        {
+          "id": "d",
+          "text": "It is not acceptable: `BinaryFormatter` can't be made secure. A binder doesn't stop DoS vectors, and .NET 9+ throws by default."
+        }
+      ],
+      "concept": "server-side-untrusted-input-execution",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/standard/serialization/binaryformatter-security-guide",
+          "claim": "BinaryFormatter is insecure and can't be made secure; its DoS attacks can't be mitigated with a SerializationBinder; from .NET 9 it throws on use; NetDataContractSerializer is equally dangerous; System.Text.Json is a preferred alternative.",
+          "title": "Deserialization risks in use of BinaryFormatter and related types",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "owasp-top-ten",
+        "owasp-cheat-sheets"
+      ],
+      "explanation": "Microsoft calls `BinaryFormatter` insecure and unfixable and says its DoS attacks cannot be mitigated with a `SerializationBinder`. A cookie crosses a trust boundary because the client controls it, so the \"our own data\" argument (b) fails. `NetDataContractSerializer` (c) does the same unrestricted polymorphic deserialization and is listed as equally dangerous."
+    },
+    {
+      "id": "w05-l03-q06",
+      "type": "written",
+      "lesson": "w05-l03",
+      "prompt": "You are auditing a codebase that mixes EF Core LINQ, EF Core raw SQL and Dapper. Describe how you would find and fix SQL injection risks, including an endpoint where the user chooses the sort column.",
+      "concept": "ef-core-raw-sql-parameterization",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/ef/core/querying/sql-queries",
+          "claim": "Databases don't allow parameterizing column names; with FromSqlRaw it is your responsibility to make interpolated identifiers safe, while values passed as DbParameter are safe.",
+          "title": "SQL Queries - EF Core",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html",
+          "claim": "Parameterized queries are the primary defense; when bind variables can't be used (table or column names), map input to legal values or convert sort order to non-string types; escaping is strongly discouraged; apply least privilege.",
+          "title": "SQL Injection Prevention Cheat Sheet",
+          "accessed": "2026-09-28",
+          "publisher": "OWASP Cheat Sheet Series"
+        }
+      ],
+      "materials": [
+        "owasp-top-ten",
+        "owasp-cheat-sheets"
+      ],
+      "explanation": "Juniors say \"we use an ORM, so we're safe\". A senior knows exactly which EF APIs are safe, why interpolation is safe in `FromSql` but not in `FromSqlRaw`, and how to handle dynamic identifiers that no parameter can protect.",
+      "model_answer": {
+        "summary": "Search for places where SQL text is built from strings and make sure every value travels as a parameter. Column names and sort direction cannot be parameters, so map them from an allowlist. Add least privilege as defense in depth.",
+        "key_points": [
+          "Values must always be parameters: EF Core `FromSql`/`ExecuteSql`/`SqlQuery` interpolation becomes a `DbParameter`; in Dapper, pass a parameters object and never concatenate",
+          "Red flags to search for: `FromSqlRaw`, `ExecuteSqlRaw` and `SqlQueryRaw` called with concatenated or interpolated strings, and `string.Format` or `+` used to build SQL",
+          "Identifiers such as column names cannot be parameterized: map the user's choice onto an allowlist of known columns (or an enum) and convert sort direction to a non-string type",
+          "Escaping user input is a fragile last resort and must not be the main defense",
+          "Defense in depth: a least-privilege database account for the app, plus tests or analyzers that flag raw SQL"
+        ]
+      }
+    },
+    {
+      "id": "w05-l03-q07",
+      "type": "written",
+      "lesson": "w05-l03",
+      "prompt": "How does ASP.NET Core protect against CSRF, when do you need that protection, and why does antiforgery stop helping if the app also has an XSS bug (for example, a user's bio rendered with `Html.Raw`)?",
+      "concept": "csrf-antiforgery-cookie-auth",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/security/anti-request-forgery",
+          "claim": "ASP.NET Core uses the synchronizer token pattern with a cookie token and a request token; Razor Pages/MVC validate automatically; Minimal APIs require AddAntiforgery and UseAntiforgery; .NET 11 adds Fetch Metadata-based CSRF middleware.",
+          "title": "Prevent Cross-Site Request Forgery (XSRF/CSRF) attacks in ASP.NET Core",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/security/cross-site-scripting",
+          "claim": "Razor automatically encodes output from @ expressions; HtmlString isn't encoded and must never be used with untrusted input; encode at the point of output; XSS lets attackers steal cookies and session tokens.",
+          "title": "Prevent Cross-Site Scripting (XSS) in ASP.NET Core",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "owasp-top-ten",
+        "owasp-cheat-sheets"
+      ],
+      "explanation": "The senior insight is the dependency between the two defenses: CSRF protections assume the attacker is on a different origin, and XSS removes that assumption. Knowing exactly which Razor constructs bypass encoding is the practical part.",
+      "model_answer": {
+        "summary": "Antiforgery uses a synchronizer token pair (a cookie token plus a request token) that a cross-site page cannot produce. It matters for cookie-authenticated, state-changing requests. XSS runs script inside your own origin, so it can read and send those tokens, which makes output encoding the first line of defense.",
+        "key_points": [
+          "CSRF abuses cookies the browser attaches automatically, so it matters for cookie-authenticated state-changing requests; APIs that authenticate only with a bearer header are not vulnerable",
+          "Synchronizer token pattern: a cookie token plus a request token in a form field or header, validated together; `FormTagHelper` emits it, `AutoValidateAntiforgeryToken` checks unsafe methods, and Minimal APIs need `AddAntiforgery`/`UseAntiforgery` (form binding validates from .NET 8)",
+          "SameSite cookies add defense in depth, and .NET 11 adds Fetch Metadata-based (`Sec-Fetch-Site`/`Origin`) CSRF protection alongside tokens",
+          "XSS lets an attacker's script run in the victim's page on your origin, where it can read page content and act as the user, so it defeats CSRF defenses",
+          "Razor's `@` encodes output by default; `Html.Raw`/`HtmlString` bypass encoding and must never wrap untrusted input; encode at output time, for the right context (HTML, attribute, JavaScript, URL)"
+        ]
+      }
+    },
+    {
+      "id": "w05-l03-q08",
+      "type": "written",
+      "lesson": "w05-l03",
+      "prompt": "Where do secrets live in development, in CI and in production for an ASP.NET Core app deployed to Azure? Walk through your approach and the failure modes you are guarding against.",
+      "concept": "secrets-managed-identity-key-vault",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/security/app-secrets",
+          "claim": "Never store passwords or other sensitive data in source code or configuration files; production secrets shouldn't be used for development or test; Secret Manager is for development only and unencrypted; use Azure Key Vault for production.",
+          "title": "Safe storage of app secrets in development",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/entra/identity/managed-identities-azure-resources/overview",
+          "claim": "Managed identities eliminate the need for developers to manage credentials, which aren't even accessible to them; system-assigned identities share the resource's lifecycle while user-assigned ones are independent; workload identity federation can use a managed identity as a credential.",
+          "title": "Managed identities for Azure resources",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "owasp-top-ten",
+        "owasp-cheat-sheets",
+        "entra-identity-platform"
+      ],
+      "explanation": "Interviewers want the chain of trust: Key Vault holds the secrets, but something must authenticate to Key Vault. Managed identity is what removes that bootstrap secret, and a senior answer says so explicitly.",
+      "model_answer": {
+        "summary": "Secrets never go into source or appsettings. Use user secrets locally, the CI platform's secret store or workload identity federation in pipelines, and Key Vault in production, reached through a managed identity so no credential has to be stored at all.",
+        "key_points": [
+          "Never put secrets in source code or configuration files that can be committed (such as `appsettings.json`), and don't use production secrets in development or test",
+          "Development: Secret Manager keeps secrets outside the project tree, but it is unencrypted and for development only",
+          "Production: Azure Key Vault through the configuration provider, reached with a managed identity, so no credential has to be stored (system-assigned identities share the resource's lifecycle; user-assigned ones can be shared across resources)",
+          "CI: use the pipeline's protected secret store, or better, federated workload identity, so no long-lived secret is copied into the pipeline",
+          "Failure modes: leaked repositories, plain-text environment variables on a compromised host, secrets shared between environments, and no rotation; grant least-privilege RBAC on the vault"
+        ]
+      }
+    },
+    {
+      "id": "w05-l04-q01",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w05-l04",
+      "prompt": "Which finding is a DAST scan (for example OWASP ZAP) against a running staging environment well placed to catch, where a static analyzer such as CodeQL typically is not?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A misconfiguration visible only in the running app's responses, like missing security headers or a verbose error page."
+        },
+        {
+          "id": "b",
+          "text": "String concatenation into a SQL command in a repository class, reported with file and line number."
+        },
+        {
+          "id": "c",
+          "text": "A transitive NuGet package with a known CVE."
+        },
+        {
+          "id": "d",
+          "text": "An unused private method in a controller."
+        }
+      ],
+      "concept": "sast-dast-pipeline-coverage",
+      "sources": [
+        {
+          "url": "https://owasp.github.io/www-project-devsecops-guideline/latest/02b-Dynamic-Application-Security-Testing",
+          "claim": "DAST finds vulnerabilities in a running application by injecting payloads, without needing source code, and detects input/output validation, authentication and server configuration issues; ZAP is OWASP's open-source tool.",
+          "title": "OWASP DevSecOps Guideline: Dynamic Application Security Testing",
+          "accessed": "2026-09-27",
+          "publisher": "OWASP"
+        },
+        {
+          "url": "https://owasp.github.io/www-project-devsecops-guideline/latest/02a-Static-Application-Security-Testing",
+          "claim": "SAST examines code without executing the program, identifies issues early and pinpoints specific code locations.",
+          "title": "OWASP DevSecOps Guideline: Static Application Security Testing",
+          "accessed": "2026-09-27",
+          "publisher": "OWASP"
+        }
+      ],
+      "materials": [
+        "owasp-cheat-sheets",
+        "github-actions"
+      ],
+      "explanation": "SAST examines code without running it, so it is good at pinpointing code-level flaws such as (b) early. DAST treats the application as a black box, sending payloads to the deployed app, so it sees what only exists at run time: server and configuration issues, authentication behaviour and response headers. Known-vulnerable packages (c) are the job of software composition analysis."
+    },
+    {
+      "id": "w05-l04-q02",
+      "type": "multiple_choice",
+      "answer": "c",
+      "lesson": "w05-l04",
+      "prompt": "A project targets `net10.0` and does not set any NuGet Audit properties. What does NuGet Audit do during `dotnet restore`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Nothing at all happens during restore, unless the project explicitly sets `<NuGetAudit>true</NuGetAudit>` in its file."
+        },
+        {
+          "id": "b",
+          "text": "It audits only the project's own direct package references, completely ignoring any transitive dependencies pulled in."
+        },
+        {
+          "id": "c",
+          "text": "It audits direct and transitive packages (`all` mode by default on net10.0+) and reports advisories as warnings NU1901-NU1904."
+        },
+        {
+          "id": "d",
+          "text": "It fails the entire build immediately on any advisory found, because audit warnings are treated as errors by default."
+        }
+      ],
+      "concept": "dependency-and-image-scanning-gates",
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/nuget/concepts/auditing-packages",
+          "claim": "NuGetAudit defaults to true and NuGetAuditLevel to low; NuGetAuditMode defaults to all for net10.0 or higher, otherwise direct; NU1901-NU1904 report low to critical severities and can be made errors with WarningsAsErrors.",
+          "title": "Auditing package dependencies for security vulnerabilities",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "owasp-cheat-sheets",
+        "github-actions"
+      ],
+      "explanation": "NuGet Audit is on by default and runs during restore. From .NET 10 the default mode for projects targeting net10.0 or later changed from `direct` to `all`, so vulnerable transitive packages now surface too. The findings are warnings, so to gate a build you make NU1903/NU1904 errors, ideally in a dedicated audit pipeline so new advisories don't block unrelated fixes."
+    },
+    {
+      "id": "w05-l04-q03",
+      "type": "multiple_choice",
+      "answer": "d",
+      "lesson": "w05-l04",
+      "prompt": "You want to stop a pull request from adding a package version with a known high-severity vulnerability, instead of finding out after it merges. Which GitHub mechanism does that?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Dependabot alerts firing on the default branch, after a vulnerable package has already been merged into main."
+        },
+        {
+          "id": "b",
+          "text": "CodeQL code scanning, which analyzes your own application source code rather than third-party package versions."
+        },
+        {
+          "id": "c",
+          "text": "Secret scanning push protection, which blocks commits containing accidentally exposed credentials and API keys."
+        },
+        {
+          "id": "d",
+          "text": "The dependency review action on pull requests, required as a status check, failing when a PR introduces vulnerable versions."
+        }
+      ],
+      "concept": "dependency-and-image-scanning-gates",
+      "sources": [
+        {
+          "url": "https://docs.github.com/en/code-security/supply-chain-security/understanding-your-software-supply-chain/about-dependency-review",
+          "claim": "The dependency-review-action scans for vulnerable versions introduced in pull requests and fails the check, blocking merge when required; Dependabot alerts find vulnerabilities already in your dependencies.",
+          "title": "About dependency review",
+          "accessed": "2026-09-27",
+          "publisher": "GitHub Docs"
+        }
+      ],
+      "materials": [
+        "owasp-cheat-sheets",
+        "github-actions"
+      ],
+      "explanation": "Dependency review compares the dependency changes in a PR against advisory data, and its action fails the check, so a required check blocks the merge. Dependabot alerts (a) report vulnerabilities already in your dependencies, which GitHub contrasts with preventing them from being introduced. CodeQL (b) analyzes your own code, not package versions."
+    },
+    {
+      "id": "w05-l04-q04",
+      "type": "multiple_choice",
+      "answer": "b",
+      "lesson": "w05-l04",
+      "prompt": "In a STRIDE session you record two threats: (1) a user edits their JWT to change `role` to `admin` and the API accepts it; (2) a user deletes records and there is no trustworthy log that could prove who did it. Which STRIDE categories does OWASP assign to these examples?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Tampering; Information disclosure"
+        },
+        {
+          "id": "b",
+          "text": "Elevation of privilege; Repudiation"
+        },
+        {
+          "id": "c",
+          "text": "Spoofing; Denial of service"
+        },
+        {
+          "id": "d",
+          "text": "Tampering; Spoofing"
+        }
+      ],
+      "concept": "stride-threat-modeling",
+      "sources": [
+        {
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/Threat_Modeling_Cheat_Sheet.html",
+          "claim": "STRIDE maps Repudiation to accounting (attacker manipulates logs to conceal actions) and Elevation of Privilege to authorization (attacker modifies JWT to change their role).",
+          "title": "Threat Modeling Cheat Sheet",
+          "accessed": "2026-09-27",
+          "publisher": "OWASP Cheat Sheet Series"
+        }
+      ],
+      "materials": [
+        "owasp-cheat-sheets",
+        "github-actions"
+      ],
+      "explanation": "OWASP's STRIDE table uses \"attacker modifies JWT to change their role\" as its Elevation of Privilege example: the violated property is authorization. It lists hiding actions by manipulating or lacking logs as Repudiation, the violated property being accounting. Tampering is a tempting label for (1), but no option pairs it with Repudiation, and the second threat is clearly not disclosure or spoofing."
+    },
+    {
+      "id": "w05-l04-q05",
+      "type": "multiple_choice",
+      "answer": "a",
+      "lesson": "w05-l04",
+      "prompt": "A security researcher emails you about a vulnerability in your SaaS API. Which response follows OWASP's vulnerability disclosure guidance?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Acknowledge and confirm with a fix timeline, send regular updates, then publish an advisory with versions, mitigations, a CVE and credit."
+        },
+        {
+          "id": "b",
+          "text": "Fix it completely silently and publish absolutely nothing, because public advisories make the company look insecure."
+        },
+        {
+          "id": "c",
+          "text": "Reply only after the researcher formally signs an NDA that forbids any disclosure of the issue indefinitely."
+        },
+        {
+          "id": "d",
+          "text": "Ask legal to immediately send a cease-and-desist letter to the researcher before even triaging the report."
+        }
+      ],
+      "concept": "coordinated-vulnerability-disclosure",
+      "sources": [
+        {
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/Vulnerability_Disclosure_Cheat_Sheet.html",
+          "claim": "Organizations should publish security.txt and a disclosure policy with safe harbor, acknowledge reports, confirm vulnerabilities with estimated fix timelines, provide regular updates, and publish advisories with affected and patched versions, mitigations, CVEs and researcher credit.",
+          "title": "Vulnerability Disclosure Cheat Sheet",
+          "accessed": "2026-09-27",
+          "publisher": "OWASP Cheat Sheet Series"
+        }
+      ],
+      "materials": [
+        "owasp-cheat-sheets",
+        "github-actions"
+      ],
+      "explanation": "OWASP recommends easy reporting channels (a security contact and security.txt), a clear policy with safe harbour, acknowledgement, regular updates and a coordinated timeline before public disclosure, then an advisory with the details listed. It explicitly says that publishing security issues does not make the vendor look bad (b)."
+    },
+    {
+      "id": "w05-l04-q06",
+      "type": "written",
+      "lesson": "w05-l04",
+      "prompt": "Design the security stages of a GitHub Actions pipeline for an ASP.NET Core API with a React front end. Say which scans run where (pull request, main, nightly or staging), what each catches, and what blocks a merge.",
+      "concept": "sast-dast-pipeline-coverage",
+      "sources": [
+        {
+          "url": "https://docs.github.com/en/code-security/supply-chain-security/understanding-your-software-supply-chain/about-dependency-review",
+          "claim": "The dependency-review-action fails on vulnerable dependency changes in pull requests and can block merging as a required check; Dependabot alerts find vulnerabilities already in dependencies.",
+          "title": "About dependency review",
+          "accessed": "2026-09-27",
+          "publisher": "GitHub Docs"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/nuget/concepts/auditing-packages",
+          "claim": "Run NuGet Audit in CI with warnings as errors only in a dedicated audit pipeline, so new advisories don't block bug fixes; NuGetAuditMode defaults to all for net10.0.",
+          "title": "Auditing package dependencies for security vulnerabilities",
+          "accessed": "2026-09-27",
+          "publisher": "Microsoft Learn"
+        }
+      ],
+      "materials": [
+        "owasp-cheat-sheets",
+        "github-actions"
+      ],
+      "explanation": "A senior design shows why no single tool is enough: each sees a different layer (code, dependencies, image, running app). It also treats gate policy as a product decision that balances false positives and delivery speed.",
+      "model_answer": {
+        "summary": "Layer the tools by what they can see: SAST and dependency review on every PR, NuGet Audit during restore, image scanning on the built container, and DAST against a deployed staging environment. Gate merges on high and critical findings without letting a new advisory block an unrelated hotfix.",
+        "key_points": [
+          "PR: SAST (for example CodeQL for C# and TypeScript) examines code without running it and pinpoints lines, so tune it to limit false positives",
+          "PR: the dependency review action blocks newly introduced vulnerable packages; Dependabot alerts cover vulnerabilities already on main",
+          "Restore: NuGet Audit (with `all` mode on net10.0) makes NU1903/NU1904 errors in a dedicated audit pipeline so new advisories don't break unrelated fixes",
+          "Build: scan container images (for example Docker Scout policies: no fixable critical or high vulnerabilities, no outdated base images)",
+          "Staging/nightly: DAST (for example ZAP) against the running app for configuration, header and authentication issues; the gate policy decides what blocks a merge and what only raises a ticket"
+        ]
+      }
+    },
+    {
+      "id": "w05-l04-q07",
+      "type": "written",
+      "lesson": "w05-l04",
+      "prompt": "Threat-model a system made of a React SPA, a BFF, an ASP.NET Core API and PostgreSQL using STRIDE. Describe how you would run the session and give concrete threats and mitigations for the categories you consider most important.",
+      "concept": "stride-threat-modeling",
+      "sources": [
+        {
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/Threat_Modeling_Cheat_Sheet.html",
+          "claim": "Threat modeling answers four questions; DFDs show data flows and trust boundaries; STRIDE maps threats to violated properties; responses are mitigate, eliminate, transfer or accept; models should be made early and maintained alongside the system.",
+          "title": "Threat Modeling Cheat Sheet",
+          "accessed": "2026-09-27",
+          "publisher": "OWASP Cheat Sheet Series"
+        }
+      ],
+      "materials": [
+        "owasp-cheat-sheets",
+        "github-actions"
+      ],
+      "explanation": "The difference between a checklist and a senior answer is the diagram and the trust boundaries: threats cluster where data crosses them. Naming a deliberate *accept* decision with its rationale shows risk judgement.",
+      "model_answer": {
+        "summary": "Answer the four threat-modelling questions over a data flow diagram with explicit trust boundaries, walk STRIDE across each flow and store, record a response for each threat, and repeat as the system changes.",
+        "key_points": [
+          "Frame it with the four questions: what are we working on, what can go wrong, what are we going to do about it, did we do a good enough job",
+          "Draw a data flow diagram with processes, stores and trust boundaries (browser to BFF, BFF to API, API to database)",
+          "Examples: Spoofing (stolen session cookie: HttpOnly, Secure, SameSite), Tampering or Elevation of privilege (edited JWT role: signature and algorithm validation plus server-side authorization), Information disclosure (IDOR: resource-based authorization), Repudiation (tamper-evident audit log), Denial of service (lockout abuse: rate limiting)",
+          "Record a response for each threat (mitigate, eliminate, transfer or accept) and track it like other backlog work",
+          "Model early, at design time, and update the model as the system evolves"
+        ]
+      }
+    },
+    {
+      "id": "w05-l04-q08",
+      "type": "written",
+      "lesson": "w05-l04",
+      "prompt": "You receive a credible report of an authorization bypass in your production API. Walk through how you would handle it, from the first reply to the public advisory.",
+      "concept": "coordinated-vulnerability-disclosure",
+      "sources": [
+        {
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/Vulnerability_Disclosure_Cheat_Sheet.html",
+          "claim": "Acknowledge reports, request clarification, confirm vulnerabilities with estimated fix timelines, provide regular updates, use coordinated disclosure deadlines, publish advisories with affected/patched versions, mitigations, CVEs and credit, and publish security.txt.",
+          "title": "Vulnerability Disclosure Cheat Sheet",
+          "accessed": "2026-09-27",
+          "publisher": "OWASP Cheat Sheet Series"
+        }
+      ],
+      "materials": [
+        "owasp-cheat-sheets",
+        "github-actions"
+      ],
+      "explanation": "Interviewers look for calm process and communication more than heroics: acknowledging, coordinating and publishing responsibly. Checking whether the flaw was already exploited is the step less experienced engineers forget.",
+      "model_answer": {
+        "summary": "Acknowledge quickly, reproduce and assess severity, keep the reporter informed on a coordinated timeline, fix and verify, then publish a clear advisory and improve the process so the next report is easier to receive.",
+        "key_points": [
+          "Acknowledge the report promptly, ask for clarification where needed, reproduce it and assess severity and exposure",
+          "Tell the researcher the expected fix timeline, give regular status updates, and agree a coordinated disclosure date",
+          "Mitigate and fix, deploy, and check whether the flaw was exploited (logs, audit trail); add a regression test",
+          "Publish an advisory: summary, affected and fixed versions, mitigations, CVE identifier where applicable, and researcher credit",
+          "Afterwards: make sure security.txt and a disclosure policy with safe harbour exist, and feed the flaw back into the threat model"
+        ]
+      }
+    }
+  ]
+}
