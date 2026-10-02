@@ -1,0 +1,247 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c019-ef-parameterized-collections",
+      "name": "How EF Core translates parameterized collections (Contains over a list)"
+    },
+    {
+      "id": "c019-ts-type-predicates",
+      "name": "Type predicates: if-and-only-if semantics, inference and assertion functions"
+    },
+    {
+      "id": "c019-react-form-actions",
+      "name": "React 19 form Actions with useActionState and useFormStatus"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c019-q01",
+      "lesson": null,
+      "concept": "c019-ef-parameterized-collections",
+      "type": "multiple_choice",
+      "prompt": "In EF Core 10 on SQL Server, `context.Blogs.Where(b => ids.Contains(b.Id))` runs with an `ids` array of 8 values. What SQL does EF send by default?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`IN (1, 2, ...)`: the values are inlined, so every list gets its own plan"
+        },
+        {
+          "id": "b",
+          "text": "`OPENJSON(@ids)`: a single JSON parameter, the same SQL for any list size"
+        },
+        {
+          "id": "c",
+          "text": "`IN (@ids1, ..., @ids10)`: one parameter per value, padded to fewer shapes"
+        },
+        {
+          "id": "d",
+          "text": "One query per value, combined with `UNION ALL` so each part can use an index seek"
+        }
+      ],
+      "answer": "c",
+      "explanation": "EF 10's default sends each value as its own scalar parameter and pads the list (8 values become 10 parameters), so the planner knows roughly how many values there are while only a few SQL shapes reach the plan cache. Inlined constants (EF 7 and earlier) bloated the plan cache; the single `OPENJSON` parameter of EF 8 hid the cardinality from the planner. You can choose another mode with `UseParameterizedCollectionMode` or per query with `EF.Constant`.",
+      "materials": [
+        "efcore-10-whats-new"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/ef/core/what-is-new/ef-core-10.0/whatsnew",
+          "title": "What's New in EF Core 10",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "Up to EF 7 parameterized collections were inlined as constants (plan cache bloat); EF 8 sent one JSON array parameter unpacked with OPENJSON (planner loses the cardinality); EF 10 by default sends one scalar parameter per value, padded (8 values become 10 parameters); UseParameterizedCollectionMode(ParameterTranslationMode.Constant) or EF.Constant(ids) choose another mode."
+        }
+      ]
+    },
+    {
+      "id": "c019-q02",
+      "lesson": null,
+      "concept": "c019-ts-type-predicates",
+      "type": "multiple_choice",
+      "prompt": "With TypeScript 5.5 or later, `scores` is `(number | undefined)[]`. What is the type of `scores.filter(s => !!s)`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`number[]`, because TypeScript infers `s is number` from the truthy check"
+        },
+        {
+          "id": "b",
+          "text": "`(number | undefined)[]`: `false` could also mean `s` was `0`"
+        },
+        {
+          "id": "c",
+          "text": "`number[]`, but only when `strictNullChecks` is off in the project config"
+        },
+        {
+          "id": "d",
+          "text": "`never[]`, because `!!s` returns a boolean, not the original element type"
+        }
+      ],
+      "answer": "b",
+      "explanation": "TypeScript 5.5 infers type predicates for callbacks like `s => s !== undefined`, giving `number[]`. A predicate `s is number` means \"if and only if\": a `false` result must mean `s` isn't a number. `!!s` is also false for `0`, so no predicate is inferred, and the type stays `(number | undefined)[]`. That protects a real bug: the filter silently drops zero scores.",
+      "materials": [
+        "typescript-handbook"
+      ],
+      "sources": [
+        {
+          "url": "https://www.typescriptlang.org/docs/handbook/release-notes/typescript-5-5.html",
+          "title": "TypeScript 5.5",
+          "publisher": "Microsoft (TypeScript)",
+          "accessed": "2026-10-02",
+          "claim": "TypeScript 5.5 infers a type predicate such as `x is Bird` for `filter(bird => bird !== undefined)`, but not for `filter(score => !!score)`, because type predicates mean 'if and only if' and a false result could also mean the score was 0."
+        }
+      ]
+    },
+    {
+      "id": "c019-q03",
+      "lesson": null,
+      "concept": "c019-react-form-actions",
+      "type": "written",
+      "prompt": "You are moving a React 19 \"Add to cart\" form from `onSubmit` with `useState` flags to Actions. Explain how `useActionState` and `useFormStatus` fit together, and one mistake that leaves the submit button never showing a pending state.",
+      "model_answer": {
+        "summary": "`useActionState` turns an action into form state plus a dispatch function you pass to `<form action>`, and `useFormStatus` lets a component inside that form read its pending status; calling `useFormStatus` in the component that renders the `<form>` itself never reports pending.",
+        "key_points": [
+          "`useActionState(action, initialState)` returns `[state, dispatchAction, isPending]`; pass `dispatchAction` to `<form action={...}>`, and the action receives the previous state and the `FormData` and returns the next state, such as an error message",
+          "Submissions through a form action run in a Transition, and several dispatches are queued and run one after another, each receiving the previous result",
+          "`useFormStatus` returns `pending`, `data`, `method` and `action` for its parent `<form>` only, so call it in a child such as a `SubmitButton` rendered inside the form",
+          "Calling `useFormStatus` in the same component that renders the `<form>` is the mistake: it doesn't track that form, so `pending` is never true"
+        ]
+      },
+      "explanation": "Actions replace hand-written loading and error flags: React tracks the pending state and the result for you. `useFormStatus` reads context from the nearest parent form, which is why it must live below the `<form>` in the tree; `isPending` from `useActionState` is the alternative in the form component itself.",
+      "materials": [
+        "react-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/reference/react/useActionState",
+          "title": "useActionState",
+          "publisher": "Meta (React)",
+          "accessed": "2026-10-02",
+          "claim": "useActionState(action, initialState) returns [state, dispatchAction, isPending]; passed to <form action>, React wraps the submission in a Transition and calls the action with the previous state and the FormData, queuing several dispatches sequentially."
+        },
+        {
+          "url": "https://react.dev/reference/react-dom/hooks/useFormStatus",
+          "title": "useFormStatus",
+          "publisher": "Meta (React)",
+          "accessed": "2026-10-02",
+          "claim": "useFormStatus returns pending, data, method and action for a parent <form> only; called in the same component that renders the <form>, `pending` is never true, so call it from a component rendered inside the form."
+        }
+      ]
+    },
+    {
+      "id": "c019-q04",
+      "lesson": null,
+      "concept": "c019-ef-parameterized-collections",
+      "type": "written",
+      "prompt": "After upgrading from EF Core 8 to EF Core 10, a query using `ids.Contains(x.Id)` sends different SQL. Explain the ways EF has translated parameterized collections, the trade-off of each, and how you choose one.",
+      "model_answer": {
+        "summary": "EF has inlined the values as constants, sent one JSON array parameter, and (EF 10's default) sent one padded parameter per value; each trades plan-cache reuse against giving the planner the list's cardinality, and you can pick the mode globally or per query.",
+        "key_points": [
+          "Inlining the values as constants (EF 7 and earlier) produces different SQL for each list, causing plan cache misses and bloat",
+          "One JSON array parameter unpacked with `OPENJSON` (EF 8) keeps one SQL text and plan for every list, but hides the list's cardinality from the planner, so the plan may suit only small or only large lists",
+          "EF 10 sends one scalar parameter per value and pads the count (8 values become 10 parameters), keeping few SQL shapes while giving the planner the cardinality",
+          "Choose with `UseParameterizedCollectionMode(ParameterTranslationMode....)` in the provider options, or per query with `EF.Constant(ids)` and similar, because the best mode depends on your data"
+        ]
+      },
+      "explanation": "No single translation is right for every query: plan reuse and accurate cardinality pull in opposite directions. EF 10's padded parameters are a compromise, and the configurable mode lets you override it where measurements show another choice is faster.",
+      "materials": [
+        "efcore-10-whats-new"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/ef/core/what-is-new/ef-core-10.0/whatsnew",
+          "title": "What's New in EF Core 10",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "Up to EF 7 parameterized collections were inlined as constants (plan cache bloat); EF 8 sent one JSON array parameter unpacked with OPENJSON (planner loses the cardinality); EF 10 by default sends one scalar parameter per value, padded (8 values become 10 parameters); UseParameterizedCollectionMode(ParameterTranslationMode.Constant) or EF.Constant(ids) choose another mode."
+        }
+      ]
+    },
+    {
+      "id": "c019-q05",
+      "lesson": null,
+      "concept": "c019-ts-type-predicates",
+      "type": "multiple_choice",
+      "prompt": "`isOrder(x: unknown): x is Order` and `assertIsOrder(x: unknown): asserts x is Order` both check a parsed API response `data`. How do they narrow `data` differently?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Both narrow for the rest of the scope; only `assertIsOrder` checks at run time"
+        },
+        {
+          "id": "b",
+          "text": "`isOrder` narrows inside the `if` that uses it; `assertIsOrder` narrows after"
+        },
+        {
+          "id": "c",
+          "text": "`isOrder` narrows after the call; `assertIsOrder` narrows in a `try` block only"
+        },
+        {
+          "id": "d",
+          "text": "Neither narrows unless `Order` is a class, since both rely on `instanceof`"
+        }
+      ],
+      "answer": "b",
+      "explanation": "A type predicate returns a boolean, so `if (isOrder(data))` narrows `data` to `Order` in that branch (and to the rest of the union in `else`). An assertion function returns nothing and throws when the check fails, so after `assertIsOrder(data);` the value is narrowed for the rest of the scope. Both work with any type; the check inside is ordinary code you write.",
+      "materials": [
+        "typescript-handbook"
+      ],
+      "sources": [
+        {
+          "url": "https://www.typescriptlang.org/docs/handbook/2/narrowing.html",
+          "title": "Narrowing",
+          "publisher": "Microsoft (TypeScript)",
+          "accessed": "2026-10-02",
+          "claim": "A function returning `pet is Fish` is a type predicate: when it is called in an `if`, TypeScript narrows the variable to `Fish` in that branch and to the rest of the union in the `else` branch."
+        },
+        {
+          "url": "https://www.typescriptlang.org/docs/handbook/release-notes/typescript-3-7.html",
+          "title": "TypeScript 3.7",
+          "publisher": "Microsoft (TypeScript)",
+          "accessed": "2026-10-02",
+          "claim": "An assertion function (`asserts val is string`) throws when the check fails and narrows the value for the rest of the containing scope, while a type predicate (`val is string`) returns a boolean and narrows only within the `if` that uses it."
+        }
+      ]
+    },
+    {
+      "id": "c019-q06",
+      "lesson": null,
+      "concept": "c019-react-form-actions",
+      "type": "multiple_choice",
+      "prompt": "```jsx\nfunction CheckoutForm() {\n  const { pending } = useFormStatus();\n  return <form action={placeOrder}><button disabled={pending}>Pay</button></form>;\n}\n```\nWhy is the button never disabled while `placeOrder` runs?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`pending` turns true only when the `action` prop is a URL, not a function"
+        },
+        {
+          "id": "b",
+          "text": "`useFormStatus` works only together with `useActionState`, not on its own"
+        },
+        {
+          "id": "c",
+          "text": "`placeOrder` must call `startTransition`, or the form is never pending"
+        },
+        {
+          "id": "d",
+          "text": "`useFormStatus` reads a parent `<form>`, not one this component renders"
+        }
+      ],
+      "answer": "d",
+      "explanation": "`useFormStatus` reports on the `<form>` above the calling component, not one it renders itself, so here `pending` is always false. Move the button into a `SubmitButton` component rendered inside the form and call `useFormStatus` there. A function `action` is exactly what it tracks, and form actions already run in a Transition.",
+      "materials": [
+        "react-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/reference/react-dom/hooks/useFormStatus",
+          "title": "useFormStatus",
+          "publisher": "Meta (React)",
+          "accessed": "2026-10-02",
+          "claim": "useFormStatus returns pending, data, method and action for a parent <form> only; called in the same component that renders the <form>, `pending` is never true, so call it from a component rendered inside the form."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,225 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c027-nav3-entry-scoped-viewmodel",
+      "name": "Scoping ViewModels to Navigation 3 entries"
+    },
+    {
+      "id": "c027-requires-optin-api",
+      "name": "Marking unstable library APIs with @RequiresOptIn"
+    },
+    {
+      "id": "c027-metered-network-adaptation",
+      "name": "Adapting downloads to metered networks"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c027-q01",
+      "lesson": null,
+      "concept": "c027-nav3-entry-scoped-viewmodel",
+      "type": "multiple_choice",
+      "prompt": "A Navigation 3 `NavDisplay` uses only `rememberSaveableStateHolderNavEntryDecorator()`. Two `Detail(id)` entries on the back stack each call `viewModel<DetailViewModel>()`. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Each entry gets its own instance, cleared as soon as that entry is popped"
+        },
+        {
+          "id": "b",
+          "text": "Both get one shared instance, scoped to the Activity, not each entry"
+        },
+        {
+          "id": "c",
+          "text": "Each entry gets its own instance, but none is cleared until exit"
+        },
+        {
+          "id": "d",
+          "text": "It fails to compile until a ViewModel decorator is in the list"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Without `rememberViewModelStoreNavEntryDecorator`, a ViewModel is scoped to the nearest `ViewModelStoreOwner`, usually the Activity, so both entries get the same instance and it outlives them. Adding that decorator (from `lifecycle-viewmodel-navigation3`) gives each entry its own `ViewModelStoreOwner`: the ViewModel is created when the entry is added and cleared when it is removed.",
+      "materials": [
+        "navigation-3"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/guide/navigation/navigation-3/save-state",
+          "title": "Save and manage navigation state",
+          "publisher": "Android Developers (Google)",
+          "accessed": "2026-10-02",
+          "claim": "By default ViewModels are scoped to the nearest ViewModelStoreOwner, typically the Activity or Fragment; `rememberViewModelStoreNavEntryDecorator` provides a ViewModelStoreOwner per NavEntry so a ViewModel is created when the entry is added and cleared when it is removed."
+        }
+      ]
+    },
+    {
+      "id": "c027-q02",
+      "lesson": null,
+      "concept": "c027-requires-optin-api",
+      "type": "multiple_choice",
+      "prompt": "Your team's SDK adds a `streamUploads()` API whose shape may still change. With Kotlin's opt-in mechanism, how do you make callers acknowledge that?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Mark it `@Deprecated(level = WARNING)` until the API is final"
+        },
+        {
+          "id": "b",
+          "text": "Mark it `@OptIn`, so callers get a warning whenever they use it"
+        },
+        {
+          "id": "c",
+          "text": "Mark it with your own annotation class marked `@RequiresOptIn`"
+        },
+        {
+          "id": "d",
+          "text": "Make it `internal` and expose it to callers with `@PublishedApi`"
+        }
+      ],
+      "answer": "c",
+      "explanation": "The library author declares a marker annotation class annotated with `@RequiresOptIn` and puts that marker on the unstable API. Callers then opt in with `@OptIn(Marker::class)`, by propagating the marker, or module-wide. `@OptIn` is the caller's side, and `@Deprecated` says the opposite of \"new but unstable\".",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/opt-in-requirements.html",
+          "title": "Opt-in requirements",
+          "publisher": "JetBrains (Kotlin)",
+          "accessed": "2026-10-02",
+          "claim": "Library authors create an opt-in requirement annotation by annotating an annotation class with `@RequiresOptIn` and mark API elements with it; clients opt in with `@OptIn`, by propagating the annotation, or at file or module level."
+        }
+      ]
+    },
+    {
+      "id": "c027-q03",
+      "lesson": null,
+      "concept": "c027-metered-network-adaptation",
+      "type": "written",
+      "prompt": "Your news feed prefetches full-resolution images and autoplay video ahead of the scroll. How should it adapt to the user's network, and how do you detect the network's properties on Android?",
+      "model_answer": {
+        "summary": "Prefetch less, or at lower quality, on metered networks, deciding meteredness from `NET_CAPABILITY_NOT_METERED` rather than from Wi-Fi vs cellular, and react to changes with a network callback.",
+        "key_points": [
+          "Check `NetworkCapabilities.hasCapability(NET_CAPABILITY_NOT_METERED)` to decide whether data costs the user, and cut prefetching or quality when it is metered",
+          "Don't infer meteredness or bandwidth from the transport: Wi-Fi isn't always unmetered or faster than mobile",
+          "Use `getLinkDownstreamBandwidthKbps()` as the bandwidth estimate for choosing image or video quality",
+          "Register a default `NetworkCallback` and adapt in `onCapabilitiesChanged` when the network changes"
+        ]
+      },
+      "explanation": "The tempting answer is \"only prefetch on Wi-Fi\", but the Android docs call the transport a poor proxy: a phone hotspot is Wi-Fi and metered. The capability check and bandwidth estimate describe the network itself, and the callback keeps the feed right when the user walks out of range.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/connectivity/network-ops/reading-network-state",
+          "title": "Read network state",
+          "publisher": "Android Developers (Google)",
+          "accessed": "2026-10-02",
+          "claim": "A network with NET_CAPABILITY_NOT_METERED doesn't bill the user for data; hasTransport is a poor proxy for bandwidth or meteredness, so use getLinkDownstreamBandwidthKbps() and hasCapability(NET_CAPABILITY_NOT_METERED); listen for changes with a default NetworkCallback's onCapabilitiesChanged."
+        }
+      ]
+    },
+    {
+      "id": "c027-q04",
+      "lesson": null,
+      "concept": "c027-nav3-entry-scoped-viewmodel",
+      "type": "written",
+      "prompt": "In a Navigation 3 app, how do you give each screen on the back stack its own ViewModel, and when is that ViewModel created and cleared?",
+      "model_answer": {
+        "summary": "Add `rememberViewModelStoreNavEntryDecorator()` to `NavDisplay`'s `entryDecorators`, so `viewModel()` inside an entry is scoped to that entry: created when it is added to the back stack and cleared when it is removed.",
+        "key_points": [
+          "By default a ViewModel is scoped to the nearest `ViewModelStoreOwner`, usually the Activity or Fragment, not to a screen",
+          "Add `rememberViewModelStoreNavEntryDecorator()` from `lifecycle-viewmodel-navigation3` to `entryDecorators`, alongside `rememberSaveableStateHolderNavEntryDecorator()`",
+          "A ViewModel created with `viewModel()` inside an entry's content is then scoped to that entry's key",
+          "It is created when the entry is added to the back stack and cleared when the entry is removed"
+        ]
+      },
+      "explanation": "In Navigation 3 you own the back stack, and ViewModel scoping is opt-in through an entry decorator. Forgetting it is a common bug: every screen of one type shares an Activity-scoped ViewModel that never clears.",
+      "materials": [
+        "navigation-3"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/guide/navigation/navigation-3/save-state",
+          "title": "Save and manage navigation state",
+          "publisher": "Android Developers (Google)",
+          "accessed": "2026-10-02",
+          "claim": "ViewModels default to the nearest ViewModelStoreOwner (Activity or Fragment); the `lifecycle-viewmodel-navigation3` decorator `rememberViewModelStoreNavEntryDecorator`, added to entryDecorators after the saveable state holder decorator, scopes `viewModel()` to the NavEntry's key, created when added and cleared when removed."
+        }
+      ]
+    },
+    {
+      "id": "c027-q05",
+      "lesson": null,
+      "concept": "c027-requires-optin-api",
+      "type": "multiple_choice",
+      "prompt": "A library's marker annotation is declared `@RequiresOptIn` with no `level`. A client calls a function marked with it without opting in. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A compiler warning only, since opt-in is advisory by default"
+        },
+        {
+          "id": "b",
+          "text": "A crash at runtime the first time that function is called"
+        },
+        {
+          "id": "c",
+          "text": "Nothing, unless the module turns on `-opt-in` for the marker"
+        },
+        {
+          "id": "d",
+          "text": "A compile error, since the default opt-in level is `ERROR`"
+        }
+      ],
+      "answer": "d",
+      "explanation": "`RequiresOptIn.Level` is `ERROR` by default, which makes opting in mandatory; the author must choose `WARNING` for advisory opt-in. It is checked at compile time, and the module-wide `-opt-in` option is one way to opt in, not a switch that turns checking on.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/opt-in-requirements.html",
+          "title": "Opt-in requirements",
+          "publisher": "JetBrains (Kotlin)",
+          "accessed": "2026-10-02",
+          "claim": "An opt-in requirement level is ERROR (mandatory, the default) or WARNING (advisory); clients can opt in locally with @OptIn, per file, or module-wide with the -opt-in compiler option."
+        }
+      ]
+    },
+    {
+      "id": "c027-q06",
+      "lesson": null,
+      "concept": "c027-metered-network-adaptation",
+      "type": "multiple_choice",
+      "prompt": "Your app downloads HD video previews only when `hasTransport(TRANSPORT_WIFI)` is true. What does the Android documentation say about this check?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It's correct, since Wi-Fi networks never bill users for data"
+        },
+        {
+          "id": "b",
+          "text": "It's a poor proxy; check `NET_CAPABILITY_NOT_METERED` instead"
+        },
+        {
+          "id": "c",
+          "text": "It's fine, as long as `TRANSPORT_ETHERNET` is also allowed"
+        },
+        {
+          "id": "d",
+          "text": "It's correct, once the user has granted the Wi-Fi state permission"
+        }
+      ],
+      "answer": "b",
+      "explanation": "The docs say the transport is a poor proxy for bandwidth or meteredness: an app can't assume Wi-Fi is always unmetered or faster than mobile. Use `hasCapability(NET_CAPABILITY_NOT_METERED)` for cost and `getLinkDownstreamBandwidthKbps()` for bandwidth.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/connectivity/network-ops/reading-network-state",
+          "title": "Read network state",
+          "publisher": "Android Developers (Google)",
+          "accessed": "2026-10-02",
+          "claim": "Querying hasTransport is a poor proxy for the bandwidth or meteredness of the network; apps can't assume Wi-Fi is always unmetered and should use hasCapability with NET_CAPABILITY_NOT_METERED."
+        }
+      ]
+    }
+  ]
+}

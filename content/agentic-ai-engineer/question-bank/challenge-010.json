@@ -1,0 +1,236 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c010-pipeline-exit-status",
+      "name": "A pipeline's exit status and `pipefail`"
+    },
+    {
+      "id": "c010-stop-reasons",
+      "name": "Handling `max_tokens`, `pause_turn` and `refusal` stop reasons"
+    },
+    {
+      "id": "c010-subagent-artifacts",
+      "name": "Passing subagent results by reference"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c010-q01",
+      "lesson": null,
+      "concept": "c010-pipeline-exit-status",
+      "type": "multiple_choice",
+      "prompt": "In Bash with no options set, `fetch_data | sort > out.txt` runs. `fetch_data` exits with 1 and `sort` exits with 0. What is `$?` after the pipeline?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "1, because Bash reports the first command in the pipe that failed"
+        },
+        {
+          "id": "b",
+          "text": "1, because any non-zero status in a pipeline is always returned"
+        },
+        {
+          "id": "c",
+          "text": "0, the last command's status; `set -o pipefail` would make it 1"
+        },
+        {
+          "id": "d",
+          "text": "0, because Bash only waits for the last command, not `fetch_data`"
+        }
+      ],
+      "answer": "c",
+      "explanation": "By default a pipeline's status is the status of its last command, so the failure of `fetch_data` is hidden and a script carries on with a bad `out.txt`. With `pipefail` on, the status is that of the rightmost command that failed, here 1. Bash does wait for every command in the pipeline; it just reports the last one.",
+      "materials": [
+        "missing-semester-2026-course-shell"
+      ],
+      "sources": [
+        {
+          "url": "https://www.gnu.org/software/bash/manual/html_node/Pipelines.html",
+          "title": "Pipelines (Bash Reference Manual)",
+          "publisher": "GNU Project (Free Software Foundation)",
+          "accessed": "2026-10-02",
+          "claim": "A pipeline's exit status is that of its last command unless `pipefail` is enabled, when it is the status of the last (rightmost) command to exit non-zero, or zero if all succeed; the shell waits for all commands of a non-asynchronous pipeline to finish."
+        }
+      ]
+    },
+    {
+      "id": "c010-q02",
+      "lesson": null,
+      "concept": "c010-stop-reasons",
+      "type": "multiple_choice",
+      "prompt": "A Claude response comes back with HTTP 200 and `stop_reason: \"max_tokens\"`, and its last content block is an incomplete `tool_use` block. What should your code do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Retry the request with a higher `max_tokens` to get the full call"
+        },
+        {
+          "id": "b",
+          "text": "Run the tool with the partial input, then send back a `tool_result`"
+        },
+        {
+          "id": "c",
+          "text": "Treat it as an API error and back off, as you would after a 529"
+        },
+        {
+          "id": "d",
+          "text": "Send the response back unchanged, as you would after `pause_turn`"
+        }
+      ],
+      "answer": "a",
+      "explanation": "`max_tokens` means the output was cut off at your limit. When the cut falls inside a `tool_use` block, its input is incomplete, so Anthropic's guidance is to retry with a higher `max_tokens`. It is not an error: stop reasons arrive in successful responses. Sending the content back as-is is the fix for `pause_turn`, a different case.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://platform.claude.com/docs/en/build-with-claude/handling-stop-reasons",
+          "title": "Handling stop reasons",
+          "publisher": "Anthropic",
+          "accessed": "2026-10-02",
+          "claim": "`max_tokens` means the response was truncated: if the last block is an incomplete `tool_use`, retry with a higher `max_tokens`, otherwise you can continue it; `pause_turn` means a server-tool loop hit its iteration limit, and you send the assistant content back as-is; `refusal` arrives with HTTP 200 and `stop_details`, so retry on a fallback model; `model_context_window_exceeded` is truncated output; stop reasons are part of successful responses, unlike 4xx/5xx errors."
+        }
+      ]
+    },
+    {
+      "id": "c010-q03",
+      "lesson": null,
+      "concept": "c010-subagent-artifacts",
+      "type": "written",
+      "prompt": "In your multi-agent research system, subagents write long reports and the lead agent copies each one into its own context. What does Anthropic recommend instead, and why?",
+      "model_answer": {
+        "summary": "Have subagents save their output to an external store with a tool and hand back a lightweight reference, so nothing is lost in retelling and the lead agent's context doesn't fill with copies.",
+        "key_points": [
+          "Subagents store their work in an external system, such as files or an artifact store, through a tool call",
+          "They return a lightweight reference to the lead agent instead of the full output",
+          "This keeps fidelity: the output isn't summarised and retold at each stage, so information isn't lost",
+          "It cuts the token overhead of copying large outputs through the conversation history"
+        ]
+      },
+      "explanation": "Passing everything through the lead agent turns it into a bottleneck: each report is copied into its context, paraphrased, and passed on again. Persisted artifacts with references keep the original intact and leave the coordinator's context for coordination.",
+      "materials": [
+        "anthropic-how-we-built-our-multi"
+      ],
+      "sources": [
+        {
+          "url": "https://www.anthropic.com/engineering/multi-agent-research-system",
+          "title": "How we built our multi-agent research system",
+          "publisher": "Anthropic",
+          "accessed": "2026-10-02",
+          "claim": "Subagents call tools to store their work in external systems and pass lightweight references back to the coordinator, which prevents information loss in multi-stage processing and cuts the token overhead of copying large outputs through conversation history; the lead agent saves its plan to Memory because a context over 200,000 tokens is truncated."
+        }
+      ]
+    },
+    {
+      "id": "c010-q04",
+      "lesson": null,
+      "concept": "c010-pipeline-exit-status",
+      "type": "multiple_choice",
+      "prompt": "With `set -o pipefail`, `a | b | c` runs, and `a` exits 2, `b` exits 3 and `c` exits 0. What is the pipeline's status, and where can you see every command's status?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "2, the first failure; read each from `$?` inside the pipeline"
+        },
+        {
+          "id": "b",
+          "text": "3, the rightmost non-zero status; each is in `${PIPESTATUS[@]}`"
+        },
+        {
+          "id": "c",
+          "text": "0, since the last command `c` succeeded; each is in `$PIPESTATUS`"
+        },
+        {
+          "id": "d",
+          "text": "5, the sum of the failures; Bash prints each status to stderr"
+        }
+      ],
+      "answer": "b",
+      "explanation": "With `pipefail` the pipeline returns the status of the last (rightmost) command that exited non-zero, here `b`'s 3, or 0 if all succeed. The `PIPESTATUS` array holds the status of each command of the last foreground pipeline, so `${PIPESTATUS[@]}` gives `2 3 0`. Without `pipefail` the status would be `c`'s 0.",
+      "materials": [
+        "missing-semester-2026-course-shell"
+      ],
+      "sources": [
+        {
+          "url": "https://www.gnu.org/software/bash/manual/html_node/Pipelines.html",
+          "title": "Pipelines (Bash Reference Manual)",
+          "publisher": "GNU Project (Free Software Foundation)",
+          "accessed": "2026-10-02",
+          "claim": "A pipeline's exit status is that of its last command unless `pipefail` is enabled, when it is the status of the last (rightmost) command to exit non-zero, or zero if all succeed; the shell waits for all commands of a non-asynchronous pipeline to finish."
+        },
+        {
+          "url": "https://www.gnu.org/software/bash/manual/html_node/Bash-Variables.html",
+          "title": "Bash Variables (Bash Reference Manual)",
+          "publisher": "GNU Project (Free Software Foundation)",
+          "accessed": "2026-10-02",
+          "claim": "`PIPESTATUS` is an array of the exit statuses of the commands in the most recently executed foreground pipeline."
+        }
+      ]
+    },
+    {
+      "id": "c010-q05",
+      "lesson": null,
+      "concept": "c010-stop-reasons",
+      "type": "written",
+      "prompt": "Your agent loop only checks `stop_reason == \"tool_use\"` and shows anything else to the user as the final answer. Which other stop reasons must it handle, and how?",
+      "model_answer": {
+        "summary": "Stop reasons are part of successful responses, and several mean the answer isn't complete: handle truncation, paused server-tool loops and refusals explicitly instead of showing them as final.",
+        "key_points": [
+          "`max_tokens`: the output was truncated; continue it, or retry with a higher `max_tokens` if a `tool_use` block was cut off",
+          "`pause_turn`: a server-tool loop hit its iteration limit; send the assistant content back as-is, with no tool results added",
+          "`refusal`: Claude declined; it comes with HTTP 200 and `stop_details`, so retry on a fallback model or tell the user",
+          "`model_context_window_exceeded` is also truncated output, while real failures come as 4xx or 5xx errors, not stop reasons"
+        ]
+      },
+      "explanation": "Only `end_turn` (and a `stop_sequence` you asked for) means the model finished normally. Showing a truncated or refused response as the final answer is the quiet failure: the request succeeded, so nothing in your error handling notices.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://platform.claude.com/docs/en/build-with-claude/handling-stop-reasons",
+          "title": "Handling stop reasons",
+          "publisher": "Anthropic",
+          "accessed": "2026-10-02",
+          "claim": "`max_tokens` means the response was truncated: if the last block is an incomplete `tool_use`, retry with a higher `max_tokens`, otherwise you can continue it; `pause_turn` means a server-tool loop hit its iteration limit, and you send the assistant content back as-is; `refusal` arrives with HTTP 200 and `stop_details`, so retry on a fallback model; `model_context_window_exceeded` is truncated output; stop reasons are part of successful responses, unlike 4xx/5xx errors."
+        }
+      ]
+    },
+    {
+      "id": "c010-q06",
+      "lesson": null,
+      "concept": "c010-subagent-artifacts",
+      "type": "multiple_choice",
+      "prompt": "Your lead research agent runs for a long time, and its context will pass 200,000 tokens. What does Anthropic's lead agent do so it doesn't lose its research plan?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Asks every subagent to repeat the full plan in each report it returns"
+        },
+        {
+          "id": "b",
+          "text": "Restarts the research from the start once the context is truncated"
+        },
+        {
+          "id": "c",
+          "text": "Saves its plan to Memory early, since a long context gets truncated"
+        },
+        {
+          "id": "d",
+          "text": "Moves the plan into the system prompt, which is never truncated"
+        }
+      ],
+      "answer": "c",
+      "explanation": "Anthropic's LeadResearcher thinks through its approach and saves the plan to Memory at the start, because a context window over 200,000 tokens is truncated and the plan must survive. Storing state outside the context, rather than repeating it inside, is the same idea as subagents saving their outputs as artifacts.",
+      "materials": [
+        "anthropic-how-we-built-our-multi"
+      ],
+      "sources": [
+        {
+          "url": "https://www.anthropic.com/engineering/multi-agent-research-system",
+          "title": "How we built our multi-agent research system",
+          "publisher": "Anthropic",
+          "accessed": "2026-10-02",
+          "claim": "Subagents call tools to store their work in external systems and pass lightweight references back to the coordinator, which prevents information loss in multi-stage processing and cuts the token overhead of copying large outputs through conversation history; the lead agent saves its plan to Memory because a context over 200,000 tokens is truncated."
+        }
+      ]
+    }
+  ]
+}

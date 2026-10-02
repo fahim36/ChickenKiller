@@ -1,0 +1,248 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c013-channelflow-concurrent-emission",
+      "name": "channelFlow for emitting from several coroutines"
+    },
+    {
+      "id": "c013-finite-flow-test-collection",
+      "name": "Collecting flows in tests with toList, first and take"
+    },
+    {
+      "id": "c013-bom-version-alignment",
+      "name": "Aligning library versions with a BOM and `platform()`"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c013-q01",
+      "lesson": null,
+      "concept": "c013-channelflow-concurrent-emission",
+      "type": "multiple_choice",
+      "prompt": "To fetch two prices in parallel and emit each as it arrives, a developer writes `flow { coroutineScope { launch { emit(a()) }; launch { emit(b()) } } }`. What is wrong with it?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Nothing: `coroutineScope` keeps both emits inside the flow's own context"
+        },
+        {
+          "id": "b",
+          "text": "It only works after adding `flowOn(Dispatchers.IO)` after the builder"
+        },
+        {
+          "id": "c",
+          "text": "It runs serially instead, because each `launch` waits for the previous one to end"
+        },
+        {
+          "id": "d",
+          "text": "`flow` forbids emitting from other coroutines; use `channelFlow` and `send`"
+        }
+      ],
+      "answer": "d",
+      "explanation": "The `flow` builder requires every emission to come from the coroutine that runs its block; emitting from a `launch`ed coroutine is prohibited and fails at runtime. Calling `emit` directly inside `coroutineScope` is fine, but not inside a child `launch`. `channelFlow` exists for this: its `ProducerScope` can be used concurrently, so you `launch` and `send` from each child.",
+      "materials": [
+        "kotlin-flow-docs"
+      ],
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/-flow/",
+          "title": "Flow",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-02",
+          "claim": "Flow implementations should only emit from the same coroutine; the flow builder prohibits emitting from launched coroutines (emitting inside coroutineScope directly is fine), and channelFlow should be used when collection and emission are split into multiple coroutines."
+        },
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/channel-flow.html",
+          "title": "channelFlow",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-02",
+          "claim": "channelFlow lets elements be produced by code running in a different context or concurrently, and its ProducerScope can be used concurrently from different contexts."
+        }
+      ]
+    },
+    {
+      "id": "c013-q02",
+      "lesson": null,
+      "concept": "c013-finite-flow-test-collection",
+      "type": "multiple_choice",
+      "prompt": "A test calls `val items = repo.observeCart().toList()`, and the fake repository is backed by a `MutableStateFlow`. The test never finishes. What fixes it?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Collect `observeCart().take(1).toList()` or call `first()` instead"
+        },
+        {
+          "id": "b",
+          "text": "Wrap the call in `withContext(Dispatchers.IO)` so the list can fill"
+        },
+        {
+          "id": "c",
+          "text": "Switch to `runBlocking`, which ends as soon as the test body returns"
+        },
+        {
+          "id": "d",
+          "text": "Call `advanceUntilIdle()` first, so pending values are all delivered"
+        }
+      ],
+      "answer": "a",
+      "explanation": "`toList()` suspends until the flow completes, and a `StateFlow` never completes, so the test hangs until it fails. `first()` waits for one item and then cancels the producer, and `take(n).toList()` stops after `n` items. Changing the dispatcher or advancing virtual time doesn't make the flow complete.",
+      "materials": [
+        "kotlin-flow-docs"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/kotlin/flow/test",
+          "title": "Testing Kotlin flows on Android",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "toList() suspends until the whole flow completes; first() waits for the first item and then cancels the producer; take(n).toList() collects the first n items; a collector of a flow that never completes must run in backgroundScope or the test stops responding and fails."
+        }
+      ]
+    },
+    {
+      "id": "c013-q03",
+      "lesson": null,
+      "concept": "c013-bom-version-alignment",
+      "type": "written",
+      "prompt": "Your app uses eight Compose libraries across several modules, and their versions keep drifting apart. How would a BOM help, how do you declare it, and what are its limits?",
+      "model_answer": {
+        "summary": "Import the Compose BOM with `platform()` and declare the libraries without versions, so one BOM version picks compatible versions for all of them; the BOM adds no library itself, and overriding one library can pull in other versions.",
+        "key_points": [
+          "The Compose BOM lists compatible stable versions of the Compose libraries; you add it once with `platform(...)` and a version, and declare the libraries without versions",
+          "Updating the single BOM version updates all the Compose libraries you use together",
+          "The BOM doesn't add any library to the app: each library still needs its own dependency line",
+          "You can override one library's version, but the build then uses that version's own dependencies, which may be alpha too",
+          "It works with a version catalog: a BOM entry with a version, and library entries without one"
+        ]
+      },
+      "explanation": "A BOM is a bill of materials: a platform that constrains versions without adding code. It turns many version numbers into one, which ends drift between modules. The tempting misunderstanding is that adding the BOM adds Compose to the app; it doesn't, it only sets the versions of what you declare.",
+      "materials": [
+        "android-version-catalogs"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/bom",
+          "title": "Use a Bill of Materials",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "The Compose BOM lets you manage all Compose library versions by specifying only the BOM's version with platform(); libraries are declared without versions; updating the BOM updates them all; the BOM doesn't add libraries itself; overriding a library's version pulls in that version's dependencies; it works with version catalogs."
+        }
+      ]
+    },
+    {
+      "id": "c013-q04",
+      "lesson": null,
+      "concept": "c013-channelflow-concurrent-emission",
+      "type": "written",
+      "prompt": "When would you build a flow with `channelFlow` instead of `flow`, and how is `channelFlow` different from `callbackFlow`?",
+      "model_answer": {
+        "summary": "Use `channelFlow` when values are produced from several coroutines or contexts at once, which the `flow` builder forbids; unlike `callbackFlow`, it completes on its own when its block and children finish.",
+        "key_points": [
+          "The `flow` builder must emit from its own coroutine; launching coroutines that call `emit` is prohibited",
+          "`channelFlow` gives a `ProducerScope` that is safe to use concurrently, so you can `launch` children and `send` from each",
+          "It uses a channel with the default buffer size; apply `buffer()` to the result to control back-pressure",
+          "`channelFlow` completes when its block and all its children finish, while `callbackFlow` needs `awaitClose` as its last statement to stay open for callbacks"
+        ]
+      },
+      "explanation": "A typical case is merging or fetching in parallel and emitting results as they arrive. `flow` keeps a strict sequential, context-preserving contract, so concurrent emission needs the channel underneath `channelFlow`. `callbackFlow` is the same builder shaped for listener APIs, which is why it must wait in `awaitClose`.",
+      "materials": [
+        "kotlin-flow-docs"
+      ],
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/-flow/",
+          "title": "Flow",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-02",
+          "claim": "The flow builder prohibits emission from concurrent coroutines; use channelFlow if collection and emission are split into multiple coroutines."
+        },
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/channel-flow.html",
+          "title": "channelFlow",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-02",
+          "claim": "channelFlow's ProducerScope can be used concurrently from different contexts; it uses a channel with the default buffer size (use buffer to change it); the flow completes when the block and all its children complete, while callbackFlow uses awaitClose to keep running."
+        }
+      ]
+    },
+    {
+      "id": "c013-q05",
+      "lesson": null,
+      "concept": "c013-finite-flow-test-collection",
+      "type": "multiple_choice",
+      "prompt": "In a test, `repo.counter.first()` returns `ITEM_1`. What happens to the flow's producer after that?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It keeps running in the background until `runTest` finishes"
+        },
+        {
+          "id": "b",
+          "text": "`first()` cancels it as soon as it has received the first item"
+        },
+        {
+          "id": "c",
+          "text": "It pauses, and the next `first()` call resumes it at item two"
+        },
+        {
+          "id": "d",
+          "text": "It completes only after emitting every item into a hidden list"
+        }
+      ],
+      "answer": "b",
+      "explanation": "`first()` waits for the first item and then sends a cancellation signal to the producer, so the test can finish even if the flow would run forever. A later `first()` call collects the cold flow again from the start; nothing is paused.",
+      "materials": [
+        "kotlin-flow-docs"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/kotlin/flow/test",
+          "title": "Testing Kotlin flows on Android",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "first() waits until the first item is received and then sends the cancellation signal to the producer."
+        }
+      ]
+    },
+    {
+      "id": "c013-q06",
+      "lesson": null,
+      "concept": "c013-bom-version-alignment",
+      "type": "multiple_choice",
+      "prompt": "You add `implementation(platform(\"androidx.compose:compose-bom:<version>\"))` to a module and no other Compose dependency. What does that add to the module?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "No Compose library: it only sets the versions of the ones you declare"
+        },
+        {
+          "id": "b",
+          "text": "Every stable Compose library, at versions that are known to work together"
+        },
+        {
+          "id": "c",
+          "text": "Only `compose-runtime`, which all the other Compose libraries rely on"
+        },
+        {
+          "id": "d",
+          "text": "The Compose compiler plugin, at the version that matches your Kotlin"
+        }
+      ],
+      "answer": "a",
+      "explanation": "The BOM only constrains versions. To use a Compose library you still declare it on its own line, without a version, and the BOM supplies a compatible one. So a BOM on its own adds nothing to the app.",
+      "materials": [
+        "android-version-catalogs"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/bom",
+          "title": "Use a Bill of Materials",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "The BOM doesn't add Compose libraries to your app; you must declare each library as a separate dependency, and the BOM verifies their versions are compatible."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,246 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c025-immutable-annotation-contract",
+      "name": "The @Immutable and @Stable annotation contract"
+    },
+    {
+      "id": "c025-explicit-android-exported",
+      "name": "Declaring android:exported explicitly"
+    },
+    {
+      "id": "c025-profileable-vs-debuggable-builds",
+      "name": "Profiling profileable release builds vs debuggable builds"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c025-q01",
+      "lesson": null,
+      "concept": "c025-immutable-annotation-contract",
+      "type": "multiple_choice",
+      "prompt": "To silence an unstable-parameter report, a developer annotates `class CartUi(val items: MutableList<Item>)` with `@Immutable`, and the code mutates `items` in place. What can go wrong?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Nothing: `@Immutable` makes the compiler copy the list into an immutable one"
+        },
+        {
+          "id": "b",
+          "text": "The build fails, since `@Immutable` checks that every property is read-only"
+        },
+        {
+          "id": "c",
+          "text": "Composables taking it may skip recomposing and silently show stale items"
+        },
+        {
+          "id": "d",
+          "text": "Every composable taking it recomposes on each frame, even when nothing changes"
+        }
+      ],
+      "answer": "c",
+      "explanation": "`@Immutable` and `@Stable` don't make a class immutable or stable; they are a promise to the compiler that overrides what it would infer, much like `!!`. If the promise is false, Compose can skip a composable whose input changed in place, so the UI shows stale data with no error. Make the class actually immutable, for example with Kotlinx immutable collections, instead.",
+      "materials": [
+        "compose-stability"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/performance/stability/fix",
+          "title": "Fix stability issues (Compose)",
+          "publisher": "Android Developers",
+          "accessed": "2026-10-02",
+          "claim": "`@Stable` and `@Immutable` don't make a class stable on their own; they opt into a contract with the compiler, overriding its inference like the `!!` operator, and incorrectly annotating a class can break recomposition, such as a composable not recomposing when you expect it to; Kotlinx Immutable Collections are treated as immutable."
+        }
+      ]
+    },
+    {
+      "id": "c025-q02",
+      "lesson": null,
+      "concept": "c025-explicit-android-exported",
+      "type": "multiple_choice",
+      "prompt": "An internal `DebugMenuActivity` has an intent filter so the app can start it with an implicit intent, and it is declared with `android:exported=\"true\"`. Why does a security review flag it?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Any app can launch it by its exact class name, so it is exposed to outsiders"
+        },
+        {
+          "id": "b",
+          "text": "Only the system can launch exported activities, so the app's intent will fail"
+        },
+        {
+          "id": "c",
+          "text": "An intent filter keeps other apps out, so `exported` is ignored on this one"
+        },
+        {
+          "id": "d",
+          "text": "Exported activities need a signature permission, or else the build will fail"
+        }
+      ],
+      "answer": "a",
+      "explanation": "With `exported=\"true\"` any app can start the activity by its exact class name, and accidentally exposing an internal component can lead to data leaks, misuse of its functionality, denial of service or code execution in the app's context. An intent filter is not access control. If only your app needs it, set `exported=\"false\"` and start it with an explicit intent, or guard it with a `signature` permission.",
+      "materials": [
+        "android-security-tips"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/privacy-and-security/risks/android-exported",
+          "title": "android:exported (security risk)",
+          "publisher": "Android Developers",
+          "accessed": "2026-10-02",
+          "claim": "If `android:exported` is true, any app can access the activity and launch it by its exact class name; accidentally exposing internal components can lead to denial of service, inappropriate access, data leaks or code execution; mitigations are to always set the attribute, set it to false for internal components, and protect components with a `signature` permission; Android 12 requires declaring it for components with intent filters."
+        },
+        {
+          "url": "https://developer.android.com/guide/topics/manifest/activity-element",
+          "title": "<activity> (manifest element)",
+          "publisher": "Android Developers",
+          "accessed": "2026-10-02",
+          "claim": "With `android:exported=\"false\"` the activity can be launched only by components of the same app, apps with the same user ID or privileged system components, which is the default when there are no intent filters; permissions also limit who can start it."
+        }
+      ]
+    },
+    {
+      "id": "c025-q03",
+      "lesson": null,
+      "concept": "c025-profileable-vs-debuggable-builds",
+      "type": "written",
+      "prompt": "A teammate measures CPU usage and frame timing of a slow scroll on a debug build and wants to optimize the hottest functions it shows. What is wrong with that, which build would you profile instead, and what can't that build do?",
+      "model_answer": {
+        "summary": "Debuggable builds carry performance costs that distort timings, so profile a profileable release build on a real device; it supports most profiling tasks, but heap dumps and Java/Kotlin allocation recording still need a debuggable build.",
+        "key_points": [
+          "A debuggable (debug variant) build lets you use the debugger but has performance overhead, so its CPU and timing profiles can point at the wrong hotspots",
+          "Profile a profileable app instead: the release build variant with `<profileable android:shell=\"true\"/>` in the manifest, which supports common profiling without the debug overhead",
+          "Use a physical or virtual device on API level 29 or higher for profiling a profileable app",
+          "Recording Java/Kotlin allocations or capturing a heap dump still needs a debuggable build"
+        ]
+      },
+      "explanation": "Performance work should be measured on something close to what users run, and a debug build isn't: the debuggable overhead changes where time goes. A profileable release build keeps release behaviour while allowing CPU and system tracing. Memory investigations that need heap dumps are the exception and are fine on a debug build.",
+      "materials": [
+        "android-tracing"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/studio/profile",
+          "title": "Profile your app performance",
+          "publisher": "Android Developers",
+          "accessed": "2026-10-02",
+          "claim": "A debuggable app, based on the debug variant, has performance costs; a profileable app, based on the release variant with `<profileable android:shell=\"true\"/>`, enables a subset of common profiling tasks without that overhead; it needs a device on API 29+, and recording Java/Kotlin allocations or capturing a heap dump requires a debuggable app."
+        }
+      ]
+    },
+    {
+      "id": "c025-q04",
+      "lesson": null,
+      "concept": "c025-immutable-annotation-contract",
+      "type": "written",
+      "prompt": "Your compiler report marks a UI model unstable because it holds a `List<Tag>`. A teammate proposes adding `@Immutable` to it. Explain what the annotation actually does, the risk, and what you would check or do instead.",
+      "model_answer": {
+        "summary": "The annotation is a promise that overrides the compiler's stability inference, not a change to the class; if the class can change in place, Compose may skip recomposition and show stale UI, so only annotate truly immutable classes or make the class immutable.",
+        "key_points": [
+          "`@Immutable`/`@Stable` don't make a class immutable or stable; they opt into a contract with the compiler and override its inference, like Kotlin's `!!`",
+          "If the class is actually mutated, composables taking it may not recompose when expected, giving stale UI and bugs that are hard to find",
+          "Annotate only if no instance is ever changed after construction; otherwise make the class really immutable, for example with Kotlinx immutable collections such as `ImmutableList`"
+        ]
+      },
+      "explanation": "A `List<Tag>` is an interface that might hide a mutable list, which is why the compiler can't prove stability. The annotation is fine when the team guarantees the list is never mutated, but it moves that guarantee from the compiler to people, so a later in-place change silently breaks the UI.",
+      "materials": [
+        "compose-stability"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/performance/stability/fix",
+          "title": "Fix stability issues (Compose)",
+          "publisher": "Android Developers",
+          "accessed": "2026-10-02",
+          "claim": "Annotating with `@Stable` or `@Immutable` opts into a contract that overrides the compiler's inference, like `!!`; incorrect annotation can break recomposition so a composable doesn't recompose when expected; Kotlinx Immutable Collections are supported and treated as immutable by the Compose compiler."
+        }
+      ]
+    },
+    {
+      "id": "c025-q05",
+      "lesson": null,
+      "concept": "c025-explicit-android-exported",
+      "type": "multiple_choice",
+      "prompt": "An activity in your manifest has no intent filters and no `android:exported` attribute. Another app tries to start it by its class name. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It starts, because components are exported unless you set the attribute to false"
+        },
+        {
+          "id": "b",
+          "text": "It starts, but only after the user approves the request in a system dialog"
+        },
+        {
+          "id": "c",
+          "text": "It fails, since `exported` defaults to false when there are no intent filters"
+        },
+        {
+          "id": "d",
+          "text": "It fails, since the build rejects any activity that leaves the attribute out"
+        }
+      ],
+      "answer": "c",
+      "explanation": "For an activity, `android:exported` defaults to false when it has no intent filters, so only your app, apps with the same user ID and privileged system components can start it; another app's start fails. Android 12 requires the attribute only on components with intent filters. The security guidance still says to always set it explicitly, because defaults have varied by component and Android version.",
+      "materials": [
+        "android-security-tips"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/guide/topics/manifest/activity-element",
+          "title": "<activity> (manifest element)",
+          "publisher": "Android Developers",
+          "accessed": "2026-10-02",
+          "claim": "With `android:exported=\"false\"` the activity can be launched only by components of the same application, applications with the same user ID, or privileged system components; this is the default value when there are no intent filters."
+        },
+        {
+          "url": "https://developer.android.com/privacy-and-security/risks/android-exported",
+          "title": "android:exported (security risk)",
+          "publisher": "Android Developers",
+          "accessed": "2026-10-02",
+          "claim": "Not setting the attribute risks different defaults between devices, since defaults changed over time and by component; Android 12 requires declaring `android:exported` for components with intent filters; always set it explicitly."
+        }
+      ]
+    },
+    {
+      "id": "c025-q06",
+      "lesson": null,
+      "concept": "c025-profileable-vs-debuggable-builds",
+      "type": "multiple_choice",
+      "prompt": "You want to hunt a memory leak by capturing a heap dump in Android Studio's profiler. Which build should you run?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A profileable release build, since it supports every profiling task"
+        },
+        {
+          "id": "b",
+          "text": "A debuggable build, since heap dumps need a debuggable app process"
+        },
+        {
+          "id": "c",
+          "text": "A minified release build without `<profileable>`, for real numbers"
+        },
+        {
+          "id": "d",
+          "text": "Any build, since heap dumps only need a device on API 29 or higher"
+        }
+      ],
+      "answer": "b",
+      "explanation": "A profileable release build supports most common profiling tasks without the debug overhead, which makes it the right choice for CPU and timing work. But recording Java/Kotlin allocations and capturing a heap dump are the documented exceptions that need a debuggable app, so for a heap dump you run the debug build.",
+      "materials": [
+        "android-tracing"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/studio/profile",
+          "title": "Profile your app performance",
+          "publisher": "Android Developers",
+          "accessed": "2026-10-02",
+          "claim": "A profileable app lets you do most common profiling tasks, but you should use a debuggable app if you need to record Java/Kotlin allocations or capture a heap dump."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,242 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c011-minimal-api-binding-sources",
+      "name": "How Minimal APIs infer each parameter's binding source"
+    },
+    {
+      "id": "c011-otel-collector-role",
+      "name": "Why export telemetry through an OpenTelemetry Collector"
+    },
+    {
+      "id": "c011-coverage-as-signal",
+      "name": "Code coverage as a signal, not a quality target"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c011-q01",
+      "lesson": null,
+      "concept": "c011-minimal-api-binding-sources",
+      "type": "multiple_choice",
+      "prompt": "A Minimal API endpoint is `app.MapPost(\"/orders/{id}\", (int id, string note, Order order, IClock clock) => ...)`. `Order` is a plain class and `IClock` is registered in DI. With no attributes, where does each parameter bind from?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`id` from the route, `note` and `order` from the JSON body, and `clock` from DI as a service"
+        },
+        {
+          "id": "b",
+          "text": "`id` from the route, `note` from the query string, `order` from the JSON body, `clock` from DI"
+        },
+        {
+          "id": "c",
+          "text": "`id` from the route, `note` from the query string, `order` from query string keys, `clock` from DI"
+        },
+        {
+          "id": "d",
+          "text": "`id` from the route, `note` from the query string, `order` from the body; `clock` needs `[FromServices]`"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Without attributes, Minimal APIs pick a source by type: a `string` or a type with `TryParse` binds from the route if its name is in the template, otherwise from the query string; a type registered in DI is injected without `[FromServices]`; anything else is read from the body as JSON. So `note` is a query value, not part of the body, and a complex type isn't spread over query keys unless you use `[AsParameters]`.",
+      "materials": [
+        "aspnetcore-apis"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis/parameter-binding",
+          "title": "Parameter binding in Minimal API applications",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "Binding precedence: explicit From* attributes, then special types, then BindAsync, then string/TryParse types (route if the name is in the template, otherwise query string), then DI services without [FromServices], and finally the body (JSON)."
+        }
+      ]
+    },
+    {
+      "id": "c011-q02",
+      "lesson": null,
+      "concept": "c011-otel-collector-role",
+      "type": "multiple_choice",
+      "prompt": "Your .NET services export OTLP straight to a vendor backend. Why does the OpenTelemetry project recommend running a Collector alongside them in production?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The .NET SDK can export OTLP only to a Collector and never straight to a vendor backend"
+        },
+        {
+          "id": "b",
+          "text": "A Collector makes instrumentation automatic, so the apps need no OpenTelemetry SDK"
+        },
+        {
+          "id": "c",
+          "text": "A Collector is the only place where traces can be sampled, which the SDK can't do"
+        },
+        {
+          "id": "d",
+          "text": "The app offloads data fast and the Collector handles retries, batching and filtering"
+        }
+      ],
+      "answer": "d",
+      "explanation": "Sending telemetry straight to a backend is fine to get started, but the recommendation for production is a Collector next to your services: the service hands data off quickly, and the Collector takes care of retries, batching, encryption and filtering of sensitive data, in a vendor-agnostic way. The SDK can export directly, and you still need instrumentation in the app; the Collector only receives, processes and exports what the app sends.",
+      "materials": [
+        "opentelemetry-dotnet"
+      ],
+      "sources": [
+        {
+          "url": "https://opentelemetry.io/docs/collector/",
+          "title": "Collector",
+          "publisher": "OpenTelemetry",
+          "accessed": "2026-10-02",
+          "claim": "Sending data directly to a backend is fine for development, but using a Collector alongside the service is recommended because the service can offload data quickly and the Collector can handle retries, batching, encryption or sensitive data filtering; it is a vendor-agnostic way to receive, process and export telemetry."
+        }
+      ]
+    },
+    {
+      "id": "c011-q03",
+      "lesson": null,
+      "concept": "c011-coverage-as-signal",
+      "type": "written",
+      "prompt": "Your lead proposes failing the build below 95% line coverage, up from today's 90%. How do you respond, and what would you look at instead?",
+      "model_answer": {
+        "summary": "Coverage only shows how much code the tests run, not whether they check the right behaviour, so a hard 95% gate costs a lot for little gain. Use coverage to find risky untested code and judge tests by the behaviour they assert.",
+        "key_points": [
+          "Coverage measures how much code the tests execute; it can't by itself show code quality or that results are checked",
+          "Going from 90% to 95% in branch-heavy code can be a large effort with diminishing value, so an overly ambitious goal can be counterproductive",
+          "Use the coverage report to find untested critical paths, and cover them with tests of public behaviour rather than private methods"
+        ]
+      },
+      "explanation": "Microsoft's .NET testing guidance is explicit that a high coverage percentage is not an indicator of success or of quality: it only says how much code is covered. The tempting answer, \"more coverage means better tests\", ignores that a test can run code without asserting anything useful, and that chasing the last few percent of edge branches costs more than it returns.",
+      "materials": [
+        "dotnet-testing"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/testing/unit-testing-best-practices",
+          "title": "Best practices for writing unit tests - .NET",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "A high code coverage percentage isn't an indicator of success and doesn't imply high code quality; it only represents the amount of code covered by unit tests, and an overly ambitious goal (such as 95% from 90%) can be counterproductive as value diminishes. Private methods should be tested through the public methods that call them."
+        }
+      ]
+    },
+    {
+      "id": "c011-q04",
+      "lesson": null,
+      "concept": "c011-minimal-api-binding-sources",
+      "type": "multiple_choice",
+      "prompt": "An endpoint is `app.MapPost(\"/orders\", (Order order) => ...)`. A client posts an HTML form with `Content-Type: application/x-www-form-urlencoded`. What does the client get back?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "415 Unsupported Media Type, because the inferred body source expects JSON"
+        },
+        {
+          "id": "b",
+          "text": "400 Bad Request, because the JSON in the request body failed to deserialize"
+        },
+        {
+          "id": "c",
+          "text": "200 OK, with `order` bound from the form fields by matching their names"
+        },
+        {
+          "id": "d",
+          "text": "500 Internal Server Error, because binding threw an unhandled exception"
+        }
+      ],
+      "answer": "a",
+      "explanation": "A complex parameter with no attribute binds from the body as JSON. When the request's content type isn't `application/json`, binding fails with 415. A 400 is for JSON that can't be deserialized. Binding a complex type from form fields needs an explicit `[FromForm]`.",
+      "materials": [
+        "aspnetcore-apis"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis/parameter-binding",
+          "title": "Parameter binding in Minimal API applications",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "Binding failures: a wrong content type (not application/json) for the body source returns 415, failure to deserialize a JSON body returns 400; complex form-bound parameters must be annotated with [FromForm]."
+        }
+      ]
+    },
+    {
+      "id": "c011-q05",
+      "lesson": null,
+      "concept": "c011-otel-collector-role",
+      "type": "multiple_choice",
+      "prompt": "Three services in three languages must strip users' email addresses from telemetry before it leaves your network. Where is that most practical to do once?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "In the vendor's backend, with a rule that runs after it ingests the data"
+        },
+        {
+          "id": "b",
+          "text": "In each service's logging configuration, since spans never hold emails"
+        },
+        {
+          "id": "c",
+          "text": "In a Collector, which can filter sensitive data for every service"
+        },
+        {
+          "id": "d",
+          "text": "In the browser, before the user's requests ever reach the services"
+        }
+      ],
+      "answer": "c",
+      "explanation": "A Collector receives, processes and exports telemetry from any service in a vendor-agnostic way, and sensitive data filtering is one of the jobs it is meant to take over. Filtering in the backend is too late: the data has already left your network. Spans can hold any attribute, so logging settings alone don't cover them.",
+      "materials": [
+        "opentelemetry-dotnet"
+      ],
+      "sources": [
+        {
+          "url": "https://opentelemetry.io/docs/collector/",
+          "title": "Collector",
+          "publisher": "OpenTelemetry",
+          "accessed": "2026-10-02",
+          "claim": "The Collector offers a vendor-agnostic way to receive, process and export telemetry, and can take care of handling like retries, batching, encryption or even sensitive data filtering."
+        }
+      ]
+    },
+    {
+      "id": "c011-q06",
+      "lesson": null,
+      "concept": "c011-coverage-as-signal",
+      "type": "multiple_choice",
+      "prompt": "A new test calls `parser.ParseLogLine(\" a \")` and asserts nothing, and line coverage goes up. What does that test prove?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "That the method returns the trimmed string `\"a\"` for that input"
+        },
+        {
+          "id": "b",
+          "text": "That those lines ran without throwing, not that the result is right"
+        },
+        {
+          "id": "c",
+          "text": "That every branch in the method now has a test that checks it"
+        },
+        {
+          "id": "d",
+          "text": "Nothing at all, since coverage tools skip tests that don't assert anything"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Coverage counts the code a test runs, so a test with no assertion still raises it. It can only fail by throwing, so it proves the code ran, not that it returned the right value. That is why the .NET guidance says coverage alone can't determine code quality, and a good test is self-checking.",
+      "materials": [
+        "dotnet-testing"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/testing/unit-testing-best-practices",
+          "title": "Best practices for writing unit tests - .NET",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "Coverage only represents the amount of code covered by unit tests and can't by itself determine quality; a good unit test is self-checking, automatically detecting whether it passed or failed."
+        }
+      ]
+    }
+  ]
+}

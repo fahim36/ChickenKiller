@@ -1,0 +1,242 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c022-open-redirect-prevention",
+      "name": "Preventing open redirects with local-URL checks"
+    },
+    {
+      "id": "c022-prompt-prefix-caching",
+      "name": "Prompt caching and stable prompt prefixes"
+    },
+    {
+      "id": "c022-mcp-server-primitives",
+      "name": "MCP server primitives: tools, resources and prompts"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c022-q01",
+      "lesson": null,
+      "concept": "c022-open-redirect-prevention",
+      "type": "multiple_choice",
+      "prompt": "After sign-in, your ASP.NET Core MVC action runs `return Redirect(returnUrl);` with `returnUrl` taken from the query string. Which change follows Microsoft's guidance against open redirects?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Check that `returnUrl` contains your own domain name before calling `Redirect`"
+        },
+        {
+          "id": "b",
+          "text": "HTML-encode `returnUrl` before passing it to `Redirect`, so no script can run"
+        },
+        {
+          "id": "c",
+          "text": "Serve the sign-in page only over HTTPS, so attackers can't edit the query string"
+        },
+        {
+          "id": "d",
+          "text": "Use `LocalRedirect(returnUrl)`, or check `Url.IsLocalUrl` before redirecting"
+        }
+      ],
+      "answer": "d",
+      "explanation": "An attacker can send a link to your real sign-in page with `returnUrl` pointing at a look-alike site, and after a real sign-in your app sends the user there. `LocalRedirect` throws for a non-local URL, and `Url.IsLocalUrl` lets you check first and fall back to a safe page. A 'contains our domain' check is easy to fool (`https://contoso.com.evil.example`), encoding addresses XSS rather than redirects, and HTTPS doesn't stop anyone from crafting a link.",
+      "materials": [
+        "owasp-cheat-sheets"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/security/preventing-open-redirects",
+          "title": "Prevent open redirect attacks in ASP.NET Core",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "Redirecting to a URL taken from the request allows open redirect attacks; use LocalRedirect, which throws for a non-local URL, or IUrlHelper.IsLocalUrl to check the URL before redirecting."
+        }
+      ]
+    },
+    {
+      "id": "c022-q02",
+      "lesson": null,
+      "concept": "c022-prompt-prefix-caching",
+      "type": "multiple_choice",
+      "prompt": "Your Azure OpenAI feature sends a 3,000-token system prompt on every request, but it starts with the current time and the user's name. The response's `cached_tokens` is always 0. Why?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Caching needs an identical prefix, and the changing text at the start breaks it"
+        },
+        {
+          "id": "b",
+          "text": "Prompt caching must be switched on per deployment, and it is off by default"
+        },
+        {
+          "id": "c",
+          "text": "Only prompts longer than 10,000 tokens are cached, so 3,000 tokens never qualify"
+        },
+        {
+          "id": "d",
+          "text": "The cache stores model outputs, so it can't help once the answers start to differ"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Azure OpenAI caches the processing of a prompt's prefix: a request must be at least 1,024 tokens and its first 1,024 tokens must be identical to a cached prompt. One differing character in that range is a miss. Putting the time and name first changes the prefix on every call; move stable content to the start and variable content to the end. Caching is on by default for supported models and doesn't affect the output.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/ai-foundry/openai/how-to/prompt-caching",
+          "title": "Prompt caching with Azure OpenAI in Microsoft Foundry Models",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "A cache hit needs at least 1,024 tokens with the first 1,024 identical; a single character difference there gives cached_tokens of 0; caching is enabled by default, has no effect on output content, and stable content should go first and dynamic content last."
+        }
+      ]
+    },
+    {
+      "id": "c022-q03",
+      "lesson": null,
+      "concept": "c022-mcp-server-primitives",
+      "type": "written",
+      "prompt": "You're building an MCP server for your team's internal docs and deployment system. Which capabilities would you expose as tools, which as resources and which as prompts, and why does the choice matter?",
+      "model_answer": {
+        "summary": "Tools are model-controlled actions, resources are application-controlled context data, and prompts are user-controlled templates; the choice decides who triggers each capability, and so where confirmation and trust checks belong.",
+        "key_points": [
+          "Tools are model-controlled: functions the LLM can call to act or fetch information, such as `trigger_deployment` or `search_docs`",
+          "Resources are application-controlled: context data such as a doc page or a deployment log that the client app attaches and manages",
+          "Prompts are user-controlled: templates the user picks on purpose, such as a `/release-notes` slash command",
+          "Side-effecting operations such as deployments belong in tools, where the client should keep a human in the loop who can deny the call and confirm sensitive operations"
+        ]
+      },
+      "explanation": "The three primitives differ by who is in control. Exposing a deployment as a tool lets the model decide to call it, so the spec asks clients to show tool calls and confirm sensitive ones. Read-only context fits resources, where the app decides what to attach, and reusable workflows fit prompts. Making everything a tool is the tempting answer, but it hands every decision to the model.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://modelcontextprotocol.io/specification/latest/server",
+          "title": "Server Features Overview (MCP specification 2026-07-28)",
+          "publisher": "Model Context Protocol",
+          "accessed": "2026-10-02",
+          "claim": "MCP servers offer prompts (user-controlled templates such as slash commands), resources (application-controlled context data attached by the client, such as file contents) and tools (model-controlled functions the LLM calls to take actions)."
+        },
+        {
+          "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/tools",
+          "title": "Tools (MCP specification 2026-07-28)",
+          "publisher": "Model Context Protocol",
+          "accessed": "2026-10-02",
+          "claim": "Tools are model-controlled; there SHOULD always be a human in the loop able to deny tool invocations, and clients SHOULD prompt for confirmation on sensitive operations."
+        }
+      ]
+    },
+    {
+      "id": "c022-q04",
+      "lesson": null,
+      "concept": "c022-open-redirect-prevention",
+      "type": "multiple_choice",
+      "prompt": "In an ASP.NET Core MVC action, what does `return LocalRedirect(\"https://evil.example/login\");` do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It quietly redirects to the app's home page instead of that URL"
+        },
+        {
+          "id": "b",
+          "text": "It strips the host and redirects to `/login` on the app's own site"
+        },
+        {
+          "id": "c",
+          "text": "It throws an exception, because the URL isn't local to the app"
+        },
+        {
+          "id": "d",
+          "text": "It redirects as asked, because the target URL already uses HTTPS"
+        }
+      ],
+      "answer": "c",
+      "explanation": "`LocalRedirect` behaves like `Redirect` for a local URL and throws for a non-local one. It never rewrites the URL or falls back to a home page; if you want a fallback, check with `Url.IsLocalUrl` first and redirect elsewhere when it returns false. HTTPS has nothing to do with whether a URL is local.",
+      "materials": [
+        "owasp-cheat-sheets"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/security/preventing-open-redirects",
+          "title": "Prevent open redirect attacks in ASP.NET Core",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "LocalRedirect throws an exception if a non-local URL is specified; otherwise it behaves like Redirect. Url.IsLocalUrl can be used to check and redirect to a safe page instead."
+        }
+      ]
+    },
+    {
+      "id": "c022-q05",
+      "lesson": null,
+      "concept": "c022-prompt-prefix-caching",
+      "type": "multiple_choice",
+      "prompt": "Which way of laying out each chat request gets the most out of Azure OpenAI prompt caching?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The new question first, then the tool definitions, then the long fixed instructions"
+        },
+        {
+          "id": "b",
+          "text": "Any order works, since the service caches each message on its own, not as a prefix"
+        },
+        {
+          "id": "c",
+          "text": "Fixed instructions and tool definitions first, then history, then the new question"
+        },
+        {
+          "id": "d",
+          "text": "Fixed instructions last, so the model reads them just before it writes its answer"
+        }
+      ],
+      "answer": "c",
+      "explanation": "The cache matches on an identical prompt prefix, and the cached content covers the messages array and tool definitions. So put the stable parts (instructions, tools) first, keep the history append-only, and put what changes at the end. Messages aren't cached one by one: a change early in the prompt makes everything after it a miss.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/ai-foundry/openai/how-to/prompt-caching",
+          "title": "Prompt caching with Azure OpenAI in Microsoft Foundry Models",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "Prompt caching matches identical content at the beginning of the prompt; it covers the messages array and tool definitions; best practice is stable content first, dynamic content last, and append-only conversation context."
+        }
+      ]
+    },
+    {
+      "id": "c022-q06",
+      "lesson": null,
+      "concept": "c022-mcp-server-primitives",
+      "type": "multiple_choice",
+      "prompt": "An MCP server offers a `/summarize-incident` template that users choose from a menu in the client. Which primitive is it, and who controls it?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A prompt, controlled by the user, who invokes it when they want"
+        },
+        {
+          "id": "b",
+          "text": "A tool, controlled by the model, which decides when to call it"
+        },
+        {
+          "id": "c",
+          "text": "A resource, controlled by the app, which attaches it as context"
+        },
+        {
+          "id": "d",
+          "text": "A sampling request, controlled by the server, which sends it out"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Prompts are user-controlled: pre-defined templates invoked by the user's choice, such as slash commands or menu options. Tools are model-controlled and resources are application-controlled. Sampling is a way for a server to ask the client for an LLM completion, not a template a user picks.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://modelcontextprotocol.io/specification/latest/server",
+          "title": "Server Features Overview (MCP specification 2026-07-28)",
+          "publisher": "Model Context Protocol",
+          "accessed": "2026-10-02",
+          "claim": "Prompts are user-controlled interactive templates invoked by user choice, such as slash commands and menu options; resources are application-controlled; tools are model-controlled."
+        }
+      ]
+    }
+  ]
+}

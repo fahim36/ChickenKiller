@@ -1,0 +1,250 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c019-stable-sort-multikey",
+      "name": "Stable sorts and multi-key sorting"
+    },
+    {
+      "id": "c019-redis-lock-token",
+      "name": "Redis locks: `SET NX PX` with a unique token"
+    },
+    {
+      "id": "c019-retry-amplification",
+      "name": "Retry amplification and retry budgets"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c019-q01",
+      "lesson": null,
+      "concept": "c019-stable-sort-multikey",
+      "type": "multiple_choice",
+      "prompt": "```python\npeople = [(\"ann\", 30), (\"bob\", 25), (\"cy\", 30), (\"di\", 25)]\npeople.sort(key=lambda p: p[0], reverse=True)\npeople.sort(key=lambda p: p[1])\n```\nWhat is `people` afterwards?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`[(\"bob\", 25), (\"di\", 25), (\"ann\", 30), (\"cy\", 30)]`"
+        },
+        {
+          "id": "b",
+          "text": "`[(\"cy\", 30), (\"ann\", 30), (\"di\", 25), (\"bob\", 25)]`"
+        },
+        {
+          "id": "c",
+          "text": "`[(\"di\", 25), (\"bob\", 25), (\"cy\", 30), (\"ann\", 30)]`"
+        },
+        {
+          "id": "d",
+          "text": "Equal ages can come out in any order, so it varies between runs"
+        }
+      ],
+      "answer": "c",
+      "explanation": "Python's sort is stable: items with equal keys keep the order they had. The first sort orders by name, descending: di, cy, bob, ann. The second sorts by age, and within each age keeps that order, so 25 gives di then bob, and 30 gives cy then ann. Option a forgets the first sort, and b assumes `reverse=True` carries over to the second call. Stability is guaranteed, so the result never varies.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/howto/sorting.html",
+          "title": "Sorting Techniques",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-10-02",
+          "claim": "Python sorts are guaranteed stable, so records with equal keys keep their original order; this lets you build complex sorts in passes, sorting on the secondary key first and then on the primary key, and `reverse=True` still keeps stability."
+        },
+        {
+          "url": "https://docs.python.org/3/library/stdtypes.html",
+          "title": "Built-in Types",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-10-02",
+          "claim": "Concatenating immutable sequences always makes a new object, so building a sequence by repeated concatenation has a quadratic runtime cost in its total length; for `str`, build a list and call `str.join()` or write to `io.StringIO`, and for `bytes` use `bytes.join()`, `io.BytesIO` or an in-place `bytearray`."
+        }
+      ]
+    },
+    {
+      "id": "c019-q02",
+      "lesson": null,
+      "concept": "c019-redis-lock-token",
+      "type": "multiple_choice",
+      "prompt": "Two workers use one Redis instance so that only one of them runs the nightly re-index job at a time. Which acquire-and-release scheme do the Redis docs recommend?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`SET job:lock <random token> NX PX 30000`; delete it only if it still holds your token"
+        },
+        {
+          "id": "b",
+          "text": "`SETNX job:lock 1`, then `EXPIRE job:lock 30`, and `DEL job:lock` once the job has finished"
+        },
+        {
+          "id": "c",
+          "text": "`SET job:lock 1 NX PX 30000`, and `DEL job:lock` as soon as the re-index job has finished"
+        },
+        {
+          "id": "d",
+          "text": "`SET job:lock <random token> XX PX 30000`, and let the key expire rather than deleting it"
+        }
+      ],
+      "answer": "a",
+      "explanation": "`NX` makes acquiring atomic (set only if absent) and `PX` makes a crashed holder's lock expire. The value must be unique per client and request, and release must check it: delete only if the key still holds your token. A plain `DEL` (b, c) can remove a lock another worker took after yours expired, and `SETNX` then `EXPIRE` are two steps, so a crash between them leaves a lock that never expires. `XX` sets only if the key already exists, so it can't acquire a free lock.",
+      "materials": [
+        "redis-documentation"
+      ],
+      "sources": [
+        {
+          "url": "https://redis.io/docs/latest/develop/clients/patterns/distributed-locks/",
+          "title": "Distributed Locks with Redis",
+          "publisher": "Redis",
+          "accessed": "2026-10-02",
+          "claim": "On a single instance, acquire with `SET resource_name my_random_value NX PX 30000`, where the value is unique across all clients and requests, and release only if the value still matches (a Lua script, or `DELEX key IFEQ value` on Redis 8.4+); plain `DEL` is unsafe because a client that outlived its lock's validity time can remove another client's lock; mutual exclusion holds only while work finishes within the validity time, and failover to an asynchronous replica can let two clients hold the lock."
+        },
+        {
+          "url": "https://redis.io/docs/latest/commands/set/",
+          "title": "SET",
+          "publisher": "Redis",
+          "accessed": "2026-10-02",
+          "claim": "`NX` sets the key only if it doesn't exist and `XX` only if it does; for a lock, set a non-guessable random token and release with a script that deletes the key only if its value still matches, so a client whose lock expired can't delete a lock another client took later."
+        }
+      ]
+    },
+    {
+      "id": "c019-q03",
+      "lesson": null,
+      "concept": "c019-retry-amplification",
+      "type": "written",
+      "prompt": "Your agent API calls a tool service, which calls a database, and each of the three layers in front of the database makes up to 4 attempts. During a database slowdown, why does this make things worse, and how would you redesign the retries?",
+      "model_answer": {
+        "summary": "Retries multiply across layers, so one user action becomes up to 64 database attempts just when it is overloaded; retry at one layer, cap retries per request and with a retry budget, back off with jitter, and tell clients not to retry when overloaded.",
+        "key_points": [
+          "Attempts multiply across layers: 4 × 4 × 4 = 64 attempts on the database for one user action, piling load onto a struggling dependency",
+          "Retry at only one layer, and cap the number of retries per request",
+          "Add a server-wide retry budget (such as 60 retries a minute per process); once it is spent, fail the request instead of retrying",
+          "Use randomized exponential backoff, and have an overloaded server return a specific status so callers back off and don't retry"
+        ]
+      },
+      "explanation": "Each layer's retries look harmless on their own, but the total is the product of the attempts at every layer, and it lands on the component that is already failing. That turns a slowdown into a cascading failure. Retrying only at the top, with a budget, means a widespread outage costs a bounded amount of extra load.",
+      "materials": [
+        "tenacity-retries-in-python"
+      ],
+      "sources": [
+        {
+          "url": "https://sre.google/sre-book/addressing-cascading-failures/",
+          "title": "Addressing Cascading Failures (Site Reliability Engineering)",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "Retries at several layers multiply: with three layers each making up to 4 attempts, one user action can cause 64 (4^3) attempts on the database; limit retries per request, consider a server-wide retry budget (for example 60 retries a minute per process, after which requests fail instead of retrying), retry at one layer, use randomized exponential backoff, and return a specific status when overloaded so clients don't retry."
+        }
+      ]
+    },
+    {
+      "id": "c019-q04",
+      "lesson": null,
+      "concept": "c019-stable-sort-multikey",
+      "type": "multiple_choice",
+      "prompt": "You need rows ordered by `grade` descending, then by `age` ascending within each grade, using two `sorted()` calls. Which order of calls works?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Sort by `age` first, then by `grade` with `reverse=True`"
+        },
+        {
+          "id": "b",
+          "text": "Sort by `grade` with `reverse=True` first, then by `age`"
+        },
+        {
+          "id": "c",
+          "text": "Either order works, because Python's sort is always stable"
+        },
+        {
+          "id": "d",
+          "text": "Neither, since `reverse=True` breaks stability, so use one call"
+        }
+      ],
+      "answer": "a",
+      "explanation": "With a stable sort, the last pass decides the main order and earlier passes break ties. So sort on the secondary key (`age`) first, then on the primary key (`grade`, descending). Sorting by grade first would let the age sort scramble the grades. The docs say `reverse=True` still keeps stability: equal keys stay in their original order.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/howto/sorting.html",
+          "title": "Sorting Techniques",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-10-02",
+          "claim": "Python sorts are guaranteed stable, so records with equal keys keep their original order; this lets you build complex sorts in passes, sorting on the secondary key first and then on the primary key, and `reverse=True` still keeps stability."
+        }
+      ]
+    },
+    {
+      "id": "c019-q05",
+      "lesson": null,
+      "concept": "c019-redis-lock-token",
+      "type": "written",
+      "prompt": "A worker takes a Redis lock with `SET lock 1 NX PX 30000`, stalls for 40 seconds, then runs `DEL lock`. What can go wrong, and how would you fix the lock?",
+      "model_answer": {
+        "summary": "The lock expires during the stall, a second worker takes it, and the first worker's `DEL` deletes the second worker's lock; store a unique token and delete only if it still matches, and keep work inside the lock's validity time.",
+        "key_points": [
+          "After 30 seconds the key expires, so a second worker can acquire the lock while the first is still working",
+          "The first worker's `DEL` then removes the second worker's lock, so a third worker can get in too",
+          "Fix: set a value unique to each client and request, and release with a check-and-delete script (or `DELEX ... IFEQ` on Redis 8.4+)",
+          "Mutual exclusion only holds while work finishes within the validity time, so extend the lock or use fencing tokens for long jobs"
+        ]
+      },
+      "explanation": "The fixed value `1` means any worker can delete any lock. A random token per acquisition \"signs\" the lock, so release only deletes your own. Even then, a lock with a TTL only protects work that finishes before it expires, and failing over to an asynchronous replica can hand the same lock to two clients, which is why Redis points to fencing tokens for correctness.",
+      "materials": [
+        "redis-documentation"
+      ],
+      "sources": [
+        {
+          "url": "https://redis.io/docs/latest/develop/clients/patterns/distributed-locks/",
+          "title": "Distributed Locks with Redis",
+          "publisher": "Redis",
+          "accessed": "2026-10-02",
+          "claim": "On a single instance, acquire with `SET resource_name my_random_value NX PX 30000`, where the value is unique across all clients and requests, and release only if the value still matches (a Lua script, or `DELEX key IFEQ value` on Redis 8.4+); plain `DEL` is unsafe because a client that outlived its lock's validity time can remove another client's lock; mutual exclusion holds only while work finishes within the validity time, and failover to an asynchronous replica can let two clients hold the lock."
+        },
+        {
+          "url": "https://redis.io/docs/latest/commands/set/",
+          "title": "SET",
+          "publisher": "Redis",
+          "accessed": "2026-10-02",
+          "claim": "`NX` sets the key only if it doesn't exist and `XX` only if it does; for a lock, set a non-guessable random token and release with a script that deletes the key only if its value still matches, so a client whose lock expired can't delete a lock another client took later."
+        }
+      ]
+    },
+    {
+      "id": "c019-q06",
+      "lesson": null,
+      "concept": "c019-retry-amplification",
+      "type": "multiple_choice",
+      "prompt": "Your service has a server-wide retry budget of 60 retries a minute, and a dependency outage has used it all up. What should the next failed call do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Retry anyway, using a longer exponential backoff delay than usual"
+        },
+        {
+          "id": "b",
+          "text": "Fail the request without retrying until the budget has refilled"
+        },
+        {
+          "id": "c",
+          "text": "Borrow retries from next minute's budget so users don't see errors"
+        },
+        {
+          "id": "d",
+          "text": "Retry once at every layer, since the budget only covers the top one"
+        }
+      ],
+      "answer": "b",
+      "explanation": "A retry budget exists to bound the extra load retries add during an outage. Google's SRE book says that once it is exceeded, don't retry: just fail the request. Retrying anyway, borrowing ahead, or adding retries at other layers all bring back the amplification the budget was meant to stop.",
+      "materials": [
+        "tenacity-retries-in-python"
+      ],
+      "sources": [
+        {
+          "url": "https://sre.google/sre-book/addressing-cascading-failures/",
+          "title": "Addressing Cascading Failures (Site Reliability Engineering)",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "Retries at several layers multiply: with three layers each making up to 4 attempts, one user action can cause 64 (4^3) attempts on the database; limit retries per request, consider a server-wide retry budget (for example 60 retries a minute per process, after which requests fail instead of retrying), retry at one layer, use randomized exponential backoff, and return a specific status when overloaded so clients don't retry."
+        }
+      ]
+    }
+  ]
+}

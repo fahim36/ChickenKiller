@@ -1,0 +1,243 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c030-spotlighting",
+      "name": "Spotlighting untrusted input: delimiting, datamarking, encoding"
+    },
+    {
+      "id": "c030-routing-workflow",
+      "name": "The routing workflow"
+    },
+    {
+      "id": "c030-dual-llm-pattern",
+      "name": "The Dual LLM pattern"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c030-q01",
+      "lesson": null,
+      "concept": "c030-spotlighting",
+      "type": "multiple_choice",
+      "prompt": "You wrap retrieved documents in `<<` and `>>` and tell the model never to follow instructions between them. Why does Microsoft's Spotlighting paper find this delimiting weak, and what held up better?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "An attacker can write the markers into the document; datamarking held up better"
+        },
+        {
+          "id": "b",
+          "text": "Models ignore delimiters entirely; only fine-tuning on the markers helped at all"
+        },
+        {
+          "id": "c",
+          "text": "Delimiters break tokenisation; base64 encoding worked better on every model size"
+        },
+        {
+          "id": "d",
+          "text": "Delimiters hide the text from the model; stripping all formatting worked better"
+        }
+      ],
+      "answer": "a",
+      "explanation": "An attacker who knows the system prompt can include matching delimiters in the document and escape the marked region. Datamarking interleaves a special token (such as `^`) through the whole untrusted text, which cut attack success from about 50% to under 3% in the paper's tests. Encoding helped only on high-capacity models.",
+      "materials": [
+        "simon-willison-prompt-injection-series"
+      ],
+      "sources": [
+        {
+          "url": "https://arxiv.org/abs/2403.14720",
+          "title": "Defending Against Indirect Prompt Injection Attacks With Spotlighting",
+          "publisher": "arXiv (Hines et al., Microsoft)",
+          "accessed": "2026-10-02",
+          "claim": "Spotlighting marks untrusted input by delimiting, datamarking (interleaving a special character such as ^ throughout the text) or encoding; plain delimiters are weak because an adversary can include them, while datamarking cut attack success from about 50% to below 3% on GPT-3.5-Turbo; encoding hurt GPT-3.5-Turbo's task performance but worked with GPT-4."
+        }
+      ]
+    },
+    {
+      "id": "c030-q02",
+      "lesson": null,
+      "concept": "c030-routing-workflow",
+      "type": "multiple_choice",
+      "prompt": "Your support bot gets easy FAQ questions and hard technical ones. Following Anthropic's routing workflow, what do you build?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "One big prompt for both kinds, tuned on a mix of easy and hard questions"
+        },
+        {
+          "id": "b",
+          "text": "A classifier that sends easy ones to a small model, hard ones to a larger"
+        },
+        {
+          "id": "c",
+          "text": "Three parallel calls per question, keeping whichever answer most agree on"
+        },
+        {
+          "id": "d",
+          "text": "A loop where a critic model reviews each answer and asks for rewrites"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Routing classifies an input and sends it to a specialised follow-up, and sending easy questions to a smaller, cheaper model and hard ones to a more capable one is Anthropic's own example. One prompt for both is what routing avoids, since optimising it for one kind of input can hurt the others. Parallel voting and a critic loop are other patterns.",
+      "materials": [
+        "anthropic-building-effective-agents"
+      ],
+      "sources": [
+        {
+          "url": "https://www.anthropic.com/engineering/building-effective-agents",
+          "title": "Building effective agents",
+          "publisher": "Anthropic",
+          "accessed": "2026-10-02",
+          "claim": "Routing classifies an input and directs it to a specialised follow-up task, such as routing easy questions to smaller models like Claude Haiku and hard ones to more capable models like Claude Sonnet; without it, optimising for one kind of input can hurt performance on others."
+        }
+      ]
+    },
+    {
+      "id": "c030-q03",
+      "lesson": null,
+      "concept": "c030-dual-llm-pattern",
+      "type": "written",
+      "prompt": "Describe Simon Willison's Dual LLM pattern for an email assistant: what each part may see and do, and its main weaknesses.",
+      "model_answer": {
+        "summary": "A privileged LLM takes the user's instructions and uses tools but never sees untrusted text; a quarantined LLM reads untrusted text but has no tools; plain code passes results between them as variables. It costs complexity and UX, and the user can still be socially engineered.",
+        "key_points": [
+          "A privileged LLM takes instructions from the trusted user and can call tools, but never sees untrusted content",
+          "A quarantined LLM processes untrusted content such as email text, and has no tool access",
+          "A controller in ordinary code stores untrusted content and quarantined outputs as variables like `$VAR1`, so the privileged LLM only ever sees the variable names",
+          "Weaknesses: more implementation complexity and a worse user experience, and an attacker can still socially engineer the user through text shown to them"
+        ]
+      },
+      "explanation": "The idea is to keep the model that holds the tools away from anything an attacker wrote. The quarantined model may go rogue at any moment, but it has nothing to act with, and its output reaches the privileged model only as a reference. It isn't a complete defence: injected text displayed to the user can still trick the user into leaking data.",
+      "materials": [
+        "simon-willison-prompt-injection-series"
+      ],
+      "sources": [
+        {
+          "url": "https://simonwillison.net/2023/Apr/25/dual-llm-pattern/",
+          "title": "The Dual LLM pattern for building AI assistants that can resist prompt injection",
+          "publisher": "Simon Willison",
+          "accessed": "2026-10-02",
+          "claim": "The Dual LLM pattern uses a Privileged LLM that takes trusted input and has tool access, and a Quarantined LLM that handles untrusted content with no tool access; a non-LLM controller passes content as variables like $VAR1, so the Privileged LLM never sees untrusted content; it adds complexity and degrades UX, and users can still be socially engineered."
+        }
+      ]
+    },
+    {
+      "id": "c030-q04",
+      "lesson": null,
+      "concept": "c030-spotlighting",
+      "type": "multiple_choice",
+      "prompt": "You spotlight untrusted documents by base64-encoding them and telling the model to decode but never obey them. What did Microsoft's Spotlighting paper find?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It held task accuracy on GPT-4, but GPT-3.5-Turbo's accuracy suffered"
+        },
+        {
+          "id": "b",
+          "text": "It blocked injection on every model, as encoded text can't hold orders"
+        },
+        {
+          "id": "c",
+          "text": "It had no effect, since models decode the text and obey it all the same"
+        },
+        {
+          "id": "d",
+          "text": "It worked best on smaller models, which can't decode the hidden orders"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Encoding is the strongest spotlighting mode, but the model must decode the text to use it. GPT-4 kept its task performance on encoded input, while GPT-3.5-Turbo's suffered, with occasional hallucinations while decoding, so the paper advises encoding only for high-capacity models. No spotlighting mode was a complete defence.",
+      "materials": [
+        "simon-willison-prompt-injection-series"
+      ],
+      "sources": [
+        {
+          "url": "https://arxiv.org/abs/2403.14720",
+          "title": "Defending Against Indirect Prompt Injection Attacks With Spotlighting",
+          "publisher": "arXiv (Hines et al., Microsoft)",
+          "accessed": "2026-10-02",
+          "claim": "Encoding untrusted input (such as base64) worked with GPT-4 while keeping task performance, but GPT-3.5-Turbo suffered in task performance on encoded text; spotlighting is an in-band defence that reduces but does not eliminate attacks."
+        }
+      ]
+    },
+    {
+      "id": "c030-q05",
+      "lesson": null,
+      "concept": "c030-routing-workflow",
+      "type": "multiple_choice",
+      "prompt": "By Anthropic's \"Building effective agents\", when does a routing workflow work well?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "When inputs fall into distinct categories and can be classified accurately"
+        },
+        {
+          "id": "b",
+          "text": "When every input needs the same steps, but each step is hard to get right"
+        },
+        {
+          "id": "c",
+          "text": "When the subtasks for an input can't be known until the model has read it"
+        },
+        {
+          "id": "d",
+          "text": "When a task needs several attempts to reach a high-confidence final answer"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Routing fits complex tasks with distinct categories that are better handled separately, and only when the classification itself can be done accurately, by an LLM or a traditional classifier; a bad classifier sends inputs down the wrong path. The same fixed steps for every input is prompt chaining, unknown subtasks is orchestrator-workers, and several attempts is voting.",
+      "materials": [
+        "anthropic-building-effective-agents"
+      ],
+      "sources": [
+        {
+          "url": "https://www.anthropic.com/engineering/building-effective-agents",
+          "title": "Building effective agents",
+          "publisher": "Anthropic",
+          "accessed": "2026-10-02",
+          "claim": "Routing works well for complex tasks with distinct categories better handled separately, where classification can be handled accurately by an LLM or a traditional classification model or algorithm."
+        }
+      ]
+    },
+    {
+      "id": "c030-q06",
+      "lesson": null,
+      "concept": "c030-dual-llm-pattern",
+      "type": "multiple_choice",
+      "prompt": "In the Dual LLM pattern, the user asks the assistant to summarise their latest email. What does the privileged LLM see of that email?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Its full text, wrapped in delimiters that mark it as untrusted data"
+        },
+        {
+          "id": "b",
+          "text": "Only a variable name such as `$VAR1` standing for the summary"
+        },
+        {
+          "id": "c",
+          "text": "The summary's text, since the quarantined LLM removed instructions"
+        },
+        {
+          "id": "d",
+          "text": "Nothing, because the quarantined LLM mails the summary to the user"
+        }
+      ],
+      "answer": "b",
+      "explanation": "The controller stores the email and the quarantined LLM's summary in variables, and the privileged LLM only ever handles the variable names, never the untrusted email or the tainted summary. The quarantined LLM can't send anything itself, since it has no tools; delimiters alone would still expose the tool-holding model to the attacker's text.",
+      "materials": [
+        "simon-willison-prompt-injection-series"
+      ],
+      "sources": [
+        {
+          "url": "https://simonwillison.net/2023/Apr/25/dual-llm-pattern/",
+          "title": "The Dual LLM pattern for building AI assistants that can resist prompt injection",
+          "publisher": "Simon Willison",
+          "accessed": "2026-10-02",
+          "claim": "The Privileged LLM only ever sees variable names such as $VAR1 and is never exposed to the untrusted content of the email or the tainted summary; the Quarantined LLM has no tool access."
+        }
+      ]
+    }
+  ]
+}

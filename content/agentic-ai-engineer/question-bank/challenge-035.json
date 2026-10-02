@@ -1,0 +1,233 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c035-langgraph-command-routing",
+      "name": "Routing with LangGraph `Command`"
+    },
+    {
+      "id": "c035-fargate-spot-interruption",
+      "name": "Fargate Spot interruptions"
+    },
+    {
+      "id": "c035-langgraph-time-travel",
+      "name": "LangGraph time travel: replay and fork"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c035-q01",
+      "lesson": null,
+      "concept": "c035-langgraph-command-routing",
+      "type": "multiple_choice",
+      "prompt": "```python\nbuilder.add_edge(\"triage\", \"log\")\n\ndef triage(state) -> Command[Literal[\"escalate\"]]:\n    return Command(update={\"level\": \"high\"}, goto=\"escalate\")\n```\nAfter `triage` runs, which nodes run next?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Only `escalate`, since a returned `Command` replaces the static edge"
+        },
+        {
+          "id": "b",
+          "text": "Both `escalate` and `log`, since the static edge still runs as well"
+        },
+        {
+          "id": "c",
+          "text": "Only `log`, since a static edge takes priority over any `goto` value"
+        },
+        {
+          "id": "d",
+          "text": "Only `escalate`, and the `level` update is dropped without a reducer"
+        }
+      ],
+      "answer": "b",
+      "explanation": "`Command` only adds a dynamic edge. The static edge from `add_edge` still runs, so both `escalate` and `log` follow `triage`. That is why the docs say to use either `Command` or static edges for a node, not both. The `update` is applied as usual; a reducer only decides how updates to the same key combine.",
+      "materials": [
+        "langgraph-graph-api"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.langchain.com/oss/python/langgraph/graph-api",
+          "title": "Graph API overview (LangGraph, Python)",
+          "publisher": "LangChain",
+          "accessed": "2026-10-02",
+          "claim": "Return `Command` from a node to update state (`update`) and route (`goto`) in one step; use conditional edges when you only route. `Command` only adds dynamic edges: static edges defined with `add_edge` still execute, so use either Command or static edges for a node, not both."
+        }
+      ]
+    },
+    {
+      "id": "c035-q02",
+      "lesson": null,
+      "concept": "c035-fargate-spot-interruption",
+      "type": "multiple_choice",
+      "prompt": "You move your agent's background workers to Fargate Spot to save money. What notice does a running task get before AWS takes the capacity back?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A two-minute warning, sent as SIGTERM and as an EventBridge event"
+        },
+        {
+          "id": "b",
+          "text": "None: the task is stopped at once, like a crash, then started again"
+        },
+        {
+          "id": "c",
+          "text": "Fifteen minutes, enough for the agent run in progress to complete"
+        },
+        {
+          "id": "d",
+          "text": "A two-minute warning, then Fargate moves the task to on-demand"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Before a Spot interruption, the task gets a two-minute warning, as a SIGTERM to the task and a task state change event in EventBridge. Fargate does not fall back to on-demand capacity: a service retries on Spot until capacity is available. So Spot suits work that can stop and resume, not runs that must finish.",
+      "materials": [
+        "aws-fargate-for-amazon-ecs"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.aws.amazon.com/AmazonECS/latest/developerguide/fargate-capacity-providers.html",
+          "title": "Amazon ECS clusters for Fargate",
+          "publisher": "Amazon Web Services",
+          "accessed": "2026-10-02",
+          "claim": "Fargate Spot runs interruption-tolerant tasks at a discount; before a Spot interruption a two-minute warning is sent as an EventBridge task state change event and a SIGTERM to the task. Fargate doesn't replace Spot capacity with on-demand; containers must handle SIGTERM or get SIGKILL after `stopTimeout` (default 30 s, up to 120 s)."
+        }
+      ]
+    },
+    {
+      "id": "c035-q03",
+      "lesson": null,
+      "concept": "c035-langgraph-time-travel",
+      "type": "written",
+      "prompt": "An agent run on a LangGraph thread went wrong at step 4 of 7. How would you replay it from an earlier checkpoint, and fork it with a corrected state? Say what gets re-executed.",
+      "model_answer": {
+        "summary": "Find the checkpoint with `get_state_history` and invoke from its config to replay, or call `update_state` on it to fork; either way, only the nodes after that checkpoint run again.",
+        "key_points": [
+          "Use `get_state_history` to find the checkpoint, then invoke the graph with that checkpoint's config to replay from it",
+          "Nodes before the checkpoint aren't re-executed; nodes after it run again, including LLM calls, API requests and interrupts, so results may differ",
+          "`update_state` doesn't roll the thread back: it creates a new checkpoint branching from that point, and the original history stays",
+          "The update goes through the node's writers, reducers included (`as_node` picks the node), and execution resumes from that node's successors"
+        ]
+      },
+      "explanation": "Time travel is how you debug and explore agent runs: replay to reproduce, fork to try a fix. The common mistake is thinking a replay is free or identical: everything after the checkpoint runs again for real, which costs tokens and can call tools twice.",
+      "materials": [
+        "langgraph-documentation"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.langchain.com/oss/python/langgraph/use-time-travel",
+          "title": "Use time travel",
+          "publisher": "LangChain",
+          "accessed": "2026-10-02",
+          "claim": "Use `get_state_history` to find a checkpoint and invoke with its config to replay: nodes before it are not re-executed, nodes after it re-execute, including LLM calls, API requests and interrupts. `update_state` does not roll back a thread: it creates a new checkpoint branching from that point, applies values through the node's writers including reducers, and execution resumes from that node's successors; the original history stays."
+        }
+      ]
+    },
+    {
+      "id": "c035-q04",
+      "lesson": null,
+      "concept": "c035-langgraph-command-routing",
+      "type": "multiple_choice",
+      "prompt": "When should a LangGraph node return a `Command` instead of you adding a conditional edge?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "When the node must update state and pick the next node in one step"
+        },
+        {
+          "id": "b",
+          "text": "Whenever it routes at all, because conditional edges are deprecated"
+        },
+        {
+          "id": "c",
+          "text": "Only when it calls an LLM, since edges can't read the model's output"
+        },
+        {
+          "id": "d",
+          "text": "When it must run a few nodes in a fixed order, without changing state"
+        }
+      ],
+      "answer": "a",
+      "explanation": "`Command` combines a state update and a routing decision in one return value. If a node only needs to route, the docs say to use a conditional edge instead. Conditional edges are not deprecated, they can read any state (model output included), and a fixed order is just static edges.",
+      "materials": [
+        "langgraph-graph-api"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.langchain.com/oss/python/langgraph/graph-api",
+          "title": "Graph API overview (LangGraph, Python)",
+          "publisher": "LangChain",
+          "accessed": "2026-10-02",
+          "claim": "Return `Command` from a node to update state (`update`) and route (`goto`) in one step; use conditional edges when you only route. `Command` only adds dynamic edges: static edges defined with `add_edge` still execute, so use either Command or static edges for a node, not both."
+        }
+      ]
+    },
+    {
+      "id": "c035-q05",
+      "lesson": null,
+      "concept": "c035-fargate-spot-interruption",
+      "type": "written",
+      "prompt": "Your Fargate Spot workers run long agent jobs. What must the container and task definition do so a Spot interruption doesn't lose work?",
+      "model_answer": {
+        "summary": "Treat the two-minute warning as a graceful shutdown: catch SIGTERM, stop or checkpoint the job within `stopTimeout`, and make sure the job can be picked up again, because Fargate won't move it to on-demand.",
+        "key_points": [
+          "The process must handle SIGTERM; if it ignores it, the task gets SIGKILL after `stopTimeout`, which can lose or corrupt data",
+          "Set `stopTimeout` in the container definition up to 120 seconds (the default is 30) to get more time to clean up",
+          "Use that time to checkpoint or requeue the job so another worker can resume it",
+          "Fargate doesn't replace Spot capacity with on-demand, so a service retries on Spot, and a one-task service is down until capacity returns"
+        ]
+      },
+      "explanation": "Spot is cheap because it can be taken away. A worker built for it treats interruption as normal: save progress on SIGTERM, keep jobs resumable, and don't rely on a single Spot task for anything that must always be available.",
+      "materials": [
+        "aws-fargate-for-amazon-ecs"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.aws.amazon.com/AmazonECS/latest/developerguide/fargate-capacity-providers.html",
+          "title": "Amazon ECS clusters for Fargate",
+          "publisher": "Amazon Web Services",
+          "accessed": "2026-10-02",
+          "claim": "Fargate Spot runs interruption-tolerant tasks at a discount; before a Spot interruption a two-minute warning is sent as an EventBridge task state change event and a SIGTERM to the task. Fargate doesn't replace Spot capacity with on-demand; containers must handle SIGTERM or get SIGKILL after `stopTimeout` (default 30 s, up to 120 s)."
+        }
+      ]
+    },
+    {
+      "id": "c035-q06",
+      "lesson": null,
+      "concept": "c035-langgraph-time-travel",
+      "type": "multiple_choice",
+      "prompt": "You call `update_state` on a past checkpoint of a LangGraph thread to fix a bad value. What happens to the thread's history?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Later checkpoints are deleted, and the thread rolls back to that point"
+        },
+        {
+          "id": "b",
+          "text": "The old checkpoint is edited in place and keeps its checkpoint ID"
+        },
+        {
+          "id": "c",
+          "text": "A new checkpoint branches off from it, and the old history is kept"
+        },
+        {
+          "id": "d",
+          "text": "Nothing changes until you compile the graph again with the fix in it"
+        }
+      ],
+      "answer": "c",
+      "explanation": "`update_state` doesn't roll a thread back. It creates a new checkpoint that branches from the one you chose, and the original execution history stays intact, so you can compare the fork with what really happened.",
+      "materials": [
+        "langgraph-documentation"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.langchain.com/oss/python/langgraph/use-time-travel",
+          "title": "Use time travel",
+          "publisher": "LangChain",
+          "accessed": "2026-10-02",
+          "claim": "Use `get_state_history` to find a checkpoint and invoke with its config to replay: nodes before it are not re-executed, nodes after it re-execute, including LLM calls, API requests and interrupts. `update_state` does not roll back a thread: it creates a new checkpoint branching from that point, applies values through the node's writers including reducers, and execution resumes from that node's successors; the original history stays."
+        }
+      ]
+    }
+  ]
+}

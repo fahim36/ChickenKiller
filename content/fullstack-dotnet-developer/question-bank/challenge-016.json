@@ -1,0 +1,264 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c016-non-sargable-predicates",
+      "name": "Non-SARGable predicates: functions and conversions on indexed columns"
+    },
+    {
+      "id": "c016-typescript-satisfies",
+      "name": "The satisfies operator vs type annotations in TypeScript"
+    },
+    {
+      "id": "c016-tanstack-query-key-design",
+      "name": "TanStack Query key design and prefix invalidation"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c016-q01",
+      "lesson": null,
+      "concept": "c016-non-sargable-predicates",
+      "type": "multiple_choice",
+      "prompt": "`Orders` has a nonclustered index on `OrderDate`, yet `SELECT OrderId FROM Orders WHERE YEAR(OrderDate) = 2025` scans the whole index on SQL Server and burns CPU. What is the best fix?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Add `OrderDate` to the index's INCLUDE list so the query is fully covered"
+        },
+        {
+          "id": "b",
+          "text": "Add `OPTION (RECOMPILE)` so the optimizer sees the literal year every time"
+        },
+        {
+          "id": "c",
+          "text": "Rewrite it as `OrderDate >= '2025-01-01' AND OrderDate < '2026-01-01'`"
+        },
+        {
+          "id": "d",
+          "text": "Rebuild the index and update its statistics so the optimizer trusts it"
+        }
+      ],
+      "answer": "c",
+      "explanation": "Wrapping the column in a function makes the predicate non-SARGable: SQL Server must compute `YEAR()` for every row before it can compare, so it scans. A half-open date range leaves the column bare, so the index can seek. Covering the query doesn't help while the predicate still can't seek, `RECOMPILE` fixes parameter-sensitive plans rather than function-wrapped columns, and fresh statistics don't make a function seekable.",
+      "materials": [
+        "use-the-index-luke"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/troubleshoot/sql/database-engine/performance/troubleshoot-high-cpu-usage-issues",
+          "title": "Troubleshoot High CPU Usage Issues in SQL Server",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "Applying any function or computation to a column in a search predicate generally makes it non-SARGable and forces a scan; the fix is to rewrite the predicate so the column stands alone (or index a computed column), and CONVERT/CAST or implicit conversions on the column have the same effect."
+        },
+        {
+          "url": "https://use-the-index-luke.com/sql/where-clause/obfuscation/dates",
+          "title": "Date and Time conditions causing SQL performance problems",
+          "publisher": "Markus Winand (Use The Index, Luke!)",
+          "accessed": "2026-10-02",
+          "claim": "Functions such as TRUNC on a date column are black boxes that stop a plain index on the column being used; write continuous periods as an explicit range condition (>= start AND < next period), even for a single day."
+        }
+      ]
+    },
+    {
+      "id": "c016-q02",
+      "lesson": null,
+      "concept": "c016-typescript-satisfies",
+      "type": "multiple_choice",
+      "prompt": "```ts\ntype Colors = \"red\" | \"green\" | \"blue\";\nconst palette = { red: [255, 0, 0], green: \"#00ff00\", blue: [0, 0, 255] }\n  satisfies Record<Colors, string | number[]>;\n```\nCompared with annotating `const palette: Record<Colors, string | number[]> = ...`, what does `satisfies` change?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It skips the excess property check, so a typo like `bleu` is not reported"
+        },
+        {
+          "id": "b",
+          "text": "It casts the object like `as` does, so values of a wrong type are accepted"
+        },
+        {
+          "id": "c",
+          "text": "It checks the object at runtime and throws if a key of `Colors` is missing"
+        },
+        {
+          "id": "d",
+          "text": "`palette.green` stays `string`, so `palette.green.toUpperCase()` compiles"
+        }
+      ],
+      "answer": "d",
+      "explanation": "`satisfies` checks the object against the type, so a misspelt key or a wrong value type is still an error, but the variable keeps its own, more specific inferred type. With the annotation, `palette.green` is `string | number[]` and `.toUpperCase()` fails to compile. It is a compile-time check only: no cast and no runtime code.",
+      "materials": [
+        "typescript-handbook"
+      ],
+      "sources": [
+        {
+          "url": "https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-9.html",
+          "title": "TypeScript 4.9",
+          "publisher": "Microsoft (TypeScript)",
+          "accessed": "2026-10-02",
+          "claim": "The satisfies operator checks that an expression matches a type (catching typos such as `bleu` and wrong value types) while keeping the expression's most specific inferred type, so `palette.green.toUpperCase()` still compiles; a type annotation instead widens `palette.green` to `string | RGB`."
+        }
+      ]
+    },
+    {
+      "id": "c016-q03",
+      "lesson": null,
+      "concept": "c016-tanstack-query-key-design",
+      "type": "written",
+      "prompt": "A React orders page uses TanStack Query with `queryKey: ['orders']` and a `queryFn` that fetches `/api/orders?status=${status}&page=${page}`. Users see the wrong page's orders after changing filters, and the list stays stale after they create an order. How would you design the query keys and the invalidation?",
+      "model_answer": {
+        "summary": "Put every variable the query function uses into the key, such as `['orders', { status, page }]`, so each combination is cached and refetched on its own, and after the mutation invalidate by the shared prefix `['orders']`.",
+        "key_points": [
+          "Every variable the `queryFn` depends on (here `status` and `page`) belongs in the query key; with the fixed key `['orders']` all filters share one cache entry and changing a filter doesn't refetch",
+          "With the variables in the key, each combination is cached separately and a change of variable triggers a fetch automatically",
+          "Keys are hashed deterministically: the order of keys inside an object doesn't matter, but the order of array items does, so keep one stable shape such as `['orders', { status, page }]`",
+          "After creating an order, call `invalidateQueries({ queryKey: ['orders'] })`: it matches every key starting with `orders`, marks them stale and refetches the ones on screen (`exact: true` would target only one key)"
+        ]
+      },
+      "explanation": "A query key is the cache's identity for the data, so it must change whenever the request changes. Treating the key as a fixed label is the tempting mistake: the cache then serves one filter's data for another. Prefix matching lets one invalidation refresh every page and filter of the list after a write.",
+      "materials": [
+        "tanstack-query"
+      ],
+      "sources": [
+        {
+          "url": "https://tanstack.com/query/latest/docs/framework/react/guides/query-keys",
+          "title": "Query Keys",
+          "publisher": "TanStack",
+          "accessed": "2026-10-02",
+          "claim": "If the query function depends on a variable, include it in the query key so queries are cached independently and refetched when the variable changes; keys are hashed deterministically, object key order doesn't matter, but array item order does."
+        },
+        {
+          "url": "https://tanstack.com/query/latest/docs/framework/react/guides/query-invalidation",
+          "title": "Query Invalidation",
+          "publisher": "TanStack",
+          "accessed": "2026-10-02",
+          "claim": "invalidateQueries marks matching queries stale (overriding staleTime) and refetches those currently rendered; `{ queryKey: ['todos'] }` matches every key starting with `todos`, and `exact: true` restricts it to that exact key."
+        }
+      ]
+    },
+    {
+      "id": "c016-q04",
+      "lesson": null,
+      "concept": "c016-non-sargable-predicates",
+      "type": "multiple_choice",
+      "prompt": "In PostgreSQL, `users.email` has a plain B-tree index, and the login query runs `WHERE lower(email) = lower($1)`. The plan is a sequential scan. Which change lets this query use an index without rewriting it?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Create a hash index on `email`, since hash indexes are built for equality"
+        },
+        {
+          "id": "b",
+          "text": "Index the expression itself: `CREATE INDEX ON users (lower(email))`"
+        },
+        {
+          "id": "c",
+          "text": "Run `ANALYZE users` so the planner learns how selective `email` really is"
+        },
+        {
+          "id": "d",
+          "text": "Change the column to `citext` in the query only, by casting `email::citext`"
+        }
+      ],
+      "answer": "b",
+      "explanation": "An index on `email` stores `email` values, not `lower(email)`, so a predicate on `lower(email)` can't use it. PostgreSQL can index the expression itself; the cost is computing it on every insert and update, which pays off when reads matter more. A different index type or fresh statistics still index the bare column, and a cast in the query is another expression the index doesn't match. On SQL Server the equivalent is an indexed computed column.",
+      "materials": [
+        "postgresql-docs"
+      ],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/indexes-expressional.html",
+          "title": "11.7. Indexes on Expressions",
+          "publisher": "The PostgreSQL Global Development Group",
+          "accessed": "2026-10-02",
+          "claim": "WHERE lower(col1) = 'value' can use an index only if one is defined on lower(col1); index expressions are computed on every insert and non-HOT update, so they suit workloads where retrieval speed matters more than write speed."
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/troubleshoot/sql/database-engine/performance/troubleshoot-high-cpu-usage-issues",
+          "title": "Troubleshoot High CPU Usage Issues in SQL Server",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "Applying any function or computation to a column in a search predicate generally makes it non-SARGable and forces a scan; the fix is to rewrite the predicate so the column stands alone (or index a computed column), and CONVERT/CAST or implicit conversions on the column have the same effect."
+        }
+      ]
+    },
+    {
+      "id": "c016-q05",
+      "lesson": null,
+      "concept": "c016-typescript-satisfies",
+      "type": "multiple_choice",
+      "prompt": "`const routes = { home: \"/\", orders: \"/orders\" } satisfies Record<string, string>;` What is `keyof typeof routes`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`string`, because the `Record<string, string>` type replaces the inferred type"
+        },
+        {
+          "id": "b",
+          "text": "`never`, because `satisfies` only checks the value and keeps no type for it"
+        },
+        {
+          "id": "c",
+          "text": "`\"home\" | \"orders\"`, because `satisfies` keeps the object's inferred type"
+        },
+        {
+          "id": "d",
+          "text": "`string | number`, because an index signature's keys include numbers too"
+        }
+      ],
+      "answer": "c",
+      "explanation": "`satisfies` validates the object against `Record<string, string>` but leaves `routes` with its inferred type, `{ home: string; orders: string }`, so its keys are the literal names. That is why it suits config objects: you keep autocomplete and typo checks on `routes.orders`. Annotating the variable with `Record<string, string>` instead would give it the index signature's keys and lose the names.",
+      "materials": [
+        "typescript-handbook"
+      ],
+      "sources": [
+        {
+          "url": "https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-9.html",
+          "title": "TypeScript 4.9",
+          "publisher": "Microsoft (TypeScript)",
+          "accessed": "2026-10-02",
+          "claim": "The satisfies operator checks that an expression matches a type (catching typos such as `bleu` and wrong value types) while keeping the expression's most specific inferred type, so `palette.green.toUpperCase()` still compiles; a type annotation instead widens `palette.green` to `string | RGB`."
+        }
+      ]
+    },
+    {
+      "id": "c016-q06",
+      "lesson": null,
+      "concept": "c016-tanstack-query-key-design",
+      "type": "multiple_choice",
+      "prompt": "After a mutation you call `queryClient.invalidateQueries({ queryKey: ['todos'] })`. The cache holds `['todos']`, `['todos', { page: 1 }]` and `['todo', 5]`. Which queries are invalidated?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Only `['todos']`, since query key matching is exact unless you opt out of it"
+        },
+        {
+          "id": "b",
+          "text": "`['todos']` and `['todos', { page: 1 }]`, since the key matches as a prefix"
+        },
+        {
+          "id": "c",
+          "text": "All three, because `['todo', 5]` shares the `todo` stem with the given key"
+        },
+        {
+          "id": "d",
+          "text": "None until `refetchQueries` runs, since invalidation only lowers `staleTime`"
+        }
+      ],
+      "answer": "b",
+      "explanation": "`invalidateQueries` matches every query whose key starts with the given key, so both `todos` queries are marked stale and refetched if on screen. `exact: true` would limit it to `['todos']` alone. Key items are compared whole, so `'todo'` is not a prefix match for `'todos'`. Invalidation itself marks the queries stale and refetches active ones; no separate call is needed.",
+      "materials": [
+        "tanstack-query"
+      ],
+      "sources": [
+        {
+          "url": "https://tanstack.com/query/latest/docs/framework/react/guides/query-invalidation",
+          "title": "Query Invalidation",
+          "publisher": "TanStack",
+          "accessed": "2026-10-02",
+          "claim": "invalidateQueries marks matching queries stale (overriding staleTime) and refetches those currently rendered; `{ queryKey: ['todos'] }` matches every key starting with `todos`, and `exact: true` restricts it to that exact key."
+        }
+      ]
+    }
+  ]
+}

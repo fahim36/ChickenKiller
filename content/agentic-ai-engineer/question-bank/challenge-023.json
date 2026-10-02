@@ -1,0 +1,221 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c023-if-match-lost-updates",
+      "name": "Preventing lost updates with ETag and `If-Match`"
+    },
+    {
+      "id": "c023-head-vs-tail-sampling",
+      "name": "Head vs tail sampling of traces"
+    },
+    {
+      "id": "c023-refresh-token-rotation",
+      "name": "Refresh token rotation and reuse detection"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c023-q01",
+      "lesson": null,
+      "concept": "c023-if-match-lost-updates",
+      "type": "multiple_choice",
+      "prompt": "Two admins edit the same agent config. Both read it with `GET /agents/7` (`ETag: \"v3\"`), then each sends `PUT /agents/7` with `If-Match: \"v3\"`. The first PUT succeeds and the ETag becomes `\"v4\"`. What must the server do with the second PUT?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Apply it, since PUT is idempotent and the last write simply wins"
+        },
+        {
+          "id": "b",
+          "text": "Reject it with `412 Precondition Failed`, and leave the config as is"
+        },
+        {
+          "id": "c",
+          "text": "Return `304 Not Modified`, since the client's copy is now out of date"
+        },
+        {
+          "id": "d",
+          "text": "Merge both edits, then reply `409 Conflict` so the client reads again"
+        }
+      ],
+      "answer": "b",
+      "explanation": "`If-Match` makes the request conditional on the resource's current ETag. When the condition is false, RFC 9110 says the server MUST NOT apply the method and MUST answer `412 Precondition Failed`. That is what stops the second admin silently overwriting the first admin's change (a lost update). `304` is for conditional reads such as `If-None-Match` on GET, and the server never merges edits on its own.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc9110.html",
+          "title": "RFC 9110: HTTP Semantics",
+          "publisher": "IETF",
+          "accessed": "2026-10-02",
+          "claim": "If-Match lets a client make a request conditional on the current entity tag to prevent accidental overwrites; if the condition is false the origin server MUST NOT apply the method and MUST respond with 412 (Precondition Failed)."
+        }
+      ]
+    },
+    {
+      "id": "c023-q02",
+      "lesson": null,
+      "concept": "c023-head-vs-tail-sampling",
+      "type": "multiple_choice",
+      "prompt": "Your agent produces too many traces to keep, so you will keep about 10%. You must still keep every trace that contains an error span. Which approach can guarantee that?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Head sampling at 10% in the SDK, decided when each root span starts"
+        },
+        {
+          "id": "b",
+          "text": "Head sampling with a parent-based sampler, so child spans follow the root"
+        },
+        {
+          "id": "c",
+          "text": "Head sampling with a rule that keeps spans whose status is set to Error"
+        },
+        {
+          "id": "d",
+          "text": "Tail sampling in the Collector, deciding after it sees the trace's spans"
+        }
+      ],
+      "answer": "d",
+      "explanation": "Head sampling decides as early as possible, without looking at the trace as a whole, so it can't know yet whether a span will fail; OpenTelemetry notes it can't ensure that all traces with an error are sampled. Tail sampling decides after considering all or most spans of a trace, which the Collector's tail sampling processor does. A parent-based sampler only makes children follow the root's early decision.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://opentelemetry.io/docs/concepts/sampling/",
+          "title": "Sampling",
+          "publisher": "OpenTelemetry",
+          "accessed": "2026-10-02",
+          "claim": "Head sampling decides early without inspecting the whole trace and cannot ensure that all traces with an error are sampled; tail sampling decides by considering all or most spans in the trace, for example with the Collector's tail sampling processor."
+        }
+      ]
+    },
+    {
+      "id": "c023-q03",
+      "lesson": null,
+      "concept": "c023-refresh-token-rotation",
+      "type": "written",
+      "prompt": "Your agent's browser app is a public OAuth client that receives refresh tokens. Explain how refresh token rotation lets the authorization server detect a stolen refresh token, and what it does when it does.",
+      "model_answer": {
+        "summary": "With rotation, every refresh returns a new refresh token and invalidates the old one; if a stolen token is used by both the attacker and the real client, one of them presents an invalidated token, so the server revokes the active refresh token and the user must authorize again.",
+        "key_points": [
+          "Every refresh response issues a new refresh token and invalidates the previous one, and the server remembers which tokens belong to the same grant",
+          "If a stolen refresh token is used by both the attacker and the legitimate client, one of them presents an already-invalidated token, which tells the server there is a breach",
+          "The server can't tell which party sent the invalid token, so it revokes the active refresh token, which stops the attacker",
+          "The cost is that the legitimate client must get a fresh authorization grant, so the user signs in again"
+        ]
+      },
+      "explanation": "RFC 9700 requires public clients' refresh tokens to be either sender-constrained or rotated, because a public client can't keep a secret. Rotation turns the token chain into a tripwire: a replayed old token proves that two parties hold the same chain. The tempting answer, that the server can spot which party is the thief, is wrong: it can't, so it revokes the chain for both.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc9700.html",
+          "title": "RFC 9700: Best Current Practice for OAuth 2.0 Security",
+          "publisher": "IETF",
+          "accessed": "2026-10-02",
+          "claim": "For public clients the authorization server MUST use sender-constrained refresh tokens or refresh token rotation; with rotation a new refresh token is issued on every refresh, the previous one is invalidated, and when an invalidated token is presented the server, unable to tell which party sent it, revokes the active refresh token, forcing the legitimate client to obtain a fresh grant."
+        }
+      ]
+    },
+    {
+      "id": "c023-q04",
+      "lesson": null,
+      "concept": "c023-if-match-lost-updates",
+      "type": "written",
+      "prompt": "Explain how ETags and the `If-Match` header prevent lost updates when two clients edit the same resource, and what a client should do when it gets `412 Precondition Failed`.",
+      "model_answer": {
+        "summary": "The client sends back the ETag it read in `If-Match`; if the resource has changed since, the server refuses the write with 412, and the client re-reads, reapplies its change and retries.",
+        "key_points": [
+          "The server returns an ETag that identifies the current representation, and the client sends that value in `If-Match` on its `PUT` or `PATCH`",
+          "If the resource's current ETag no longer matches, the server must not apply the change and responds `412 Precondition Failed`",
+          "On a 412 the client fetches the resource again, reapplies or merges its change on the new version, and retries with the new ETag",
+          "`If-Match` uses strong comparison, so a weak ETag (`W/\"...\"`) never matches"
+        ]
+      },
+      "explanation": "Without a condition, two read-modify-write cycles that overlap end with the second write erasing the first. `If-Match` turns the write into compare-and-set on the version the client read. A 412 is not an error to retry blindly: resending the same body with the new ETag would overwrite the other client's change, so the client must re-read first.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc9110.html",
+          "title": "RFC 9110: HTTP Semantics",
+          "publisher": "IETF",
+          "accessed": "2026-10-02",
+          "claim": "If-Match prevents accidental overwrites of updates made since the client's last read; if the condition is false the server MUST NOT apply the method and MUST respond 412; If-Match uses strong comparison, so weak entity tags never match."
+        }
+      ]
+    },
+    {
+      "id": "c023-q05",
+      "lesson": null,
+      "concept": "c023-head-vs-tail-sampling",
+      "type": "multiple_choice",
+      "prompt": "Compared with head sampling, what is the main operational cost of tail sampling?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It must buffer each trace's spans statefully until it can decide"
+        },
+        {
+          "id": "b",
+          "text": "It can't keep the traces that contain errors, so failures go missing"
+        },
+        {
+          "id": "c",
+          "text": "It breaks context propagation, so child spans lose their trace's ID"
+        },
+        {
+          "id": "d",
+          "text": "It needs every service to make the same random choice when it starts"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Tail sampling can only decide once it has seen all or most of a trace's spans, so something (usually the Collector) has to buffer large volumes of spans statefully, which OpenTelemetry lists as an operational cost along with harder-to-maintain rules. Keeping error traces is exactly what tail sampling is good at; services agreeing on an early decision describes head sampling.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://opentelemetry.io/docs/concepts/sampling/",
+          "title": "Sampling",
+          "publisher": "OpenTelemetry",
+          "accessed": "2026-10-02",
+          "claim": "Tail sampling decides after considering all or most spans of a trace, which allows keeping all traces with errors; its downsides include implementation difficulty and operational complexity, since tail samplers are stateful systems handling large amounts of data."
+        }
+      ]
+    },
+    {
+      "id": "c023-q06",
+      "lesson": null,
+      "concept": "c023-refresh-token-rotation",
+      "type": "multiple_choice",
+      "prompt": "Your authorization server issues refresh tokens to a public client, a single-page app. What does RFC 9700 require for those refresh tokens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The same short lifetime as the access tokens they are used to refresh"
+        },
+        {
+          "id": "b",
+          "text": "Storage inside the JWT payload, so resource servers can check them"
+        },
+        {
+          "id": "c",
+          "text": "Sender-constrained tokens, or refresh token rotation on every use"
+        },
+        {
+          "id": "d",
+          "text": "Acceptance only from the IP address range the client registered"
+        }
+      ],
+      "answer": "c",
+      "explanation": "A public client can't authenticate itself when it refreshes, so a stolen refresh token would work for anyone. RFC 9700 says the authorization server MUST detect replay for public clients by binding the token to the client instance (sender-constrained, such as DPoP or mTLS) or by rotating it on every refresh. Lifetimes are at the server's discretion, and IP checks are not one of the required methods.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc9700.html",
+          "title": "RFC 9700: Best Current Practice for OAuth 2.0 Security",
+          "publisher": "IETF",
+          "accessed": "2026-10-02",
+          "claim": "Authorization servers MUST use one of two methods to detect refresh token replay for public clients: sender-constrained refresh tokens (for example RFC 8705 or RFC 9449) or refresh token rotation; refresh token expiration time is at the authorization server's discretion."
+        }
+      ]
+    }
+  ]
+}

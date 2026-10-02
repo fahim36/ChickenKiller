@@ -1,0 +1,237 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c011-git-worktrees",
+      "name": "Git worktrees for parallel coding agents"
+    },
+    {
+      "id": "c011-shortened-embeddings",
+      "name": "Shortening embeddings (Matryoshka representations)"
+    },
+    {
+      "id": "c011-tokenizer-language-cost",
+      "name": "Why some languages cost more tokens"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c011-q01",
+      "lesson": null,
+      "concept": "c011-git-worktrees",
+      "type": "multiple_choice",
+      "prompt": "Three coding agents work in parallel on one repository, each in its own `git worktree`. Agent 2 runs `git worktree add ../wt2 feature-x`, but `feature-x` is already checked out in agent 1's worktree. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Git checks out `feature-x` again, and both agents share an index"
+        },
+        {
+          "id": "b",
+          "text": "Git clones the repository into `../wt2` with its own object store"
+        },
+        {
+          "id": "c",
+          "text": "Git makes a new branch `feature-x-2` from `feature-x` automatically"
+        },
+        {
+          "id": "d",
+          "text": "Git refuses by default, since that branch is checked out elsewhere"
+        }
+      ],
+      "answer": "d",
+      "explanation": "By default `git worktree add` refuses to check out a branch that another worktree already has checked out; `--force` overrides it. That protects parallel agents from committing to the same branch from two places. Each worktree has its own `HEAD` and index, and they all share one repository rather than being clones.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://git-scm.com/docs/git-worktree",
+          "title": "git-worktree Documentation",
+          "publisher": "Git project",
+          "accessed": "2026-10-02",
+          "claim": "A linked worktree shares everything with the repository except per-worktree files such as `HEAD` and the index; by default `git worktree add` refuses to create a worktree for a branch already checked out by another worktree unless `--force` is given."
+        }
+      ]
+    },
+    {
+      "id": "c011-q02",
+      "lesson": null,
+      "concept": "c011-shortened-embeddings",
+      "type": "multiple_choice",
+      "prompt": "You use `text-embedding-3-large` (3,072 dimensions) and want 1,024-dimension vectors to save pgvector storage. What does OpenAI's embeddings guide say to do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Switch models, since cutting dimensions destroys their meaning"
+        },
+        {
+          "id": "b",
+          "text": "Pass `dimensions=1024`, or cut it yourself and then normalize it"
+        },
+        {
+          "id": "c",
+          "text": "Keep the first 1,024 values; no normalizing is needed after it"
+        },
+        {
+          "id": "d",
+          "text": "Average each group of three values, so every dimension still counts"
+        }
+      ],
+      "answer": "b",
+      "explanation": "The text-embedding-3 models were trained so they can be shortened without losing their concept-representing properties: pass the `dimensions` parameter. If you truncate a vector yourself, you must L2-normalize it again, since the full embeddings are unit length and dot-product search relies on that. Even `text-embedding-3-large` cut to 256 dimensions beats the older ada-002 at 1,536.",
+      "materials": [
+        "openai-docs-embeddings"
+      ],
+      "sources": [
+        {
+          "url": "https://developers.openai.com/api/docs/guides/embeddings",
+          "title": "Vector embeddings",
+          "publisher": "OpenAI",
+          "accessed": "2026-10-02",
+          "claim": "The text-embedding-3 models can be shortened with the `dimensions` parameter without losing their concept-representing properties (`text-embedding-3-large` at 256 dimensions still beats `text-embedding-ada-002` at 1,536); if you shorten one manually you must normalize it; OpenAI embeddings are normalized to length 1, so a dot product gives cosine similarity."
+        }
+      ]
+    },
+    {
+      "id": "c011-q03",
+      "lesson": null,
+      "concept": "c011-tokenizer-language-cost",
+      "type": "written",
+      "prompt": "The same help-centre paragraph costs several times more tokens in Bangla than in English. Explain why that matters for an app that serves both languages, and what you would do about it.",
+      "model_answer": {
+        "summary": "Tokenizers encode the same content in very different numbers of tokens per language, so Bangla users cost more, wait longer and fit less in context; measure it per language and design the budget around it.",
+        "key_points": [
+          "The same text translated into different languages can tokenize to very different lengths, up to about 15 times in some cases",
+          "Cost per request, processing time and latency, and how much content fits in the context window all scale with the token count",
+          "Measure token counts per language with your model's own tokenizer, and set prices, limits and context budgets per language",
+          "Compare models or tokenizers on your Bangla text, since the gap depends on the tokenizer, and even byte-level models show large gaps"
+        ]
+      },
+      "explanation": "Per-token pricing looks language-neutral but isn't: a language the tokenizer splits finely pays more for the same meaning. The tempting answer that Bangla text is simply longer misses the point; the gap comes from how the tokenizer encodes it.",
+      "materials": [
+        "tiktokenizer-token-counting-playground",
+        "karpathy-lets-build-the-gpt-tokenizer"
+      ],
+      "sources": [
+        {
+          "url": "https://arxiv.org/abs/2305.15425",
+          "title": "Language Model Tokenizers Introduce Unfairness Between Languages",
+          "publisher": "Petrov et al. (NeurIPS 2023, arXiv)",
+          "accessed": "2026-10-02",
+          "claim": "The same text translated into different languages can have tokenization lengths up to 15 times different, which makes the cost of commercial services, processing time and latency, and how much content fits in context unequal; even character- and byte-level models show over 4x differences for some language pairs."
+        }
+      ]
+    },
+    {
+      "id": "c011-q04",
+      "lesson": null,
+      "concept": "c011-git-worktrees",
+      "type": "multiple_choice",
+      "prompt": "What do the linked worktrees of one repository share, and what does each one keep for itself?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Nothing is shared; each one is a full clone with its own history"
+        },
+        {
+          "id": "b",
+          "text": "They share commits and refs; each has its own `HEAD` and index"
+        },
+        {
+          "id": "c",
+          "text": "They share one `HEAD` and index; each has only its own files"
+        },
+        {
+          "id": "d",
+          "text": "They share the working files; each has its own commits and refs"
+        }
+      ],
+      "answer": "b",
+      "explanation": "A linked worktree shares everything with its repository (objects, branches and other refs) except per-worktree files such as `HEAD` and the index. So a commit made in one worktree is visible from all the others at once, while each has its own checked-out branch and staging area: a cheap way to give parallel agents separate checkouts.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://git-scm.com/docs/git-worktree",
+          "title": "git-worktree Documentation",
+          "publisher": "Git project",
+          "accessed": "2026-10-02",
+          "claim": "A linked worktree shares everything with the repository except per-worktree files such as `HEAD` and the index; by default `git worktree add` refuses to create a worktree for a branch already checked out by another worktree unless `--force` is given."
+        }
+      ]
+    },
+    {
+      "id": "c011-q05",
+      "lesson": null,
+      "concept": "c011-shortened-embeddings",
+      "type": "written",
+      "prompt": "Explain why some embedding models let you drop the last dimensions of a vector, and what you trade when you do.",
+      "model_answer": {
+        "summary": "Matryoshka-style training packs coarse-to-fine information into nested prefixes of one embedding, so a prefix works as a smaller embedding: you trade some accuracy for less storage and faster search.",
+        "key_points": [
+          "Matryoshka Representation Learning trains one embedding so that its prefixes are useful embeddings on their own",
+          "Shorter vectors use less storage and memory and speed up search, by up to 14x in the paper's retrieval tests",
+          "Some accuracy can be lost, so measure retrieval on your own data, though OpenAI reports `text-embedding-3-large` at 256 dimensions still beats ada-002 at 1,536",
+          "Use the API's `dimensions` parameter, or re-normalize after truncating so cosine and dot-product scores stay right"
+        ]
+      },
+      "explanation": "Truncating an ordinary embedding throws away information at random, but a model trained this way puts the most important information first. That's why shortening works only for models trained for it, and why re-normalizing matters: a truncated vector is no longer unit length.",
+      "materials": [
+        "openai-docs-embeddings"
+      ],
+      "sources": [
+        {
+          "url": "https://arxiv.org/abs/2205.13147",
+          "title": "Matryoshka Representation Learning",
+          "publisher": "Kusupati et al. (NeurIPS 2022, arXiv)",
+          "accessed": "2026-10-02",
+          "claim": "Matryoshka Representation Learning encodes information at different granularities in nested prefixes of one embedding, giving up to 14x smaller embeddings at the same accuracy on ImageNet-1K classification and up to 14x faster large-scale retrieval."
+        },
+        {
+          "url": "https://developers.openai.com/api/docs/guides/embeddings",
+          "title": "Vector embeddings",
+          "publisher": "OpenAI",
+          "accessed": "2026-10-02",
+          "claim": "The text-embedding-3 models can be shortened with the `dimensions` parameter without losing their concept-representing properties (`text-embedding-3-large` at 256 dimensions still beats `text-embedding-ada-002` at 1,536); if you shorten one manually you must normalize it; OpenAI embeddings are normalized to length 1, so a dot product gives cosine similarity."
+        }
+      ]
+    },
+    {
+      "id": "c011-q06",
+      "lesson": null,
+      "concept": "c011-tokenizer-language-cost",
+      "type": "multiple_choice",
+      "prompt": "A paragraph is 100 tokens in English and its Bangla translation is 450 tokens on the same model. At the same per-token price, what changes for the Bangla request?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Only the price; latency and context use depend on characters"
+        },
+        {
+          "id": "b",
+          "text": "Nothing, since providers adjust per-token prices by language"
+        },
+        {
+          "id": "c",
+          "text": "It costs more, takes longer and uses more of the context window"
+        },
+        {
+          "id": "d",
+          "text": "It uses fewer output tokens, since the model replies in English"
+        }
+      ],
+      "answer": "c",
+      "explanation": "Price, processing time and how much fits in the context window all depend on token counts, so the Bangla request is worse on all three. Research on tokenizers found the same text can differ by up to 15 times across languages. Providers price per token, not per language, so the gap reaches your bill directly.",
+      "materials": [
+        "tiktokenizer-token-counting-playground"
+      ],
+      "sources": [
+        {
+          "url": "https://arxiv.org/abs/2305.15425",
+          "title": "Language Model Tokenizers Introduce Unfairness Between Languages",
+          "publisher": "Petrov et al. (NeurIPS 2023, arXiv)",
+          "accessed": "2026-10-02",
+          "claim": "The same text translated into different languages can have tokenization lengths up to 15 times different, which makes the cost of commercial services, processing time and latency, and how much content fits in context unequal; even character- and byte-level models show over 4x differences for some language pairs."
+        }
+      ]
+    }
+  ]
+}

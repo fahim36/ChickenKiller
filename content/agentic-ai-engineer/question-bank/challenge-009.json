@@ -1,0 +1,239 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c009-exitstack",
+      "name": "`contextlib.ExitStack` for a variable number of resources"
+    },
+    {
+      "id": "c009-pdf-input-tokens",
+      "name": "How the Claude API reads and bills a PDF"
+    },
+    {
+      "id": "c009-rag-failure-diagnosis",
+      "name": "Telling retrieval failures from generation failures"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c009-q01",
+      "lesson": null,
+      "concept": "c009-exitstack",
+      "type": "multiple_choice",
+      "prompt": "```python\nwith ExitStack() as stack:\n    files = [stack.enter_context(open(p)) for p in paths]\n```\nThe third `open()` raises `FileNotFoundError`. What happens to the two files already opened?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "They are closed, in reverse order, as the error leaves the `with`"
+        },
+        {
+          "id": "b",
+          "text": "They stay open until garbage collection, since `__exit__` never ran"
+        },
+        {
+          "id": "c",
+          "text": "They are closed only if you call `stack.pop_all()` in an `except`"
+        },
+        {
+          "id": "d",
+          "text": "They are closed in the order they were opened, and the error is hidden"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Each `enter_context` registers that file's `__exit__` on the stack, so when the exception leaves the `with`, the stack unwinds and closes the files already opened, last one first, like nested `with` statements. File objects don't suppress exceptions, so the `FileNotFoundError` still propagates. `pop_all()` does the opposite of closing: it moves the callbacks to a new stack.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/library/contextlib.html",
+          "title": "contextlib — Utilities for with-statement contexts",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-10-02",
+          "claim": "ExitStack combines a variable number of context managers; files opened with `stack.enter_context(open(fname))` are all closed at the end of the `with` even if opening a later one raises; callbacks run in reverse order of registration, like nested `with` statements; `pop_all()` transfers the callbacks to a fresh ExitStack without invoking them."
+        }
+      ]
+    },
+    {
+      "id": "c009-q02",
+      "lesson": null,
+      "concept": "c009-pdf-input-tokens",
+      "type": "multiple_choice",
+      "prompt": "You send a 40-page PDF report with charts to the Claude API as a document block. How does Claude read it, and what does that mean for the token cost?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It reads only the extracted text, so the charts add no tokens"
+        },
+        {
+          "id": "b",
+          "text": "It reads only page images, so text-heavy pages cost the least"
+        },
+        {
+          "id": "c",
+          "text": "Each page gives its text and an image, and you pay for both"
+        },
+        {
+          "id": "d",
+          "text": "It reads the raw file bytes and charges one flat fee per PDF"
+        }
+      ],
+      "answer": "c",
+      "explanation": "Claude converts each page into an image and also extracts its text, so it can read charts and layout as well as words. You pay for both: typically 1,500–3,000 text tokens per page plus the image tokens for each page, at standard prices with no extra PDF fee. Use token counting to estimate a real document.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://platform.claude.com/docs/en/build-with-claude/pdf-support",
+          "title": "PDF support",
+          "publisher": "Anthropic",
+          "accessed": "2026-10-02",
+          "claim": "Claude converts each PDF page into an image and extracts each page's text, providing both; text typically costs 1,500–3,000 tokens per page plus image tokens per page, at standard prices with no PDF fee; a request may be at most 32 MB and 600 pages (100 when the context window is under 1M tokens), and dense PDFs can fill the context window first."
+        }
+      ]
+    },
+    {
+      "id": "c009-q03",
+      "lesson": null,
+      "concept": "c009-rag-failure-diagnosis",
+      "type": "written",
+      "prompt": "Your RAG assistant gives wrong answers. How do you tell whether retrieval or generation is at fault, and which metrics would you use?",
+      "model_answer": {
+        "summary": "Score the two stages separately on a golden set: context recall shows whether retrieval found the facts the reference answer needs, and faithfulness shows whether the answer sticks to the retrieved context.",
+        "key_points": [
+          "Build a golden set of questions with reference answers, and log the chunks retrieved for each answer",
+          "Context recall (claims in the reference supported by the retrieved context) checks retrieval; low recall means the facts never reached the model",
+          "Faithfulness (claims in the response supported by the retrieved context) checks generation and needs no reference",
+          "High context recall with low faithfulness points to generation; low context recall points to retrieval"
+        ]
+      },
+      "explanation": "An end-to-end accuracy score can't tell you which stage failed. Measuring what was retrieved against the reference, and what was answered against what was retrieved, splits the blame. Tuning the prompt when retrieval never found the facts is the common wasted effort.",
+      "materials": [
+        "ragas-rag-evaluation"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.ragas.io/en/stable/concepts/metrics/available_metrics/context_recall/",
+          "title": "Context Recall",
+          "publisher": "Ragas",
+          "accessed": "2026-10-02",
+          "claim": "Context recall is the number of claims in the reference answer supported by the retrieved context divided by the total claims in the reference; it measures whether retrieval missed anything important, and needs a reference."
+        },
+        {
+          "url": "https://docs.ragas.io/en/stable/concepts/metrics/available_metrics/faithfulness/",
+          "title": "Faithfulness",
+          "publisher": "Ragas",
+          "accessed": "2026-10-02",
+          "claim": "Faithfulness is the number of claims in the response supported by the retrieved context divided by the total claims in the response, from 0 to 1, and needs no reference answer."
+        }
+      ]
+    },
+    {
+      "id": "c009-q04",
+      "lesson": null,
+      "concept": "c009-exitstack",
+      "type": "multiple_choice",
+      "prompt": "A function opens several connections with `ExitStack` and must return them still open, but only if every one opened. What does calling `stack.pop_all()` as the last line inside the `with` block do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Closes every registered connection at once, in reverse order"
+        },
+        {
+          "id": "b",
+          "text": "Moves the callbacks to a new ExitStack, so none close on exit"
+        },
+        {
+          "id": "c",
+          "text": "Removes only the last registered callback and closes that one"
+        },
+        {
+          "id": "d",
+          "text": "Suppresses any exception the registered callbacks raise later"
+        }
+      ],
+      "answer": "b",
+      "explanation": "`pop_all()` transfers the whole callback stack to a fresh `ExitStack` without running anything, so leaving the `with` closes nothing and the caller owns the returned stack. If an `open` fails before that line, the original stack still closes whatever was opened. Closing everything immediately is `close()`.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/library/contextlib.html",
+          "title": "contextlib — Utilities for with-statement contexts",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-10-02",
+          "claim": "ExitStack combines a variable number of context managers; files opened with `stack.enter_context(open(fname))` are all closed at the end of the `with` even if opening a later one raises; callbacks run in reverse order of registration, like nested `with` statements; `pop_all()` transfers the callbacks to a fresh ExitStack without invoking them."
+        }
+      ]
+    },
+    {
+      "id": "c009-q05",
+      "lesson": null,
+      "concept": "c009-pdf-input-tokens",
+      "type": "written",
+      "prompt": "You plan to run Claude over a million PDF pages. Explain how a PDF becomes tokens, how you would estimate the cost, and which request limits you design around.",
+      "model_answer": {
+        "summary": "Each page is sent as extracted text plus a page image, so cost grows with pages and text density; estimate it with token counting, and keep each request within the size and page limits.",
+        "key_points": [
+          "Claude converts each page into an image and extracts its text, and uses both",
+          "Text is typically 1,500–3,000 tokens per page, depending on density, plus image tokens for every page, at standard prices",
+          "Estimate with token counting on sample documents rather than a guess per page",
+          "A request is limited to 32 MB and 600 pages (100 when the context window is under 1M tokens), and dense PDFs can fill the context first, so split large documents"
+        ]
+      },
+      "explanation": "The image half of the cost is easy to miss: every page is billed as an image even when it is mostly text. At a million pages, a per-page estimate from real samples and a splitting plan for large files matter more than the model's list price.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://platform.claude.com/docs/en/build-with-claude/pdf-support",
+          "title": "PDF support",
+          "publisher": "Anthropic",
+          "accessed": "2026-10-02",
+          "claim": "Claude converts each PDF page into an image and extracts each page's text, providing both; text typically costs 1,500–3,000 tokens per page plus image tokens per page, at standard prices with no PDF fee; a request may be at most 32 MB and 600 pages (100 when the context window is under 1M tokens), and dense PDFs can fill the context window first."
+        }
+      ]
+    },
+    {
+      "id": "c009-q06",
+      "lesson": null,
+      "concept": "c009-rag-failure-diagnosis",
+      "type": "multiple_choice",
+      "prompt": "A Ragas run on your RAG app shows high context recall but low faithfulness. What does that point to?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Retrieval is missing facts that the reference answers need"
+        },
+        {
+          "id": "b",
+          "text": "The answers make claims the retrieved context doesn't back"
+        },
+        {
+          "id": "c",
+          "text": "The retriever returns many chunks that are not relevant"
+        },
+        {
+          "id": "d",
+          "text": "The reference answers in your golden set are mostly wrong"
+        }
+      ],
+      "answer": "b",
+      "explanation": "High context recall means the retrieved context covers the reference answer's claims, so retrieval did its job. Low faithfulness means many claims in the response aren't supported by that context: the model is ignoring it or adding its own. Irrelevant extra chunks would show up as low context precision, a different metric.",
+      "materials": [
+        "ragas-rag-evaluation"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.ragas.io/en/stable/concepts/metrics/available_metrics/context_recall/",
+          "title": "Context Recall",
+          "publisher": "Ragas",
+          "accessed": "2026-10-02",
+          "claim": "Context recall is the number of claims in the reference answer supported by the retrieved context divided by the total claims in the reference; it measures whether retrieval missed anything important, and needs a reference."
+        },
+        {
+          "url": "https://docs.ragas.io/en/stable/concepts/metrics/available_metrics/faithfulness/",
+          "title": "Faithfulness",
+          "publisher": "Ragas",
+          "accessed": "2026-10-02",
+          "claim": "Faithfulness is the number of claims in the response supported by the retrieved context divided by the total claims in the response, from 0 to 1, and needs no reference answer."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,233 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c016-pytest-raises",
+      "name": "Asserting exceptions with `pytest.raises`"
+    },
+    {
+      "id": "c016-mcp-resource-templates",
+      "name": "MCP resource templates"
+    },
+    {
+      "id": "c016-agents-sdk-sessions",
+      "name": "OpenAI Agents SDK sessions for conversation history"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c016-q01",
+      "lesson": null,
+      "concept": "c016-pytest-raises",
+      "type": "multiple_choice",
+      "prompt": "A test wraps `parse_reply(raw)` in `with pytest.raises(ValueError, match=\"rate limit\"):`, and `parse_reply` raises `ValueError(\"Hit rate limit (429)\")`. Does the test pass?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "No: `match` must equal the exception's whole message exactly"
+        },
+        {
+          "id": "b",
+          "text": "No: `match` is anchored at the start of the message, like `re.match`"
+        },
+        {
+          "id": "c",
+          "text": "Yes: `match` is a regex searched for anywhere in the message"
+        },
+        {
+          "id": "d",
+          "text": "Yes, but only because `match` ignores case and whitespace by default"
+        }
+      ],
+      "answer": "c",
+      "explanation": "`match` is a regular expression tested with `re.search` against the string form of the exception, so it can match anywhere in the message. It is not an exact comparison, and it is not anchored at the start like `re.match`; use `^` and `$` in the pattern if you need that.",
+      "materials": [
+        "pytest-get-started"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.pytest.org/en/stable/how-to/assert.html",
+          "title": "How to write and report assertions in tests",
+          "publisher": "pytest",
+          "accessed": "2026-10-02",
+          "claim": "The `match` keyword of `pytest.raises` tests that a regular expression matches the string representation of the exception, using `re.search`."
+        }
+      ]
+    },
+    {
+      "id": "c016-q02",
+      "lesson": null,
+      "concept": "c016-mcp-resource-templates",
+      "type": "multiple_choice",
+      "prompt": "Your MCP server can serve any of 50,000 support tickets, each at a URI like `tickets://{id}`. Which MCP feature lets it advertise all of them without listing every one?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A `notifications/resources/list_changed` sent as each ticket opens"
+        },
+        {
+          "id": "b",
+          "text": "The `subscribe` capability, so clients receive each ticket as it changes"
+        },
+        {
+          "id": "c",
+          "text": "A resource template, listed with `resources/templates/list`"
+        },
+        {
+          "id": "d",
+          "text": "Pagination of `resources/list`, so clients fetch one ticket per page"
+        }
+      ],
+      "answer": "c",
+      "explanation": "Resource templates expose parameterized resources through RFC 6570 URI templates, listed by `resources/templates/list`, and their arguments can be auto-completed with the completion API. The client then reads a concrete ticket with `resources/read`. `list_changed` and subscriptions tell clients about changes; they don't describe a family of resources.",
+      "materials": [
+        "mcp-specification"
+      ],
+      "sources": [
+        {
+          "url": "https://modelcontextprotocol.io/specification/latest/server/resources",
+          "title": "Resources",
+          "publisher": "Model Context Protocol",
+          "accessed": "2026-10-02",
+          "claim": "Resource templates let servers expose parameterized resources using RFC 6570 URI templates, discovered with `resources/templates/list`, with arguments auto-completable through the completion API; `listChanged` and `subscribe` are change notifications."
+        }
+      ]
+    },
+    {
+      "id": "c016-q03",
+      "lesson": null,
+      "concept": "c016-agents-sdk-sessions",
+      "type": "written",
+      "prompt": "Your OpenAI Agents SDK chatbot must remember each user's earlier turns across separate `Runner.run` calls. How do Sessions handle this, and what must you not combine them with?",
+      "model_answer": {
+        "summary": "A Session loads the stored history before each run and saves the run's new items after it, keyed by a session ID per user or thread; it can't be combined with server-side continuation options in the same run.",
+        "key_points": [
+          "Before each run, the runner retrieves the session's history and prepends it to the input, so you don't pass `.to_input_list()` yourself",
+          "After each run, all new items (user input, assistant responses, tool calls) are stored in the session",
+          "Use one session ID per user or conversation, since different sessions keep separate histories; `SQLiteSession` with a file path persists, without one it is in memory",
+          "In one run, a session can't be combined with `conversation_id`, `previous_response_id` or `auto_previous_response_id`"
+        ]
+      },
+      "explanation": "Sessions replace the manual pattern of feeding `result.to_input_list()` into the next run. The choice is between client-side memory (a Session) and server-managed continuation, not both: mixing them in one run is refused, and is the trap here.",
+      "materials": [
+        "openai-agents-sdk"
+      ],
+      "sources": [
+        {
+          "url": "https://openai.github.io/openai-agents-python/sessions/",
+          "title": "Sessions",
+          "publisher": "OpenAI",
+          "accessed": "2026-10-02",
+          "claim": "Sessions retrieve the conversation history and prepend it before each run, store all new items after it, keep separate histories per session ID, offer in-memory or file-backed SQLiteSession, and cannot be combined in the same run with conversation_id, previous_response_id or auto_previous_response_id."
+        }
+      ]
+    },
+    {
+      "id": "c016-q04",
+      "lesson": null,
+      "concept": "c016-pytest-raises",
+      "type": "multiple_choice",
+      "prompt": "Your code defines `class ToolArgsError(ValueError)`, and `call_tool()` raises it. A test wraps the call in `with pytest.raises(ValueError):`. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It fails, since `pytest.raises` needs the exact exception type"
+        },
+        {
+          "id": "b",
+          "text": "It passes, since `pytest.raises` also matches any subclass"
+        },
+        {
+          "id": "c",
+          "text": "It fails unless you also pass `match=` with the error message"
+        },
+        {
+          "id": "d",
+          "text": "It passes only if `ToolArgsError` is listed in `conftest.py`"
+        }
+      ],
+      "answer": "b",
+      "explanation": "`pytest.raises` matches the exception type or any subclass, like an `except` clause. That also means a broad type such as `ValueError` can pass on the wrong error; assert on `excinfo.type` or pass `match=` when the exact error matters. `match` is optional.",
+      "materials": [
+        "pytest-get-started"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.pytest.org/en/stable/how-to/assert.html",
+          "title": "How to write and report assertions in tests",
+          "publisher": "pytest",
+          "accessed": "2026-10-02",
+          "claim": "`pytest.raises` matches the exception type or any subclasses, like the standard except statement; the ExceptionInfo it returns has `.type`, `.value` and `.traceback`."
+        }
+      ]
+    },
+    {
+      "id": "c016-q05",
+      "lesson": null,
+      "concept": "c016-mcp-resource-templates",
+      "type": "written",
+      "prompt": "Explain the difference between `resources/list`, `resources/templates/list` and `resources/read` in MCP, and what a server must return when a client reads a resource that doesn't exist.",
+      "model_answer": {
+        "summary": "`resources/list` returns concrete resources, `resources/templates/list` returns parameterized URI templates, and `resources/read` returns the contents for one URI; a missing resource is a JSON-RPC error, not an empty result.",
+        "key_points": [
+          "`resources/list` returns the concrete resources available, each with a URI, and supports pagination",
+          "`resources/templates/list` returns templates with a `uriTemplate` (RFC 6570) whose arguments can be auto-completed",
+          "`resources/read` takes a URI and returns its contents as text or base64 `blob`",
+          "A resource that doesn't exist gets JSON-RPC error `-32602` (clients should also accept the older `-32002`), never an empty `contents` array"
+        ]
+      },
+      "explanation": "Templates let a server describe huge or open-ended sets of resources, like every file or ticket, without listing each one, while `resources/read` always works on a concrete URI. An empty `contents` array is forbidden for a missing resource because it is ambiguous with a resource that exists but is empty.",
+      "materials": [
+        "mcp-specification"
+      ],
+      "sources": [
+        {
+          "url": "https://modelcontextprotocol.io/specification/latest/server/resources",
+          "title": "Resources",
+          "publisher": "Model Context Protocol",
+          "accessed": "2026-10-02",
+          "claim": "`resources/list` lists resources with pagination, `resources/templates/list` lists RFC 6570 URI templates, `resources/read` returns text or blob contents for a URI, and a non-existent resource MUST get error -32602, with -32002 accepted for older versions, never an empty contents array."
+        }
+      ]
+    },
+    {
+      "id": "c016-q06",
+      "lesson": null,
+      "concept": "c016-agents-sdk-sessions",
+      "type": "multiple_choice",
+      "prompt": "Your OpenAI Agents SDK service creates `SQLiteSession(\"user_123\")` with no database path, and the process restarts. What happens to user_123's conversation history?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It is kept in a default `agents.db` file next to your code"
+        },
+        {
+          "id": "b",
+          "text": "It is kept on OpenAI's servers under that same session ID"
+        },
+        {
+          "id": "c",
+          "text": "It is restored from the last `previous_response_id` used"
+        },
+        {
+          "id": "d",
+          "text": "It is lost: without a path, the session lives in memory"
+        }
+      ],
+      "answer": "d",
+      "explanation": "`SQLiteSession(\"user_123\")` without a file path is an in-memory database, lost when the process ends. Pass a path, as in `SQLiteSession(\"user_123\", \"conversations.db\")`, to persist it. Sessions are client-side storage, separate from OpenAI's server-managed continuation, and can't be combined with it in one run.",
+      "materials": [
+        "openai-agents-sdk"
+      ],
+      "sources": [
+        {
+          "url": "https://openai.github.io/openai-agents-python/sessions/",
+          "title": "Sessions",
+          "publisher": "OpenAI",
+          "accessed": "2026-10-02",
+          "claim": "`SQLiteSession(\"user_123\")` is in memory and lost when the process ends, while `SQLiteSession(\"user_123\", \"conversations.db\")` persists to a file."
+        }
+      ]
+    }
+  ]
+}

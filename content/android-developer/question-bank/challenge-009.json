@@ -1,0 +1,250 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c009-advance-time-by-exclusive",
+      "name": "advanceTimeBy, runCurrent and advanceUntilIdle"
+    },
+    {
+      "id": "c009-kmp-umbrella-framework",
+      "name": "One umbrella framework for KMP modules on iOS"
+    },
+    {
+      "id": "c009-validated-network-state",
+      "name": "Detecting real connectivity with NetworkCallback and VALIDATED"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c009-q01",
+      "lesson": null,
+      "concept": "c009-advance-time-by-exclusive",
+      "type": "multiple_choice",
+      "prompt": "```kotlin\n@Test fun waitsBeforeSearching() = runTest {\n  var calls = 0\n  launch { delay(300); calls++ }\n  advanceTimeBy(300)\n  assertEquals(1, calls)\n}\n```\nDoes the test pass?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Yes: `advanceTimeBy(300)` runs every task due up to and including 300 ms"
+        },
+        {
+          "id": "b",
+          "text": "No: a launched coroutine never runs until `advanceUntilIdle()` is called"
+        },
+        {
+          "id": "c",
+          "text": "No: the task due at exactly 300 ms only runs after a `runCurrent()`"
+        },
+        {
+          "id": "d",
+          "text": "No: `delay` inside `runTest` waits 300 ms of real time, not virtual time"
+        }
+      ],
+      "answer": "c",
+      "explanation": "`advanceTimeBy(300)` runs the tasks scheduled in `[now, now + 300)`: the end is exclusive. The coroutine starts and suspends at time 0, and its resumption is due at exactly 300 ms, so it hasn't run when the assertion checks. Call `runCurrent()` after `advanceTimeBy`, or use `advanceUntilIdle()`. Delays in `runTest` use virtual time.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-test/kotlinx.coroutines.test/-test-coroutine-scheduler/advance-time-by.html",
+          "title": "advanceTimeBy",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-02",
+          "claim": "`advanceTimeBy` moves the virtual clock forward, running the tasks scheduled for `currentTime()..<currentTime() + delayTimeMillis`, so a task due exactly at the end is not run."
+        },
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-test/kotlinx.coroutines.test/-test-coroutine-scheduler/run-current.html",
+          "title": "runCurrent",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-02",
+          "claim": "`runCurrent` runs the tasks that are scheduled to execute at the current moment of virtual time."
+        }
+      ]
+    },
+    {
+      "id": "c009-q02",
+      "lesson": null,
+      "concept": "c009-kmp-umbrella-framework",
+      "type": "multiple_choice",
+      "prompt": "Two KMP modules, `:auth` and `:feed`, both depend on `:core`, and each is exported to the iOS app as its own framework. What does the Kotlin documentation warn will happen?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Xcode refuses to link two Kotlin frameworks that share a dependency"
+        },
+        {
+          "id": "b",
+          "text": "Each framework embeds `:core`, so its types and state aren't shared"
+        },
+        {
+          "id": "c",
+          "text": "Kotlin generates a shared `core` framework that both of them load"
+        },
+        {
+          "id": "d",
+          "text": "Only the first framework loaded can run code from the `:core` module"
+        }
+      ],
+      "answer": "b",
+      "explanation": "A Kotlin framework includes all its dependencies, and Kotlin doesn't produce common framework dependencies. So each framework gets its own copy of `:core`: the app is bigger, a `:core` type from `Auth` isn't compatible with the one in `Feed`, and state passed through `:core` isn't connected. The fix is one umbrella framework.",
+      "materials": [
+        "kmp-get-started"
+      ],
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/multiplatform/multiplatform-project-configuration.html",
+          "title": "Choosing the configuration for your Kotlin Multiplatform project",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-02",
+          "claim": "Don't include several frameworks from different shared modules in an iOS app: each framework includes its dependencies, so shared dependencies are duplicated, bloating the app, with incompatible types and unconnected state; Kotlin doesn't produce common framework dependencies; use an umbrella module that depends on all shared modules and is imported as one framework."
+        }
+      ]
+    },
+    {
+      "id": "c009-q03",
+      "lesson": null,
+      "concept": "c009-validated-network-state",
+      "type": "written",
+      "prompt": "Your offline-first app shows an 'Offline' banner and starts a sync when the network comes back. How do you detect connectivity reliably on Android, and which pitfalls do you avoid?",
+      "model_answer": {
+        "summary": "Register a default network callback and derive the state from its capabilities: treat the device as online only with `NET_CAPABILITY_VALIDATED`, and read capabilities from `onCapabilitiesChanged` instead of querying synchronously.",
+        "key_points": [
+          "Use `ConnectivityManager.registerDefaultNetworkCallback` (for example wrapped in a `callbackFlow`) to follow `onAvailable`, `onCapabilitiesChanged` and `onLost` for the default network",
+          "`NET_CAPABILITY_INTERNET` only means the network is set up for internet; require `NET_CAPABILITY_VALIDATED`, which a captive portal or a network without DNS lacks",
+          "Don't call the synchronous `ConnectivityManager` methods inside `onAvailable`, which races; wait for `onCapabilitiesChanged` and `onLinkPropertiesChanged`",
+          "For heavy syncs check `NET_CAPABILITY_NOT_METERED` rather than the transport type, which is a poor proxy for meteredness"
+        ]
+      },
+      "explanation": "Connected is not the same as online: a hotel Wi-Fi login page gives you a network with the internet capability but no real access. Following the default network's capabilities as a stream keeps the banner and the sync trigger honest, and a request can still fail, so the sync must handle errors anyway.",
+      "materials": [
+        "android-offline-first"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/connectivity/network-ops/reading-network-state",
+          "title": "Read network state",
+          "publisher": "Google (Android Developers)",
+          "accessed": "2026-10-02",
+          "claim": "NET_CAPABILITY_INTERNET is about setup, not actual ability to reach the internet; NET_CAPABILITY_VALIDATED means probes reached the public internet and is missing behind a captive portal or without DNS; use registerDefaultNetworkCallback with onAvailable, onCapabilitiesChanged and onLost; don't call synchronous methods in onAvailable (race) but wait for onCapabilitiesChanged/onLinkPropertiesChanged; transport type is a poor proxy for meteredness, use NET_CAPABILITY_NOT_METERED."
+        }
+      ]
+    },
+    {
+      "id": "c009-q04",
+      "lesson": null,
+      "concept": "c009-advance-time-by-exclusive",
+      "type": "written",
+      "prompt": "You test a search box that waits 300 ms after the last keystroke before calling the API, using `runTest`. Explain what `advanceTimeBy`, `runCurrent` and `advanceUntilIdle` each do, and how you would assert the call happens at 300 ms and not before.",
+      "model_answer": {
+        "summary": "`advanceTimeBy` moves virtual time and runs tasks due before the new time, `runCurrent` runs what is due now, and `advanceUntilIdle` runs everything. Step to 299 ms and assert no call, then step 1 ms, run current tasks and assert one call.",
+        "key_points": [
+          "`advanceTimeBy(n)` moves virtual time forward by n and runs tasks scheduled in `[now, now + n)`: a task due exactly at the end doesn't run yet",
+          "`runCurrent()` runs the tasks scheduled at the current virtual time",
+          "`advanceUntilIdle()` runs all queued tasks, advancing time as needed until none remain, so it can't show *when* something happened",
+          "Assert no call after `advanceTimeBy(299)` and `runCurrent()`, then `advanceTimeBy(1)` and `runCurrent()`, and assert exactly one call"
+        ]
+      },
+      "explanation": "A debounce test is about timing, so `advanceUntilIdle()` alone proves only that the call happened eventually. Moving the clock in steps and running the tasks due at each step checks both edges. Forgetting `runCurrent()` after `advanceTimeBy` is a common reason such tests fail by one tick.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-test/kotlinx.coroutines.test/-test-coroutine-scheduler/advance-time-by.html",
+          "title": "advanceTimeBy",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-02",
+          "claim": "`advanceTimeBy` moves the virtual clock forward, running the tasks scheduled for `currentTime()..<currentTime() + delayTimeMillis`, so a task due exactly at the end is not run."
+        },
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-test/kotlinx.coroutines.test/-test-coroutine-scheduler/run-current.html",
+          "title": "runCurrent",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-02",
+          "claim": "`runCurrent` runs the tasks that are scheduled to execute at the current moment of virtual time."
+        },
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-test/kotlinx.coroutines.test/-test-coroutine-scheduler/advance-until-idle.html",
+          "title": "advanceUntilIdle",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-02",
+          "claim": "`advanceUntilIdle` runs the enqueued tasks, advancing virtual time as needed, until no tasks remain on the dispatchers linked to the scheduler."
+        }
+      ]
+    },
+    {
+      "id": "c009-q05",
+      "lesson": null,
+      "concept": "c009-kmp-umbrella-framework",
+      "type": "multiple_choice",
+      "prompt": "Your iOS team wants to import each shared KMP feature module as its own framework. Which setup does the Kotlin documentation recommend instead?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "One umbrella module that depends on all of them, built as one framework"
+        },
+        {
+          "id": "b",
+          "text": "One framework per module, plus a separate framework that holds `:core`"
+        },
+        {
+          "id": "c",
+          "text": "One framework per module, each of them built with its dependencies left out"
+        },
+        {
+          "id": "d",
+          "text": "A copy of the shared code in each feature module, so that nothing is shared"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Separate frameworks each carry their own copy of the shared dependencies, so the docs recommend an umbrella module that depends on every shared module and is the one framework the iOS app imports. Kotlin doesn't produce separate dependency frameworks for you, so a `:core` framework next to the others isn't an option it offers.",
+      "materials": [
+        "kmp-get-started"
+      ],
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/multiplatform/multiplatform-project-configuration.html",
+          "title": "Choosing the configuration for your Kotlin Multiplatform project",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-02",
+          "claim": "Don't include several frameworks from different shared modules in an iOS app: each framework includes its dependencies, so shared dependencies are duplicated, bloating the app, with incompatible types and unconnected state; Kotlin doesn't produce common framework dependencies; use an umbrella module that depends on all shared modules and is imported as one framework."
+        }
+      ]
+    },
+    {
+      "id": "c009-q06",
+      "lesson": null,
+      "concept": "c009-validated-network-state",
+      "type": "multiple_choice",
+      "prompt": "On hotel Wi-Fi, before the user has signed in on the captive portal page, which capability does the network lack?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`NET_CAPABILITY_INTERNET`, since the login page blocks all traffic"
+        },
+        {
+          "id": "b",
+          "text": "`NET_CAPABILITY_CAPTIVE_PORTAL`, since it is set only after sign-in"
+        },
+        {
+          "id": "c",
+          "text": "`NET_CAPABILITY_NOT_METERED`, since hotel networks count as metered"
+        },
+        {
+          "id": "d",
+          "text": "`NET_CAPABILITY_VALIDATED`, since probes can't reach the internet"
+        }
+      ],
+      "answer": "d",
+      "explanation": "Behind a captive portal the network has `NET_CAPABILITY_INTERNET` and `NET_CAPABILITY_CAPTIVE_PORTAL`, but not `NET_CAPABILITY_VALIDATED`, because probes can't reach the public internet. After the user signs in, it gains `VALIDATED` and loses `CAPTIVE_PORTAL`. `INTERNET` is about how the network is set up, not whether it works.",
+      "materials": [
+        "android-offline-first"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/connectivity/network-ops/reading-network-state",
+          "title": "Read network state",
+          "publisher": "Google (Android Developers)",
+          "accessed": "2026-10-02",
+          "claim": "NET_CAPABILITY_INTERNET is about setup, not actual ability to reach the internet; NET_CAPABILITY_VALIDATED means probes reached the public internet and is missing behind a captive portal or without DNS; use registerDefaultNetworkCallback with onAvailable, onCapabilitiesChanged and onLost; don't call synchronous methods in onAvailable (race) but wait for onCapabilitiesChanged/onLinkPropertiesChanged; transport type is a poor proxy for meteredness, use NET_CAPABILITY_NOT_METERED."
+        }
+      ]
+    }
+  ]
+}

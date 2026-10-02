@@ -1,0 +1,220 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c026-json-merge-patch",
+      "name": "JSON Merge Patch semantics"
+    },
+    {
+      "id": "c026-oauth-csrf-state-pkce",
+      "name": "CSRF protection in OAuth: `state` or PKCE"
+    },
+    {
+      "id": "c026-window-top-n",
+      "name": "Top-N per group with window functions"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c026-q01",
+      "lesson": null,
+      "concept": "c026-json-merge-patch",
+      "type": "multiple_choice",
+      "prompt": "An agent config is `{\"model\": \"m1\", \"tools\": [\"search\", \"code\"], \"temperature\": 0.2}`. A client sends `PATCH` with `Content-Type: application/merge-patch+json` and body `{\"tools\": [\"search\"], \"temperature\": null}`. What is the result?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`{\"model\": \"m1\", \"tools\": [\"search\", \"code\"], \"temperature\": null}`"
+        },
+        {
+          "id": "b",
+          "text": "`{\"model\": \"m1\", \"tools\": [\"search\", \"code\"]}`"
+        },
+        {
+          "id": "c",
+          "text": "`{\"model\": \"m1\", \"tools\": [\"search\"], \"temperature\": null}`"
+        },
+        {
+          "id": "d",
+          "text": "`{\"model\": \"m1\", \"tools\": [\"search\"]}`"
+        }
+      ],
+      "answer": "d",
+      "explanation": "In JSON Merge Patch (RFC 7396), a member set to `null` removes that member from the target, and any non-object value, including an array, replaces the target's value whole. So `temperature` is deleted and `tools` becomes `[\"search\"]`; arrays are never merged element by element. `model` isn't in the patch, so it stays.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc7396.html",
+          "title": "RFC 7396: JSON Merge Patch",
+          "publisher": "IETF",
+          "accessed": "2026-10-02",
+          "claim": "In a merge patch, null values indicate removal of existing values in the target; it is not possible to patch part of a target that is not an object, such as some values in an array, so arrays are replaced whole; the media type is application/merge-patch+json."
+        }
+      ]
+    },
+    {
+      "id": "c026-q02",
+      "lesson": null,
+      "concept": "c026-oauth-csrf-state-pkce",
+      "type": "multiple_choice",
+      "prompt": "Your agent's web app uses the OAuth authorization code flow. Under RFC 9700, when may it rely on PKCE instead of `state` to protect its redirect URI against CSRF?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Never, since PKCE only protects the code and `state` is still required"
+        },
+        {
+          "id": "b",
+          "text": "Only once it has made sure the authorization server supports PKCE"
+        },
+        {
+          "id": "c",
+          "text": "Only when it is a confidential client that holds a client secret"
+        },
+        {
+          "id": "d",
+          "text": "Always, because every OAuth 2.0 server must support PKCE by now"
+        }
+      ],
+      "answer": "b",
+      "explanation": "RFC 9700 says PKCE gives the same CSRF protection as a `state` value bound to the user's session, and even holds up when an attacker can read the authorization response. But the client MUST first ensure the authorization server supports PKCE; if it doesn't, `state` or the OpenID Connect nonce MUST be used. Being confidential has nothing to do with it.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc9700.html",
+          "title": "RFC 9700: Best Current Practice for OAuth 2.0 Security",
+          "publisher": "IETF",
+          "accessed": "2026-10-02",
+          "claim": "The long-established CSRF countermeasure is a random state value linking the request to the user agent session; PKCE or the OpenID Connect nonce provides the same protection, but clients MUST ensure the authorization server supports PKCE before relying on it, otherwise state or nonce MUST be used."
+        }
+      ]
+    },
+    {
+      "id": "c026-q03",
+      "lesson": null,
+      "concept": "c026-window-top-n",
+      "type": "written",
+      "prompt": "From `conversations(id, user_id, title, created_at)` you need each user's 3 most recent conversations. Describe the query, and explain why `GROUP BY` can't do it and why you can't filter the window function in `WHERE`.",
+      "model_answer": {
+        "summary": "Number each user's conversations with `row_number() OVER (PARTITION BY user_id ORDER BY created_at DESC)` in a subquery, then keep rows numbered 1 to 3 in the outer query.",
+        "key_points": [
+          "Use `row_number() OVER (PARTITION BY user_id ORDER BY created_at DESC)` to number each user's conversations from newest to oldest",
+          "Filter on that number (`<= 3`) in an outer query or CTE, because window functions are allowed only in the select list and `ORDER BY`, not in `WHERE`, `GROUP BY` or `HAVING`",
+          "`GROUP BY` collapses each group into one output row, while a window function keeps every row and adds a value computed over its partition"
+        ]
+      },
+      "explanation": "Window functions run after `WHERE`, `GROUP BY` and `HAVING`, so their results don't exist yet when those clauses are evaluated; that is why the filter goes one level up. Adding a tiebreaker such as `id` to the window's `ORDER BY` makes the result deterministic when two conversations share a timestamp.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/tutorial-window.html",
+          "title": "3.5. Window Functions",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-02",
+          "claim": "Window functions compute across related rows without grouping them into one output row; they are permitted only in the SELECT list and ORDER BY, not in WHERE, GROUP BY or HAVING, so to filter on them you use a sub-select, for example row_number() OVER (PARTITION BY depname ORDER BY salary DESC) with WHERE pos < 3 outside."
+        }
+      ]
+    },
+    {
+      "id": "c026-q04",
+      "lesson": null,
+      "concept": "c026-json-merge-patch",
+      "type": "written",
+      "prompt": "Your API accepts `PATCH` bodies as JSON Merge Patch (`application/merge-patch+json`). Explain how a merge patch is applied, and what it can't express.",
+      "model_answer": {
+        "summary": "A merge patch looks like the document: members it names are replaced, `null` removes a member, and non-object values such as arrays replace the old value whole; so it can't edit part of an array or set a value to `null`.",
+        "key_points": [
+          "Members present in the patch replace the target's values, nested objects are merged recursively, and members not mentioned are left alone",
+          "A member set to `null` removes that member, so a merge patch can't set a value to an explicit `null`",
+          "Arrays and other non-object values replace the target's value whole, so you can't add or remove one array element",
+          "It suits documents built mostly from objects that don't rely on explicit nulls; use a different patch format otherwise"
+        ]
+      },
+      "explanation": "Merge Patch is popular because the patch looks like the resource. The tempting assumption is that arrays merge like objects; they don't, so a client that sends one array item wipes the others. Fields where `null` has meaning also can't be set through it.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc7396.html",
+          "title": "RFC 7396: JSON Merge Patch",
+          "publisher": "IETF",
+          "accessed": "2026-10-02",
+          "claim": "Null values in a merge patch indicate removal; non-object values, including arrays, replace the target value whole, so part of an array can't be patched; the format suits documents that primarily use objects and do not make use of explicit null values."
+        }
+      ]
+    },
+    {
+      "id": "c026-q05",
+      "lesson": null,
+      "concept": "c026-oauth-csrf-state-pkce",
+      "type": "multiple_choice",
+      "prompt": "An attacker makes a victim's browser load your OAuth client's redirect URI with an authorization code from the attacker's own account. What is this attack, and what has long stopped it?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "CSRF; a random `state` value bound to the user's browser session"
+        },
+        {
+          "id": "b",
+          "text": "Code interception; a client secret shipped inside the browser app"
+        },
+        {
+          "id": "c",
+          "text": "Token replay; rotating the refresh token on every token refresh"
+        },
+        {
+          "id": "d",
+          "text": "Clickjacking; an `X-Frame-Options` header on the sign-in page"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Injecting a request into the client's redirect URI so the victim's session uses the attacker's resources is the CSRF variant RFC 9700 describes. The long-established fix is a random `state` value that ties the redirect to the user agent session that started the flow; PKCE or the OIDC nonce gives the same protection. A secret in a browser app isn't secret, and refresh token rotation solves a different problem.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc9700.html",
+          "title": "RFC 9700: Best Current Practice for OAuth 2.0 Security",
+          "publisher": "IETF",
+          "accessed": "2026-10-02",
+          "claim": "An attacker injecting a request to the redirection URI of the legitimate client on the victim's device, for example to make the client access resources under the attacker's control, is a CSRF variant; the long-established countermeasure is a random CSRF token in the state parameter linking the request to the user agent session."
+        }
+      ]
+    },
+    {
+      "id": "c026-q06",
+      "lesson": null,
+      "concept": "c026-window-top-n",
+      "type": "multiple_choice",
+      "prompt": "What does `SELECT id, user_id, count(*) OVER (PARTITION BY user_id) FROM conversations` return?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "One row per user, with the number of conversations that user has"
+        },
+        {
+          "id": "b",
+          "text": "An error, because `count(*)` needs a `GROUP BY user_id` clause too"
+        },
+        {
+          "id": "c",
+          "text": "Every conversation row, each with its user's conversation count"
+        },
+        {
+          "id": "d",
+          "text": "Every conversation row, each with a running count up to that row"
+        }
+      ],
+      "answer": "c",
+      "explanation": "A window function keeps every input row and adds a value computed over the row's partition. With `PARTITION BY` and no `ORDER BY`, the frame is the whole partition, so each row shows its user's total. A running count would need an `ORDER BY` inside `OVER`; one row per user is what `GROUP BY` does.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/tutorial-window.html",
+          "title": "3.5. Window Functions",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-02",
+          "claim": "A window function does not group rows into a single output row, so each row keeps its identity; without ORDER BY in the window the frame is all rows of the partition, while with ORDER BY it runs from the partition start to the current row."
+        }
+      ]
+    }
+  ]
+}

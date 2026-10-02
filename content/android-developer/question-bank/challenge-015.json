@@ -1,0 +1,232 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c015-scan-running-fold",
+      "name": "scan (runningFold) for accumulating state from events"
+    },
+    {
+      "id": "c015-parallel-collect-repeatonlifecycle",
+      "name": "Collecting several flows inside repeatOnLifecycle"
+    },
+    {
+      "id": "c015-resource-shrinking-keep",
+      "name": "Resource shrinking, keep files and what it doesn't remove"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c015-q01",
+      "lesson": null,
+      "concept": "c015-scan-running-fold",
+      "type": "multiple_choice",
+      "prompt": "What does this print?\n\n```kotlin\nflowOf(1, 2, 3)\n  .scan(0) { acc, v -> acc + v }\n  .collect { print(\"$it \") }\n```",
+      "choices": [
+        {
+          "id": "a",
+          "text": "1 3 6"
+        },
+        {
+          "id": "b",
+          "text": "0 1 3 6"
+        },
+        {
+          "id": "c",
+          "text": "6"
+        },
+        {
+          "id": "d",
+          "text": "0 1 2 3"
+        }
+      ],
+      "answer": "b",
+      "explanation": "`scan` (an alias of `runningFold`) emits every intermediate result of the fold, starting with the initial value: `0`, then `0+1`, `1+2` and `3+3`. Leaving out the initial `0` is the common slip; printing only `6` is what a single final fold would give.",
+      "materials": [
+        "kotlin-flow-docs"
+      ],
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/scan.html",
+          "title": "scan",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-02",
+          "claim": "scan folds the flow with an operation and emits every intermediate result, including the initial value; it is an alias of runningFold."
+        }
+      ]
+    },
+    {
+      "id": "c015-q02",
+      "lesson": null,
+      "concept": "c015-parallel-collect-repeatonlifecycle",
+      "type": "multiple_choice",
+      "prompt": "In a Fragment:\n\n```kotlin\nrepeatOnLifecycle(Lifecycle.State.STARTED) {\n  vm.uiState.collect { render(it) }\n  vm.badges.collect { showBadge(it) }\n}\n```\n\n`showBadge` is never called. Why?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`collect` suspends while `uiState` lives, so the second never starts"
+        },
+        {
+          "id": "b",
+          "text": "`repeatOnLifecycle` collects only the first flow its block refers to"
+        },
+        {
+          "id": "c",
+          "text": "`badges` is cold, so it needs `flowWithLifecycle` before it can emit"
+        },
+        {
+          "id": "d",
+          "text": "Both flows share one coroutine, so `badges` values are conflated away"
+        }
+      ],
+      "answer": "a",
+      "explanation": "`collect` is a suspend function, and collecting a `StateFlow` never finishes, so the line after it is never reached. To collect several flows in parallel, `launch` each `collect` in its own coroutine inside the `repeatOnLifecycle` block. `flowWithLifecycle` is the simpler choice only when you collect a single flow.",
+      "materials": [
+        "android-flow"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/libraries/architecture/views/coroutines-views",
+          "title": "Use Kotlin coroutines with lifecycle-aware components (Views)",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "Because collect is a suspend function, to collect multiple flows in parallel inside repeatOnLifecycle you must collect each in a different coroutine (launch); for a single flow, flowWithLifecycle simplifies the code."
+        }
+      ]
+    },
+    {
+      "id": "c015-q03",
+      "lesson": null,
+      "concept": "c015-resource-shrinking-keep",
+      "type": "written",
+      "prompt": "Explain how resource shrinking decides which resources to remove, how you keep or discard specific ones, and what it won't remove for you.",
+      "model_answer": {
+        "summary": "Resource shrinking runs with code shrinking and removes resources the code doesn't reference, keeping ones that string constants might load by name; a keep file adjusts it, and alternative configurations need `resourceConfigurations`.",
+        "key_points": [
+          "It removes resources that the app's code doesn't reference, and works only together with code shrinking (`isMinifyEnabled` with `isShrinkResources` before AGP 9.3; the optimization DSL enables both from AGP 9.3)",
+          "String constants that look like a resource name pattern (such as `ic_plus_anim_%1$d`) can mark matching resources as used, to protect lookups by name with `getIdentifier()`",
+          "A keep file such as `res/raw/keep_my_package.xml` lists resources in `tools:keep` or `tools:discard`, with `*` wildcards",
+          "It doesn't remove alternative resources for other configurations, such as unused languages; limit those with `resourceConfigurations`"
+        ]
+      },
+      "explanation": "The shrinker is conservative about names it can't prove unused, which is why a `tools:discard` entry may be needed, and why lookups by name are the main reason to add `tools:keep`. Many developers expect it to strip unused translations from libraries too, but configuration-specific resources stay unless you restrict them.",
+      "materials": [
+        "android-r8"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/performance/app-optimization/customize-which-resources-to-keep",
+          "title": "Customize which resources to keep",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "Resource shrinking removes resources not referenced by app code and works only with code shrinking before AGP 9.3 (enabled with optimization from AGP 9.3); resources matching string constants such as ic_plus_anim_%1$d are marked used; tools:keep and tools:discard in a keep file such as res/raw/keep_my_package.xml control it; alternative resources for other configurations aren't removed, so use resourceConfigurations."
+        }
+      ]
+    },
+    {
+      "id": "c015-q04",
+      "lesson": null,
+      "concept": "c015-scan-running-fold",
+      "type": "written",
+      "prompt": "A chat screen receives a `Flow<MessageEvent>` of added, edited and deleted events. How would you turn it into a `Flow<List<Message>>` for the UI with a Flow operator, and what must you watch out for?",
+      "model_answer": {
+        "summary": "Fold the events with `scan` (`runningFold`) from an empty list, producing a new list for every event, and keep the accumulator immutable.",
+        "key_points": [
+          "Use `scan` (alias `runningFold`) with an initial empty list, applying each event to the accumulated list to produce the next one",
+          "`scan` emits every intermediate result, starting with the initial value, so the UI gets an empty list at once and then each update",
+          "The initial value is shared between collectors, so it must be immutable or never mutated: return a new list from each step instead of changing the old one"
+        ]
+      },
+      "explanation": "`scan` is a reducer over a stream: state plus event gives the next state, and every step is emitted. Mutating the accumulator is the trap, because the same initial object is shared by every collector and a mutated list also defeats `StateFlow`'s equality check downstream.",
+      "materials": [
+        "kotlin-flow-docs"
+      ],
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/scan.html",
+          "title": "scan",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-02",
+          "claim": "scan emits every intermediate result including the initial value; the initial value should be immutable or not mutated because it is shared between collectors; scan is an alias of runningFold."
+        }
+      ]
+    },
+    {
+      "id": "c015-q05",
+      "lesson": null,
+      "concept": "c015-parallel-collect-repeatonlifecycle",
+      "type": "multiple_choice",
+      "prompt": "In a Fragment that uses Views, you need lifecycle-aware collection of just one flow. Which does Android's guidance give as the simpler option?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`flow.flowWithLifecycle(viewLifecycleOwner.lifecycle, STARTED).collect {}`"
+        },
+        {
+          "id": "b",
+          "text": "`collectAsStateWithLifecycle()`, which also works on a Fragment's Views"
+        },
+        {
+          "id": "c",
+          "text": "`lifecycleScope.launch { flow.collect {} }`, which pauses on `onStop`"
+        },
+        {
+          "id": "d",
+          "text": "`viewLifecycleOwner.lifecycle.addObserver { flow.collect {} }` in `onCreate`"
+        }
+      ],
+      "answer": "a",
+      "explanation": "For a single flow, `flowWithLifecycle` gives the same STARTED-bounded collection as `repeatOnLifecycle` with less code; `repeatOnLifecycle` with one `launch` per flow is for several flows at once. `collectAsStateWithLifecycle` is for Compose, and a plain `lifecycleScope.launch` keeps collecting while the Fragment is stopped.",
+      "materials": [
+        "android-flow"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/libraries/architecture/views/coroutines-views",
+          "title": "Use Kotlin coroutines with lifecycle-aware components (Views)",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "If you only need lifecycle-aware collection of a single flow, Flow.flowWithLifecycle() simplifies the code; for multiple flows in parallel, use repeatOnLifecycle and collect each in a different coroutine."
+        }
+      ]
+    },
+    {
+      "id": "c015-q06",
+      "lesson": null,
+      "concept": "c015-resource-shrinking-keep",
+      "type": "multiple_choice",
+      "prompt": "Your app ships only in English and French, but the release APK still has strings in 80 languages from its libraries, even with resource shrinking on. Why, and what fixes it?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Shrinking keeps alternative resources; set `resourceConfigurations`"
+        },
+        {
+          "id": "b",
+          "text": "Library resources are never shrunk; copy the strings into the app module"
+        },
+        {
+          "id": "c",
+          "text": "R8 can't see uses from XML, so it must keep all string resources"
+        },
+        {
+          "id": "d",
+          "text": "The shrinker removes only drawables and layouts, never any strings"
+        }
+      ],
+      "answer": "a",
+      "explanation": "The resource shrinker removes only resources the code doesn't reference, and a translation of a used string is an alternative resource for another configuration, so it stays. Restrict the configurations you ship with `resourceConfigurations.addAll(listOf(\"en\", \"fr\"))`. Unused library resources can be shrunk; only alternative configurations survive.",
+      "materials": [
+        "android-r8"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/performance/app-optimization/customize-which-resources-to-keep",
+          "title": "Customize which resources to keep",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "The optimizer only removes resources that aren't referenced by app code, so it won't remove alternative resources for different device configurations; use resourceConfigurations (e.g. en, fr) to remove them."
+        }
+      ]
+    }
+  ]
+}

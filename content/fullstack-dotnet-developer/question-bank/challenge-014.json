@@ -1,0 +1,250 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c014-typedresults-vs-results",
+      "name": "TypedResults and Results<T1, TN> vs IResult in Minimal APIs"
+    },
+    {
+      "id": "c014-testcontainers-ports-readiness",
+      "name": "Testcontainers random host ports and wait strategies"
+    },
+    {
+      "id": "c014-cascading-failure-response",
+      "name": "Stopping a cascading failure and retry amplification"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c014-q01",
+      "lesson": null,
+      "concept": "c014-typedresults-vs-results",
+      "type": "multiple_choice",
+      "prompt": "A Minimal API handler returns `Results.Ok(todo)` or `Results.NotFound()`, and the OpenAPI document lists no response types for it. Which fix do the ASP.NET Core docs prefer?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Return `Results.Json(todo)`, which adds the `Todo` schema to the OpenAPI document"
+        },
+        {
+          "id": "b",
+          "text": "Declare the return type `Results<Ok<Todo>, NotFound>` and use `TypedResults`"
+        },
+        {
+          "id": "c",
+          "text": "Switch both calls to `TypedResults` but keep `IResult` as the declared return type"
+        },
+        {
+          "id": "d",
+          "text": "Mark the lambda `async`, so the framework can inspect the `Task` that it returns"
+        }
+      ],
+      "answer": "b",
+      "explanation": "`Results` helpers all return `IResult`, so nothing tells OpenAPI what the endpoint produces unless you add `Produces` calls. `TypedResults` return concrete types that carry their response metadata, and a `Results<Ok<Todo>, NotFound>` return type keeps that metadata for every branch. Declaring `IResult` throws that type information away, which is why the union type is the better choice.",
+      "materials": [
+        "aspnetcore-openapi"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis/responses",
+          "title": "Create responses in Minimal API applications",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "TypedResults return implementation types that automatically provide response metadata for OpenAPI, while Results helpers return IResult and need Produces; Results<TResult1, TResultN> is better than returning IResult because the union types retain endpoint metadata, and returning TypedResults is preferred."
+        }
+      ]
+    },
+    {
+      "id": "c014-q02",
+      "lesson": null,
+      "concept": "c014-testcontainers-ports-readiness",
+      "type": "multiple_choice",
+      "prompt": "A Testcontainers test starts PostgreSQL with `WithPortBinding(5432, 5432)` and no wait strategy, then connects at once. It fails when tests run in parallel, and sometimes even alone. Why?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Containers on CI agents can't publish any ports, so tests must use the host network instead"
+        },
+        {
+          "id": "b",
+          "text": "The start already waits until port 5432 takes connections, but CI agents block that host port"
+        },
+        {
+          "id": "c",
+          "text": "A fixed host port can collide, and by default the start only waits for the container to run"
+        },
+        {
+          "id": "d",
+          "text": "Testcontainers shares one container across all tests, so a parallel test finds it stopped"
+        }
+      ],
+      "answer": "c",
+      "explanation": "A fixed host port collides when two containers want it, so bind a random host port (`WithPortBinding(5432, true)`) and read it with `GetMappedPublicPort`. And by default Testcontainers only waits until the container is running, which isn't the same as the database accepting connections, so add a wait strategy that checks real readiness.",
+      "materials": [
+        "testcontainers-dotnet"
+      ],
+      "sources": [
+        {
+          "url": "https://dotnet.testcontainers.org/api/create_docker_container/",
+          "title": "Creating a container - Testcontainers for .NET",
+          "publisher": "Testcontainers",
+          "accessed": "2026-10-02",
+          "claim": "Don't bind a fixed host port; assign a random host port with WithPortBinding(80, true) and retrieve it with GetMappedPublicPort(80), to avoid port collisions."
+        },
+        {
+          "url": "https://dotnet.testcontainers.org/api/wait_strategies/",
+          "title": "Wait strategies - Testcontainers for .NET",
+          "publisher": "Testcontainers",
+          "accessed": "2026-10-02",
+          "claim": "By default Testcontainers waits until the container is running, which for most images isn't enough to know the service is ready; wait strategies such as UntilMessageIsLogged or UntilHttpRequestIsSucceeded check readiness."
+        }
+      ]
+    },
+    {
+      "id": "c014-q03",
+      "lesson": null,
+      "concept": "c014-cascading-failure-response",
+      "type": "written",
+      "prompt": "In an incident, a service's instances crash under load, clients retry at every layer, and new instances fall over as soon as they start. What do you do right away, and what do you change afterwards?",
+      "model_answer": {
+        "summary": "Cut the load until the crashing stops, then bring traffic back gradually; afterwards change retry behaviour so retries can't multiply load on an overloaded service.",
+        "key_points": [
+          "Adding instances alone may not recover a severe cascade; drop traffic until the crashing stops, then raise it gradually as caches warm",
+          "Enter a degraded mode, turn off non-critical batch work, and block traffic that causes crashes or heavy load",
+          "Stop health checks from killing instances if they make the system less stable",
+          "Afterwards, limit retries per request, use a retry budget with randomized exponential backoff, and retry at only one layer"
+        ]
+      },
+      "explanation": "In a cascading failure, every instance that starts takes the whole load and fails too, so adding capacity often isn't enough. Reducing load is the lever that works, followed by a careful ramp back up. The tempting answer is to keep scaling out or restart everything, but restarts help only when the cause is known, and retries at several layers multiply the load on the service that is already failing.",
+      "materials": [
+        "google-sre-book"
+      ],
+      "sources": [
+        {
+          "url": "https://sre.google/sre-book/addressing-cascading-failures/",
+          "title": "Site Reliability Engineering, Chapter 22: Addressing Cascading Failures",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "Immediate steps for a cascading failure include increasing resources (which may not suffice), stopping health check failures or deaths, restarting servers once the cause is known, dropping traffic until crashing stops and then ramping up, entering degraded modes, eliminating batch load and eliminating bad traffic; retries should use randomized exponential backoff, be limited per request and by a server-wide retry budget, and not be issued at multiple levels."
+        }
+      ]
+    },
+    {
+      "id": "c014-q04",
+      "lesson": null,
+      "concept": "c014-typedresults-vs-results",
+      "type": "multiple_choice",
+      "prompt": "What does declaring a handler's return type as `Results<BadRequest, Ok<Order>>` give you over returning `IResult`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Model validation turns on, so bad input returns `BadRequest` by itself"
+        },
+        {
+          "id": "b",
+          "text": "The response body serializes faster, because the result types are known"
+        },
+        {
+          "id": "c",
+          "text": "The handler can return any `IResult` and OpenAPI still lists every one"
+        },
+        {
+          "id": "d",
+          "text": "The compiler rejects other result types, and OpenAPI metadata is kept"
+        }
+      ],
+      "answer": "d",
+      "explanation": "The union type implements implicit conversions from each of its generic arguments, keeps their endpoint metadata for OpenAPI, and gives a compile-time check: returning a type that isn't one of the arguments doesn't compile. It doesn't add validation or change serialization.",
+      "materials": [
+        "aspnetcore-openapi"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis/responses",
+          "title": "Create responses in Minimal API applications",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "Results<TResult1, TResultN> union types automatically retain endpoint metadata, implement implicit cast operators, and provide compile-time checking that a handler only returns the results it declares; returning another type is a compilation error."
+        }
+      ]
+    },
+    {
+      "id": "c014-q05",
+      "lesson": null,
+      "concept": "c014-testcontainers-ports-readiness",
+      "type": "multiple_choice",
+      "prompt": "A container's wait strategy is `UntilInternalTcpPortIsAvailable(8080)`, yet the first request to it still fails now and then. What do the Testcontainers docs suggest?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Wait for a log message or health endpoint, as a listening port may not be ready"
+        },
+        {
+          "id": "b",
+          "text": "Add `Task.Delay(5000)` after the start, as wait strategies only check the image"
+        },
+        {
+          "id": "c",
+          "text": "Bind host port 8080 to itself, as port waits only work with fixed host bindings"
+        },
+        {
+          "id": "d",
+          "text": "Remove the wait strategy, as the default one waits for the app inside to be ready"
+        }
+      ],
+      "answer": "a",
+      "explanation": "A service listening on its internal port isn't necessarily ready to handle requests. The docs recommend a stronger signal such as a log message (`UntilMessageIsLogged`), an HTTP check (`UntilHttpRequestIsSucceeded`) or the container's health check. The default strategy only waits until the container is running, and a fixed delay is just a guess.",
+      "materials": [
+        "testcontainers-dotnet"
+      ],
+      "sources": [
+        {
+          "url": "https://dotnet.testcontainers.org/api/wait_strategies/",
+          "title": "Wait strategies - Testcontainers for .NET",
+          "publisher": "Testcontainers",
+          "accessed": "2026-10-02",
+          "claim": "Just because a service is listening on the internal TCP port doesn't mean it is ready to handle requests; checking for a log message or a health endpoint is more reliable, and the default only waits until the container is running."
+        }
+      ]
+    },
+    {
+      "id": "c014-q06",
+      "lesson": null,
+      "concept": "c014-cascading-failure-response",
+      "type": "multiple_choice",
+      "prompt": "A request passes through three layers, and each layer retries a failed call up to 3 times. The bottom service is overloaded. What does Google's SRE book advise?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Keep retries at every layer but retry at once, so users wait for less time"
+        },
+        {
+          "id": "b",
+          "text": "Retry at only one layer, limit retries per request, and set a retry budget"
+        },
+        {
+          "id": "c",
+          "text": "Raise the retry count only at the top layer, since it's nearest to the user"
+        },
+        {
+          "id": "d",
+          "text": "Retry at every layer with backoff, since no layer can see what others do"
+        }
+      ],
+      "answer": "b",
+      "explanation": "With 4 attempts at each of 3 layers, one user request can become up to 4 x 4 x 4 = 64 calls to the overloaded service. The SRE book's advice is to avoid retrying at multiple levels, cap retries per request, use a server-wide retry budget, and always use randomized exponential backoff. Backoff alone doesn't stop the multiplication.",
+      "materials": [
+        "google-sre-book"
+      ],
+      "sources": [
+        {
+          "url": "https://sre.google/sre-book/addressing-cascading-failures/",
+          "title": "Site Reliability Engineering, Chapter 22: Addressing Cascading Failures",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "Always use randomized exponential backoff when scheduling retries, limit retries per request, use a server-wide retry budget, and avoid amplifying retries by issuing retries at multiple levels."
+        }
+      ]
+    }
+  ]
+}

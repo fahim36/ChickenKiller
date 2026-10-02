@@ -1,0 +1,223 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c028-mutable-hash-keys",
+      "name": "Equals/GetHashCode contract and mutable hash keys"
+    },
+    {
+      "id": "c028-event-store-snapshots",
+      "name": "Snapshots for rehydrating long event streams"
+    },
+    {
+      "id": "c028-input-vs-domain-validation",
+      "name": "Input validation vs domain invariants"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c028-q01",
+      "lesson": null,
+      "concept": "c028-mutable-hash-keys",
+      "type": "multiple_choice",
+      "prompt": "`Sku` overrides `Equals` and `GetHashCode` using its `Code`. What does this most likely print?\n\n```csharp\nvar seen = new HashSet<Sku>();\nvar sku = new Sku { Code = \"A1\" };\nseen.Add(sku);\nsku.Code = \"B2\";\nConsole.WriteLine(seen.Contains(sku));\n```",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`True`, because the set still holds a reference to the very object that changed"
+        },
+        {
+          "id": "b",
+          "text": "It throws, because `HashSet<T>` detects that one of its stored keys was mutated"
+        },
+        {
+          "id": "c",
+          "text": "`True`, because `Contains` compares references first, before any hash codes"
+        },
+        {
+          "id": "d",
+          "text": "`False`, because the lookup uses the new hash and misses the stored entry"
+        }
+      ],
+      "answer": "d",
+      "explanation": "The set stored the object under the hash of `\"A1\"`. After the change, `Contains` hashes `\"B2\"` and looks in the wrong place, so the object is effectively lost in the set; nothing detects the mutation. The rule is that a hash code must not change while the object is in a hash-based collection: compute it from immutable fields, or don't mutate keys.",
+      "materials": [
+        "csharp-docs"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/api/system.object.gethashcode",
+          "title": "Object.GetHashCode Method (System)",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "GetHashCode must return the same value as long as the state used by Equals is unchanged; for mutable types override it only if the hash is computed from immutable fields or doesn't change while the object is in a hash-based collection, otherwise the object can appear lost in the hash table."
+        }
+      ]
+    },
+    {
+      "id": "c028-q02",
+      "lesson": null,
+      "concept": "c028-event-store-snapshots",
+      "type": "multiple_choice",
+      "prompt": "An event-sourced `Account` stream has 200,000 events, and loading it for every command is slow. Which approach does Azure's Event Sourcing guidance recommend?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Delete events older than a year, since the read model already holds their effect"
+        },
+        {
+          "id": "b",
+          "text": "Rewrite the stream as one `AccountState` event and drop the history before it"
+        },
+        {
+          "id": "c",
+          "text": "Read the balance from the projection when running the account's business rules"
+        },
+        {
+          "id": "d",
+          "text": "Save a snapshot every N events, then load it and replay only the later events"
+        }
+      ],
+      "answer": "d",
+      "explanation": "A snapshot is the serialized state of the entity at a point in its stream. To rehydrate, load the latest snapshot and replay only the events after it. It is an optimization: the stream stays the source of truth and snapshots can be rebuilt from it. Deleting or rewriting events breaks the audit trail, and projections are eventually consistent, so business rules shouldn't depend on them.",
+      "materials": [
+        "azure-cloud-design-patterns"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/event-sourcing",
+          "title": "Event Sourcing Pattern - Azure Architecture Center",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "For long streams, create snapshots at intervals such as every N events and rehydrate by loading the latest snapshot and replaying only later events; snapshots are an optimization and the event stream remains the source of truth; projections are eventually consistent."
+        }
+      ]
+    },
+    {
+      "id": "c028-q03",
+      "lesson": null,
+      "concept": "c028-input-vs-domain-validation",
+      "type": "written",
+      "prompt": "In a .NET API with commands, handlers and a DDD domain model, where would you validate a `PlaceOrder` request, and why validate in more than one place?",
+      "model_answer": {
+        "summary": "Validate fields on the command at the edge for fast, friendly errors, and enforce invariants inside the domain entities so an invalid order can never exist, whoever calls the domain.",
+        "key_points": [
+          "Field-level checks on the command or DTO at the edge (data annotations, or FluentValidation in a pipeline behavior) give quick 400 responses: two-step validation",
+          "Entities enforce invariants in their constructors and methods, such as a positive quantity, by throwing or returning a result or notification, so an entity can't exist in an invalid state",
+          "A method should validate before it changes any state, so a failure doesn't leave the entity half-updated",
+          "Edge validation doesn't replace domain validation, because other callers (jobs, other handlers) reach the domain without passing through the API"
+        ]
+      },
+      "explanation": "Many bugs come from objects in states they should never be in, so invariants belong to the aggregate. Input validation is a separate, user-facing concern. Keeping both, without moving rules out of the domain, is the answer interviewers look for.",
+      "materials": [
+        "dotnet-microservices-ebook"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/architecture/microservices/microservice-ddd-cqrs-patterns/domain-model-layer-validations",
+          "title": "Designing validations in the domain model layer",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "Domain entities should always be valid and enforce invariants in constructors and methods by raising exceptions or notifications; a method should not leave the entity partly changed; data annotations belong on DTOs and ViewModels for model binding, not at the exclusion of domain validation; consider two-step validation with field-level checks on command DTOs and domain-level checks in entities."
+        }
+      ]
+    },
+    {
+      "id": "c028-q04",
+      "lesson": null,
+      "concept": "c028-mutable-hash-keys",
+      "type": "written",
+      "prompt": "You're writing a `Money` type that will be a `Dictionary` key and live in `HashSet`s. What rules must its `Equals` and `GetHashCode` follow, and what would you avoid?",
+      "model_answer": {
+        "summary": "Override both together so equal values hash equally, compute the hash from immutable state, combine fields well, and never treat a hash code as a stable identifier.",
+        "key_points": [
+          "Override `Equals` and `GetHashCode` together: equal objects must return equal hash codes, but equal hash codes don't mean equal objects",
+          "Compute the hash from fields that can't change (make the type immutable), or the entry is lost if the key changes while it is in the collection",
+          "Combine fields with `HashCode.Combine` instead of XOR, which is symmetric and collides more; many collisions turn lookups from O(1) into O(n)",
+          "Never persist hash codes, send them to other processes or use them as unique IDs, since they can differ between runs and .NET versions"
+        ]
+      },
+      "explanation": "Hash-based collections trust the contract completely: a broken or mutable hash silently loses entries rather than throwing. A senior answer adds the performance angle (collisions) and the persistence trap.",
+      "materials": [
+        "csharp-docs"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/api/system.object.gethashcode",
+          "title": "Object.GetHashCode Method (System)",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "Equal objects must return equal hash codes but not vice versa; override Equals and GetHashCode together; mutable keys must not change their hash while in a hash table; HashCode.Combine avoids XOR's symmetry problem; poor hashes cause O(n) lookups; hash codes must not be persisted, sent across processes or used as keys, and can differ between runs."
+        }
+      ]
+    },
+    {
+      "id": "c028-q05",
+      "lesson": null,
+      "concept": "c028-event-store-snapshots",
+      "type": "written",
+      "prompt": "Your team wants to add snapshots to an event-sourced system. Explain what a snapshot is, how loading an entity changes, and what trade-offs and rules you would set.",
+      "model_answer": {
+        "summary": "A snapshot stores an entity's state at a position in its stream so loading replays only later events; take them at intervals, and keep the stream as the source of truth so snapshots can always be rebuilt.",
+        "key_points": [
+          "A snapshot is the serialized state of the entity at a specific point in its event stream",
+          "To rehydrate, load the most recent snapshot and replay only the events after it, instead of the whole stream",
+          "Take snapshots at intervals (every N events), balancing their storage cost against the rehydration time saved",
+          "The stream stays the source of truth: snapshots are an optimization you can delete and regenerate, for example after the state's shape changes"
+        ]
+      },
+      "explanation": "Snapshots bound the cost of long streams without giving up the history. Treating them as disposable caches, not records, is what keeps the design safe.",
+      "materials": [
+        "azure-cloud-design-patterns"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/event-sourcing",
+          "title": "Event Sourcing Pattern - Azure Architecture Center",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "A snapshot is a serialized representation of the entity's state at a point in its stream; rehydrate from the latest snapshot plus later events; choose a frequency that balances storage against rehydration time; snapshots are an optimization and can be regenerated from the stream; purpose-built event stores support them."
+        }
+      ]
+    },
+    {
+      "id": "c028-q06",
+      "lesson": null,
+      "concept": "c028-input-vs-domain-validation",
+      "type": "multiple_choice",
+      "prompt": "An EF Core entity has `[Range(1, 100)]` on `Quantity` and implements `IValidatableObject`. A background job sets `Quantity = 0` and calls `SaveChanges`. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "EF Core runs the attribute and `Validate`, then throws a validation exception"
+        },
+        {
+          "id": "b",
+          "text": "SaveChanges returns zero rows, because EF Core silently skips invalid entities"
+        },
+        {
+          "id": "c",
+          "text": "Model binding rejects it, since the attribute applies to every caller of the type"
+        },
+        {
+          "id": "d",
+          "text": "It is saved, because EF Core doesn't run these validations on save"
+        }
+      ],
+      "answer": "d",
+      "explanation": "EF 6 validated these on save, but EF Core doesn't: data annotations and `IValidatableObject.Validate` run only during ASP.NET Core model binding, and a background job never goes through model binding. That is why invariants such as a positive quantity belong in the entity's constructor and methods, not only in attributes.",
+      "materials": [
+        "dotnet-microservices-ebook"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/architecture/microservices/microservice-ddd-cqrs-patterns/domain-model-layer-validations",
+          "title": "Designing validations in the domain model layer",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "Data annotations and IValidatableObject.Validate no longer work for entity validation in EF Core as they did in EF 4.x; they can still be used during model binding before controller actions, which is an MVC or API concern."
+        }
+      ]
+    }
+  ]
+}

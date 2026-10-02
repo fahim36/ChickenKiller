@@ -1,0 +1,243 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c031-system-prompt-leakage",
+      "name": "System prompt leakage (OWASP LLM07)"
+    },
+    {
+      "id": "c031-orchestrator-vs-parallelization",
+      "name": "Orchestrator-workers vs parallelization"
+    },
+    {
+      "id": "c031-unbounded-consumption",
+      "name": "Unbounded consumption and denial of wallet (OWASP LLM10)"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c031-q01",
+      "lesson": null,
+      "concept": "c031-system-prompt-leakage",
+      "type": "multiple_choice",
+      "prompt": "A banking chatbot's system prompt holds a database API key and the rule \"never allow transfers over $5,000 a day\". By OWASP LLM07:2025, what is the main fix?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Add a rule to the prompt telling the model never to reveal its instructions"
+        },
+        {
+          "id": "b",
+          "text": "Move the key out of the prompt and enforce the limit in code outside the LLM"
+        },
+        {
+          "id": "c",
+          "text": "Encrypt the system prompt so that users can't read it if it ever does leak"
+        },
+        {
+          "id": "d",
+          "text": "Shorten the prompt so that prompt-extraction attacks have less text to recover"
+        }
+      ],
+      "answer": "b",
+      "explanation": "OWASP says the system prompt shouldn't be treated as secret or as a security control. Keep credentials out of it, and enforce limits like a transfer cap in deterministic systems outside the model, since an injection can make the model ignore any rule. A \"don't reveal\" instruction is itself just another prompt rule that can be bypassed.",
+      "materials": [
+        "owasp-top-10-for-llm-applications"
+      ],
+      "sources": [
+        {
+          "url": "https://genai.owasp.org/llmrisk/llm072025-system-prompt-leakage/",
+          "title": "LLM07:2025 System Prompt Leakage",
+          "publisher": "OWASP Gen AI Security Project",
+          "accessed": "2026-10-02",
+          "claim": "Disclosure of the system prompt itself isn't the real risk; the risk is sensitive data or controls inside it; mitigations are to keep sensitive data such as credentials out of system prompts, avoid relying on them for strict behaviour control, and enforce security controls such as limits and authorisation outside the LLM."
+        }
+      ]
+    },
+    {
+      "id": "c031-q02",
+      "lesson": null,
+      "concept": "c031-orchestrator-vs-parallelization",
+      "type": "multiple_choice",
+      "prompt": "By Anthropic's \"Building effective agents\", what separates orchestrator-workers from the parallelization (sectioning) workflow?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "In orchestrator-workers, the workers must run one after another, never at once"
+        },
+        {
+          "id": "b",
+          "text": "The orchestrator picks the subtasks from each input; they aren't fixed upfront"
+        },
+        {
+          "id": "c",
+          "text": "Parallelization needs an LLM to merge results; orchestrator-workers uses code"
+        },
+        {
+          "id": "d",
+          "text": "Orchestrator-workers suits only coding tasks, and parallelization only search"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Both split work across LLM calls, but in sectioning the subtasks are predefined in code, while in orchestrator-workers a central LLM breaks the task down dynamically, delegates to workers and synthesises their results. That flexibility suits tasks like coding changes across an unknown set of files. Parallel outputs are aggregated programmatically, the reverse of the third choice.",
+      "materials": [
+        "anthropic-building-effective-agents"
+      ],
+      "sources": [
+        {
+          "url": "https://www.anthropic.com/engineering/building-effective-agents",
+          "title": "Building effective agents",
+          "publisher": "Anthropic",
+          "accessed": "2026-10-02",
+          "claim": "In orchestrator-workers a central LLM dynamically breaks down tasks, delegates them to workers and synthesises the results; the key difference from parallelization is that subtasks aren't pre-defined but determined by the orchestrator from the input; parallelization aggregates outputs programmatically."
+        }
+      ]
+    },
+    {
+      "id": "c031-q03",
+      "lesson": null,
+      "concept": "c031-unbounded-consumption",
+      "type": "written",
+      "prompt": "Your public agent can loop on tool calls, so one request may trigger many model calls. Using OWASP LLM10:2025 (Unbounded Consumption), name the risks and the controls you would add.",
+      "model_answer": {
+        "summary": "Uncontrolled inference can cause denial of service, a runaway bill (denial of wallet), degraded service or model theft. Limit input size, rate-limit and time out requests, and monitor and cap the resources and actions each user can trigger.",
+        "key_points": [
+          "Unbounded consumption is users triggering excessive, uncontrolled inference, leading to denial of service, economic loss, degraded service or model theft",
+          "Denial of wallet: attackers exploit pay-per-use pricing with high volumes of costly requests to run up your bill",
+          "Validate and limit input size, and apply rate limits or quotas, timeouts and throttling per user",
+          "Monitor resource use for anomalies, limit queued actions, and design to degrade gracefully under load"
+        ]
+      },
+      "explanation": "An agent multiplies cost: each request can fan out into many model and tool calls, so an attacker (or a bug) can burn money or capacity fast. OWASP's controls bound what a single user can consume and make spikes visible. Model extraction through the API is another LLM10 risk when outputs or logprobs are exposed.",
+      "materials": [
+        "owasp-top-10-for-llm-applications"
+      ],
+      "sources": [
+        {
+          "url": "https://genai.owasp.org/llmrisk/llm102025-unbounded-consumption/",
+          "title": "LLM10:2025 Unbounded Consumption",
+          "publisher": "OWASP Gen AI Security Project",
+          "accessed": "2026-10-02",
+          "claim": "Unbounded Consumption is excessive, uncontrolled inference causing denial of service, economic losses, model theft and service degradation; it includes variable-length input floods, Denial of Wallet, resource-intensive queries and model extraction; mitigations include input validation, rate limiting, resource allocation management, timeouts and throttling, monitoring and anomaly detection, graceful degradation and limiting queued actions."
+        }
+      ]
+    },
+    {
+      "id": "c031-q04",
+      "lesson": null,
+      "concept": "c031-system-prompt-leakage",
+      "type": "multiple_choice",
+      "prompt": "By OWASP LLM07:2025, where does the real risk of system prompt leakage lie?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "In the prompt's wording, which a competitor could copy and reuse"
+        },
+        {
+          "id": "b",
+          "text": "In what it holds or enforces: secrets, rules, filters, permissions"
+        },
+        {
+          "id": "c",
+          "text": "In token cost, as attackers replay a leaked prompt at high volume"
+        },
+        {
+          "id": "d",
+          "text": "In copyright, since the system prompt is the owner's intellectual work"
+        }
+      ],
+      "answer": "b",
+      "explanation": "OWASP is explicit that disclosing the prompt itself isn't the real risk. The risk is what it contains or is trusted to do: credentials, internal business rules, filtering criteria and role or permission structures, all of which help an attacker if leaked. So assume the prompt will leak and keep those elsewhere.",
+      "materials": [
+        "owasp-top-10-for-llm-applications"
+      ],
+      "sources": [
+        {
+          "url": "https://genai.owasp.org/llmrisk/llm072025-system-prompt-leakage/",
+          "title": "LLM07:2025 System Prompt Leakage",
+          "publisher": "OWASP Gen AI Security Project",
+          "accessed": "2026-10-02",
+          "claim": "Disclosure of the system prompt itself does not present the real risk; the risk lies with underlying elements such as sensitive functionality (credentials), internal rules, filtering criteria and permissions and user roles."
+        }
+      ]
+    },
+    {
+      "id": "c031-q05",
+      "lesson": null,
+      "concept": "c031-orchestrator-vs-parallelization",
+      "type": "multiple_choice",
+      "prompt": "Which task fits orchestrator-workers better than sectioning?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A coding change where the files to edit depend on the request itself"
+        },
+        {
+          "id": "b",
+          "text": "Screening every query for abuse while another call answers it at once"
+        },
+        {
+          "id": "c",
+          "text": "Scoring an essay on three fixed criteria, with one call per criterion"
+        },
+        {
+          "id": "d",
+          "text": "Running one vulnerability-review prompt five times and taking a vote"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Orchestrator-workers is for complex tasks where you can't predict the subtasks: Anthropic's example is coding products that change several files, where the number and nature of the edits depend on the task. The other three have subtasks fixed in advance, so plain sectioning or voting is simpler.",
+      "materials": [
+        "anthropic-building-effective-agents"
+      ],
+      "sources": [
+        {
+          "url": "https://www.anthropic.com/engineering/building-effective-agents",
+          "title": "Building effective agents",
+          "publisher": "Anthropic",
+          "accessed": "2026-10-02",
+          "claim": "Orchestrator-workers suits complex tasks where you can't predict the subtasks needed, such as coding products that make complex changes to multiple files each time; sectioning and voting use predefined subtasks."
+        }
+      ]
+    },
+    {
+      "id": "c031-q06",
+      "lesson": null,
+      "concept": "c031-unbounded-consumption",
+      "type": "multiple_choice",
+      "prompt": "An attacker scripts thousands of long, costly requests to your pay-per-token agent to run up your bill. What does OWASP LLM10:2025 call this?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Excessive agency, as the agent takes more actions than it should"
+        },
+        {
+          "id": "b",
+          "text": "Denial of wallet, a kind of unbounded consumption of inference"
+        },
+        {
+          "id": "c",
+          "text": "Model extraction, as the attacker gathers outputs to copy the model"
+        },
+        {
+          "id": "d",
+          "text": "Data poisoning, as the attacker's requests corrupt future training"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Denial of Wallet is one of LLM10's listed forms of unbounded consumption: it exploits pay-per-use pricing with high volumes of operations to cause financial damage. Model extraction is also under LLM10, but its goal is copying the model, not the bill; excessive agency (LLM06) is about an agent's functionality, permissions and autonomy.",
+      "materials": [
+        "owasp-top-10-for-llm-applications"
+      ],
+      "sources": [
+        {
+          "url": "https://genai.owasp.org/llmrisk/llm102025-unbounded-consumption/",
+          "title": "LLM10:2025 Unbounded Consumption",
+          "publisher": "OWASP Gen AI Security Project",
+          "accessed": "2026-10-02",
+          "claim": "Denial of Wallet, initiating a high volume of operations to exploit the cost-per-use model of cloud-based AI services, is one form of LLM10 Unbounded Consumption; model extraction via the API is another, aimed at replicating the model."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,233 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c014-pydantic-discriminated-unions",
+      "name": "Pydantic discriminated unions"
+    },
+    {
+      "id": "c014-pydantic-ai-test-model",
+      "name": "Testing Pydantic AI agents with `TestModel` and `override`"
+    },
+    {
+      "id": "c014-mcp-confused-deputy",
+      "name": "Confused deputy attacks on MCP proxy servers"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c014-q01",
+      "lesson": null,
+      "concept": "c014-pydantic-discriminated-unions",
+      "type": "multiple_choice",
+      "prompt": "An agent's action is typed `Annotated[Search | Reply | Handoff, Field(discriminator=\"kind\")]`, and each model has a `kind: Literal[...]` field. The model returns `{\"kind\": \"reply\"}` without `Reply`'s required `text` field. What does Pydantic v2 do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Tries all three models left to right and reports errors from each one"
+        },
+        {
+          "id": "b",
+          "text": "Raises `union_tag_invalid`, because the payload fails its matching model"
+        },
+        {
+          "id": "c",
+          "text": "Validates only against `Reply` and reports that model's errors alone"
+        },
+        {
+          "id": "d",
+          "text": "Picks whichever model has the most valid fields, as smart mode does"
+        }
+      ],
+      "answer": "c",
+      "explanation": "With a discriminator, Pydantic reads `kind` and tries only the matching member, so the error is just `Reply`'s missing `text`. Trying every member left to right and picking the best match is smart mode, the default for a plain union. `union_tag_invalid` is for a tag that matches no member, not for a member that fails.",
+      "materials": [
+        "pydantic-v2-documentation"
+      ],
+      "sources": [
+        {
+          "url": "https://pydantic.dev/docs/validation/latest/concepts/unions/",
+          "title": "Unions",
+          "publisher": "Pydantic",
+          "accessed": "2026-10-02",
+          "claim": "With a discriminated union only one member is tried, based on the discriminator, and validation errors are produced only for the matching case; plain unions default to smart mode, which tries members to find the best match."
+        }
+      ]
+    },
+    {
+      "id": "c014-q02",
+      "lesson": null,
+      "concept": "c014-pydantic-ai-test-model",
+      "type": "multiple_choice",
+      "prompt": "Your app calls a module-level Pydantic AI `support_agent` deep inside `handle_ticket()`. A unit test must run it with no real model call, and fail loudly if anything still tries to make one. What do you do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Set `models.ALLOW_MODEL_REQUESTS = False` alone, which swaps in a test model"
+        },
+        {
+          "id": "b",
+          "text": "Wrap the call in `support_agent.override(model=TestModel())` and block requests"
+        },
+        {
+          "id": "c",
+          "text": "Add a `model` parameter to `handle_ticket()` so the test can pass in `TestModel()`"
+        },
+        {
+          "id": "d",
+          "text": "Unset the provider API key in the test, so any real request fails at once"
+        }
+      ],
+      "answer": "b",
+      "explanation": "`Agent.override` replaces an agent's model (or dependencies or toolsets) inside your application code without changing the agent's definition or your function signatures, and `TestModel` produces schema-valid data with plain Python, not a real model. Setting `models.ALLOW_MODEL_REQUESTS = False` blocks accidental requests to non-test models, but it doesn't supply a test model by itself.",
+      "materials": [
+        "pydantic-ai"
+      ],
+      "sources": [
+        {
+          "url": "https://pydantic.dev/docs/ai/guides/testing/",
+          "title": "Unit testing",
+          "publisher": "Pydantic",
+          "accessed": "2026-10-02",
+          "claim": "`Agent.override` replaces an agent's model, dependencies or toolsets inside application code; `TestModel` generates schema-valid data with procedural code and no ML; `models.ALLOW_MODEL_REQUESTS = False` blocks requests to non-test models."
+        }
+      ]
+    },
+    {
+      "id": "c014-q03",
+      "lesson": null,
+      "concept": "c014-mcp-confused-deputy",
+      "type": "written",
+      "prompt": "Your MCP server proxies a third-party API with one static OAuth client ID, and lets MCP clients register dynamically. Explain the confused deputy attack this allows, and what the server must do to prevent it.",
+      "model_answer": {
+        "summary": "Because the third-party authorization server remembers consent for the proxy's single client ID, an attacker's dynamically registered client can skip consent and receive an authorization code; the proxy must ask for its own per-client consent before forwarding and validate redirect URIs and `state` strictly.",
+        "key_points": [
+          "After a user's first legitimate authorization, the third-party authorization server sets a consent cookie for the proxy's static client ID",
+          "An attacker registers a client with its own `redirect_uri` and sends the user a link; the cookie skips the consent screen and the MCP authorization code goes to the attacker",
+          "The proxy must keep a per-user registry of approved `client_id`s and show its own consent page, checked before it starts the third-party authorization",
+          "It must match `redirect_uri` exactly against the registered one and set a single-use, random `state` only after consent, checking it at the callback"
+        ]
+      },
+      "explanation": "The third-party server sees every request as coming from the same client (the proxy), so its consent cookie can't tell a legitimate MCP client from an attacker's. The MCP security best practices therefore make the proxy responsible for consent per MCP client. Relying on the third-party consent screen alone is the tempting mistake.",
+      "materials": [
+        "mcp-specification"
+      ],
+      "sources": [
+        {
+          "url": "https://modelcontextprotocol.io/specification/latest/basic/security_best_practices",
+          "title": "Security Best Practices",
+          "publisher": "Model Context Protocol",
+          "accessed": "2026-10-02",
+          "claim": "A proxy using a static client ID with a third-party authorization server, dynamic client registration and a consent cookie lets an attacker skip consent and receive an authorization code; proxies MUST implement per-client consent checked before third-party authorization, exact redirect_uri matching, and state set only after consent."
+        }
+      ]
+    },
+    {
+      "id": "c014-q04",
+      "lesson": null,
+      "concept": "c014-pydantic-discriminated-unions",
+      "type": "multiple_choice",
+      "prompt": "With the union `Annotated[Search | Reply | Handoff, Field(discriminator=\"kind\")]`, the model returns `{\"kind\": \"answer\", \"text\": \"hi\"}`. No member has `kind` equal to `\"answer\"`. What error does Pydantic v2 raise?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`union_tag_not_found`, because no member's tag could be found for it"
+        },
+        {
+          "id": "b",
+          "text": "No error: it validates as the closest member, which here is `Reply`"
+        },
+        {
+          "id": "c",
+          "text": "One error per member, since every model of the union fails in turn"
+        },
+        {
+          "id": "d",
+          "text": "`union_tag_invalid`, because the tag matches none of the members"
+        }
+      ],
+      "answer": "d",
+      "explanation": "A discriminator value that matches no member's `Literal` raises `union_tag_invalid`, naming the tag and the expected ones. `union_tag_not_found` is for input where the discriminator field is missing altogether. A discriminated union never falls back to the closest match or tries every member.",
+      "materials": [
+        "pydantic-v2-documentation"
+      ],
+      "sources": [
+        {
+          "url": "https://pydantic.dev/docs/validation/latest/concepts/unions/",
+          "title": "Unions",
+          "publisher": "Pydantic",
+          "accessed": "2026-10-02",
+          "claim": "A missing discriminator value raises `union_tag_not_found`; a discriminator value that does not match any expected tag raises `union_tag_invalid`; only the member matching the discriminator is tried."
+        }
+      ]
+    },
+    {
+      "id": "c014-q05",
+      "lesson": null,
+      "concept": "c014-pydantic-ai-test-model",
+      "type": "written",
+      "prompt": "Compare `TestModel` and `FunctionModel` for unit-testing a Pydantic AI agent. What does each do, and how do you get the test to use them without changing the agent?",
+      "model_answer": {
+        "summary": "`TestModel` generates schema-valid tool arguments and output with plain Python, while `FunctionModel` runs your own function to decide each response; swap either in with `Agent.override` and block real requests with `ALLOW_MODEL_REQUESTS = False`.",
+        "key_points": [
+          "`TestModel` generates valid data for the agent's tools and output type from their schemas, using procedural code and no ML",
+          "`FunctionModel` calls a function you write, given the messages and agent info, so you control exactly which tools are called and what is returned",
+          "`agent.override(model=...)` swaps the model inside application code without changing the agent's definition",
+          "Set `models.ALLOW_MODEL_REQUESTS = False` so an accidental call to a real model fails, and use `capture_run_messages` to assert on the exchange"
+        ]
+      },
+      "explanation": "`TestModel` is quick and checks that your tools and output schemas work, but its data is generic. When a test needs a specific path, such as one tool call followed by a particular answer, `FunctionModel` gives you that control. Both run offline, which is what makes the tests fast and free.",
+      "materials": [
+        "pydantic-ai"
+      ],
+      "sources": [
+        {
+          "url": "https://pydantic.dev/docs/ai/guides/testing/",
+          "title": "Unit testing",
+          "publisher": "Pydantic",
+          "accessed": "2026-10-02",
+          "claim": "TestModel generates valid structured data for tools and output types from their schemas with no ML; FunctionModel calls a user function given the messages and agent info; Agent.override replaces the model in application code; ALLOW_MODEL_REQUESTS = False blocks non-test model requests; capture_run_messages captures the exchange."
+        }
+      ]
+    },
+    {
+      "id": "c014-q06",
+      "lesson": null,
+      "concept": "c014-mcp-confused-deputy",
+      "type": "multiple_choice",
+      "prompt": "In the confused deputy attack on an MCP proxy server, why does the third-party authorization server skip its consent screen for the attacker's request?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Its consent cookie is for the proxy's static client ID, used by all"
+        },
+        {
+          "id": "b",
+          "text": "The attacker's newly registered client ID is approved by default"
+        },
+        {
+          "id": "c",
+          "text": "The proxy forwards the user's own access token, so no consent is due"
+        },
+        {
+          "id": "d",
+          "text": "PKCE lets the authorization server skip consent for known clients"
+        }
+      ],
+      "answer": "a",
+      "explanation": "The proxy uses one static client ID with the third-party server for every MCP client. After the user's first approval, the third-party server's consent cookie covers that ID, so a request started by the attacker's client looks already approved. This is why the proxy itself must get consent per MCP client before forwarding.",
+      "materials": [
+        "mcp-specification"
+      ],
+      "sources": [
+        {
+          "url": "https://modelcontextprotocol.io/specification/latest/basic/security_best_practices",
+          "title": "Security Best Practices",
+          "publisher": "Model Context Protocol",
+          "accessed": "2026-10-02",
+          "claim": "The third-party authorization server sets a consent cookie for the proxy's static client ID; when the user follows the attacker's link the cookie is present, so consent is skipped and the code is redirected to the attacker's registered redirect_uri."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,232 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c013-task-references",
+      "name": "Keeping references to background asyncio tasks"
+    },
+    {
+      "id": "c013-actions-concurrency",
+      "name": "GitHub Actions concurrency groups and `cancel-in-progress`"
+    },
+    {
+      "id": "c013-agents-sdk-local-context",
+      "name": "Local context vs LLM context in the OpenAI Agents SDK"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c013-q01",
+      "lesson": null,
+      "concept": "c013-task-references",
+      "type": "multiple_choice",
+      "prompt": "A FastAPI handler calls `asyncio.create_task(log_usage(req))` and never stores the returned Task. Once in a while a usage row is never written. What is the likely cause, by the asyncio docs?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`create_task` only starts the coroutine once the handler awaits the Task"
+        },
+        {
+          "id": "b",
+          "text": "The loop cancels every unreferenced task as soon as the response is sent"
+        },
+        {
+          "id": "c",
+          "text": "The loop keeps only a weak reference, so the task can be collected"
+        },
+        {
+          "id": "d",
+          "text": "Unreferenced tasks run on a thread pool that silently drops failed work"
+        }
+      ],
+      "answer": "c",
+      "explanation": "The asyncio docs warn that the event loop only keeps weak references to tasks, so a task nothing else references may be garbage collected at any time, even before it is done. Save a reference, for example in a set, or use a `TaskGroup`. `create_task` schedules the coroutine to run soon without being awaited, and tasks run on the event loop's thread, not a thread pool.",
+      "materials": [
+        "python-docs-asyncio"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/library/asyncio-task.html",
+          "title": "Coroutines and Tasks",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-10-02",
+          "claim": "The event loop only keeps weak references to tasks, so a task that isn't referenced elsewhere may get garbage collected at any time, even before it's done; save a reference to the result of create_task."
+        }
+      ]
+    },
+    {
+      "id": "c013-q02",
+      "lesson": null,
+      "concept": "c013-actions-concurrency",
+      "type": "multiple_choice",
+      "prompt": "A pull request workflow sets `concurrency: { group: ci-${{ github.head_ref }} }` and nothing else. You push three commits quickly: run 1 starts, then runs 2 and 3 are queued in that order. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Run 1 is canceled at once, and run 3 starts as soon as it is queued"
+        },
+        {
+          "id": "b",
+          "text": "Runs 2 and 3 both wait, then run one after the other once run 1 ends"
+        },
+        {
+          "id": "c",
+          "text": "All three run in parallel, since a group only limits jobs, not runs"
+        },
+        {
+          "id": "d",
+          "text": "Run 1 finishes, run 2 is canceled, and run 3 runs after run 1"
+        }
+      ],
+      "answer": "d",
+      "explanation": "Only one run in a concurrency group runs at a time. By default, when a new run is queued, any existing pending run in the group is canceled and the new one takes its place, so run 2 is dropped and run 3 waits for run 1. The running run 1 is canceled only if you add `cancel-in-progress: true`.",
+      "materials": [
+        "github-actions-documentation"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency",
+          "title": "Control the concurrency of workflows and jobs",
+          "publisher": "GitHub",
+          "accessed": "2026-10-02",
+          "claim": "Only a single job or workflow in the same concurrency group runs at a time; by default an existing pending run in the group is canceled when a new one is queued, and `cancel-in-progress: true` also cancels the running one."
+        }
+      ]
+    },
+    {
+      "id": "c013-q03",
+      "lesson": null,
+      "concept": "c013-agents-sdk-local-context",
+      "type": "written",
+      "prompt": "In the OpenAI Agents SDK, your tools need the current user's ID and a database client, and the model should also know the user's name. Where does each go, and why?",
+      "model_answer": {
+        "summary": "Put the user ID and database client in a local context object passed to `Runner.run`, which tools read through `RunContextWrapper` but which is never sent to the model; give the model the name through its instructions, the input or a tool.",
+        "key_points": [
+          "Pass a context object (such as a dataclass with the user ID and database client) as `context=` to `Runner.run`",
+          "Tools and lifecycle hooks receive it as a `RunContextWrapper[T]` and read it from `.context`",
+          "The context object is not sent to the LLM: it is a purely local object for dependencies and data",
+          "To let the model see the user's name, put it in the agent's (dynamic) instructions or the input, or expose a tool that returns it"
+        ]
+      },
+      "explanation": "The SDK separates two kinds of context. Local context is your own Python object for dependencies and request data, shared by every tool and hook in the run (all of which must use the same context type). The model only sees the conversation, so anything it should know must reach it through instructions, input, or tool results. Assuming the context object is added to the prompt is the common mistake.",
+      "materials": [
+        "openai-agents-sdk"
+      ],
+      "sources": [
+        {
+          "url": "https://openai.github.io/openai-agents-python/context/",
+          "title": "Context management",
+          "publisher": "OpenAI",
+          "accessed": "2026-10-02",
+          "claim": "The object passed as `context` to the run is wrapped in `RunContextWrapper[T]` for tools and hooks, all of which must use the same context type; it is not sent to the LLM, and data the LLM needs must come through instructions, input, function tools or retrieval."
+        }
+      ]
+    },
+    {
+      "id": "c013-q04",
+      "lesson": null,
+      "concept": "c013-task-references",
+      "type": "multiple_choice",
+      "prompt": "You start ten fire-and-forget asyncio tasks and want them kept alive until done and their exceptions reported. Which pattern do the asyncio docs recommend?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Add each task to a set and remove it in a done callback, never awaiting it"
+        },
+        {
+          "id": "b",
+          "text": "Use `tg.create_task` inside an `async with asyncio.TaskGroup()` block"
+        },
+        {
+          "id": "c",
+          "text": "Wrap each one in `asyncio.shield`, so the collector cannot cancel the task"
+        },
+        {
+          "id": "d",
+          "text": "Assign each task to a local variable in the function that starts the task"
+        }
+      ],
+      "answer": "b",
+      "explanation": "A `TaskGroup` keeps a strong reference to each task, awaits them, and propagates their exceptions. A set with `add_done_callback(set.discard)` also keeps tasks alive, but the docs point out the tasks are never awaited, so a failure is only logged as 'Task exception was never retrieved'. A local variable stops being a reference when the function returns.",
+      "materials": [
+        "python-docs-asyncio"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/library/asyncio-task.html",
+          "title": "Coroutines and Tasks",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-10-02",
+          "claim": "A set of tasks with `add_done_callback(discard)` keeps strong references but never awaits them, so exceptions are never retrieved; `asyncio.TaskGroup` keeps a strong reference to each task, awaits them and propagates their exceptions."
+        }
+      ]
+    },
+    {
+      "id": "c013-q05",
+      "lesson": null,
+      "concept": "c013-actions-concurrency",
+      "type": "written",
+      "prompt": "You want a new push to a pull request to cancel that pull request's CI run that is already in progress, without touching other pull requests' runs. How do you configure `concurrency`, and what happens without `cancel-in-progress`?",
+      "model_answer": {
+        "summary": "Key the concurrency group on the pull request's branch (with a fallback such as the run ID) and set `cancel-in-progress: true`; without it, only pending runs are replaced and the running one finishes.",
+        "key_points": [
+          "Use a group per pull request, such as `${{ github.workflow }}-${{ github.head_ref || github.run_id }}`, so different pull requests don't share a group",
+          "Set `cancel-in-progress: true` to also cancel the run that is currently running in the group",
+          "Without it, only one run in the group runs at a time, and a newly queued run cancels and replaces any pending one, but the running one continues"
+        ]
+      },
+      "explanation": "A concurrency group allows one running job or workflow at a time. The group key decides what counts as 'the same' work, so keying it on `github.head_ref` isolates each pull request, and the `github.run_id` fallback covers events with no head ref. Leaving out `cancel-in-progress` is the tempting default, but then a stale run keeps going while the newest waits.",
+      "materials": [
+        "github-actions-documentation"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency",
+          "title": "Control the concurrency of workflows and jobs",
+          "publisher": "GitHub",
+          "accessed": "2026-10-02",
+          "claim": "Only one job or workflow in a concurrency group runs at a time; by default a pending one is canceled when a new one is queued, `cancel-in-progress: true` also cancels the running one, and `github.head_ref || github.run_id` gives a fallback group value."
+        }
+      ]
+    },
+    {
+      "id": "c013-q06",
+      "lesson": null,
+      "concept": "c013-agents-sdk-local-context",
+      "type": "multiple_choice",
+      "prompt": "You call `Runner.run(agent, \"What's my name?\", context=UserInfo(name=\"Ana\", uid=7))`. The agent's instructions are static, never mention the user, and it has no tools. What can the model see of `UserInfo`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Ana's name, because the SDK serialises the context into the system prompt"
+        },
+        {
+          "id": "b",
+          "text": "Only `uid`, because the SDK sends just the fields marked as public to it"
+        },
+        {
+          "id": "c",
+          "text": "Nothing at all, because the context object is never sent to the LLM"
+        },
+        {
+          "id": "d",
+          "text": "The whole object, but only once a hook reads it via `RunContextWrapper`"
+        }
+      ],
+      "answer": "c",
+      "explanation": "The OpenAI Agents SDK's local context is purely a local object for your code: tools and hooks can read and change it, but it is not sent to the LLM. The model only sees the conversation, so to tell it the user's name, put the name in dynamic instructions, the input, or a tool result.",
+      "materials": [
+        "openai-agents-sdk"
+      ],
+      "sources": [
+        {
+          "url": "https://openai.github.io/openai-agents-python/context/",
+          "title": "Context management",
+          "publisher": "OpenAI",
+          "accessed": "2026-10-02",
+          "claim": "The context object is not sent to the LLM; it is a purely local object, and the LLM only sees data given through instructions, input, function tools or retrieval."
+        }
+      ]
+    }
+  ]
+}

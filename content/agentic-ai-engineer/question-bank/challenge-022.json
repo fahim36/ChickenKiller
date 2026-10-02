@@ -1,0 +1,222 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c022-missing-key-defaults",
+      "name": "Missing keys in `defaultdict` and `Counter`"
+    },
+    {
+      "id": "c022-draft-pull-requests",
+      "name": "Draft pull requests"
+    },
+    {
+      "id": "c022-circuit-breaker",
+      "name": "The circuit breaker pattern"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c022-q01",
+      "lesson": null,
+      "concept": "c022-missing-key-defaults",
+      "type": "multiple_choice",
+      "prompt": "```python\nfrom collections import defaultdict\nseen = defaultdict(int)\nfor w in [\"a\", \"b\"]:\n    seen[w] += 1\nprint(seen[\"z\"], seen.get(\"y\"), len(seen))\n```\nWhat does this print?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`0 None 3`"
+        },
+        {
+          "id": "b",
+          "text": "`0 0 4`"
+        },
+        {
+          "id": "c",
+          "text": "`0 None 2`"
+        },
+        {
+          "id": "d",
+          "text": "`0 0 2`"
+        }
+      ],
+      "answer": "a",
+      "explanation": "A `defaultdict` calls its `default_factory` only from `__getitem__`: `seen[\"z\"]` builds `int()`, which is `0`, inserts it under `\"z\"` and returns it. `get()` doesn't use the factory, so `seen.get(\"y\")` returns `None` and inserts nothing. That leaves `a`, `b` and `z`: three keys. Reading a `defaultdict` with `[]` quietly adds keys, which can break code that checks `len()` or `in` afterwards.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/library/collections.html",
+          "title": "collections — Container datatypes",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-10-02",
+          "claim": "A `defaultdict`'s `__missing__` calls `default_factory` to make a default, inserts it for the key and returns it, but only for `__getitem__`, so `get()` still returns `None`; a `Counter` returns a zero count for missing items instead of raising `KeyError`, setting a count to zero doesn't remove the element (use `del`), and counts may be any integer including zero or negative."
+        }
+      ]
+    },
+    {
+      "id": "c022-q02",
+      "lesson": null,
+      "concept": "c022-draft-pull-requests",
+      "type": "multiple_choice",
+      "prompt": "You open your first open-source pull request as a draft, because its tests still fail. What does the draft status change?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Code owners are asked to review at once, but merging is blocked"
+        },
+        {
+          "id": "b",
+          "text": "Admins can merge it, but only by overriding the draft status"
+        },
+        {
+          "id": "c",
+          "text": "It can't be merged, and code owners aren't asked to review it"
+        },
+        {
+          "id": "d",
+          "text": "It can't go back to draft later, once anyone has reviewed it"
+        }
+      ],
+      "answer": "c",
+      "explanation": "Draft pull requests can't be merged, and code owners aren't automatically requested to review them. That makes a draft a good way to share work in progress. Marking it ready for review requests reviews from the code owners, and you can convert a pull request back to a draft at any time.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/about-pull-requests",
+          "title": "About pull requests",
+          "publisher": "GitHub",
+          "accessed": "2026-10-02",
+          "claim": "Draft pull requests can't be merged and code owners aren't automatically requested to review them; marking a draft ready for review requests reviews from any code owners, and you can convert a pull request to a draft at any time."
+        }
+      ]
+    },
+    {
+      "id": "c022-q03",
+      "lesson": null,
+      "concept": "c022-circuit-breaker",
+      "type": "written",
+      "prompt": "Your agent calls a flaky third-party search API. When would you put a circuit breaker in front of it, on top of retries, and how do its three states work?",
+      "model_answer": {
+        "summary": "Use a circuit breaker when failures may last, so calls fail fast instead of tying up resources; it is Closed while calls pass and failures are counted, Open while calls fail at once, and Half-Open while a few trial calls test whether the service has recovered.",
+        "key_points": [
+          "Retries suit brief faults you expect to clear; a circuit breaker stops calling an operation that is likely to fail, so waiting calls don't tie up threads and connections and the service can recover",
+          "Closed: calls pass through and recent failures are counted; past a threshold within a time window it trips to Open and starts a time-out timer",
+          "Open: calls fail immediately, or return a fallback such as a cached result, without calling the service",
+          "Half-Open: after the time-out, a limited number of trial calls go through; success closes it and resets the count, and any failure reopens it and restarts the timer"
+        ]
+      },
+      "explanation": "Retry and circuit breaker solve different problems and combine well: retry through the breaker, but stop retrying when the breaker says the fault isn't transient. Half-Open matters because a recovering service can be knocked over again by a sudden flood of traffic.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/circuit-breaker",
+          "title": "Circuit Breaker pattern",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "A circuit breaker stops calls to an operation that's likely to fail, unlike Retry, which expects eventual success; Closed passes calls through and counts recent failures, opening and starting a time-out timer past a threshold; Open fails calls immediately; Half-Open lets a limited number of trial requests through, closing and resetting the counter on success and returning to Open with the timer restarted if any fails; retry logic should stop when the breaker says the fault isn't transient."
+        }
+      ]
+    },
+    {
+      "id": "c022-q04",
+      "lesson": null,
+      "concept": "c022-missing-key-defaults",
+      "type": "multiple_choice",
+      "prompt": "You count words with `c = Counter(words)`, then run `c[\"the\"] = 0` to drop the stop word \"the\". What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "\"the\" stays in `c` with a count of 0; `del c[\"the\"]` removes it"
+        },
+        {
+          "id": "b",
+          "text": "\"the\" is removed, since a Counter drops keys whose count is zero"
+        },
+        {
+          "id": "c",
+          "text": "It raises `ValueError`, since Counter counts must stay above zero"
+        },
+        {
+          "id": "d",
+          "text": "It works, but reading `c[\"the\"]` later raises `KeyError` instead"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Setting a count to zero doesn't remove the element: it stays in the Counter with count 0 (and still shows up in `keys()` and `len()`), so use `del` to remove it. Counts may be any integer, including zero or negative. And a Counter never raises `KeyError` for a missing item: it returns a zero count.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/library/collections.html",
+          "title": "collections — Container datatypes",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-10-02",
+          "claim": "A `defaultdict`'s `__missing__` calls `default_factory` to make a default, inserts it for the key and returns it, but only for `__getitem__`, so `get()` still returns `None`; a `Counter` returns a zero count for missing items instead of raising `KeyError`, setting a count to zero doesn't remove the element (use `del`), and counts may be any integer including zero or negative."
+        }
+      ]
+    },
+    {
+      "id": "c022-q05",
+      "lesson": null,
+      "concept": "c022-draft-pull-requests",
+      "type": "written",
+      "prompt": "Why might you open your first contribution to a project like LangGraph as a draft pull request, and what changes when you mark it ready for review?",
+      "model_answer": {
+        "summary": "A draft shares work in progress for early feedback without asking for formal review, and it can't be merged by accident; marking it ready requests reviews from code owners.",
+        "key_points": [
+          "A draft pull request can't be merged, so unfinished work can't land by accident",
+          "Code owners aren't automatically asked to review a draft, so you can get early feedback or run CI without demanding formal review",
+          "Marking it ready for review requests reviews from any code owners, and you can convert it back to a draft at any time"
+        ]
+      },
+      "explanation": "Drafts are the polite way to show work in progress in a project you don't own: maintainers can see the direction early, and their review queue isn't filled before the change is ready.",
+      "materials": [
+        "github-good-first-issue-projects"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/about-pull-requests",
+          "title": "About pull requests",
+          "publisher": "GitHub",
+          "accessed": "2026-10-02",
+          "claim": "Draft pull requests can't be merged and code owners aren't automatically requested to review them; marking a draft ready for review requests reviews from any code owners, and you can convert a pull request to a draft at any time."
+        }
+      ]
+    },
+    {
+      "id": "c022-q06",
+      "lesson": null,
+      "concept": "c022-circuit-breaker",
+      "type": "multiple_choice",
+      "prompt": "A circuit breaker is Half-Open and lets a trial request through to the recovering service, and that request fails. What happens next?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It stays Half-Open and lets the next trial request through"
+        },
+        {
+          "id": "b",
+          "text": "It goes back to Open and restarts its time-out timer"
+        },
+        {
+          "id": "c",
+          "text": "It goes to Closed but keeps the old failure count"
+        },
+        {
+          "id": "d",
+          "text": "It retries the trial request with exponential backoff"
+        }
+      ],
+      "answer": "b",
+      "explanation": "In Half-Open, any failed trial tells the breaker the fault is still there, so it returns to Open and restarts the time-out timer, giving the service more time to recover. Only enough successful trials move it to Closed, with the failure counter reset. Retrying the trial would defeat the point of testing gently.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/circuit-breaker",
+          "title": "Circuit Breaker pattern",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "A circuit breaker stops calls to an operation that's likely to fail, unlike Retry, which expects eventual success; Closed passes calls through and counts recent failures, opening and starting a time-out timer past a threshold; Open fails calls immediately; Half-Open lets a limited number of trial requests through, closing and resetting the counter on success and returning to Open with the timer restarted if any fails; retry logic should stop when the breaker says the fault isn't transient."
+        }
+      ]
+    }
+  ]
+}

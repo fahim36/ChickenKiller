@@ -1,0 +1,239 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c033-langgraph-send-fanout",
+      "name": "Fanning out with LangGraph `Send`"
+    },
+    {
+      "id": "c033-lambda-response-streaming",
+      "name": "Lambda response streaming"
+    },
+    {
+      "id": "c033-double-texting",
+      "name": "Double-texting strategies on Agent Server"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c033-q01",
+      "lesson": null,
+      "concept": "c033-langgraph-send-fanout",
+      "type": "multiple_choice",
+      "prompt": "A LangGraph node produces a list of subtopics, and you want one `research` run per subtopic. The number of subtopics is only known at run time. How do you wire this?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Add one static edge to `research` per subtopic before you compile the graph"
+        },
+        {
+          "id": "b",
+          "text": "Return a list of `Send(\"research\", {...})` objects from a conditional edge"
+        },
+        {
+          "id": "c",
+          "text": "Return `Command(goto=\"research\")` once, which runs the node once per item"
+        },
+        {
+          "id": "d",
+          "text": "Set `recursion_limit` to the subtopic count so `research` loops that often"
+        }
+      ],
+      "answer": "b",
+      "explanation": "`Send` is LangGraph's tool for map-reduce: a conditional edge returns one `Send` per item, each naming the node and carrying that run's own input state, so the branches can't be known at compile time and don't have to be. Static edges are fixed when you compile. A single `goto` to `research` runs it once on the shared state, and the recursion limit only caps how many steps a run may take.",
+      "materials": [
+        "langgraph-graph-api"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.langchain.com/oss/python/langgraph/graph-api",
+          "title": "Graph API overview (LangGraph, Python)",
+          "publisher": "LangChain",
+          "accessed": "2026-10-02",
+          "claim": "When the edges are not known ahead of time, as in map-reduce, a conditional edge returns `Send` objects; `Send` takes the name of the node and the state to pass to that node, so different versions of state exist at once."
+        }
+      ]
+    },
+    {
+      "id": "c033-q02",
+      "lesson": null,
+      "concept": "c033-lambda-response-streaming",
+      "type": "multiple_choice",
+      "prompt": "You want your Python agent API on AWS Lambda to stream tokens to the browser through a function URL. What does the Lambda documentation say you need?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Nothing extra: every managed runtime streams once the URL's mode is set to stream"
+        },
+        {
+          "id": "b",
+          "text": "A custom runtime or the Lambda Web Adapter; native streaming is Node.js only"
+        },
+        {
+          "id": "c",
+          "text": "API Gateway in front, because function URLs only return buffered responses"
+        },
+        {
+          "id": "d",
+          "text": "Provisioned concurrency, because streaming is off for on-demand instances"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Lambda streams responses natively only on the Node.js managed runtimes. For Python you use a custom runtime that speaks the streaming Runtime API, or the Lambda Web Adapter. Function URLs do support streaming (as do `InvokeWithResponseStream` and the API Gateway proxy integration), and nothing about streaming depends on provisioned concurrency.",
+      "materials": [
+        "aws-lambda-quotas"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.aws.amazon.com/lambda/latest/dg/configuration-response-streaming.html",
+          "title": "Response streaming for Lambda functions",
+          "publisher": "Amazon Web Services",
+          "accessed": "2026-10-02",
+          "claim": "Lambda streams responses through function URLs, InvokeWithResponseStream or the API Gateway proxy integration; it supports response streaming on Node.js managed runtimes, and other languages such as Python need a custom runtime or the Lambda Web Adapter."
+        }
+      ]
+    },
+    {
+      "id": "c033-q03",
+      "lesson": null,
+      "concept": "c033-double-texting",
+      "type": "written",
+      "prompt": "Your LangGraph agent runs on LangSmith Deployment (Agent Server). A user sends a second message while the first run on the same thread is still going. Compare the double-texting strategies, and say which you'd pick for a chat assistant.",
+      "model_answer": {
+        "summary": "Agent Server offers four strategies: reject, enqueue (the default), interrupt and rollback. They differ in whether the first run finishes, and whether its progress is kept; for a chat where a quick second message usually corrects the first, interrupt or rollback fits, while enqueue fits when every message must be answered.",
+        "key_points": [
+          "Reject refuses the new run while the current run on the thread is still in progress",
+          "Enqueue, the default, lets the current run finish and then runs the new input in order",
+          "Interrupt stops the current run but keeps its progress so far, then continues with the new input",
+          "Rollback stops the current run and deletes all its progress, its input included, before running the new input"
+        ]
+      },
+      "explanation": "Double texting is a real production problem: users don't wait for an agent to finish. The key distinction is interrupt versus rollback: both stop the first run, but interrupt keeps what it did, while rollback erases it as if it had never been sent. Enqueue is safest for correctness but makes the user wait.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://docs.langchain.com/langsmith/double-texting",
+          "title": "Double texting",
+          "publisher": "LangChain",
+          "accessed": "2026-10-02",
+          "claim": "Enqueue (the default) queues new runs until the current one finishes; reject refuses new runs while one is in progress; interrupt halts the current run keeping its progress and continues with the new input; rollback halts it and reverts all its progress, including the initial run input."
+        }
+      ]
+    },
+    {
+      "id": "c033-q04",
+      "lesson": null,
+      "concept": "c033-langgraph-send-fanout",
+      "type": "multiple_choice",
+      "prompt": "In `Send(\"generate_joke\", {\"subject\": s})`, returned from a LangGraph conditional edge, what is the second argument?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The state passed to this one run of the `generate_joke` node"
+        },
+        {
+          "id": "b",
+          "text": "A config dict that sets the recursion limit for this branch"
+        },
+        {
+          "id": "c",
+          "text": "The name of the node that should run after `generate_joke`"
+        },
+        {
+          "id": "d",
+          "text": "A filter that picks which parent state keys the node can see"
+        }
+      ],
+      "answer": "a",
+      "explanation": "`Send` takes two arguments: the node to run, and the state to give that node. That is what lets each branch of a map-reduce fan-out get its own input, such as one subject per branch. It doesn't set config, choose a successor, or filter the parent state.",
+      "materials": [
+        "langgraph-graph-api"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.langchain.com/oss/python/langgraph/graph-api",
+          "title": "Graph API overview (LangGraph, Python)",
+          "publisher": "LangChain",
+          "accessed": "2026-10-02",
+          "claim": "When the edges are not known ahead of time, as in map-reduce, a conditional edge returns `Send` objects; `Send` takes the name of the node and the state to pass to that node, so different versions of state exist at once."
+        }
+      ]
+    },
+    {
+      "id": "c033-q05",
+      "lesson": null,
+      "concept": "c033-lambda-response-streaming",
+      "type": "multiple_choice",
+      "prompt": "A user closes the browser tab halfway through a five-minute streamed response from your Lambda function. What happens, according to the Lambda docs?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Lambda stops the function and bills only up to the disconnect"
+        },
+        {
+          "id": "b",
+          "text": "The function keeps running, and you pay for its full duration"
+        },
+        {
+          "id": "c",
+          "text": "Lambda buffers the rest and resends it when the client returns"
+        },
+        {
+          "id": "d",
+          "text": "The function gets SIGTERM and has two seconds to clean itself up"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Streamed responses are not interrupted when the invoking client's connection breaks, and you are billed for the function's full duration. So a streaming function needs a sensible timeout, and long agent runs should not assume a disconnect will stop them. Lambda doesn't buffer and resend a stream.",
+      "materials": [
+        "aws-lambda-quotas"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.aws.amazon.com/lambda/latest/dg/configuration-response-streaming.html",
+          "title": "Response streaming for Lambda functions",
+          "publisher": "Amazon Web Services",
+          "accessed": "2026-10-02",
+          "claim": "Streamed responses are not interrupted or stopped when the invoking client connection is broken, and customers are billed for the full function duration, so long function timeouts need caution."
+        }
+      ]
+    },
+    {
+      "id": "c033-q06",
+      "lesson": null,
+      "concept": "c033-double-texting",
+      "type": "multiple_choice",
+      "prompt": "Your Agent Server deployment uses the `rollback` double-texting strategy. What happens to the first run when a second message arrives on its thread?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It pauses, and resumes once the new run has completed"
+        },
+        {
+          "id": "b",
+          "text": "It finishes first, and the new input runs right after it"
+        },
+        {
+          "id": "c",
+          "text": "It stops, and its progress and its input are deleted"
+        },
+        {
+          "id": "d",
+          "text": "It stops, but the messages it already produced are kept"
+        }
+      ],
+      "answer": "c",
+      "explanation": "Rollback halts the current run and reverts all of its progress, including the original input, before it runs the new input. Keeping the first run's progress is what the `interrupt` strategy does, and letting the first run finish is `enqueue`.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://docs.langchain.com/langsmith/double-texting",
+          "title": "Double texting",
+          "publisher": "LangChain",
+          "accessed": "2026-10-02",
+          "claim": "Rollback halts the current execution and reverts all progress, including the initial run input, before processing the new input; interrupt instead keeps the first run's progress."
+        }
+      ]
+    }
+  ]
+}

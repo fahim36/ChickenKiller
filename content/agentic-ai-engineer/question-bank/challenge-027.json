@@ -1,0 +1,249 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c027-covering-index-only-scan",
+      "name": "Covering indexes and index-only scans"
+    },
+    {
+      "id": "c027-gitignore-tracked-files",
+      "name": "`.gitignore` doesn't untrack files"
+    },
+    {
+      "id": "c027-otel-genai-semconv",
+      "name": "OpenTelemetry GenAI semantic conventions"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c027-q01",
+      "lesson": null,
+      "concept": "c027-covering-index-only-scan",
+      "type": "multiple_choice",
+      "prompt": "`SELECT title FROM conversations WHERE user_id = $1` is a hot query. Which index lets PostgreSQL answer it with an index-only scan, with `user_id` as the only search key?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`CREATE INDEX ON conversations (user_id) INCLUDE (title)`"
+        },
+        {
+          "id": "b",
+          "text": "`CREATE INDEX ON conversations (user_id)`; it never reads the heap"
+        },
+        {
+          "id": "c",
+          "text": "`CREATE INDEX ON conversations USING gin (user_id, title)`"
+        },
+        {
+          "id": "d",
+          "text": "`CREATE INDEX ON conversations (title) INCLUDE (user_id)`"
+        }
+      ],
+      "answer": "a",
+      "explanation": "An index-only scan needs every column the query uses to be in the index, and an index type that supports it, such as B-tree. `INCLUDE (title)` stores `title` as a non-key payload column, so the query is covered while `user_id` stays the search key. An index on `user_id` alone must still visit the heap for `title`; GIN can't do index-only scans; and an `INCLUDE`d column can't be searched on.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/indexes-index-only-scans.html",
+          "title": "11.9. Index-Only Scans and Covering Indexes",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-02",
+          "claim": "Index-only scans need an index type that supports them (B-tree always, GIN never) and a query that references only columns stored in the index; CREATE INDEX tab_x_y ON tab(x) INCLUDE (y) covers SELECT y FROM tab WHERE x = 'key', and included columns are payload, not search keys."
+        }
+      ]
+    },
+    {
+      "id": "c027-q02",
+      "lesson": null,
+      "concept": "c027-gitignore-tracked-files",
+      "type": "multiple_choice",
+      "prompt": "You committed `.env` last week. Today you add `.env` to `.gitignore`, but `git status` still shows your edits to it. Why?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`.gitignore` is only read on clone, so you must clone the repo again"
+        },
+        {
+          "id": "b",
+          "text": "Ignore rules start to apply to old files only after you run `git gc`"
+        },
+        {
+          "id": "c",
+          "text": "It doesn't affect files already tracked; run `git rm --cached .env`"
+        },
+        {
+          "id": "d",
+          "text": "The pattern needs a leading slash, `/.env`, to match it at the root"
+        }
+      ],
+      "answer": "c",
+      "explanation": "`.gitignore` only keeps untracked files untracked; files Git already tracks are not affected. To stop tracking it, remove it from the index with `git rm --cached .env` (the file stays on disk) and commit. A pattern without a slash matches at any level, so `.env` was fine. If the file held secrets, they are still in past commits, so rotate them.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://git-scm.com/docs/gitignore",
+          "title": "gitignore Documentation",
+          "publisher": "Git project",
+          "accessed": "2026-10-02",
+          "claim": "gitignore specifies intentionally untracked files to ignore; files already tracked by Git are not affected, and to stop tracking a file you use git rm --cached and then add it to .gitignore."
+        },
+        {
+          "url": "https://git-scm.com/docs/git-rm",
+          "title": "git-rm Documentation",
+          "publisher": "Git project",
+          "accessed": "2026-10-02",
+          "claim": "git rm --cached unstages and removes paths only from the index, leaving working tree files alone."
+        }
+      ]
+    },
+    {
+      "id": "c027-q03",
+      "lesson": null,
+      "concept": "c027-otel-genai-semconv",
+      "type": "written",
+      "prompt": "You're adding OpenTelemetry tracing to your agent's model calls and want any backend to understand the spans. Following the GenAI semantic conventions, how would you name each model-call span, what would you record on it, and what about the prompts?",
+      "model_answer": {
+        "summary": "Name the span `{gen_ai.operation.name} {gen_ai.request.model}`, record the standard `gen_ai.*` attributes for provider, models, finish reasons and token usage, and capture prompt and completion messages only as an opt-in, since they can hold sensitive data.",
+        "key_points": [
+          "Name an inference span `{gen_ai.operation.name} {gen_ai.request.model}`, such as `chat <model>`, with span kind `CLIENT`",
+          "Record attributes such as `gen_ai.operation.name`, `gen_ai.provider.name`, `gen_ai.request.model`, `gen_ai.response.model` and `gen_ai.response.finish_reasons`",
+          "Record token usage in `gen_ai.usage.input_tokens` and `gen_ai.usage.output_tokens`, so cost and latency can be tied to each call",
+          "Prompt and completion messages (`gen_ai.input.messages`, `gen_ai.output.messages`) are opt-in because they may contain sensitive data, so capture them deliberately, with filtering or truncation"
+        ]
+      },
+      "explanation": "Shared names let any backend group, chart and cost your model calls without custom parsing. The tempting choice is to log full prompts on every span, but the conventions make message content opt-in because it can carry user data. The GenAI conventions are still in Development status, so attribute names can change (`gen_ai.system` was replaced by `gen_ai.provider.name`).",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://github.com/open-telemetry/semantic-conventions-genai/blob/main/docs/gen-ai/gen-ai-spans.md",
+          "title": "Semantic conventions for generative client AI spans",
+          "publisher": "OpenTelemetry",
+          "accessed": "2026-10-02",
+          "claim": "Inference span name SHOULD be `{gen_ai.operation.name} {gen_ai.request.model}` and span kind SHOULD be CLIENT; input and output messages are opt-in attributes, and instrumentations MAY let users filter or truncate them."
+        },
+        {
+          "url": "https://opentelemetry.io/docs/specs/semconv/registry/attributes/gen-ai/",
+          "title": "Gen AI attributes (semantic conventions registry)",
+          "publisher": "OpenTelemetry",
+          "accessed": "2026-10-02",
+          "claim": "The registry defines gen_ai.operation.name, gen_ai.provider.name, gen_ai.request.model, gen_ai.response.model, gen_ai.usage.input_tokens, gen_ai.usage.output_tokens and gen_ai.response.finish_reasons, all in Development status; gen_ai.input.messages and gen_ai.output.messages may contain sensitive information; gen_ai.system is deprecated in favour of gen_ai.provider.name."
+        }
+      ]
+    },
+    {
+      "id": "c027-q04",
+      "lesson": null,
+      "concept": "c027-covering-index-only-scan",
+      "type": "written",
+      "prompt": "You add a covering index so `EXPLAIN ANALYZE` shows `Index Only Scan`, but `Heap Fetches` stays high on a table that is updated constantly. Explain why, and when a covering index is worth adding.",
+      "model_answer": {
+        "summary": "An index-only scan still visits the heap for any page not marked all-visible in the visibility map, so a heavily updated table gains little; a covering index pays off for hot queries on tables that change rarely, with narrow payload columns.",
+        "key_points": [
+          "An index-only scan needs an index type that supports it (B-tree does) and a query that uses only columns stored in the index",
+          "PostgreSQL checks the visibility map for each heap page and must visit the heap unless the page is all-visible, so recently modified tables get little benefit",
+          "`INCLUDE` adds non-key payload columns that make the index cover the query but can't be searched on",
+          "Avoid wide payload columns, since they bloat the index and slow it down"
+        ]
+      },
+      "explanation": "A covering index removes heap lookups only for rows on all-visible pages. On a constantly updated table many pages aren't all-visible until vacuum runs, so the scan still fetches heap rows, while the bigger index costs more on every write.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/indexes-index-only-scans.html",
+          "title": "11.9. Index-Only Scans and Covering Indexes",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-02",
+          "claim": "Index-only scans need a supporting index type and only indexed columns; the visibility map bit must show a heap page all-visible or the heap is visited, so the benefit depends on the table changing infrequently; INCLUDE columns are non-searchable payload and wide ones bloat the index."
+        }
+      ]
+    },
+    {
+      "id": "c027-q05",
+      "lesson": null,
+      "concept": "c027-gitignore-tracked-files",
+      "type": "multiple_choice",
+      "prompt": "You run `git rm --cached config/local.yaml` and commit. What happens to the file?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It is deleted from your disk and from every earlier commit"
+        },
+        {
+          "id": "b",
+          "text": "It stays tracked until you push the commit to the remote"
+        },
+        {
+          "id": "c",
+          "text": "It is removed from all history, so its secrets are now safe"
+        },
+        {
+          "id": "d",
+          "text": "Git stops tracking it; it stays on disk and in old commits"
+        }
+      ],
+      "answer": "d",
+      "explanation": "`--cached` removes the path only from the index and leaves the working tree file alone, so after the commit Git stops tracking it but your copy is still on disk. Earlier commits are unchanged, so anything secret in it is still in the history and must be rotated. Add it to `.gitignore` so it isn't added again.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://git-scm.com/docs/git-rm",
+          "title": "git-rm Documentation",
+          "publisher": "Git project",
+          "accessed": "2026-10-02",
+          "claim": "--cached unstages and removes paths only from the index, and working tree files, whether modified or not, are left alone."
+        },
+        {
+          "url": "https://git-scm.com/docs/gitignore",
+          "title": "gitignore Documentation",
+          "publisher": "Git project",
+          "accessed": "2026-10-02",
+          "claim": "To stop tracking a file that is currently tracked, use git rm --cached, then add it to .gitignore to stop it being reintroduced in later commits."
+        }
+      ]
+    },
+    {
+      "id": "c027-q06",
+      "lesson": null,
+      "concept": "c027-otel-genai-semconv",
+      "type": "multiple_choice",
+      "prompt": "Under the OpenTelemetry GenAI semantic conventions, what should instrumentation do with prompt and completion text by default?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Record it in `gen_ai.input.messages` on every span, as it is required"
+        },
+        {
+          "id": "b",
+          "text": "Leave it out unless the user opts in, since it may contain user data"
+        },
+        {
+          "id": "c",
+          "text": "Hash it into `gen_ai.conversation.id`, so related spans can be joined"
+        },
+        {
+          "id": "d",
+          "text": "Keep only its first 100 characters, as the spec requires truncation"
+        }
+      ],
+      "answer": "b",
+      "explanation": "`gen_ai.input.messages` and `gen_ai.output.messages` are opt-in attributes because they may contain sensitive information, including personal data. Instrumentations MAY offer filtering or truncation, but no fixed truncation is required. `gen_ai.conversation.id` is an identifier for correlating a conversation's messages, not a hash of the text.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://github.com/open-telemetry/semantic-conventions-genai/blob/main/docs/gen-ai/gen-ai-spans.md",
+          "title": "Semantic conventions for generative client AI spans",
+          "publisher": "OpenTelemetry",
+          "accessed": "2026-10-02",
+          "claim": "gen_ai.input.messages and gen_ai.output.messages are Opt-In attributes, and instrumentations MAY provide a way to filter or truncate them."
+        },
+        {
+          "url": "https://opentelemetry.io/docs/specs/semconv/registry/attributes/gen-ai/",
+          "title": "Gen AI attributes (semantic conventions registry)",
+          "publisher": "OpenTelemetry",
+          "accessed": "2026-10-02",
+          "claim": "gen_ai.input.messages and gen_ai.output.messages may contain sensitive information including user or PII data; gen_ai.conversation.id is the unique identifier for a conversation, used to store and correlate messages."
+        }
+      ]
+    }
+  ]
+}

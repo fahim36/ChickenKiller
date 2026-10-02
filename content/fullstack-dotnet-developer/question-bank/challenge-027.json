@@ -1,0 +1,225 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c027-complex-types-value-objects",
+      "name": "EF Core complex types vs owned types for value objects"
+    },
+    {
+      "id": "c027-code-metrics-hotspots",
+      "name": "Reading code metrics to find risky code"
+    },
+    {
+      "id": "c027-queue-based-load-leveling",
+      "name": "Queue-based load leveling"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c027-q01",
+      "lesson": null,
+      "concept": "c027-complex-types-value-objects",
+      "type": "multiple_choice",
+      "prompt": "An `Order` sets `ShippingAddress` and `BillingAddress` to the same `Address` instance. With `Address` mapped as an EF Core owned entity type, `SaveChanges` throws. Why does mapping it as a complex type fix this?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Complex types get their own table, so both properties can point at the same row"
+        },
+        {
+          "id": "b",
+          "text": "Complex types have no identity and value semantics, so EF copies the values"
+        },
+        {
+          "id": "c",
+          "text": "Complex types use a hidden key, which EF reuses for both of the properties"
+        },
+        {
+          "id": "d",
+          "text": "Complex types switch off change tracking, so EF never sees the shared instance"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Owned types are still entity types with a hidden key, so the same instance can't be referenced twice. Complex types have no identity: they are compared by value and assigning one copies its properties, so sharing an instance works. They are stored in the owner's table (or JSON), never their own table, and EF still tracks changes to each of their properties.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/ef/core/modeling/complex-types",
+          "title": "Complex Types - EF Core",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "Owned entity types have a hidden key and reference semantics, so the same instance can't be referenced twice; complex types have no identity, value semantics, can be assigned to multiple properties, are stored in the container's table or JSON, and EF tracks changes to their individual properties."
+        }
+      ]
+    },
+    {
+      "id": "c027-q02",
+      "lesson": null,
+      "concept": "c027-code-metrics-hotspots",
+      "type": "multiple_choice",
+      "prompt": "Visual Studio code metrics report `CalculateInvoice` with a cyclomatic complexity of 48 and a maintainability index of 8. How should you read this before refactoring it?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Complexity 48 counts its lines, and an index of 8 means 8% of it is covered by tests"
+        },
+        {
+          "id": "b",
+          "text": "A low index is good, like a low inheritance depth, so only the complexity is a worry"
+        },
+        {
+          "id": "c",
+          "text": "It has many code paths, so it needs many tests, and it is hard to maintain"
+        },
+        {
+          "id": "d",
+          "text": "Complexity 48 is its class coupling, so cut its references to other types to fix it"
+        }
+      ],
+      "answer": "c",
+      "explanation": "Cyclomatic complexity counts the distinct code paths, so a high value means more tests are needed for good coverage and the code is harder to maintain. The maintainability index runs from 0 to 100, where high is good; 0 to 9 is the red, low-maintainability band. So this method is a hotspot: add tests around it before you change it.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/visualstudio/code-quality/code-metrics-values",
+          "title": "How code metrics help identify risks - Visual Studio (Windows)",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "Maintainability Index ranges 0-100, high means better maintainability, and 0-9 is red (low maintainability); cyclomatic complexity counts the different code paths, and complex control flow needs more tests for good coverage and is less maintainable; class coupling and depth of inheritance are separate metrics."
+        }
+      ]
+    },
+    {
+      "id": "c027-q03",
+      "lesson": null,
+      "concept": "c027-queue-based-load-leveling",
+      "type": "written",
+      "prompt": "Your order API's instances call a partner's inventory service directly, and it times out during flash sales. How would you apply queue-based load leveling, and what new problems must you design for?",
+      "model_answer": {
+        "summary": "Put a durable queue between the API and the service so workers drain requests at a rate the service can handle, then design for asynchronous results, bounded consumers, queue growth and redelivery.",
+        "key_points": [
+          "Put a durable queue (such as Service Bus) between the API and the service: the API enqueues and returns, and workers process at a steady rate, sized for average rather than peak load",
+          "Bound the consumers' total rate (scale limits, concurrency), because autoscaling them without a bound just moves the overload to the downstream service",
+          "Callers no longer get a synchronous result, so add a way to report the outcome; the pattern doesn't suit callers that need a low-latency synchronous response",
+          "Monitor queue depth, since it grows when producers outpace consumers, and make consumers idempotent and dead-letter poison messages because delivery is at least once"
+        ]
+      },
+      "explanation": "The queue decouples intake from processing, which protects availability and cost. But it changes the contract (asynchronous), and the worker tier can recreate the original overload if it scales freely, so a good answer covers both.",
+      "materials": [
+        "azure-cloud-design-patterns"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/queue-based-load-leveling",
+          "title": "Queue-Based Load Leveling Pattern - Azure Architecture Center",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "A queue buffers requests so the service processes them at its own pace and needs only enough instances for average load; control the consumers' rate, since unbounded autoscaling moves overload downstream; queues are one-way so replies need a mechanism; it's unsuitable for low-latency synchronous responses; monitor queue depth, make consumers idempotent and dead-letter poison messages."
+        }
+      ]
+    },
+    {
+      "id": "c027-q04",
+      "lesson": null,
+      "concept": "c027-complex-types-value-objects",
+      "type": "written",
+      "prompt": "You're modelling `Address` and `Money` value objects in an EF Core 10 app. Would you map them as owned entity types or complex types, and how would you design the .NET types themselves?",
+      "model_answer": {
+        "summary": "Map them as complex types, which have no identity and value semantics, and make the types immutable; use an entity with identity only if several owners must share one updatable instance.",
+        "key_points": [
+          "Prefer complex types: they have no identity and are compared by value, while owned types are entity types with a hidden key and reference semantics",
+          "Make them immutable (a `record` or `readonly record struct`) and change them with `with`, since a shared mutable instance would change everywhere it is used; EF still updates only changed columns",
+          "They are stored as columns of the owner's table or, from EF Core 10, as JSON; collections of complex types must be mapped to JSON",
+          "If several entities must see and update one shared address together, model it as an entity with its own identity instead"
+        ]
+      },
+      "explanation": "Value objects have no identity, which is exactly what complex types model. Owned types bring identity semantics that cause friction, such as failing when one instance is assigned twice. Immutability is what keeps a shared instance safe.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/ef/core/modeling/complex-types",
+          "title": "Complex Types - EF Core",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "Complex types model value objects with no identity and value semantics and are the recommended choice over owned types; immutable records with `with` avoid accidental sharing while EF updates only changed columns; EF Core 10 adds struct, optional, JSON and collection (JSON-only) support; use an entity type if several entities must observe the same updating value."
+        }
+      ]
+    },
+    {
+      "id": "c027-q05",
+      "lesson": null,
+      "concept": "c027-code-metrics-hotspots",
+      "type": "multiple_choice",
+      "prompt": "Visual Studio code metrics show a very high Class Coupling value for your `OrderService` class. What does Microsoft's guidance say this indicates?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It has many code paths, so it needs more unit tests to reach good coverage"
+        },
+        {
+          "id": "b",
+          "text": "It is highly cohesive, because its methods all work on the same set of fields"
+        },
+        {
+          "id": "c",
+          "text": "It has a deep inheritance chain, so changes to its base classes are risky"
+        },
+        {
+          "id": "d",
+          "text": "It is hard to reuse and maintain, because it depends on many other types"
+        }
+      ],
+      "answer": "d",
+      "explanation": "Class coupling counts the unique types a class depends on through parameters, locals, return types, calls, base types and more. Good design aims for high cohesion and low coupling, so a high value signals a class that is hard to reuse and maintain. Code paths are cyclomatic complexity, and inheritance chains are depth of inheritance: separate metrics.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/visualstudio/code-quality/code-metrics-values",
+          "title": "How code metrics help identify risks - Visual Studio (Windows)",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "Class coupling measures coupling to unique classes; high coupling indicates a design that is difficult to reuse and maintain because of its many interdependencies; cyclomatic complexity and depth of inheritance measure code paths and inheritance depth respectively."
+        }
+      ]
+    },
+    {
+      "id": "c027-q06",
+      "lesson": null,
+      "concept": "c027-queue-based-load-leveling",
+      "type": "multiple_choice",
+      "prompt": "You put a Service Bus queue in front of a slow SQL database and let the Azure Functions consumers autoscale with no limit. During a spike the database is overloaded again. What went wrong?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Unbounded consumer scale-out just moved the overload to the database behind it"
+        },
+        {
+          "id": "b",
+          "text": "Service Bus can't buffer bursts, so messages skip the queue once it fills up"
+        },
+        {
+          "id": "c",
+          "text": "The queue forces strict ordering, so the database has to apply writes one by one"
+        },
+        {
+          "id": "d",
+          "text": "Load leveling only works when consumers scale at the same rate as producers"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Load leveling works only if the consumers drain the queue at a rate the downstream resource can take. Autoscaling consumers without bounding their aggregate rate passes the spike straight through to the database. Cap scale-out and trigger concurrency so the queue absorbs the burst instead.",
+      "materials": [
+        "azure-cloud-design-patterns"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/queue-based-load-leveling",
+          "title": "Queue-Based Load Leveling Pattern - Azure Architecture Center",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "Autoscaling without bounding consumers' aggregate downstream rate only moves the overload to downstream dependencies; limit scale-out and tune trigger concurrency to protect the data store."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,233 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c029-ef-encapsulated-collections",
+      "name": "Encapsulated aggregate collections with EF Core backing fields"
+    },
+    {
+      "id": "c029-cache-eviction-policy",
+      "name": "Cache eviction policies when cache memory is full"
+    },
+    {
+      "id": "c029-valet-key-direct-upload",
+      "name": "Valet Key: direct client uploads with scoped tokens"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c029-q01",
+      "lesson": null,
+      "concept": "c029-ef-encapsulated-collections",
+      "type": "multiple_choice",
+      "prompt": "An `Order` aggregate exposes its items as below and adds them only through `AddOrderItem`. How can EF Core persist and load the items?\n\n```csharp\nprivate readonly List<OrderItem> _orderItems = new();\npublic IReadOnlyCollection<OrderItem> OrderItems => _orderItems;\n```",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It can't: EF Core needs a public `ICollection<OrderItem>` with a setter"
+        },
+        {
+          "id": "b",
+          "text": "It maps the navigation to the private `_orderItems` field and uses it"
+        },
+        {
+          "id": "c",
+          "text": "It copies the items into a shadow property, so the field is never filled"
+        },
+        {
+          "id": "d",
+          "text": "It can save the items but can't load them, as the property has no setter"
+        }
+      ],
+      "answer": "b",
+      "explanation": "EF Core can read and write a backing field instead of the property. Microsoft's eShopOnContainers sets the `OrderItems` navigation to `PropertyAccessMode.Field`, so items are persisted as if the class had a `List<OrderItem>` property, while callers only see a read-only collection and must go through `AddOrderItem`. Requiring `ICollection<T>` was a limitation of older Entity Framework versions.",
+      "materials": [
+        "dotnet-microservices-ebook"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/architecture/microservices/microservice-ddd-cqrs-patterns/infrastructure-persistence-layer-implementation-entity-framework-core",
+          "title": "Implementing the infrastructure persistence layer with Entity Framework Core",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "A public IReadOnlyCollection<T> backed by a private List<T> field can be persisted by EF Core; SetPropertyAccessMode(PropertyAccessMode.Field) tells EF to access the OrderItems navigation through its field, so it is persisted as if it had a List<OrderItem> property; earlier Entity Framework versions required ICollection<T>."
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/ef/core/modeling/backing-field",
+          "title": "Backing Fields - EF Core",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "Backing fields let EF read and write a field rather than a property, and by default EF reads and writes the configured backing field."
+        }
+      ]
+    },
+    {
+      "id": "c029-q02",
+      "lesson": null,
+      "concept": "c029-cache-eviction-policy",
+      "type": "multiple_choice",
+      "prompt": "Your Redis cache has `maxmemory` set with `maxmemory-policy volatile-lru`, but your .NET app writes every cache key without an expiry. What happens when memory fills up?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Redis evicts the least recently used keys, whether or not they have a TTL"
+        },
+        {
+          "id": "b",
+          "text": "Redis evicts random keys instead, since no key is eligible for LRU eviction"
+        },
+        {
+          "id": "c",
+          "text": "Commands that add data fail, while commands that only read still work"
+        },
+        {
+          "id": "d",
+          "text": "Redis grows past `maxmemory` until some key expires, then evicts that key"
+        }
+      ],
+      "answer": "c",
+      "explanation": "The `volatile-*` policies only evict keys that have an expiry, and with none they behave like `noeviction`: commands that add data return errors, while reads keep working. For a pure cache, `allkeys-lru` is the usual default, and it doesn't need an expiry on every key.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://redis.io/docs/latest/develop/reference/eviction/",
+          "title": "Key eviction | Redis Docs",
+          "publisher": "Redis",
+          "accessed": "2026-10-02",
+          "claim": "The volatile-* policies evict only keys with an associated expiration and behave like noeviction if no keys have one; noeviction returns an error for commands that add data while read commands still work; allkeys-lru is a good default."
+        }
+      ]
+    },
+    {
+      "id": "c029-q03",
+      "lesson": null,
+      "concept": "c029-valet-key-direct-upload",
+      "type": "written",
+      "prompt": "Users of your .NET app upload videos of up to 2 GB. Today the files stream through your API to Blob Storage, and the API's CPU and bandwidth are the bottleneck. Design the upload path with the Valet Key pattern, including its safeguards.",
+      "model_answer": {
+        "summary": "Have the API authorize the user and hand out a short-lived, narrowly scoped SAS so the client uploads straight to storage, then check what was uploaded and audit both sides.",
+        "key_points": [
+          "The API authenticates and authorizes the user, then returns a short-lived SAS (ideally from a user delegation key via managed identity) for one blob, create-only, over HTTPS; the client uploads directly to storage",
+          "Keep the validity period short but long enough to finish, allow renewal, and scope it as tightly as possible, because a leaked key works until it expires",
+          "The key can't cap the upload's size or how often it is used, so check the size and validate or scan the content after upload before using it",
+          "Log token issuance and storage operations so they can be correlated, and protect logs that may record URLs containing keys"
+        ]
+      },
+      "explanation": "The pattern removes the API from the data path, saving compute and bandwidth, at the cost of some control. A good design compensates for that lost control with tight scope, short expiry and checks after the upload.",
+      "materials": [
+        "azure-cloud-design-patterns"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/valet-key",
+          "title": "Valet Key pattern - Azure Architecture Center",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "A valet key gives time-limited, scoped, restricted-permission direct access to a resource; keep validity short and permissions minimal (create-only for uploads); a key usually can't limit upload size or usage count; validate uploaded data; audit operations; deliver keys over HTTPS and protect logs; the example issues a three-minute create-only SAS for one blob using a user delegation key from a managed identity."
+        }
+      ]
+    },
+    {
+      "id": "c029-q04",
+      "lesson": null,
+      "concept": "c029-ef-encapsulated-collections",
+      "type": "written",
+      "prompt": "Why does a DDD aggregate expose its child collections as read-only and avoid public setters, and how do you still persist it with EF Core?",
+      "model_answer": {
+        "summary": "Read-only collections and private setters force every change through the aggregate root's methods, which enforce its invariants; EF Core maps the private fields so persistence still works.",
+        "key_points": [
+          "A public mutable collection lets any caller add or remove items and bypass the root's rules, so the aggregate can't guarantee its invariants",
+          "Expose `IReadOnlyCollection<T>` backed by a private `List<T>`, keep setters private, and add methods such as `AddOrderItem` that hold the rules",
+          "EF Core maps the navigation to its backing field (`PropertyAccessMode.Field`), and can also map private fields that have no property",
+          "Keep this mapping in Fluent API configuration in the infrastructure layer, so the domain model doesn't depend on EF Core"
+        ]
+      },
+      "explanation": "Encapsulation is what turns an anemic data bag into an aggregate that protects itself. EF Core's field mapping removes the old excuse that the ORM needs public collections.",
+      "materials": [
+        "dotnet-microservices-ebook"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/architecture/microservices/microservice-ddd-cqrs-patterns/net-core-microservice-domain-model",
+          "title": "Implementing a microservice domain model with .NET",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "Exposing public mutable collections lets developers bypass business rules; collections should be read-only, setters private, and changes made through aggregate root methods such as AddOrderItem; EF Core can map fields so the domain stays free of EF dependencies."
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/architecture/microservices/microservice-ddd-cqrs-patterns/infrastructure-persistence-layer-implementation-entity-framework-core",
+          "title": "Implementing the infrastructure persistence layer with Entity Framework Core",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "EF Core maps the OrderItems navigation through its backing field with SetPropertyAccessMode(PropertyAccessMode.Field), can map private fields without properties, and the mapping lives in Fluent API configuration in the persistence layer."
+        }
+      ]
+    },
+    {
+      "id": "c029-q05",
+      "lesson": null,
+      "concept": "c029-cache-eviction-policy",
+      "type": "written",
+      "prompt": "You run Redis as a cache in front of SQL Server for a read-heavy .NET API. How would you set its memory limit and eviction policy, and how would you tell whether they work?",
+      "model_answer": {
+        "summary": "Set an explicit memory limit, pick an eviction policy that matches the access pattern (usually `allkeys-lru`), and watch the hit ratio and eviction and expiry counters.",
+        "key_points": [
+          "Set `maxmemory` (0, unlimited, is the default on 64-bit) and leave room for replication or persistence buffers",
+          "Use `allkeys-lru` when a subset of keys is hot (a good default), `allkeys-random` for even access, or `volatile-ttl` if you give short TTLs to good eviction candidates",
+          "`volatile-*` policies only evict keys with a TTL and otherwise act like `noeviction`; prefer separate instances to mixing cache and persistent keys",
+          "Track the hit ratio, `keyspace_hits / (keyspace_hits + keyspace_misses)`, with `evicted_keys` and `expired_keys`, to tune the policy and TTLs"
+        ]
+      },
+      "explanation": "A cache without a limit grows until the host runs out of memory, and a wrong policy either evicts hot keys or rejects writes. Measuring hits, evictions and expiries is how you know which problem you have.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://redis.io/docs/latest/develop/reference/eviction/",
+          "title": "Key eviction | Redis Docs",
+          "publisher": "Redis",
+          "accessed": "2026-10-02",
+          "claim": "maxmemory 0 means no limit on 64-bit systems; leave RAM for replication and persistence buffers; allkeys-lru suits a hot subset and is a good default, allkeys-random suits even access, volatile-ttl suits short TTLs on candidates; volatile-* act like noeviction without expiring keys; use INFO keyspace_hits, keyspace_misses, evicted_keys and expired_keys to check the choice."
+        }
+      ]
+    },
+    {
+      "id": "c029-q06",
+      "lesson": null,
+      "concept": "c029-valet-key-direct-upload",
+      "type": "multiple_choice",
+      "prompt": "Your API issues SAS tokens so browsers can upload straight to Blob Storage. Which requirement does the Valet Key guidance say the key itself usually can't enforce?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Restricting the key to one blob in one container of the storage account"
+        },
+        {
+          "id": "b",
+          "text": "Letting the client create the blob without being able to read or delete it"
+        },
+        {
+          "id": "c",
+          "text": "Making the key expire a few minutes after the API first issues it"
+        },
+        {
+          "id": "d",
+          "text": "Limiting the size of the data the client writes using the key"
+        }
+      ],
+      "answer": "d",
+      "explanation": "A SAS can be scoped to one blob, limited to create-only permission and given a short expiry, as in Microsoft's example. What it usually can't do is cap the amount of data written or the number of uses, so the application must check uploads afterwards, for example on a storage event.",
+      "materials": [
+        "azure-cloud-design-patterns"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/valet-key",
+          "title": "Valet Key pattern - Azure Architecture Center",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "Keys can be scoped to a container or item, given restricted permissions such as create-only and a short validity period, but it is usually not possible to create a key that limits the size of data written or the number of times it is used."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,225 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c007-lazy-exception-caching",
+      "name": "Lazy<T> thread-safety modes and exception caching"
+    },
+    {
+      "id": "c007-k8s-requests-limits",
+      "name": "Kubernetes resource requests vs limits"
+    },
+    {
+      "id": "c007-app-service-slot-swap",
+      "name": "App Service deployment slot swaps and slot settings"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c007-q01",
+      "lesson": null,
+      "concept": "c007-lazy-exception-caching",
+      "type": "multiple_choice",
+      "prompt": "A singleton holds `new Lazy<VaultConfig>(() => LoadFromVault())`. The vault is down for a moment at startup, so the first `.Value` throws. What does the next `.Value` call do once the vault is back?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It runs `LoadFromVault()` again and returns the config, as failures aren't stored"
+        },
+        {
+          "id": "b",
+          "text": "It throws the same exception again, because the factory's exception is cached"
+        },
+        {
+          "id": "c",
+          "text": "It returns `null`, because the failed initialization left the value unset for good"
+        },
+        {
+          "id": "d",
+          "text": "It blocks until the first thread's factory call is retried and completes successfully"
+        }
+      ],
+      "answer": "b",
+      "explanation": "`Lazy<T>` with a value factory and the default mode (`ExecutionAndPublication`) caches exceptions: the factory is never run again, and every later `.Value` rethrows the same exception. So a transient startup failure becomes permanent for that instance. `LazyThreadSafetyMode.PublicationOnly` doesn't cache exceptions, but lets several threads run the factory at once.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/framework/performance/lazy-initialization",
+          "title": "Lazy Initialization - .NET Framework",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "Lazy<T> is thread-safe (ExecutionAndPublication) by default; with a valueFactory, exception caching is on, so a factory exception is rethrown on every later Value access and the factory is never re-invoked; with PublicationOnly several threads may race to run the factory, the first result wins, and exceptions are not cached."
+        }
+      ]
+    },
+    {
+      "id": "c007-q02",
+      "lesson": null,
+      "concept": "c007-k8s-requests-limits",
+      "type": "multiple_choice",
+      "prompt": "A .NET API container has `requests.cpu: 250m`, `limits.cpu: 500m` and `limits.memory: 512Mi`. In a traffic spike it tries to use 2 CPUs and 700Mi. What does Kubernetes do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Kills it for going over its CPU limit, and caps its memory at 512Mi"
+        },
+        {
+          "id": "b",
+          "text": "Lets it burst past both limits, as only requests apply at runtime"
+        },
+        {
+          "id": "c",
+          "text": "Moves the pod to a bigger node, since requests are rechecked live"
+        },
+        {
+          "id": "d",
+          "text": "Throttles it at 500m CPU, and may OOM-kill it once it's over 512Mi"
+        }
+      ],
+      "answer": "d",
+      "explanation": "Requests are for scheduling: they decide which node can hold the pod. Limits apply at runtime, differently per resource: the CPU limit is a hard limit the kernel enforces by throttling, so the API slows down, while going over the memory limit can get the container terminated (OOM-killed) when the kernel sees memory pressure. Kubernetes never moves a running pod because it is busy.",
+      "materials": [
+        "kubernetes-concepts"
+      ],
+      "sources": [
+        {
+          "url": "https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/",
+          "title": "Resource Management for Pods and Containers",
+          "publisher": "The Kubernetes Authors",
+          "accessed": "2026-10-02",
+          "claim": "The scheduler uses requests to choose a node; a CPU limit is a hard limit enforced by kernel throttling; a container over its memory limit may be terminated by the kernel when it detects memory pressure, so memory limits are enforced reactively; a limit with no request is copied as the request."
+        }
+      ]
+    },
+    {
+      "id": "c007-q03",
+      "lesson": null,
+      "concept": "c007-app-service-slot-swap",
+      "type": "written",
+      "prompt": "You deploy a .NET API to an App Service staging slot and swap it into production. Explain what the swap does to avoid downtime, which settings move with the app and which stay, and how you would roll back.",
+      "model_answer": {
+        "summary": "The swap prepares and warms the staging instances with production's settings before switching routing, moves unmarked app settings with the app, and is rolled back by swapping again.",
+        "key_points": [
+          "Before switching, App Service applies the production slot's slot-specific settings to the staging instances, restarts them and warms each one up with an HTTP request",
+          "Only when every instance is warm does it switch routing, so production stays online and no requests are dropped",
+          "App settings and connection strings swap with the app unless marked as deployment slot settings; custom domains, scale settings and managed identities stay with the slot",
+          "To roll back, swap the same two slots again to bring back the last known good app"
+        ]
+      },
+      "explanation": "All the preparation happens on the source slot while the target keeps serving. The common mistake is assuming connection strings stay put: an unmarked staging connection string follows the app into production.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/app-service/deploy-staging-slots",
+          "title": "Set Up Staging Environments - Azure App Service",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "A swap first applies the target slot's slot-specific settings to the source slot's instances, restarts and warms them up, and only then switches routing, so the target stays online; app settings and connection strings swap unless marked as deployment slot settings, while custom domains, scale settings and managed identities stay; swapping the same slots again rolls back."
+        }
+      ]
+    },
+    {
+      "id": "c007-q04",
+      "lesson": null,
+      "concept": "c007-lazy-exception-caching",
+      "type": "multiple_choice",
+      "prompt": "Which statement about `LazyThreadSafetyMode.PublicationOnly` is true?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Several threads may run the factory; the first result wins, and errors aren't cached"
+        },
+        {
+          "id": "b",
+          "text": "Only one thread runs the factory, and its exception is cached for every later caller"
+        },
+        {
+          "id": "c",
+          "text": "Each thread runs the factory once and keeps its own value, much like a `ThreadLocal<T>`"
+        },
+        {
+          "id": "d",
+          "text": "One thread runs the factory, and other threads see `null` until it is published"
+        }
+      ],
+      "answer": "a",
+      "explanation": "With `PublicationOnly` threads race to initialize: each may run the factory, one result is published and every thread gets it. Exceptions aren't cached, so a later `.Value` can succeed. Running the factory once and caching its exception is the default `ExecutionAndPublication` behaviour; per-thread values are `ThreadLocal<T>`.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/framework/performance/lazy-initialization",
+          "title": "Lazy Initialization - .NET Framework",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "Lazy<T> is thread-safe (ExecutionAndPublication) by default; with a valueFactory, exception caching is on, so a factory exception is rethrown on every later Value access and the factory is never re-invoked; with PublicationOnly several threads may race to run the factory, the first result wins, and exceptions are not cached."
+        }
+      ]
+    },
+    {
+      "id": "c007-q05",
+      "lesson": null,
+      "concept": "c007-k8s-requests-limits",
+      "type": "written",
+      "prompt": "Explain how Kubernetes uses a container's resource requests and limits for CPU and memory, and what each choice means for a latency-sensitive .NET API.",
+      "model_answer": {
+        "summary": "Requests place the pod; a CPU limit throttles and so adds latency, while a memory limit ends in the container being killed.",
+        "key_points": [
+          "The scheduler uses requests to choose a node with enough unreserved capacity",
+          "A CPU limit is a hard limit enforced by the kernel through throttling: the app slows down but keeps running",
+          "Going over the memory limit can get the container terminated (OOM-killed), enforced reactively when the kernel sees memory pressure",
+          "If you set a limit but no request, Kubernetes copies the limit as the request"
+        ]
+      },
+      "explanation": "CPU and memory fail differently at their limits: CPU throttling shows up as tail latency, a memory overrun as restarts. Requests set too low pack too many pods onto a node; limits set too low throttle or kill a healthy app.",
+      "materials": [
+        "kubernetes-concepts"
+      ],
+      "sources": [
+        {
+          "url": "https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/",
+          "title": "Resource Management for Pods and Containers",
+          "publisher": "The Kubernetes Authors",
+          "accessed": "2026-10-02",
+          "claim": "The scheduler uses requests to choose a node; a CPU limit is a hard limit enforced by kernel throttling; a container over its memory limit may be terminated by the kernel when it detects memory pressure, so memory limits are enforced reactively; a limit with no request is copied as the request."
+        }
+      ]
+    },
+    {
+      "id": "c007-q06",
+      "lesson": null,
+      "concept": "c007-app-service-slot-swap",
+      "type": "multiple_choice",
+      "prompt": "Production and staging both have an app setting `ConnectionStrings__Db`, and staging's points at the staging database. Nobody marked it as a deployment slot setting. What happens after you swap staging into production?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Production keeps its own value, because connection settings always stay with the slot"
+        },
+        {
+          "id": "b",
+          "text": "The swap is refused, because both slots define the same setting with different values"
+        },
+        {
+          "id": "c",
+          "text": "Production uses the staging database, because unmarked settings swap with the app"
+        },
+        {
+          "id": "d",
+          "text": "Both slots end up on the production database, as the target's values are copied over"
+        }
+      ],
+      "answer": "c",
+      "explanation": "App settings and connection strings follow the app across a swap unless you tick \"Deployment slot setting\" (or pass `--slot-settings`), which makes them stay with their slot. Only slot-specific settings from the target are applied to the source before the switch. Mark environment-specific values as slot settings before the first swap.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/app-service/deploy-staging-slots",
+          "title": "Set Up Staging Environments - Azure App Service",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "A swap first applies the target slot's slot-specific settings to the source slot's instances, restarts and warms them up, and only then switches routing, so the target stays online; app settings and connection strings swap unless marked as deployment slot settings, while custom domains, scale settings and managed identities stay; swapping the same slots again rolls back."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,232 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c022-compose-backwards-writes",
+      "name": "Backwards writes in Compose"
+    },
+    {
+      "id": "c022-native-debug-symbols",
+      "name": "Native debug symbols for symbolicating NDK crashes"
+    },
+    {
+      "id": "c022-remembercoroutinescope-vs-launchedeffect",
+      "name": "rememberCoroutineScope vs LaunchedEffect"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c022-q01",
+      "lesson": null,
+      "concept": "c022-compose-backwards-writes",
+      "type": "multiple_choice",
+      "prompt": "```kotlin\nvar count by remember { mutableIntStateOf(0) }\nButton(onClick = { count++ }) { Text(\"Recompose\") }\nText(\"$count\")\ncount++\n```\nAfter the user taps the button once, what happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`count` goes up by exactly one, as `remember` runs its block only once"
+        },
+        {
+          "id": "b",
+          "text": "Compose discards the write after `Text`, since composition is read-only"
+        },
+        {
+          "id": "c",
+          "text": "It recomposes endlessly: the last line writes state that was just read"
+        },
+        {
+          "id": "d",
+          "text": "It throws at once, as Compose forbids any state write during composition"
+        }
+      ],
+      "answer": "c",
+      "explanation": "This is a backwards write: writing to state after it has been read in the same composition. Compose sees that the read is out of date and schedules another recomposition, which writes again, so the counter climbs in an infinite loop. Compose doesn't throw or drop the write; the fix is to never write state in composition and to write it only from events such as `onClick`.",
+      "materials": [
+        "compose-performance"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/performance/bestpractices",
+          "title": "Follow best practices (Compose performance)",
+          "publisher": "Android Developers",
+          "accessed": "2026-10-02",
+          "claim": "Writing to state that has already been read is a backwards write; in the documented example the counter rapidly increases in an infinite loop as Compose sees an out-of-date read and schedules another recomposition; avoid it by never writing to state in composition."
+        }
+      ]
+    },
+    {
+      "id": "c022-q02",
+      "lesson": null,
+      "concept": "c022-native-debug-symbols",
+      "type": "multiple_choice",
+      "prompt": "You publish an app bundle with a C++ library. Android vitals shows its native crashes with no function names in the stack frames. What fixes it for future releases?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Upload R8's `mapping.txt`, which also maps the frames of native libraries"
+        },
+        {
+          "id": "b",
+          "text": "Turn off R8 minification, since R8 strips the symbols out of `.so` files"
+        },
+        {
+          "id": "c",
+          "text": "Ship unstripped `.so` files, so that Play can read symbols on the device"
+        },
+        {
+          "id": "d",
+          "text": "Set `ndk.debugSymbolLevel` in the release build type to bundle symbols"
+        }
+      ],
+      "answer": "d",
+      "explanation": "Release builds strip native libraries of their symbol tables to save size, so Play Console can't name functions. Setting `android.buildTypes.release.ndk.debugSymbolLevel` to `SYMBOL_TABLE` or `FULL` makes the build include a native debug symbols file in the AAB, which Play uses to symbolicate native crashes. R8's mapping file covers obfuscated Java and Kotlin code, not native frames.",
+      "materials": [
+        "android-vitals"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/build/include-native-symbols",
+          "title": "Include native debug symbols",
+          "publisher": "Android Developers",
+          "accessed": "2026-10-02",
+          "claim": "Native libraries are stripped in release builds, making native crashes impossible to diagnose in Play Console without a debug symbols file; setting `android.buildTypes.release.ndk.debugSymbolLevel` includes the symbols file in an AAB (or generates `native-debug-symbols.zip` to upload for an APK), and Play uses it to symbolicate native crash stack traces in Android vitals."
+        }
+      ]
+    },
+    {
+      "id": "c022-q03",
+      "lesson": null,
+      "concept": "c022-remembercoroutinescope-vs-launchedeffect",
+      "type": "written",
+      "prompt": "On a Compose screen, a button must show a snackbar with the suspending `snackbarHostState.showSnackbar()` when tapped, and the screen must start an animation as soon as it appears. Which coroutine API do you use for each, and why?",
+      "model_answer": {
+        "summary": "Use `LaunchedEffect` for work that starts when the composable enters the Composition, and `rememberCoroutineScope()` to launch from callbacks like `onClick`; both cancel their coroutines when they leave the Composition.",
+        "key_points": [
+          "`LaunchedEffect` is a composable: it launches its block when it enters the Composition, restarts it when its keys change, and cancels it when it leaves, so it fits work that starts when the screen appears",
+          "`onClick` is not a composable context, so `LaunchedEffect` can't be called there; use `rememberCoroutineScope()` and `scope.launch { ... }` instead",
+          "The scope from `rememberCoroutineScope()` is bound to its point in the Composition and cancelled when that call leaves it, so the coroutine doesn't outlive the screen as with `GlobalScope`",
+          "`rememberCoroutineScope()` also fits when you must control coroutines manually, such as cancelling an animation on a user event"
+        ]
+      },
+      "explanation": "The tempting mistake is to reach for `LaunchedEffect` everywhere, but it can only be called from composition, so it can't respond to a click. Both APIs tie the coroutine to the Composition, which is why either beats an unscoped coroutine that keeps running after the user leaves.",
+      "materials": [
+        "compose-side-effects"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/side-effects",
+          "title": "Side-effects in Compose",
+          "publisher": "Android Developers",
+          "accessed": "2026-10-02",
+          "claim": "`LaunchedEffect` launches a coroutine when it enters the Composition, restarts on key change and cancels when it leaves; as a composable it can only be used inside composables, so to launch outside one (for example in `onClick`) use `rememberCoroutineScope`, whose scope is bound to its point in the Composition and cancelled when the call leaves it, and which also fits manual control such as cancelling an animation on a user event."
+        }
+      ]
+    },
+    {
+      "id": "c022-q04",
+      "lesson": null,
+      "concept": "c022-compose-backwards-writes",
+      "type": "written",
+      "prompt": "A code review finds a composable that reads a `mutableStateOf` value and then updates that same state further down its body. Explain what a backwards write is, what it does at runtime, and how to avoid it.",
+      "model_answer": {
+        "summary": "A backwards write is a write, during composition, to state that composition has already read; Compose sees the stale read and recomposes again, possibly forever, so state should only be written from events.",
+        "key_points": [
+          "A backwards write is writing to state that has already been read in the current composition, which breaks Compose's core assumption",
+          "Compose sees that a state read is out of date and schedules another recomposition, which can repeat on every frame, endlessly",
+          "Avoid it by never writing state during composition, and writing it only in response to events, in lambdas such as `onClick`"
+        ]
+      },
+      "explanation": "Compose assumes composition only reads state. A write after a read invalidates what was just composed, so each pass schedules the next one, and the screen recomposes endlessly while burning CPU. Moving the write into an event handler keeps state changes tied to user actions.",
+      "materials": [
+        "compose-performance"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/performance/bestpractices",
+          "title": "Follow best practices (Compose performance)",
+          "publisher": "Android Developers",
+          "accessed": "2026-10-02",
+          "claim": "Compose assumes you never write to state that has already been read; doing so, a backwards write, can cause recomposition on every frame, endlessly; avoid it by never writing to state in composition and writing in response to events in lambdas such as `onClick`."
+        }
+      ]
+    },
+    {
+      "id": "c022-q05",
+      "lesson": null,
+      "concept": "c022-native-debug-symbols",
+      "type": "multiple_choice",
+      "prompt": "With `debugSymbolLevel = FULL`, your native debug symbols file grows past Play Console's 1.6 GB limit. What does the Android guidance suggest?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Use `SYMBOL_TABLE`, which keeps function names but no file and line data"
+        },
+        {
+          "id": "b",
+          "text": "Upload `mapping.txt` instead, since it also covers the symbols of native code"
+        },
+        {
+          "id": "c",
+          "text": "Stop stripping native libraries, so the symbols ship inside the app bundle"
+        },
+        {
+          "id": "d",
+          "text": "Keep `FULL` but split the file, uploading one archive for each ABI separately"
+        }
+      ],
+      "answer": "a",
+      "explanation": "`FULL` gives function names, files and line numbers in Play Console's symbolicated traces; `SYMBOL_TABLE` gives function names only, in a much smaller file. When the symbols file is too large for the 1.6 GB limit, the guidance is to use `SYMBOL_TABLE`. R8's mapping file is for Java and Kotlin code, not native frames.",
+      "materials": [
+        "android-vitals"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/build/include-native-symbols",
+          "title": "Include native debug symbols",
+          "publisher": "Android Developers",
+          "accessed": "2026-10-02",
+          "claim": "`SYMBOL_TABLE` gives function names in Play Console's symbolicated stack traces and `FULL` adds files and line numbers; the native debug symbols file has a 1.6 GB limit, and if it is too large you should use `SYMBOL_TABLE` instead of `FULL`."
+        }
+      ]
+    },
+    {
+      "id": "c022-q06",
+      "lesson": null,
+      "concept": "c022-remembercoroutinescope-vs-launchedeffect",
+      "type": "multiple_choice",
+      "prompt": "Inside a button's `onClick`, a developer writes `LaunchedEffect(Unit) { listState.animateScrollToItem(0) }` so that tapping scrolls to the top. What is wrong, and what is the fix?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It runs only once; key `LaunchedEffect` on a counter that `onClick` increments"
+        },
+        {
+          "id": "b",
+          "text": "`onClick` isn't composable, so it can't call it; use `rememberCoroutineScope()`"
+        },
+        {
+          "id": "c",
+          "text": "It scrolls fine, but it should use `GlobalScope` so the scroll finishes off-screen"
+        },
+        {
+          "id": "d",
+          "text": "It scrolls fine, but `animateScrollToItem` must run on `Dispatchers.IO` to be safe"
+        }
+      ],
+      "answer": "b",
+      "explanation": "`LaunchedEffect` is a composable function, so it can only be called from composition, not from an event callback. To start a coroutine from `onClick`, get a scope with `rememberCoroutineScope()` and call `scope.launch { listState.animateScrollToItem(0) }`; that scope is cancelled when the composable leaves the Composition, unlike `GlobalScope`.",
+      "materials": [
+        "compose-side-effects"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/side-effects",
+          "title": "Side-effects in Compose",
+          "publisher": "Android Developers",
+          "accessed": "2026-10-02",
+          "claim": "As `LaunchedEffect` is a composable function it can only be used inside other composables; to launch a coroutine outside a composable, scoped so it is cancelled when it leaves the Composition, use `rememberCoroutineScope`, as in the documented `onClick` snackbar example."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,240 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c015-typeis-narrowing",
+      "name": "`TypeIs` vs `TypeGuard` narrowing"
+    },
+    {
+      "id": "c015-github-token-permissions",
+      "name": "Scoping `GITHUB_TOKEN` with `permissions`"
+    },
+    {
+      "id": "c015-agent-sdk-sessions",
+      "name": "Claude Agent SDK sessions: resume and fork"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c015-q01",
+      "lesson": null,
+      "concept": "c015-typeis-narrowing",
+      "type": "multiple_choice",
+      "prompt": "A predicate is declared `def is_text(b: TextBlock | ToolUseBlock) -> TypeIs[TextBlock]`. In the `else` branch of `if is_text(block):`, what type does a type checker give `block`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`TextBlock | ToolUseBlock`, since only the `if` branch is ever narrowed"
+        },
+        {
+          "id": "b",
+          "text": "`ToolUseBlock`, because `TypeIs` narrows the `else` branch as well"
+        },
+        {
+          "id": "c",
+          "text": "`object`, because a predicate that fails erases what was known before"
+        },
+        {
+          "id": "d",
+          "text": "`Never`, since the predicate claims every input is a `TextBlock`"
+        }
+      ],
+      "answer": "b",
+      "explanation": "When a `TypeIs` predicate returns `False`, the argument is narrowed to exclude the named type, so only `ToolUseBlock` is left. Narrowing only in the `if` branch is how `TypeGuard` behaves. Neither checks the function body at runtime: the predicate must really return what it claims.",
+      "materials": [
+        "python-docs-typing"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/library/typing.html",
+          "title": "typing — Support for type hints",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-10-02",
+          "claim": "With TypeIs, a True return narrows the argument to the intersection of its type and the narrowed type, and a False return narrows it to exclude that type; with TypeGuard, a False return leaves the type unchanged."
+        }
+      ]
+    },
+    {
+      "id": "c015-q02",
+      "lesson": null,
+      "concept": "c015-github-token-permissions",
+      "type": "multiple_choice",
+      "prompt": "A job adds `permissions: { pull-requests: write }` so one of its steps can comment on the pull request. What access does that job's `GITHUB_TOKEN` now have to the repository's contents?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Read, because `contents: read` is always kept as a baseline"
+        },
+        {
+          "id": "b",
+          "text": "The repository's default, since one entry only adds access"
+        },
+        {
+          "id": "c",
+          "text": "None, because every permission you don't list is set to `none`"
+        },
+        {
+          "id": "d",
+          "text": "Write, because `pull-requests: write` implies `contents: write`"
+        }
+      ],
+      "answer": "c",
+      "explanation": "Once you specify any permission in `permissions`, every one you didn't list is set to `none`. So a job that also runs `actions/checkout` needs `contents: read` listed too. The rule makes least privilege the default: you grant exactly what each job needs.",
+      "materials": [
+        "github-actions-documentation"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax",
+          "title": "Workflow syntax for GitHub Actions",
+          "publisher": "GitHub",
+          "accessed": "2026-10-02",
+          "claim": "The `permissions` key modifies the default permissions of the GITHUB_TOKEN at workflow or job level; if you specify the access for any permission, all of those not specified are set to none."
+        }
+      ]
+    },
+    {
+      "id": "c015-q03",
+      "lesson": null,
+      "concept": "c015-agent-sdk-sessions",
+      "type": "written",
+      "prompt": "A Claude Agent SDK service analyses a repository in one `query()` call, and users later ask follow-ups, sometimes wanting to try another approach without losing the first. How would you use sessions for this, and what does a session not restore?",
+      "model_answer": {
+        "summary": "Capture the session ID from the result, `resume` it for follow-ups and `resume` with `fork_session` for alternatives; a session restores the conversation, not the files, and its transcript is local to the machine.",
+        "key_points": [
+          "Capture `session_id` from the result message and pass it as `resume` to continue with the full prior context",
+          "Fork with `resume` plus `fork_session=True`: the fork gets a new session ID and a copy of the history, and the original is unchanged",
+          "Sessions persist the conversation, not the filesystem: file edits made in a fork are real for every session in that directory (use file checkpointing to revert them)",
+          "Session files are stored locally under `~/.claude/projects/`, so resuming on another host needs a session store or the moved file"
+        ]
+      },
+      "explanation": "Resuming saves the agent from re-reading files and re-doing analysis, and forking lets you branch without spoiling the original thread. The tempting assumption is that a fork is a sandbox: it only branches the history, so its edits land on disk for everyone.",
+      "materials": [
+        "claude-agent-sdk"
+      ],
+      "sources": [
+        {
+          "url": "https://code.claude.com/docs/en/agent-sdk/sessions",
+          "title": "Work with sessions",
+          "publisher": "Anthropic",
+          "accessed": "2026-10-02",
+          "claim": "The session ID is on every result message; `resume` returns to a session with full context; `fork_session` creates a new session with a copy of the history and leaves the original unchanged; sessions persist the conversation, not the filesystem; session files are local to the machine that created them."
+        }
+      ]
+    },
+    {
+      "id": "c015-q04",
+      "lesson": null,
+      "concept": "c015-typeis-narrowing",
+      "type": "multiple_choice",
+      "prompt": "You write `def is_str_list(val: list[object]) -> TypeGuard[list[str]]`. Why is `TypeGuard`, not `TypeIs`, the right choice here?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`TypeIs` only works when its body is a single `isinstance` check"
+        },
+        {
+          "id": "b",
+          "text": "`TypeGuard` checks each element at runtime, and `TypeIs` doesn't"
+        },
+        {
+          "id": "c",
+          "text": "`TypeIs` can only narrow a union, and `list[object]` is not a union"
+        },
+        {
+          "id": "d",
+          "text": "`TypeIs` needs a type consistent with the input; `list[str]` isn't"
+        }
+      ],
+      "answer": "d",
+      "explanation": "The type inside `TypeIs` must be consistent with the argument's type, and `list[str]` is not a subtype of `list[object]` (lists are invariant). `TypeGuard` has no such rule and narrows to exactly the named type in the `if` branch, which is what the docs' `is_str_list` example uses. Neither construct checks anything at runtime.",
+      "materials": [
+        "python-docs-typing"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/library/typing.html",
+          "title": "typing — Support for type hints",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-10-02",
+          "claim": "The type inside TypeIs must be consistent with the type of the function's argument; TypeGuard narrows to exactly its type in the True branch, as in the `is_str_list(val: list[object]) -> TypeGuard[list[str]]` example."
+        }
+      ]
+    },
+    {
+      "id": "c015-q05",
+      "lesson": null,
+      "concept": "c015-github-token-permissions",
+      "type": "written",
+      "prompt": "Your repository's workflows lint and test on every push, and one job publishes a release. How would you set the `GITHUB_TOKEN` permissions, and how does the `permissions` key behave at workflow and job level?",
+      "model_answer": {
+        "summary": "Set a read-only default for the workflow and raise permissions only in the release job; the job-level key overrides the workflow's, and any permission not listed becomes `none`.",
+        "key_points": [
+          "Grant the least access: a workflow-level default of `contents: read` for lint and test",
+          "Give only the release job the extra permission it needs, such as `contents: write`, with a job-level `permissions` key",
+          "A job-level `permissions` overrides the workflow-level one, and listing any permission sets every unlisted one to `none`",
+          "`permissions: {}` disables all permissions for jobs that need no token access"
+        ]
+      },
+      "explanation": "GitHub recommends a read-only default for repository contents and raising permissions per job, so a compromised lint step can't push code. The rule that unlisted permissions become `none` is what catches people out: listing one write permission can silently remove the read access checkout needs.",
+      "materials": [
+        "github-actions-documentation"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax",
+          "title": "Workflow syntax for GitHub Actions",
+          "publisher": "GitHub",
+          "accessed": "2026-10-02",
+          "claim": "`permissions` can be set for a workflow or a job, the job value overriding the workflow's; specifying any permission sets all unspecified ones to none; `permissions: {}` disables all."
+        },
+        {
+          "url": "https://docs.github.com/en/actions/reference/security/secure-use",
+          "title": "Secure use reference",
+          "publisher": "GitHub",
+          "accessed": "2026-10-02",
+          "claim": "It's good security practice to set the default GITHUB_TOKEN permission to read access only for repository contents, and increase permissions as required for individual jobs."
+        }
+      ]
+    },
+    {
+      "id": "c015-q06",
+      "lesson": null,
+      "concept": "c015-agent-sdk-sessions",
+      "type": "multiple_choice",
+      "prompt": "You resume a Claude Agent SDK session with `fork_session=True`, and the forked agent edits `auth.py` in the same working directory. What happens to the original session?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Nothing at all: a fork works on its own private copy of the files"
+        },
+        {
+          "id": "b",
+          "text": "Its history is unchanged, but the `auth.py` edit is real for it"
+        },
+        {
+          "id": "c",
+          "text": "Its history gains the fork's turns as soon as the fork's run ends"
+        },
+        {
+          "id": "d",
+          "text": "It is closed, and only the fork's new session ID can be resumed"
+        }
+      ],
+      "answer": "b",
+      "explanation": "A fork gets its own session ID and a copy of the history, and the original's history stays as it was, so both can be resumed. But forking branches the conversation, not the filesystem: the edit is on disk for any session in that directory. To revert file changes, the docs point to file checkpointing.",
+      "materials": [
+        "claude-agent-sdk"
+      ],
+      "sources": [
+        {
+          "url": "https://code.claude.com/docs/en/agent-sdk/sessions",
+          "title": "Work with sessions",
+          "publisher": "Anthropic",
+          "accessed": "2026-10-02",
+          "claim": "Forking creates a new session with its own ID and a copy of the history while the original stays unchanged; it branches the conversation history, not the filesystem, so a forked agent's file edits are real and visible to any session in the same directory."
+        }
+      ]
+    }
+  ]
+}

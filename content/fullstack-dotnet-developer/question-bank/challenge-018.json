@@ -1,0 +1,246 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c018-savechanges-batching",
+      "name": "SaveChanges statement batching and round trips"
+    },
+    {
+      "id": "c018-cosmos-consistency-levels",
+      "name": "Azure Cosmos DB consistency levels and session tokens"
+    },
+    {
+      "id": "c018-parameter-sniffing",
+      "name": "Parameter sniffing and parameter-sensitive plans in SQL Server"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c018-q01",
+      "lesson": null,
+      "concept": "c018-savechanges-batching",
+      "type": "multiple_choice",
+      "prompt": "A request modifies one tracked `Blog`, adds 100 new `Post` entities, and calls `SaveChangesAsync()` once on SQL Server with default settings. How does EF Core send the statements?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "One round trip per entity, sent in the order the entities were added or changed"
+        },
+        {
+          "id": "b",
+          "text": "In batches of up to 42 statements per round trip, so a few round trips here"
+        },
+        {
+          "id": "c",
+          "text": "As one `ExecuteUpdate`-style bulk statement, because it saves over 100 rows"
+        },
+        {
+          "id": "d",
+          "text": "All 101 statements in a single round trip, however many entities there are"
+        }
+      ],
+      "answer": "b",
+      "explanation": "EF Core tracks the changes and batches them to save round trips. On SQL Server it puts at most 42 statements in a batch by default, because the benefit of batching fades after about 40 statements, so 101 statements take three round trips. Each entity still gets its own INSERT or UPDATE; only `ExecuteUpdateAsync` turns a change into one set-based statement. `MaxBatchSize` can be tuned, but benchmark first.",
+      "materials": [
+        "efcore-performance"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/ef/core/performance/efficient-updating",
+          "title": "Efficient Updating - EF Core",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "SaveChanges batches tracked changes into as few round trips as possible; on SQL Server EF executes at most 42 statements per batch by default (MinBatchSize/MaxBatchSize are tunable, benchmark first), but still sends one UPDATE per entity, while ExecuteUpdateAsync sends a single UPDATE without loading or change tracking."
+        }
+      ]
+    },
+    {
+      "id": "c018-q02",
+      "lesson": null,
+      "concept": "c018-cosmos-consistency-levels",
+      "type": "multiple_choice",
+      "prompt": "An API on Azure Cosmos DB uses the default Session consistency. A user saves their profile, and the next request, served by another API instance with its own `CosmosClient`, reads it back. Which statement is correct?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The read is always fresh, since Session consistency covers the whole account"
+        },
+        {
+          "id": "b",
+          "text": "The read fails with a conflict until the write has reached every region"
+        },
+        {
+          "id": "c",
+          "text": "The read can be stale unless that instance gets the write's session token"
+        },
+        {
+          "id": "d",
+          "text": "The read is fresh only if the account's default is changed to Eventual"
+        }
+      ],
+      "answer": "c",
+      "explanation": "Session consistency gives read-your-writes within one client session: after each write the client caches a session token and sends it with reads. A client that never wrote to that partition has no token, so its reads behave like Eventual consistency and may return older data. Pass the session token between instances (or route the user consistently) to keep the guarantee. Eventual is the weakest level, not a fix.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/cosmos-db/consistency-levels",
+          "title": "Consistency level choices - Azure Cosmos DB",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "Session consistency gives read-your-writes within a client session via session tokens; a client with no session token for a partition reads with eventual consistency; Strong and Bounded staleness read from two replicas, costing twice the RUs of weaker levels, writes cost the same RUs at every level, and Strong can't be used with multiple write regions."
+        }
+      ]
+    },
+    {
+      "id": "c018-q03",
+      "lesson": null,
+      "concept": "c018-parameter-sniffing",
+      "type": "written",
+      "prompt": "A parameterized SQL Server query `WHERE CustomerId = @c` is sometimes fast for every customer and sometimes slow for every customer, and freeing its cached plan changes which. A few customers have millions of rows. Explain the cause and how you would fix it.",
+      "model_answer": {
+        "summary": "Parameter sniffing: the plan is compiled for the first parameter value seen and reused for all values, which is bad when data is skewed; fix with Parameter Sensitive Plan optimization, `OPTION (RECOMPILE)`, `OPTIMIZE FOR` or plan forcing, each with its own cost.",
+        "key_points": [
+          "SQL Server sniffs the parameter values when it compiles a parameterized query (`sp_executesql`, prepared statements, stored procedures) and caches a plan optimized for them, which later executions reuse",
+          "With skewed data, a plan compiled for a small customer is bad for a huge one, or the reverse; that freeing just this plan (`DBCC FREEPROCCACHE (plan_handle)`) changes the behaviour confirms the diagnosis",
+          "Fixes include `OPTION (RECOMPILE)` (compile CPU on every run), `OPTIMIZE FOR` a typical value or `OPTIMIZE FOR UNKNOWN` (density average), or forcing a known good plan with Query Store",
+          "On SQL Server 2022+ at compatibility level 160, Parameter Sensitive Plan optimization can cache several plans for the statement, picked by the parameter's cardinality range (equality predicates only)"
+        ]
+      },
+      "explanation": "Parameterization is good, since it lets SQL Server reuse plans, but one plan can't suit both a customer with ten rows and one with millions. Adding an index or clearing the whole plan cache treats the symptom; pick a fix that matches how often the query runs and how skewed the data is.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/sql/relational-databases/query-processing-architecture-guide",
+          "title": "Query Processing Architecture Guide - SQL Server",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "Parameter sniffing: SQL Server sniffs the current parameter values when compiling stored procedures, sp_executesql queries and prepared queries, and the cached plan optimized for them is reused for later values."
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/troubleshoot/sql/database-engine/performance/troubleshoot-high-cpu-usage-issues",
+          "title": "Troubleshoot High CPU Usage Issues in SQL Server",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "If freeing a plan with DBCC FREEPROCCACHE (plan_handle) fixes the problem, it points to a parameter-sensitive plan; mitigations include the RECOMPILE hint (extra compile CPU), OPTIMIZE FOR a typical value, OPTIMIZE FOR UNKNOWN (density average) and DISABLE_PARAMETER_SNIFFING, each with trade-offs."
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/sql/relational-databases/performance/parameter-sensitive-plan-optimization",
+          "title": "Parameter Sensitive Plan Optimization - SQL Server",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "PSP optimization (SQL Server 2022+, compatibility level 160) caches multiple active plans for one parameterized statement: a dispatcher plan routes each execution to a query variant by the predicate's cardinality range; it works only with equality predicates and is off when parameter sniffing is disabled."
+        }
+      ]
+    },
+    {
+      "id": "c018-q04",
+      "lesson": null,
+      "concept": "c018-savechanges-batching",
+      "type": "written",
+      "prompt": "A nightly job gives every employee a 5% raise by loading 200,000 tracked `Employee` rows, changing `Salary`, and calling `SaveChangesAsync()`. Explain what this costs and what you would change.",
+      "model_answer": {
+        "summary": "It loads every row, snapshots and compares them in the change tracker, and sends one UPDATE per employee (batched, but still 200,000 statements); `ExecuteUpdateAsync` does it in one set-based UPDATE and one round trip.",
+        "key_points": [
+          "Loading brings every employee's row data to the client, and the change tracker snapshots each entity and compares it to find what changed",
+          "`SaveChanges` batches the statements (on SQL Server up to 42 per round trip by default), but it still sends one UPDATE per employee, which the database executes separately",
+          "`ExecuteUpdateAsync(s => s.SetProperty(e => e.Salary, e => e.Salary * 1.05m))` sends a single UPDATE statement in one round trip, without loading data or using change tracking",
+          "Tuning `MaxBatchSize` only changes how statements are grouped into round trips, and needs benchmarking; it doesn't reduce the number of statements"
+        ]
+      },
+      "explanation": "Batching cuts round trips, not work: each tracked change is still its own statement. When the change is the same rule for every row, a set-based `ExecuteUpdateAsync` moves the whole job into the database. Raising the batch size is the tempting fix, but it leaves the 200,000 loads and updates in place.",
+      "materials": [
+        "efcore-performance"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/ef/core/performance/efficient-updating",
+          "title": "Efficient Updating - EF Core",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "SaveChanges batches tracked changes into as few round trips as possible; on SQL Server EF executes at most 42 statements per batch by default (MinBatchSize/MaxBatchSize are tunable, benchmark first), but still sends one UPDATE per entity, while ExecuteUpdateAsync sends a single UPDATE without loading or change tracking."
+        }
+      ]
+    },
+    {
+      "id": "c018-q05",
+      "lesson": null,
+      "concept": "c018-cosmos-consistency-levels",
+      "type": "multiple_choice",
+      "prompt": "Your team proposes switching a Cosmos DB account from Session to Strong consistency for all reads. Which cost does Microsoft's documentation describe?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Writes cost twice the RUs, since each one must be written to two partitions"
+        },
+        {
+          "id": "b",
+          "text": "Reads lose their latency SLA, since Strong reads always go to the hub region"
+        },
+        {
+          "id": "c",
+          "text": "It works with multi-region writes but adds about 10 ms to each read request"
+        },
+        {
+          "id": "d",
+          "text": "Reads use a two-replica quorum, so a read costs twice the RUs of Session"
+        }
+      ],
+      "answer": "d",
+      "explanation": "Strong and Bounded staleness read from two replicas of the four-replica set, so read throughput per RU is half that of Session, Consistent prefix and Eventual, which read one replica. Write RU charges are the same at every level, though Strong commits across regions and raises multi-region write latency. Read latency stays under 10 ms at p99 for every level, and accounts with multiple write regions can't use Strong at all.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/cosmos-db/consistency-levels",
+          "title": "Consistency level choices - Azure Cosmos DB",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "Session consistency gives read-your-writes within a client session via session tokens; a client with no session token for a partition reads with eventual consistency; Strong and Bounded staleness read from two replicas, costing twice the RUs of weaker levels, writes cost the same RUs at every level, and Strong can't be used with multiple write regions."
+        }
+      ]
+    },
+    {
+      "id": "c018-q06",
+      "lesson": null,
+      "concept": "c018-parameter-sniffing",
+      "type": "multiple_choice",
+      "prompt": "On SQL Server 2022 at compatibility level 160, what does Parameter Sensitive Plan (PSP) optimization do for a parameterized equality query over skewed data?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It recompiles the statement on every execution, like `OPTION (RECOMPILE)`"
+        },
+        {
+          "id": "b",
+          "text": "It caches several plans, chosen by the parameter value's cardinality range"
+        },
+        {
+          "id": "c",
+          "text": "It turns off sniffing and optimizes for the column's average density value"
+        },
+        {
+          "id": "d",
+          "text": "It inlines each value as a literal, so every value gets its own SQL text and plan"
+        }
+      ],
+      "answer": "b",
+      "explanation": "PSP optimization compiles a dispatcher plan that sorts runtime parameter values into cardinality ranges (such as low, medium and high) and routes each execution to a query variant with its own cached plan. It doesn't recompile every time and doesn't disable sniffing; disabling parameter sniffing in fact turns PSP off. Optimizing for the density average is what `OPTIMIZE FOR UNKNOWN` does.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/sql/relational-databases/performance/parameter-sensitive-plan-optimization",
+          "title": "Parameter Sensitive Plan Optimization - SQL Server",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "PSP optimization (SQL Server 2022+, compatibility level 160) caches multiple active plans for one parameterized statement: a dispatcher plan routes each execution to a query variant by the predicate's cardinality range; it works only with equality predicates and is off when parameter sniffing is disabled."
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/troubleshoot/sql/database-engine/performance/troubleshoot-high-cpu-usage-issues",
+          "title": "Troubleshoot High CPU Usage Issues in SQL Server",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "If freeing a plan with DBCC FREEPROCCACHE (plan_handle) fixes the problem, it points to a parameter-sensitive plan; mitigations include the RECOMPILE hint (extra compile CPU), OPTIMIZE FOR a typical value, OPTIMIZE FOR UNKNOWN (density average) and DISABLE_PARAMETER_SNIFFING, each with trade-offs."
+        }
+      ]
+    }
+  ]
+}

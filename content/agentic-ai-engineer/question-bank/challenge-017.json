@@ -1,0 +1,233 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c017-asyncio-shield",
+      "name": "Protecting work from cancellation with `asyncio.shield`"
+    },
+    {
+      "id": "c017-pin-actions-sha",
+      "name": "Pinning third-party actions to a commit SHA"
+    },
+    {
+      "id": "c017-crewai-task-guardrails",
+      "name": "CrewAI task guardrails"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c017-q01",
+      "lesson": null,
+      "concept": "c017-asyncio-shield",
+      "type": "multiple_choice",
+      "prompt": "A handler runs `res = await asyncio.shield(save_task)`, where `save_task` came from `asyncio.create_task(save())`. The handler is cancelled while it waits. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Both keep going, and the `await` returns once `save_task` is done"
+        },
+        {
+          "id": "b",
+          "text": "`save_task` is cancelled too, because `shield` only delays it"
+        },
+        {
+          "id": "c",
+          "text": "The handler ignores the cancel, and `res` is set to `None`"
+        },
+        {
+          "id": "d",
+          "text": "`save_task` keeps running, but the handler gets `CancelledError`"
+        }
+      ],
+      "answer": "d",
+      "explanation": "`shield` protects the inner task: from `save()`'s point of view the cancellation didn't happen. The caller is still cancelled, so the `await` raises `CancelledError`. Ignoring the cancellation entirely needs an explicit `try`/`except CancelledError`, which the docs don't recommend.",
+      "materials": [
+        "python-docs-asyncio"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/library/asyncio-task.html",
+          "title": "Coroutines and Tasks",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-10-02",
+          "claim": "If the coroutine containing `await shield(task)` is cancelled, the task is not cancelled, but the caller is still cancelled and the await raises CancelledError; ignoring cancellation completely needs a try/except, which is not recommended."
+        }
+      ]
+    },
+    {
+      "id": "c017-q02",
+      "lesson": null,
+      "concept": "c017-pin-actions-sha",
+      "type": "multiple_choice",
+      "prompt": "A workflow uses `uses: some-org/setup-llm@v2`. A security review asks that the action's code can't change unless your repository changes. What do you do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Pin it to the full-length commit SHA from the action's own repo"
+        },
+        {
+          "id": "b",
+          "text": "Pin it to the exact `v2.3.1` release tag, as such tags can't move"
+        },
+        {
+          "id": "c",
+          "text": "Pin it to the 7-character short SHA, which is just as immutable"
+        },
+        {
+          "id": "d",
+          "text": "Pin it to `@main`, so you always run the latest reviewed version"
+        }
+      ],
+      "answer": "a",
+      "explanation": "GitHub's secure-use guidance says pinning to a full-length commit SHA is currently the only way to use an action as an immutable release, and to check the SHA comes from the action's repository, not a fork. Any tag, even an exact release tag, can be moved or deleted by someone with access to that repository.",
+      "materials": [
+        "github-actions-documentation"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.github.com/en/actions/reference/security/secure-use",
+          "title": "Secure use reference",
+          "publisher": "GitHub",
+          "accessed": "2026-10-02",
+          "claim": "Pinning an action to a full-length commit SHA is currently the only way to use an action as an immutable release; verify the SHA is from the action's repository and not a fork; a tag can be moved or deleted if a bad actor gains access to the action's repository."
+        }
+      ]
+    },
+    {
+      "id": "c017-q03",
+      "lesson": null,
+      "concept": "c017-crewai-task-guardrails",
+      "type": "written",
+      "prompt": "A CrewAI task must return valid JSON with a summary under 200 words. Explain how you would enforce this with task guardrails, and what happens when a check fails.",
+      "model_answer": {
+        "summary": "Attach guardrail functions that take the `TaskOutput` and return `(True, result)` or `(False, error)`; on failure the error goes back to the agent, which retries up to `guardrail_max_retries` times.",
+        "key_points": [
+          "A function guardrail takes the `TaskOutput` and returns a tuple: `(True, validated_result)` or `(False, \"error message\")`",
+          "On `(False, error)` the error is sent back to the agent, which tries to fix its output, until a check passes or `guardrail_max_retries` (default 3) is reached",
+          "A `guardrails` list runs the checks in order, each receiving the previous one's output, so a JSON check can run before a length check",
+          "A guardrail can also be a string, which CrewAI checks with the agent's LLM, suited to subjective criteria such as tone"
+        ]
+      },
+      "explanation": "Guardrails turn a vague instruction into a check with a feedback loop: the agent sees the specific error and corrects it. Code checks suit exact rules like valid JSON or a word limit; string guardrails, judged by an LLM, suit criteria code can't test. Only putting the rule in the task description is the tempting answer, but nothing then verifies it.",
+      "materials": [
+        "crewai-documentation"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.crewai.com/en/concepts/tasks",
+          "title": "Tasks",
+          "publisher": "CrewAI",
+          "accessed": "2026-10-02",
+          "claim": "A function guardrail takes a TaskOutput and returns Tuple[bool, Any]; on failure the error is sent back to the agent, which retries until it passes or guardrail_max_retries (default 3) is reached; string guardrails use LLM-based validation; a `guardrails` list runs sequentially, each receiving the previous one's output."
+        }
+      ]
+    },
+    {
+      "id": "c017-q04",
+      "lesson": null,
+      "concept": "c017-asyncio-shield",
+      "type": "written",
+      "prompt": "When would you use `asyncio.shield` in an agent backend, and what must you still handle?",
+      "model_answer": {
+        "summary": "Use `shield` for work that must finish even if the caller is cancelled, such as saving a result, while still handling the caller's `CancelledError` and keeping a reference to the shielded task.",
+        "key_points": [
+          "It protects the inner task from the outer cancellation, for work that must complete, such as writing a result when the client disconnects",
+          "The caller is still cancelled, so the `await` raises `CancelledError` and the caller's own cleanup must handle it",
+          "Keep a reference to the task you shield, because the event loop holds only weak references and it could be garbage collected",
+          "If the inner task is cancelled from within, the shield is cancelled too; ignoring cancellation fully needs a `try`/`except`, which is not recommended"
+        ]
+      },
+      "explanation": "`shield` splits one cancellation in two: the caller stops, the protected work goes on. That is the right trade for short, important work, but it is easy to forget that the caller still sees `CancelledError`, and that nothing else keeps the shielded task alive unless you hold a reference.",
+      "materials": [
+        "python-docs-asyncio"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/library/asyncio-task.html",
+          "title": "Coroutines and Tasks",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-10-02",
+          "claim": "shield keeps the inner task running when the containing coroutine is cancelled, but the caller still gets CancelledError; cancellation from within also cancels shield; save a reference to tasks passed to shield because the loop keeps only weak references."
+        }
+      ]
+    },
+    {
+      "id": "c017-q05",
+      "lesson": null,
+      "concept": "c017-pin-actions-sha",
+      "type": "multiple_choice",
+      "prompt": "Why does GitHub warn about referencing a third-party action by a tag such as `@v2`, even if you trust its current code?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Tags are resolved only when the runner image is first built"
+        },
+        {
+          "id": "b",
+          "text": "Someone with access to its repo can move or delete the tag"
+        },
+        {
+          "id": "c",
+          "text": "GitHub won't cache an action that is referenced by its tag"
+        },
+        {
+          "id": "d",
+          "text": "Tags work only for actions published on the Marketplace"
+        }
+      ],
+      "answer": "b",
+      "explanation": "A tag is a movable pointer: if a bad actor gains access to the action's repository, they can move or delete it, and your next run gets their code. GitHub suggests tags only when you trust the action's creators, and a full-length commit SHA when you need an immutable release.",
+      "materials": [
+        "github-actions-documentation"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.github.com/en/actions/reference/security/secure-use",
+          "title": "Secure use reference",
+          "publisher": "GitHub",
+          "accessed": "2026-10-02",
+          "claim": "A tag can be moved or deleted if a bad actor gains access to the repository storing the action, so tags are only recommended if you trust the action's creators; a full-length commit SHA is the only immutable reference."
+        }
+      ]
+    },
+    {
+      "id": "c017-q06",
+      "lesson": null,
+      "concept": "c017-crewai-task-guardrails",
+      "type": "multiple_choice",
+      "prompt": "A CrewAI task is configured with `guardrails=[check_json, check_length]`. How do the two guardrails run?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "In parallel, and the task fails as soon as either one returns `False`"
+        },
+        {
+          "id": "b",
+          "text": "Only `check_json` runs, because a task can take a single guardrail"
+        },
+        {
+          "id": "c",
+          "text": "In order, with `check_length` receiving `check_json`'s output"
+        },
+        {
+          "id": "d",
+          "text": "In order, but each of the two checks receives the agent's raw output"
+        }
+      ],
+      "answer": "c",
+      "explanation": "Multiple guardrails run sequentially, and each receives the output of the previous one, so `check_json` can parse or clean the result before `check_length` checks it. A failing guardrail sends its error back to the agent to retry, up to `guardrail_max_retries`.",
+      "materials": [
+        "crewai-documentation"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.crewai.com/en/concepts/tasks",
+          "title": "Tasks",
+          "publisher": "CrewAI",
+          "accessed": "2026-10-02",
+          "claim": "The `guardrails` parameter accepts a list; multiple guardrails are executed sequentially, with each guardrail receiving the output from the previous one."
+        }
+      ]
+    }
+  ]
+}

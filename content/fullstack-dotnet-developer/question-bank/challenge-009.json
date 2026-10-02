@@ -1,0 +1,235 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c009-parallel-loop-pitfalls",
+      "name": "Parallel loop pitfalls: shared state and iterations waiting on each other"
+    },
+    {
+      "id": "c009-dockerfile-layer-cache-order",
+      "name": "Dockerfile layer caching and instruction order"
+    },
+    {
+      "id": "c009-objectpool-tradeoffs",
+      "name": "When object pooling pays off"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c009-q01",
+      "lesson": null,
+      "concept": "c009-parallel-loop-pitfalls",
+      "type": "multiple_choice",
+      "prompt": "```csharp\nvar ready = new ManualResetEventSlim();\nParallel.For(0, Environment.ProcessorCount * 100, i =>\n{\n    if (i == Environment.ProcessorCount) ready.Set();\n    else ready.Wait();\n});\n```\n\nWhat can this loop do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Finish quickly, because `Parallel.For` starts every iteration at once on its own dedicated thread"
+        },
+        {
+          "id": "b",
+          "text": "Throw at once, because `Parallel.For` refuses delegates that block on a synchronization primitive"
+        },
+        {
+          "id": "c",
+          "text": "Hang for good, if waiting iterations take all its threads before the one that sets the event runs"
+        },
+        {
+          "id": "d",
+          "text": "Finish in order, because `Parallel.For` runs iterations by index and `Set` comes early in the range"
+        }
+      ],
+      "answer": "c",
+      "explanation": "Iterations of a parallel loop may, but don't have to, run in parallel or in any particular order. Here the waiting iterations can occupy every thread the loop uses before the iteration that calls `Set` gets to run, so nothing ever wakes them: a deadlock. One iteration should never wait on another iteration to make progress.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/standard/parallel-programming/potential-pitfalls-in-data-and-task-parallelism",
+          "title": "Potential Pitfalls in Data and Task Parallelism - .NET",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "Parallel loops aren't always faster, so measure; avoid writing shared state (locks cost performance) and use thread-local or partition-local overloads; iterations may but don't have to run in parallel or in order, and one iteration should never wait on another, or the loop can deadlock."
+        }
+      ]
+    },
+    {
+      "id": "c009-q02",
+      "lesson": null,
+      "concept": "c009-dockerfile-layer-cache-order",
+      "type": "multiple_choice",
+      "prompt": "```dockerfile\nFROM mcr.microsoft.com/dotnet/sdk:10.0 AS build\nWORKDIR /src\nCOPY . .\nRUN dotnet restore\nRUN dotnet publish -c Release -o /app\n```\n\nEvery one-line code change makes the build restore all NuGet packages again. What fixes it?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Build with `--no-cache`, so Docker stops reusing stale restore layers every time"
+        },
+        {
+          "id": "b",
+          "text": "Merge restore and publish into one `RUN`, so they share a single cached layer"
+        },
+        {
+          "id": "c",
+          "text": "Move `COPY . .` under the restore, so restore runs before any file is copied in"
+        },
+        {
+          "id": "d",
+          "text": "Copy the `.csproj` files, run `dotnet restore`, then copy the rest and publish"
+        }
+      ],
+      "answer": "d",
+      "explanation": "Docker caches layer by layer, and once a layer changes every later layer is rebuilt. `COPY . .` changes with any source edit, so the restore after it always re-runs. Copying only the project files first keeps the restore layer cached until a package reference changes. `--no-cache` disables the cache entirely, and restoring before copying anything has no project to restore.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://docs.docker.com/build/cache/",
+          "title": "Docker build cache",
+          "publisher": "Docker",
+          "accessed": "2026-10-02",
+          "claim": "Once a layer changes, all downstream layers need to be rebuilt as well."
+        },
+        {
+          "url": "https://docs.docker.com/build/cache/optimize/",
+          "title": "Optimize cache usage in builds",
+          "publisher": "Docker",
+          "accessed": "2026-10-02",
+          "claim": "Copy the package management files first, install the dependencies, then copy the project source, so source changes don't re-run the install; use .dockerignore to keep the build context small and cache mounts for package caches."
+        }
+      ]
+    },
+    {
+      "id": "c009-q03",
+      "lesson": null,
+      "concept": "c009-objectpool-tradeoffs",
+      "type": "written",
+      "prompt": "A teammate wants to pool every DTO and `List<T>` in a hot ASP.NET Core endpoint with `Microsoft.Extensions.ObjectPool` to cut GC work. When does object pooling pay off, and what are its costs and rules?",
+      "model_answer": {
+        "summary": "Pool only objects that are expensive to create or limited, used often and predictably, prove it with measurements, and reset each object before reuse.",
+        "key_points": [
+          "Pooling fits objects that are expensive to allocate or initialize, represent a limited resource, or are used predictably and frequently, such as `StringBuilder` in ASP.NET Core",
+          "For cheap objects, getting one from the pool is usually slower than allocating, so measure realistic scenarios before and after",
+          "Pooled objects stay alive until the pool goes away, and the pool limits how many it retains, not how many it allocates",
+          "Reset each object's state when it is returned, with `IResettable` or a `PooledObjectPolicy<T>`, so one request never sees another's data"
+        ]
+      },
+      "explanation": "Pooling trades GC work for code complexity and longer-lived memory. Small DTOs are cheap for the GC to collect in gen 0, so pooling them usually makes things slower and risks leaking state between requests.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/performance/objectpool",
+          "title": "Object reuse with ObjectPool in ASP.NET Core",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "Pool objects that are expensive to allocate or initialize, represent a limited resource, or are used predictably and frequently; for cheap objects getting one from the pool is usually slower; pooled objects aren't freed until the pool is; measure first; the pool limits how many objects it retains, not how many it allocates; reset objects with IResettable or a PooledObjectPolicy."
+        }
+      ]
+    },
+    {
+      "id": "c009-q04",
+      "lesson": null,
+      "concept": "c009-parallel-loop-pitfalls",
+      "type": "written",
+      "prompt": "A teammate wraps a CPU-bound report in `Parallel.ForEach` and has every iteration add its subtotal to a shared `decimal total` field. Review this: what can go wrong, and what would you change?",
+      "model_answer": {
+        "summary": "The shared write is a race, parallelism isn't guaranteed to help, and iterations must not depend on each other; keep per-thread state and combine it once, then measure.",
+        "key_points": [
+          "Several iterations writing the shared field at once is a race condition, so the total can be wrong",
+          "Locking every update fixes correctness but the synchronization cost can erase the speed-up; use the overloads with thread-local or partition-local state and merge once at the end",
+          "A parallel loop isn't always faster: few iterations or cheap bodies may run slower, so measure against the sequential version",
+          "Iterations may not run in parallel or in order, so no iteration may wait on or depend on another one"
+        ]
+      },
+      "explanation": "The guidance for `Parallel.For` and `Parallel.ForEach` is to avoid shared state in the loop body. The tempting fix is a `lock` around the add, which is correct but can serialize the loop.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/standard/parallel-programming/potential-pitfalls-in-data-and-task-parallelism",
+          "title": "Potential Pitfalls in Data and Task Parallelism - .NET",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "Parallel loops aren't always faster, so measure; avoid writing shared state (locks cost performance) and use thread-local or partition-local overloads; iterations may but don't have to run in parallel or in order, and one iteration should never wait on another, or the loop can deadlock."
+        }
+      ]
+    },
+    {
+      "id": "c009-q05",
+      "lesson": null,
+      "concept": "c009-dockerfile-layer-cache-order",
+      "type": "multiple_choice",
+      "prompt": "Why does editing `README.md` rebuild every Dockerfile step after `COPY . .`, even when the build output would be the same?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Once a layer changes, Docker rebuilds every layer that follows it"
+        },
+        {
+          "id": "b",
+          "text": "Docker hashes the final image, so any file edit invalidates all layers"
+        },
+        {
+          "id": "c",
+          "text": "`COPY` steps are never cached, so every step after one always reruns"
+        },
+        {
+          "id": "d",
+          "text": "BuildKit compares each step's output, and sees new output for all of them"
+        }
+      ],
+      "answer": "a",
+      "explanation": "The cache is checked step by step, and a changed layer invalidates all downstream layers whether or not their output would differ. `COPY . .` changes whenever any copied file does. Exclude files the build doesn't need with `.dockerignore`, and copy what changes often as late as possible.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://docs.docker.com/build/cache/",
+          "title": "Docker build cache",
+          "publisher": "Docker",
+          "accessed": "2026-10-02",
+          "claim": "Once a layer changes, all downstream layers need to be rebuilt as well."
+        },
+        {
+          "url": "https://docs.docker.com/build/cache/optimize/",
+          "title": "Optimize cache usage in builds",
+          "publisher": "Docker",
+          "accessed": "2026-10-02",
+          "claim": "Copy the package management files first, install the dependencies, then copy the project source, so source changes don't re-run the install; use .dockerignore to keep the build context small and cache mounts for package caches."
+        }
+      ]
+    },
+    {
+      "id": "c009-q06",
+      "lesson": null,
+      "concept": "c009-objectpool-tradeoffs",
+      "type": "multiple_choice",
+      "prompt": "In a burst, 500 requests each call `Get()` on an `ObjectPool<T>` configured to retain at most 64 objects. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Requests past 64 block until another request first returns an object to the pool"
+        },
+        {
+          "id": "b",
+          "text": "It creates new objects past 64, and keeps up to 64 of them as they come back"
+        },
+        {
+          "id": "c",
+          "text": "Requests past 64 get an exception, since the pool can't hand out any more"
+        },
+        {
+          "id": "d",
+          "text": "It raises its limit to 500, then keeps every returned object for next time"
+        }
+      ],
+      "answer": "b",
+      "explanation": "`ObjectPool` doesn't limit how many objects it allocates, only how many it retains. When the pool is empty, `Get()` creates a new object; on `Return`, objects beyond the retention limit are simply dropped for the GC. So pooling never blocks or throws under a burst, but the extra objects aren't reused.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/performance/objectpool",
+          "title": "Object reuse with ObjectPool in ASP.NET Core",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "Pool objects that are expensive to allocate or initialize, represent a limited resource, or are used predictably and frequently; for cheap objects getting one from the pool is usually slower; pooled objects aren't freed until the pool is; measure first; the pool limits how many objects it retains, not how many it allocates; reset objects with IResettable or a PooledObjectPolicy."
+        }
+      ]
+    }
+  ]
+}

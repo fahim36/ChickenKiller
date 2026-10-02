@@ -1,0 +1,242 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c023-data-protection-key-ring",
+      "name": "Sharing the Data Protection key ring across instances"
+    },
+    {
+      "id": "c023-semantic-reranking",
+      "name": "Semantic reranking of a first-stage result set"
+    },
+    {
+      "id": "c023-dependency-confusion-source-mapping",
+      "name": "Dependency confusion and NuGet package source mapping"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c023-q01",
+      "lesson": null,
+      "concept": "c023-data-protection-key-ring",
+      "type": "multiple_choice",
+      "prompt": "You scale an ASP.NET Core app with cookie authentication from one container to three behind a load balancer, keeping the default Data Protection settings. Users are logged out at random and some form posts fail the antiforgery check. What is the cause?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The load balancer drops cookies larger than 4 KB, so the auth tickets are lost"
+        },
+        {
+          "id": "b",
+          "text": "Antiforgery tokens expire after one request, so retries on another node fail"
+        },
+        {
+          "id": "c",
+          "text": "Cookie auth only runs on a single instance, so scaling out isn't supported"
+        },
+        {
+          "id": "d",
+          "text": "Each instance has its own key ring, so it can't decrypt another one's cookies"
+        }
+      ],
+      "answer": "d",
+      "explanation": "Authentication cookies, antiforgery tokens and TempData are all protected with Data Protection keys. By default each node keeps its own key ring (in a container, often only in memory), so a request that lands on another node can't decrypt what the first one wrote, and failures look intermittent. Persist the key ring to shared storage and set the same application name; routing each user to the same node is the only alternative the docs give.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/host-and-deploy/web-farm",
+          "title": "Host ASP.NET Core in a web farm",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "By default a unique key ring is stored on each web farm node, so nodes can't decrypt each other's data; authentication, antiforgery, session and TempData depend on Data Protection, and the symptoms are intermittent sign-outs and failed antiforgery checks."
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/security/data-protection/configuration/default-settings",
+          "title": "Data Protection key management and lifetime in ASP.NET Core",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "When no persistent location is available, keys aren't persisted outside the process and are lost when it shuts down; in containers, keys should be persisted to a volume or an external provider."
+        }
+      ]
+    },
+    {
+      "id": "c023-q02",
+      "lesson": null,
+      "concept": "c023-semantic-reranking",
+      "type": "multiple_choice",
+      "prompt": "You add Azure AI Search's semantic ranker on top of a hybrid query. A relevant document that wasn't in the hybrid results at all still doesn't show up. Why?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The ranker only works with pure vector queries, so hybrid queries ignore it"
+        },
+        {
+          "id": "b",
+          "text": "The ranker only reorders the top 50 results; it doesn't search the index again"
+        },
+        {
+          "id": "c",
+          "text": "The ranker drops any document whose rerankerScore is below a fixed 2.0 cutoff"
+        },
+        {
+          "id": "d",
+          "text": "The ranker needs its own embedding model, and without one it falls back to BM25"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Semantic ranking is a second stage: it rescores the top 50 results of the first-stage BM25 or RRF ranking with Microsoft's language models. It can't rerun the query over the whole corpus, so a document the first stage missed can't appear. Fix recall in the first stage (query, chunking, hybrid weights). It works with text, hybrid and the text part of vector queries, and it has no fixed score cutoff.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/search/semantic-search-overview",
+          "title": "Semantic Ranking Overview - Azure AI Search",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "Semantic ranker reranks the top 50 results of an initial BM25- or RRF-ranked result set from text, vector or hybrid queries; it can't rerun the query over the entire corpus to find new results."
+        }
+      ]
+    },
+    {
+      "id": "c023-q03",
+      "lesson": null,
+      "concept": "c023-dependency-confusion-source-mapping",
+      "type": "written",
+      "prompt": "Your solution restores packages from nuget.org and from a private Azure Artifacts feed that hosts internal `Contoso.*` packages. Explain the dependency confusion risk, and how you would configure NuGet to close it.",
+      "model_answer": {
+        "summary": "With several sources NuGet searches all of them, and which one a package comes from isn't deterministic, so a look-alike `Contoso.*` package on nuget.org could be restored; package source mapping pins each package pattern to the source it must come from.",
+        "key_points": [
+          "By default NuGet searches every configured source, and when a package ID exists on more than one it isn't deterministic which source it downloads from, so an attacker's public package with an internal name can get restored",
+          "Add a repo-root `nuget.config` with `<clear />` and a `packageSourceMapping` that maps `Contoso.*` to the private feed and `*` to nuget.org; the most specific pattern wins, and every package, transitive ones included, must match a pattern",
+          "Mappings are skipped for packages already in the global packages folder, so give the repo its own global packages folder (and clear it) to get the full protection",
+          "Other controls: a single private feed with upstream sources, ID prefix reservation on nuget.org, and lock files"
+        ]
+      },
+      "explanation": "Dependency confusion abuses the fact that a package ID means nothing about where the package comes from. Source mapping fixes restore, but it doesn't stop commands like `dotnet package add` or `dotnet list package --vulnerable` from sending your package IDs to every source. Hoping internal names are unique, or pinning versions alone, doesn't close the gap.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/nuget/consume-packages/package-source-mapping",
+          "title": "Package Source Mapping",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "NuGet searches all configured sources and the source isn't deterministic when a package exists on several; with package source mapping every package, including transitive ones, must match a pattern, the most specific pattern wins, mappings are ignored for packages already in the global packages folder, and mapping applies only to restore, install and update."
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/nuget/concepts/security-best-practices",
+          "title": "Best practices for a secure software supply chain",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "When using multiple public and private feeds a package can be downloaded from any of them, so to be safe from dependency confusion know which feed each package comes from: use a single feed or a private feed with upstreams, package source mapping, lock files and package ID prefix reservation."
+        }
+      ]
+    },
+    {
+      "id": "c023-q04",
+      "lesson": null,
+      "concept": "c023-data-protection-key-ring",
+      "type": "written",
+      "prompt": "How would you configure ASP.NET Core Data Protection for an app that runs as several instances in Azure Container Apps, and what goes wrong if you don't?",
+      "model_answer": {
+        "summary": "Without configuration each instance has its own, possibly in-memory, key ring, so cookies and antiforgery tokens fail across instances and after restarts; persist one shared key ring, protect it at rest and give every instance the same application name.",
+        "key_points": [
+          "By default keys are per instance (and in a container may live only in memory), so cookies, antiforgery tokens and TempData protected on one instance can't be read on another, and a restart loses them",
+          "Persist the key ring to shared storage, for example `PersistKeysToAzureBlobStorage`, and protect the keys at rest, for example with `ProtectKeysWithAzureKeyVault`, using a managed identity",
+          "Call `SetApplicationName` with the same value everywhere, because Data Protection otherwise isolates apps by content root path",
+          "Don't delete old keys: keys roll every 90 days by default, and retired keys are still needed to decrypt older payloads"
+        ]
+      },
+      "explanation": "Data Protection is the encryption behind auth cookies, antiforgery and TempData, so a missing shared key ring shows up as random sign-outs and failed posts. Sticky sessions hide the problem until an instance restarts or scales in. Pointing the key ring at a custom location turns off automatic encryption at rest, so add a `ProtectKeysWith*` call.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/security/data-protection/configuration/overview",
+          "title": "Configure ASP.NET Core Data Protection",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "Keys can be persisted to Azure Blob Storage and protected with Azure Key Vault using a managed identity; SetApplicationName must match across deployments because apps are isolated by content root path by default."
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/security/data-protection/configuration/default-settings",
+          "title": "Data Protection key management and lifetime in ASP.NET Core",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "Without a persistent location keys are lost when the process shuts down; containers should use a volume or external provider; overriding the key location disables automatic encryption at rest; keys have a 90-day default lifetime and retired keys still decrypt older data, so keys shouldn't be deleted."
+        }
+      ]
+    },
+    {
+      "id": "c023-q05",
+      "lesson": null,
+      "concept": "c023-semantic-reranking",
+      "type": "multiple_choice",
+      "prompt": "Why does Azure AI Search's semantic ranker rescore only a short list of preranked results, rather than every document in the index?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "BM25 can't rank more than 50 documents, so later ones have no score to improve on"
+        },
+        {
+          "id": "b",
+          "text": "Its language models are costly per document, so it runs on a small preranked set"
+        },
+        {
+          "id": "c",
+          "text": "It fine-tunes itself on the top results, which needs a small and fixed training set"
+        },
+        {
+          "id": "d",
+          "text": "Vector indexes never return more than 50 results, so no larger set ever exists"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Semantic ranking uses resource-heavy language models, so to stay within normal query latency the system trims and summarises the inputs and sends only the top 50 first-stage results. BM25 and vector search can return more than 50 (you can page further, and `k` is configurable), and nothing is fine-tuned at query time.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/search/semantic-search-overview",
+          "title": "Semantic Ranking Overview - Azure AI Search",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "Semantic ranking uses a lot of resources and time, so the system consolidates and reduces its inputs; only the top 50 results of the initial ranking progress to semantic ranking."
+        }
+      ]
+    },
+    {
+      "id": "c023-q06",
+      "lesson": null,
+      "concept": "c023-dependency-confusion-source-mapping",
+      "type": "multiple_choice",
+      "prompt": "Your nuget.config maps `Contoso.*` to the private feed and `*` to nuget.org. An attacker publishes `Contoso.Billing` 99.0.0 on nuget.org. What does restore do for `Contoso.Billing`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Takes the highest version found on either source, so the attacker's 99.0.0 wins"
+        },
+        {
+          "id": "b",
+          "text": "Fails, because the ID matches two patterns and NuGet refuses to choose between them"
+        },
+        {
+          "id": "c",
+          "text": "Uses nuget.org, because the `*` pattern always takes precedence over the prefixes"
+        },
+        {
+          "id": "d",
+          "text": "Restores it from the private feed only, since `Contoso.*` beats the `*` pattern"
+        }
+      ],
+      "answer": "d",
+      "explanation": "When several patterns match a package ID, NuGet prefers the most specific one: exact IDs first, then the longest prefix, with `*` last. So `Contoso.Billing` is looked up only on the private feed, and the public 99.0.0 is never considered. Without source mapping, NuGet would search both feeds, and which one supplied the package wouldn't be deterministic.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/nuget/consume-packages/package-source-mapping",
+          "title": "Package Source Mapping",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "When multiple patterns match a package ID the most specific is preferred: exact package ID patterns first, the longest prefix next, and `*` lowest."
+        }
+      ]
+    }
+  ]
+}

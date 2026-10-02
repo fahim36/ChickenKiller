@@ -1,0 +1,233 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c036-lambda-durable-functions",
+      "name": "Lambda durable functions: checkpoint and replay"
+    },
+    {
+      "id": "c036-langgraph-retry-policy",
+      "name": "LangGraph node retry policies"
+    },
+    {
+      "id": "c036-langgraph-subgraphs",
+      "name": "LangGraph subgraphs: wiring and persistence"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c036-q01",
+      "lesson": null,
+      "concept": "c036-lambda-durable-functions",
+      "type": "multiple_choice",
+      "prompt": "A Lambda durable function calls an LLM inside a step, then waits two days for a human approval. When the wait ends and the function resumes, what happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It resumes at the line after the wait, with its memory restored as it was"
+        },
+        {
+          "id": "b",
+          "text": "It runs from the top, and the finished step returns its saved result"
+        },
+        {
+          "id": "c",
+          "text": "It runs from the top and calls the LLM again, since steps aren't saved"
+        },
+        {
+          "id": "d",
+          "text": "It fails, because no Lambda function can run for longer than 15 minutes"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Durable functions use checkpoint and replay: on resume, the handler runs from the beginning, but each completed step returns its checkpointed result instead of running again, so the LLM isn't called twice. The wait itself costs no compute, and a durable execution can last up to a year, which is how it gets past the usual 15-minute limit.",
+      "materials": [
+        "aws-lambda-quotas"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.aws.amazon.com/lambda/latest/dg/durable-functions.html",
+          "title": "Lambda durable functions",
+          "publisher": "Amazon Web Services",
+          "accessed": "2026-10-02",
+          "claim": "Durable functions use checkpoint and replay: after a pause or interruption the code runs from the beginning, but completed steps return their checkpointed results instead of re-executing; waits suspend execution without compute charges, and a durable execution can run for up to one year."
+        }
+      ]
+    },
+    {
+      "id": "c036-q02",
+      "lesson": null,
+      "concept": "c036-langgraph-retry-policy",
+      "type": "multiple_choice",
+      "prompt": "You add `retry_policy=RetryPolicy()`, with its defaults, to a LangGraph node that calls an external API. Which of these failures is NOT retried?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "An HTTP 503 error returned by the model provider's API"
+        },
+        {
+          "id": "b",
+          "text": "A custom `ToolBusyError(Exception)` raised by your client"
+        },
+        {
+          "id": "c",
+          "text": "A `ValueError` raised by your own response-parsing code"
+        },
+        {
+          "id": "d",
+          "text": "An HTTP 502 error from the gateway in front of the API"
+        }
+      ],
+      "answer": "c",
+      "explanation": "By default `RetryPolicy` retries most exceptions but not a list of ones that usually mean a bug, such as `ValueError`, `TypeError` and `LookupError`: retrying broken parsing just fails again. HTTP library errors are retried on 5xx codes, so the 502 and 503 are retried, and so is a custom exception that isn't on the list.",
+      "materials": [
+        "langgraph-documentation"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.langchain.com/oss/python/langgraph/fault-tolerance",
+          "title": "Fault tolerance",
+          "publisher": "LangChain",
+          "accessed": "2026-10-02",
+          "claim": "`RetryPolicy` is passed to `add_node`; its defaults are max_attempts 3, initial_interval 0.5 s, backoff_factor 2.0, max_interval 128 s and jitter on; `retry_on` customises it. By default it retries most exceptions except ValueError, TypeError, ArithmeticError, ImportError, LookupError, NameError, SyntaxError, RuntimeError, ReferenceError, StopIteration, StopAsyncIteration and OSError, and HTTP library errors only on 5xx codes."
+        }
+      ]
+    },
+    {
+      "id": "c036-q03",
+      "lesson": null,
+      "concept": "c036-langgraph-subgraphs",
+      "type": "written",
+      "prompt": "You split a LangGraph agent into a parent graph and a research subgraph. When would you add the compiled subgraph directly as a node, and when call it inside a node function? How is the subgraph's state persisted?",
+      "model_answer": {
+        "summary": "Add the compiled subgraph as a node when it shares state keys with the parent, and call it from a node function when the schemas differ; it inherits the parent's checkpointer and by default starts fresh on every call.",
+        "key_points": [
+          "With shared state keys, pass the compiled subgraph to `add_node`, and it reads and writes the parent's state directly",
+          "With different schemas, invoke it inside a node function that maps the parent's state to the subgraph's input and maps the result back",
+          "It inherits the parent's checkpointer; by default it is per-invocation, so each call starts fresh but still supports interrupts within that call",
+          "`checkpointer=True` makes it per-thread, keeping its state across calls on the same thread; `checkpointer=False` makes it stateless"
+        ]
+      },
+      "explanation": "Subgraphs let teams build and test parts of an agent separately. The wiring choice is about state: share keys and the subgraph plugs straight in; keep its schema private and you need a wrapper that translates. Forgetting that the default is per-invocation is a common surprise when a subgraph seems to lose its memory.",
+      "materials": [
+        "langgraph-documentation"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.langchain.com/oss/python/langgraph/use-subgraphs",
+          "title": "Subgraphs",
+          "publisher": "LangChain",
+          "accessed": "2026-10-02",
+          "claim": "With different state schemas, invoke the subgraph inside a node function and transform its input and output; with shared state keys, pass the compiled subgraph to `add_node`. Subgraphs inherit the parent's checkpointer; by default they are per-invocation (each call starts fresh but supports interrupts and durable execution within the call), `checkpointer=True` makes them per-thread so state accumulates across calls, and `checkpointer=False` makes them stateless."
+        }
+      ]
+    },
+    {
+      "id": "c036-q04",
+      "lesson": null,
+      "concept": "c036-lambda-durable-functions",
+      "type": "multiple_choice",
+      "prompt": "In a Lambda durable function, where should the `uuid.uuid4()` call that creates a new order ID go?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "At the top of the handler, so the ID is set before any step runs"
+        },
+        {
+          "id": "b",
+          "text": "In a global variable, because globals survive across every replay"
+        },
+        {
+          "id": "c",
+          "text": "Anywhere, because the SDK fixes random values during each replay"
+        },
+        {
+          "id": "d",
+          "text": "Inside a step, so each replay reuses the ID it first generated"
+        }
+      ],
+      "answer": "d",
+      "explanation": "On every replay the handler runs from the top, so code outside a step runs again and must be deterministic. A UUID is different each call, so it goes in a step: the step checkpoints its first successful result and returns it on replay. At the top of the handler, each replay would mint a new ID.",
+      "materials": [
+        "aws-lambda-quotas"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.aws.amazon.com/durable-execution/patterns/best-practices/determinism/",
+          "title": "Determinism and replay (AWS Durable Execution SDK Developer Guide)",
+          "publisher": "Amazon Web Services",
+          "accessed": "2026-10-02",
+          "claim": "Code outside a durable operation runs on every replay and must be deterministic; anything using wall-clock time, randomness, UUIDs or external I/O must be wrapped in a step, whose value is then always the result of its first successful completion."
+        }
+      ]
+    },
+    {
+      "id": "c036-q05",
+      "lesson": null,
+      "concept": "c036-langgraph-retry-policy",
+      "type": "written",
+      "prompt": "Explain what LangGraph's `RetryPolicy` does by default, and how you would set it up for a node whose LLM call sometimes fails with a provider error.",
+      "model_answer": {
+        "summary": "A `RetryPolicy` on a node retries it with exponential backoff and jitter, by default up to 3 attempts, on most exceptions except ones that usually mean a bug; you attach it per node and narrow it with `retry_on`.",
+        "key_points": [
+          "Attach it per node with `add_node(..., retry_policy=RetryPolicy(...))`",
+          "Defaults: 3 attempts, 0.5 s first wait, doubling each time up to 128 s, with jitter",
+          "By default it skips errors like `ValueError` and `TypeError`, and retries HTTP errors only on 5xx",
+          "Use `retry_on` to choose which exceptions to retry, such as the provider's rate-limit or overload errors"
+        ]
+      },
+      "explanation": "Retries belong where the failure is transient, like a provider outage, and not where it is a bug. LangGraph's defaults encode that, and setting the policy per node keeps a retry from re-running work that already succeeded elsewhere in the graph.",
+      "materials": [
+        "langgraph-documentation"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.langchain.com/oss/python/langgraph/fault-tolerance",
+          "title": "Fault tolerance",
+          "publisher": "LangChain",
+          "accessed": "2026-10-02",
+          "claim": "`RetryPolicy` is passed to `add_node`; its defaults are max_attempts 3, initial_interval 0.5 s, backoff_factor 2.0, max_interval 128 s and jitter on; `retry_on` customises it. By default it retries most exceptions except ValueError, TypeError, ArithmeticError, ImportError, LookupError, NameError, SyntaxError, RuntimeError, ReferenceError, StopIteration, StopAsyncIteration and OSError, and HTTP library errors only on 5xx codes."
+        }
+      ]
+    },
+    {
+      "id": "c036-q06",
+      "lesson": null,
+      "concept": "c036-langgraph-subgraphs",
+      "type": "multiple_choice",
+      "prompt": "A subgraph with the default checkpointer setting is called twice on the same thread of a parent graph that has a checkpointer. What does the second call start with?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The first call's subgraph state, since it shares the parent's checkpointer"
+        },
+        {
+          "id": "b",
+          "text": "An error, because every subgraph must be compiled with its own checkpointer"
+        },
+        {
+          "id": "c",
+          "text": "The parent's whole message history, which is copied into the subgraph"
+        },
+        {
+          "id": "d",
+          "text": "A fresh subgraph state, since by default each call starts from scratch"
+        }
+      ],
+      "answer": "d",
+      "explanation": "By default a subgraph is per-invocation: it inherits the parent's checkpointer so interrupts and durable execution work within one call, but each call starts fresh. To keep its state across calls on the same thread, compile it with `checkpointer=True`.",
+      "materials": [
+        "langgraph-documentation"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.langchain.com/oss/python/langgraph/use-subgraphs",
+          "title": "Subgraphs",
+          "publisher": "LangChain",
+          "accessed": "2026-10-02",
+          "claim": "With different state schemas, invoke the subgraph inside a node function and transform its input and output; with shared state keys, pass the compiled subgraph to `add_node`. Subgraphs inherit the parent's checkpointer; by default they are per-invocation (each call starts fresh but supports interrupts and durable execution within the call), `checkpointer=True` makes them per-thread so state accumulates across calls, and `checkpointer=False` makes them stateless."
+        }
+      ]
+    }
+  ]
+}

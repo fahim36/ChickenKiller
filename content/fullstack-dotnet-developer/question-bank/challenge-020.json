@@ -1,0 +1,227 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c020-derived-state-without-effects",
+      "name": "Deriving values during render instead of syncing state in Effects"
+    },
+    {
+      "id": "c020-angular-onpush-input-mutation",
+      "name": "Angular OnPush checks: input references and events"
+    },
+    {
+      "id": "c020-migration-scaffold-review",
+      "name": "Reviewing scaffolded EF Core migrations for data loss"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c020-q01",
+      "lesson": null,
+      "concept": "c020-derived-state-without-effects",
+      "type": "multiple_choice",
+      "prompt": "```jsx\nconst [items, setItems] = useState([]);\nconst [total, setTotal] = useState(0);\nuseEffect(() => {\n  setTotal(items.reduce((s, i) => s + i.price, 0));\n}, [items]);\n```\nWhat is the best change, following React's guidance?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Compute `const total = items.reduce(...)` in render; drop the state and Effect"
+        },
+        {
+          "id": "b",
+          "text": "Keep the Effect, and add `total` to its dependency array so it never goes stale"
+        },
+        {
+          "id": "c",
+          "text": "Move the calculation into `useLayoutEffect` so users never see a wrong total"
+        },
+        {
+          "id": "d",
+          "text": "Wrap `setTotal` in `startTransition` so the extra render gets a low priority"
+        }
+      ],
+      "answer": "a",
+      "explanation": "A value that can be calculated from existing state or props shouldn't be state. The Effect version renders once with a stale `total` and then renders again; computing it during render is faster, simpler and always consistent. If the calculation were measurably expensive, `useMemo` would cache it. Tweaking the Effect's dependencies, timing or priority keeps the redundant state and the extra render.",
+      "materials": [
+        "react-learn"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/learn/you-might-not-need-an-effect",
+          "title": "You Might Not Need an Effect",
+          "publisher": "Meta (React)",
+          "accessed": "2026-10-02",
+          "claim": "Values that can be calculated from props or state should be calculated during rendering, not kept in state and updated in an Effect, which renders once with a stale value and then re-renders; use useMemo only for expensive calculations; event-specific logic belongs in event handlers, not Effects."
+        }
+      ]
+    },
+    {
+      "id": "c020-q02",
+      "lesson": null,
+      "concept": "c020-angular-onpush-input-mutation",
+      "type": "multiple_choice",
+      "prompt": "An `OnPush` `CartSummaryComponent` has `@Input() cart: Cart`. On a click, the parent runs `this.cart.items.push(item)`, and the summary doesn't update. Why?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`OnPush` components update only when the browser window regains focus"
+        },
+        {
+          "id": "b",
+          "text": "Angular compares inputs deeply, and `push` runs after that comparison"
+        },
+        {
+          "id": "c",
+          "text": "The input still holds the same reference, so Angular sees no new input"
+        },
+        {
+          "id": "d",
+          "text": "`@Input()` values are copied once at creation, so later changes are lost"
+        }
+      ],
+      "answer": "c",
+      "explanation": "An `OnPush` component (the default since Angular v22) is checked when it receives a new input value, compared by reference, or when an event is handled in it or its children. Mutating the array keeps the same `cart` reference, so the child is skipped. Pass a new object instead (`this.cart = { ...this.cart, items: [...this.cart.items, item] }`) or hold the cart in a signal.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://angular.dev/best-practices/skipping-subtrees",
+          "title": "Skipping component subtrees",
+          "publisher": "Google (Angular)",
+          "accessed": "2026-10-02",
+          "claim": "An OnPush component subtree is checked only when its root receives new inputs from a template binding (compared with ==) or when Angular handles an event in the subtree's root or its children; mutating an input object while keeping its reference doesn't trigger change detection. OnPush is the default since Angular v22."
+        }
+      ]
+    },
+    {
+      "id": "c020-q03",
+      "lesson": null,
+      "concept": "c020-migration-scaffold-review",
+      "type": "written",
+      "prompt": "A teammate replaces the `FirstName` and `LastName` properties with one `FullName` property, runs `dotnet ef migrations add`, and wants to ship the scaffolded migration unchanged. What would you check and change before it reaches a production database?",
+      "model_answer": {
+        "summary": "Review it: EF scaffolds this as dropping two columns and adding one, which loses every name; rewrite it to add the new column, copy the data with SQL, then drop the old columns, and decide honestly whether `Down` can be reversed.",
+        "key_points": [
+          "Always review scaffolded migrations: EF can't tell a rename or replacement from a drop plus an add, and it warns when an operation may lose data",
+          "As scaffolded, the migration drops `FirstName` and `LastName` and adds an empty `FullName`, losing every customer's name",
+          "Rewrite it: add `FullName` as nullable, fill it with `migrationBuilder.Sql(\"UPDATE ...\")` (branching on `ActiveProvider` if you support several databases), make it required, then drop the old columns",
+          "Implement `Down` only if the old values can be rebuilt; splitting names back isn't reliable, so fail explicitly and rely on a backup, and once a migration is applied to a shared database, fix it with a new migration rather than removing it"
+        ]
+      },
+      "explanation": "Migrations are code that runs against production data with schema-changing rights, so they deserve the same review as any other code. The scaffolder only compares model snapshots; it doesn't know your intent, so data-preserving steps are yours to add.",
+      "materials": [
+        "efcore-concurrency"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/ef/core/managing-schemas/migrations/managing",
+          "title": "Managing Migrations - EF Core",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "Always review scaffolded migrations: renaming a property scaffolds DropColumn plus AddColumn, which loses the data, so replace it with RenameColumn; to replace columns, add the new one as nullable, populate it with Sql, make it required, then drop the old ones; implement Down only if reversible, and don't remove migrations already applied to shared or production databases."
+        }
+      ]
+    },
+    {
+      "id": "c020-q04",
+      "lesson": null,
+      "concept": "c020-derived-state-without-effects",
+      "type": "written",
+      "prompt": "Review a React product page: one Effect watches `product.isInCart` to show an \"Added to cart!\" toast, and another resets `selection` to `null` whenever the `items` prop changes. What would you change, and why?",
+      "model_answer": {
+        "summary": "Both are Effects doing work that belongs elsewhere: show the toast from the buy handler, and derive or adjust the selection during render rather than resetting it after the fact.",
+        "key_points": [
+          "Effects are for code that runs because the component was displayed; event-specific logic, like the toast after a purchase, belongs in the event handler (a shared `buyProduct` function called by each button)",
+          "The `isInCart` Effect fires again whenever the page shows an item already in the cart, such as after a refresh, so the toast reappears wrongly",
+          "Instead of resetting `selection` in an Effect, keep `selectedId` in state and compute `selection = items.find(...)` during render (or adjust state during render, or reset a whole subtree with a `key`)",
+          "Syncing state in Effects costs an extra render with stale values and makes data flow harder to follow"
+        ]
+      },
+      "explanation": "\"You Might Not Need an Effect\" is a common interview topic because these Effects look harmless and cause subtle bugs: repeated notifications and a frame of stale UI. The test is why the code runs: because the user did something (event handler), because the component is on screen (Effect), or because it follows from current data (render).",
+      "materials": [
+        "react-learn"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/learn/you-might-not-need-an-effect",
+          "title": "You Might Not Need an Effect",
+          "publisher": "Meta (React)",
+          "accessed": "2026-10-02",
+          "claim": "Values that can be calculated from props or state should be calculated during rendering, not kept in state and updated in an Effect, which renders once with a stale value and then re-renders; use useMemo only for expensive calculations; event-specific logic belongs in event handlers, not Effects."
+        }
+      ]
+    },
+    {
+      "id": "c020-q05",
+      "lesson": null,
+      "concept": "c020-angular-onpush-input-mutation",
+      "type": "multiple_choice",
+      "prompt": "Which of these makes Angular check an `OnPush` component that has received no new input?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A `setTimeout` callback inside it changes a plain, non-signal class field"
+        },
+        {
+          "id": "b",
+          "text": "A `(click)` handler bound in that component's own template runs"
+        },
+        {
+          "id": "c",
+          "text": "Its parent component is checked because of an unrelated event"
+        },
+        {
+          "id": "d",
+          "text": "A property deep inside one of its input objects is reassigned"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Angular checks an `OnPush` subtree when its root gets a new input from a template binding or when Angular handles an event, such as a `(click)` binding, in that component or its children. A parent being checked doesn't reach into an `OnPush` child whose inputs didn't change, a mutation inside an input object keeps the same reference, and a timer changing a plain field isn't one of the triggers.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://angular.dev/best-practices/skipping-subtrees",
+          "title": "Skipping component subtrees",
+          "publisher": "Google (Angular)",
+          "accessed": "2026-10-02",
+          "claim": "An OnPush component subtree is checked only when its root receives new inputs from a template binding (compared with ==) or when Angular handles an event in the subtree's root or its children; mutating an input object while keeping its reference doesn't trigger change detection. OnPush is the default since Angular v22."
+        }
+      ]
+    },
+    {
+      "id": "c020-q06",
+      "lesson": null,
+      "concept": "c020-migration-scaffold-review",
+      "type": "multiple_choice",
+      "prompt": "You rename the `Name` property of `Customer` to `FullName` and run `dotnet ef migrations add`. What does EF Core typically scaffold, and what should you do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`RenameColumn`, since the model snapshot records the property rename"
+        },
+        {
+          "id": "b",
+          "text": "Nothing, since the column name keeps following the old property name"
+        },
+        {
+          "id": "c",
+          "text": "`AlterColumn`, which copies data to the new column in one transaction"
+        },
+        {
+          "id": "d",
+          "text": "`DropColumn` and `AddColumn`; replace them with `RenameColumn`"
+        }
+      ],
+      "answer": "d",
+      "explanation": "EF Core usually can't tell a rename from dropping one column and adding another, so it scaffolds `DropColumn(\"Name\")` and `AddColumn(\"FullName\")`. Applied as-is, every customer's name is lost. Replace the two operations with `migrationBuilder.RenameColumn(name: \"Name\", table: \"Customers\", newName: \"FullName\")`, and treat the scaffolder's data-loss warning as a signal to review the code.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/ef/core/managing-schemas/migrations/managing",
+          "title": "Managing Migrations - EF Core",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "Always review scaffolded migrations: renaming a property scaffolds DropColumn plus AddColumn, which loses the data, so replace it with RenameColumn; to replace columns, add the new one as nullable, populate it with Sql, make it required, then drop the old ones; implement Down only if reversible, and don't remove migrations already applied to shared or production databases."
+        }
+      ]
+    }
+  ]
+}

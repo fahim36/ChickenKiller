@@ -1,0 +1,243 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c010-asynclocal-flow",
+      "name": "AsyncLocal<T> and ExecutionContext flow"
+    },
+    {
+      "id": "c010-private-vs-service-endpoints",
+      "name": "Private endpoints vs service endpoints"
+    },
+    {
+      "id": "c010-aspire-existing-azure-resources",
+      "name": "Aspire existing Azure resources in run and publish mode"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c010-q01",
+      "lesson": null,
+      "concept": "c010-asynclocal-flow",
+      "type": "multiple_choice",
+      "prompt": "```csharp\n_al.Value = \"1\"; _tl.Value = \"1\"; var t1 = B();\n_al.Value = \"2\"; _tl.Value = \"2\"; var t2 = B();\nawait Task.WhenAll(t1, t2);\n// B: await Task.Delay(100); Console.WriteLine($\"{_al.Value}|{_tl.Value}\");\n```\n\n`_al` is an `AsyncLocal<string>` and `_tl` a `ThreadLocal<string>`. In a console app, what does `t1` print?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`1|`: the AsyncLocal value flowed into the call; the ThreadLocal one didn't"
+        },
+        {
+          "id": "b",
+          "text": "`2|2`: both read the latest values that the caller set before awaiting the tasks"
+        },
+        {
+          "id": "c",
+          "text": "`1|1`: both values were captured as `B` started and put back after `await`"
+        },
+        {
+          "id": "d",
+          "text": "`2|`: AsyncLocal keeps one shared value, and ThreadLocal is lost on resume"
+        }
+      ],
+      "answer": "a",
+      "explanation": "`AsyncLocal<T>` flows with the `ExecutionContext`: each call to `B` captures the value it started with, so the caller setting `\"2\"` later doesn't affect `t1`. `ThreadLocal<T>` belongs to a thread, and after `await Task.Delay` the method resumes on a thread pool thread where it was never set, so it is empty. This matches the example in the `AsyncLocal<T>` docs.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/api/system.threading.asynclocal-1",
+          "title": "AsyncLocal<T> Class (System.Threading)",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "AsyncLocal<T> holds ambient data local to an asynchronous control flow and persists across threads; in the docs example each call keeps the AsyncLocal value set before it started, even after the caller sets a new value, while the ThreadLocal value is empty after the await."
+        },
+        {
+          "url": "https://devblogs.microsoft.com/dotnet/executioncontext-vs-synchronizationcontext/",
+          "title": "ExecutionContext vs SynchronizationContext",
+          "publisher": ".NET Blog (Microsoft)",
+          "accessed": "2026-10-02",
+          "claim": "Methods that fork asynchronous work, such as Task.Run, ThreadPool.QueueUserWorkItem and await continuations, capture and restore ExecutionContext, which replaces thread-local storage for ambient data in asynchronous code."
+        }
+      ]
+    },
+    {
+      "id": "c010-q02",
+      "lesson": null,
+      "concept": "c010-private-vs-service-endpoints",
+      "type": "multiple_choice",
+      "prompt": "An App Service API in your VNet and an on-premises reporting job connected over VPN must both reach an Azure SQL database without using its public address. Which option fits?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A service endpoint: the server gets a private IP that on-premises clients resolve"
+        },
+        {
+          "id": "b",
+          "text": "A private endpoint: the server gets a private IP in your VNet, reachable over VPN"
+        },
+        {
+          "id": "c",
+          "text": "A service endpoint: it carries on-premises traffic over the backbone to the server"
+        },
+        {
+          "id": "d",
+          "text": "A private endpoint: it turns off all public access to the server once it's created"
+        }
+      ],
+      "answer": "b",
+      "explanation": "A private endpoint is a network interface with a private IP from your VNet, mapped to that one server, and it is reachable from peered networks and from on-premises over VPN or ExpressRoute (with DNS resolving the name to the private IP). Service endpoints keep the service's public IP and DNS and can't be used for on-premises traffic. A private endpoint doesn't by itself block public access: you disable that separately.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/private-link/private-endpoint-overview",
+          "title": "What is a private endpoint? - Azure Private Link",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "A private endpoint is a network interface with a private IP from your VNet that connects to one private-link resource; it is reachable from peered VNets and on-premises over VPN or ExpressRoute; DNS must resolve the FQDN to the private IP, often via private DNS zones; it doesn't necessarily restrict public network access."
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/virtual-network/virtual-network-service-endpoints-overview",
+          "title": "Azure virtual network service endpoints",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "Service endpoints switch subnet traffic to private source IPs over the Azure backbone so a VNet rule can secure the resource, but DNS still resolves to the service's public IPs and endpoints can't be used for traffic from on-premises; Microsoft recommends Private Link and private endpoints."
+        }
+      ]
+    },
+    {
+      "id": "c010-q03",
+      "lesson": null,
+      "concept": "c010-aspire-existing-azure-resources",
+      "type": "written",
+      "prompt": "Your Aspire AppHost has `builder.AddAzureServiceBus(\"messaging\")`. Locally you want to use a shared dev namespace that already exists, and in production a namespace the platform team owns. How do you model this, and what does Aspire do in each mode?",
+      "model_answer": {
+        "summary": "By default Aspire provisions in run mode and generates Bicep that creates the namespace in publish mode; the existing-resource APIs make each mode reference a namespace that already exists instead.",
+        "key_points": [
+          "By default run mode provisions real Azure resources (or an emulator with `RunAsEmulator`), and publish mode generates Bicep that creates them",
+          "`RunAsExisting(name, resourceGroup)` makes run mode use the existing dev namespace without provisioning anything",
+          "`PublishAsExisting(name, resourceGroup)` makes the generated Bicep reference the production namespace instead of creating it",
+          "`AsExisting` covers both modes but accepts only parameters, not string literals, so dev and production can't point at the same namespace by accident"
+        ]
+      },
+      "explanation": "The AppHost describes resources once, and the run and publish modes decide what that means. Passing the names as parameters (`builder.AddParameter`) keeps environment-specific values out of code.",
+      "materials": [
+        "aspire"
+      ],
+      "sources": [
+        {
+          "url": "https://aspire.dev/integrations/cloud/azure/overview/",
+          "title": "Azure integrations overview",
+          "publisher": "Aspire (Microsoft)",
+          "accessed": "2026-10-02",
+          "claim": "In run mode Aspire provisions Azure resources or emulators, in publish mode it generates Bicep; RunAsExisting uses an existing resource in run mode without provisioning it, PublishAsExisting references an existing resource in publish mode, and AsExisting applies to both and accepts only parameters to prevent using the same resource in testing and production."
+        }
+      ]
+    },
+    {
+      "id": "c010-q04",
+      "lesson": null,
+      "concept": "c010-asynclocal-flow",
+      "type": "written",
+      "prompt": "Logging code deep in an async request pipeline needs the request's correlation ID without passing it through every method. Compare `AsyncLocal<T>` with `ThreadLocal<T>` or `[ThreadStatic]` for this.",
+      "model_answer": {
+        "summary": "Use `AsyncLocal<T>`: it flows with the asynchronous control flow across awaits and thread hops, while thread-local storage stays with a thread that the request leaves at its first real await.",
+        "key_points": [
+          "An async method can resume on a different thread after `await`, so a thread-local value set before it is missing afterwards",
+          "`AsyncLocal<T>` values flow with the `ExecutionContext`, which `await`, `Task.Run` and thread-pool queueing capture and restore",
+          "Each async call keeps the value it started with, so concurrent requests don't see each other's IDs even when the caller changes the value later",
+          "Thread-local storage fits per-thread caches, not per-request data in async code"
+        ]
+      },
+      "explanation": "In synchronous code a thread is the request, so thread-local storage works; in async code a request hops threads and a thread serves many requests. `AsyncLocal<T>` ties the value to the logical flow instead.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/api/system.threading.asynclocal-1",
+          "title": "AsyncLocal<T> Class (System.Threading)",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "AsyncLocal<T> holds ambient data local to an asynchronous control flow and persists across threads; in the docs example each call keeps the AsyncLocal value set before it started, even after the caller sets a new value, while the ThreadLocal value is empty after the await."
+        },
+        {
+          "url": "https://devblogs.microsoft.com/dotnet/executioncontext-vs-synchronizationcontext/",
+          "title": "ExecutionContext vs SynchronizationContext",
+          "publisher": ".NET Blog (Microsoft)",
+          "accessed": "2026-10-02",
+          "claim": "Methods that fork asynchronous work, such as Task.Run, ThreadPool.QueueUserWorkItem and await continuations, capture and restore ExecutionContext, which replaces thread-local storage for ambient data in asynchronous code."
+        }
+      ]
+    },
+    {
+      "id": "c010-q05",
+      "lesson": null,
+      "concept": "c010-private-vs-service-endpoints",
+      "type": "written",
+      "prompt": "Compare Azure private endpoints and virtual network service endpoints for locking a storage account down to your VNet. Cover IP addresses and DNS, access from on-premises, and what each one secures.",
+      "model_answer": {
+        "summary": "A private endpoint brings one resource into your VNet with a private IP and private DNS; a service endpoint keeps the public IP but lets the resource accept only traffic from your subnets.",
+        "key_points": [
+          "A private endpoint is a network interface with a private IP from your subnet, and DNS (often a private DNS zone) must resolve the account's name to that IP",
+          "With a service endpoint the service keeps its public IP and DNS; subnet traffic reaches it over the Azure backbone with a private source IP, and a VNet rule allows only those subnets",
+          "A private endpoint is reachable from on-premises over VPN or ExpressRoute, while service endpoints can't be used for on-premises traffic",
+          "A private endpoint maps to one resource and subresource (blob and file need separate ones) and doesn't block public access by itself; Microsoft recommends private endpoints"
+        ]
+      },
+      "explanation": "Both keep traffic on Microsoft's network, but they work differently: a private endpoint changes where the resource lives on your network, a service endpoint changes how your subnet's traffic is identified. That difference decides DNS work and on-premises reach.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/private-link/private-endpoint-overview",
+          "title": "What is a private endpoint? - Azure Private Link",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "A private endpoint is a network interface with a private IP from your VNet that connects to one private-link resource; it is reachable from peered VNets and on-premises over VPN or ExpressRoute; DNS must resolve the FQDN to the private IP, often via private DNS zones; it doesn't necessarily restrict public network access."
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/virtual-network/virtual-network-service-endpoints-overview",
+          "title": "Azure virtual network service endpoints",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "Service endpoints switch subnet traffic to private source IPs over the Azure backbone so a VNet rule can secure the resource, but DNS still resolves to the service's public IPs and endpoints can't be used for traffic from on-premises; Microsoft recommends Private Link and private endpoints."
+        }
+      ]
+    },
+    {
+      "id": "c010-q06",
+      "lesson": null,
+      "concept": "c010-aspire-existing-azure-resources",
+      "type": "multiple_choice",
+      "prompt": "Why does Aspire's `AsExisting` take only parameter resources for the name and resource group, while `RunAsExisting` and `PublishAsExisting` also accept strings?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Parameters are resolved at build time, while strings only get resolved when the app runs"
+        },
+        {
+          "id": "b",
+          "text": "Only parameters can be kept in Key Vault, and existing resources need names held as secrets"
+        },
+        {
+          "id": "c",
+          "text": "A string would make Aspire provision a new resource, which `AsExisting` is meant to avoid"
+        },
+        {
+          "id": "d",
+          "text": "It applies in run and publish mode, so a literal would point dev and prod at one resource"
+        }
+      ],
+      "answer": "d",
+      "explanation": "`AsExisting` covers both run and publish mode. With a hard-coded name, local runs and production deployments would share one resource, so it accepts only parameters, which can take different values per environment. The mode-specific methods each apply to one mode, so a string can't leak across environments.",
+      "materials": [
+        "aspire"
+      ],
+      "sources": [
+        {
+          "url": "https://aspire.dev/integrations/cloud/azure/overview/",
+          "title": "Azure integrations overview",
+          "publisher": "Aspire (Microsoft)",
+          "accessed": "2026-10-02",
+          "claim": "In run mode Aspire provisions Azure resources or emulators, in publish mode it generates Bicep; RunAsExisting uses an existing resource in run mode without provisioning it, PublishAsExisting references an existing resource in publish mode, and AsExisting applies to both and accepts only parameters to prevent using the same resource in testing and production."
+        }
+      ]
+    }
+  ]
+}

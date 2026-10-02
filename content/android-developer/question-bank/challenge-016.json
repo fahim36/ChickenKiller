@@ -1,0 +1,235 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c016-fragment-view-lifecycle-owner",
+      "name": "A Fragment's view lifecycle vs the Fragment's own lifecycle"
+    },
+    {
+      "id": "c016-savedstatehandle-viewmodel-tests",
+      "name": "Testing a ViewModel that takes a SavedStateHandle"
+    },
+    {
+      "id": "c016-exact-alarm-permission",
+      "name": "Exact alarms and the SCHEDULE_EXACT_ALARM permission"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c016-q01",
+      "lesson": null,
+      "concept": "c016-fragment-view-lifecycle-owner",
+      "type": "multiple_choice",
+      "prompt": "In `onViewCreated()`, a Fragment calls `viewModel.items.observe(this) { adapter.submitList(it) }`. After the user opens a detail screen (a `replace` added to the back stack) and presses Back, every update runs twice. Why?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The ViewModel is recreated on Back, so a second LiveData now emits to the same list"
+        },
+        {
+          "id": "b",
+          "text": "`this` outlives the destroyed view, so each new view adds one more observer to it"
+        },
+        {
+          "id": "c",
+          "text": "LiveData re-sends its latest value to all active observers, so each update doubles"
+        },
+        {
+          "id": "d",
+          "text": "Back recreates the Activity, which runs `onViewCreated()` twice on the same view"
+        }
+      ],
+      "answer": "b",
+      "explanation": "On the back stack the Fragment itself is only stopped, but its view is destroyed (`onDestroyView()`) and created again on return. An observer tied to `this`, the Fragment's lifecycle, is not removed when the view goes, so every `onViewCreated()` adds another one, and the old one still points at the old view. Observe with `viewLifecycleOwner`, whose lifecycle reaches `DESTROYED` with the view, so its observer is removed. The ViewModel and the Activity both survive this navigation.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://developer.android.com/guide/fragments/lifecycle",
+          "title": "Fragment lifecycle | App architecture | Android Developers",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "A fragment's view has a Lifecycle managed separately from the fragment's, available as viewLifecycleOwner; when the view is detached its Lifecycle moves to DESTROYED, onDestroyView() is called, and all references to the view should be removed."
+        },
+        {
+          "url": "https://developer.android.com/topic/libraries/architecture/livedata",
+          "title": "LiveData overview | App architecture | Android Developers",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "A LiveData observer paired with a LifecycleOwner is removed when that Lifecycle reaches DESTROYED; the fragment examples observe with viewLifecycleOwner."
+        }
+      ]
+    },
+    {
+      "id": "c016-q02",
+      "lesson": null,
+      "concept": "c016-savedstatehandle-viewmodel-tests",
+      "type": "multiple_choice",
+      "prompt": "`DetailViewModel(savedStateHandle: SavedStateHandle)` reads its `itemId` navigation argument from the handle. In a local unit test, how do you give it `itemId = 42`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Launch the real screen with `ActivityScenario`, so navigation fills in the handle"
+        },
+        {
+          "id": "b",
+          "text": "Mock `SavedStateHandle` with MockK, since the class can't be built off a device"
+        },
+        {
+          "id": "c",
+          "text": "Build `SavedStateHandle(mapOf(\"itemId\" to 42))` and pass it to the constructor"
+        },
+        {
+          "id": "d",
+          "text": "Put `42` into a test Activity's `onSaveInstanceState()`, then recreate it"
+        }
+      ],
+      "answer": "c",
+      "explanation": "`SavedStateHandle` has a public constructor that takes a map of initial values, and the Android docs test a ViewModel exactly this way: create a handle with the test values and pass it in. That is a plain local test, with no device and no Activity. Mocking it is the tempting answer, but it isn't needed, and a mock loses the handle's real get, set and `StateFlow` behaviour.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/libraries/architecture/viewmodel/viewmodel-savedstate",
+          "title": "Saved State module for ViewModel | App architecture | Android Developers",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "To test a ViewModel that takes a SavedStateHandle, create a new SavedStateHandle with the test values it requires (for example SavedStateHandle(mapOf(\"someIdArg\" to testId))) and pass it to the ViewModel."
+        }
+      ]
+    },
+    {
+      "id": "c016-q03",
+      "lesson": null,
+      "concept": "c016-exact-alarm-permission",
+      "type": "written",
+      "prompt": "Your medication-reminder app schedules exact alarms with `SCHEDULE_EXACT_ALARM`. On Android 14 devices, reminders never fire for new users, though they work for users who upgraded. Explain why, and how the app should handle exact alarms now.",
+      "model_answer": {
+        "summary": "On Android 14, `SCHEDULE_EXACT_ALARM` is no longer pre-granted to fresh installs of apps targeting Android 13 or higher, so the app must check for it, ask the user to grant it, react when it is granted or revoked, and use inexact alarms where precise timing isn't core.",
+        "key_points": [
+          "On Android 14, `SCHEDULE_EXACT_ALARM` is not pre-granted to fresh installs of apps targeting Android 13+ (and is denied after backup and restore), while apps that already had it keep it on upgrade",
+          "Check `canScheduleExactAlarms()` before scheduling, and if it is false send the user to `ACTION_REQUEST_SCHEDULE_EXACT_ALARM` to grant it",
+          "Handle `ACTION_SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED` to reschedule alarms once it is granted; if it is revoked, the app is stopped and its future exact alarms are cancelled",
+          "Use exact alarms only when precise timing is core (alarm clock, calendar); otherwise use inexact `set()`, `setWindow()` or `setAndAllowWhileIdle()`"
+        ]
+      },
+      "explanation": "Upgraded users keep the permission, which is why the bug hides from long-time testers. A good answer names the default-denied grant, the check-and-request flow, the state-changed broadcast, and the question of whether the feature needs an exact alarm at all.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/background-work/services/alarms/schedule",
+          "title": "Schedule alarms | Background work | Android Developers",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "SCHEDULE_EXACT_ALARM is not pre-granted to fresh installs of apps targeting Android 13+ on Android 14 (and is denied after backup and restore) but stays granted on upgrade; check canScheduleExactAlarms(), request with ACTION_REQUEST_SCHEDULE_EXACT_ALARM, reschedule on ACTION_SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED; revoking it stops the app and cancels future exact alarms; most apps should use inexact alarms."
+        }
+      ]
+    },
+    {
+      "id": "c016-q04",
+      "lesson": null,
+      "concept": "c016-fragment-view-lifecycle-owner",
+      "type": "written",
+      "prompt": "A Fragment keeps `private var binding: FragmentHomeBinding?` and starts observing a ViewModel's data in `onViewCreated()`. Explain the two lifecycles a Fragment has, and which one the observer and the binding should follow.",
+      "model_answer": {
+        "summary": "A Fragment's view has its own Lifecycle, shorter than the Fragment's, so view-updating observers use `viewLifecycleOwner` and view references are cleared in `onDestroyView()`.",
+        "key_points": [
+          "A Fragment's view has its own Lifecycle, separate from the Fragment's, exposed as `viewLifecycleOwner`",
+          "On the back stack the view is destroyed (`onDestroyView()`) while the Fragment instance lives on, and a new view is created when the user returns",
+          "Observers that update the view should use `viewLifecycleOwner`, so they are removed when the view's Lifecycle reaches `DESTROYED`",
+          "Clear references to the view, such as `binding`, in `onDestroyView()` so the old view can be garbage collected"
+        ]
+      },
+      "explanation": "Tying view work to the Fragment's own lifecycle is the classic mistake: it leaks the old view and duplicates observers after the back stack. The view lifecycle exists for exactly this case.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://developer.android.com/guide/fragments/lifecycle",
+          "title": "Fragment lifecycle | App architecture | Android Developers",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "The fragment's view Lifecycle is managed independently of the fragment's and is useful for observing LiveData only while the view exists; after the view is detached it reaches DESTROYED, onDestroyView() runs, and all references to the view should be removed so it can be garbage collected."
+        },
+        {
+          "url": "https://developer.android.com/topic/libraries/architecture/livedata",
+          "title": "LiveData overview | App architecture | Android Developers",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "Observers paired with a LifecycleOwner are removed when its Lifecycle reaches DESTROYED; fragments observe with viewLifecycleOwner."
+        }
+      ]
+    },
+    {
+      "id": "c016-q05",
+      "lesson": null,
+      "concept": "c016-savedstatehandle-viewmodel-tests",
+      "type": "multiple_choice",
+      "prompt": "A ViewModel exposes `query = savedStateHandle.getStateFlow(\"query\", \"\")`, and `onQueryChanged(q)` runs `savedStateHandle[\"query\"] = q`. In a test with a `SavedStateHandle` you built, what is `query.value` after `onQueryChanged(\"cat\")`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`\"cat\"`, because the StateFlow follows writes to the same key"
+        },
+        {
+          "id": "b",
+          "text": "`\"\"`, because `getStateFlow` only reads the value saved at creation"
+        },
+        {
+          "id": "c",
+          "text": "None: the write throws, as a handle built in a test is read-only"
+        },
+        {
+          "id": "d",
+          "text": "`\"cat\"`, but only after the test simulates process death and restore"
+        }
+      ],
+      "answer": "a",
+      "explanation": "`getStateFlow()` returns a StateFlow backed by the handle: when the key's value is updated elsewhere in the same `SavedStateHandle`, the flow receives the new value. A handle you construct in a test behaves like the real one, so you can assert on `query.value` straight away; no process death is needed.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/libraries/architecture/viewmodel/viewmodel-savedstate",
+          "title": "Saved State module for ViewModel | App architecture | Android Developers",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "getStateFlow() returns a StateFlow that receives the new value when the key is updated elsewhere in the SavedStateHandle; ViewModels with a SavedStateHandle are tested by constructing one with test values."
+        }
+      ]
+    },
+    {
+      "id": "c016-q06",
+      "lesson": null,
+      "concept": "c016-exact-alarm-permission",
+      "type": "multiple_choice",
+      "prompt": "Your app holds `SCHEDULE_EXACT_ALARM`, and the user revokes it in Settings. What happens to the app and its alarms?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Its pending exact alarms still fire, but new ones are held for the next window"
+        },
+        {
+          "id": "b",
+          "text": "Its exact alarms turn inexact, and fire inside a window the system chooses"
+        },
+        {
+          "id": "c",
+          "text": "Nothing changes until the next reboot, when the system checks it again"
+        },
+        {
+          "id": "d",
+          "text": "The app is stopped, and all of its future exact alarms are cancelled"
+        }
+      ],
+      "answer": "d",
+      "explanation": "Revoking `SCHEDULE_EXACT_ALARM` stops the app and cancels all its future exact alarms; they are not converted to inexact ones. That is why the app must check `canScheduleExactAlarms()` and reschedule when it receives `ACTION_SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED` after the user grants it again.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/background-work/services/alarms/schedule",
+          "title": "Schedule alarms | Background work | Android Developers",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "When the SCHEDULE_EXACT_ALARM permission is revoked, the app stops and all future exact alarms are canceled; apps should check canScheduleExactAlarms() and reschedule on ACTION_SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED."
+        }
+      ]
+    }
+  ]
+}

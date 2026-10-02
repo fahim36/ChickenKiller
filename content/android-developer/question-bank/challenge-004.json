@@ -1,0 +1,233 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c004-custom-property-delegates",
+      "name": "Writing a custom property delegate (`getValue`/`setValue`)"
+    },
+    {
+      "id": "c004-viewmodels-not-passed-down",
+      "name": "Not passing ViewModels to reusable composables"
+    },
+    {
+      "id": "c004-read-only-vs-immutable-collections",
+      "name": "Read-only vs mutable collections (read-only isn't immutable)"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c004-q01",
+      "lesson": null,
+      "concept": "c004-custom-property-delegates",
+      "type": "multiple_choice",
+      "prompt": "A class `Session` declares `val token: String by PrefDelegate(\"token\")`. What must `PrefDelegate` provide for this to compile?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A `get()` function and a `field`, the same as a custom property getter"
+        },
+        {
+          "id": "b",
+          "text": "Both `getValue` and `setValue`, since every delegate must allow writes"
+        },
+        {
+          "id": "c",
+          "text": "An implementation of `Lazy<String>`, because `by` only accepts `Lazy`"
+        },
+        {
+          "id": "d",
+          "text": "`operator fun getValue(thisRef: Session, property: KProperty<*>)`"
+        }
+      ],
+      "answer": "d",
+      "explanation": "A delegate for a read-only `val` must provide an `operator fun getValue` taking `thisRef` (the owner's type or a supertype) and `property` (`KProperty<*>` or a supertype). `setValue` is needed only for a `var`. `Lazy` is one delegate among many: any type with the right operator (or `ReadOnlyProperty`) works, and a delegated property has no backing `field`.",
+      "materials": [
+        "kotlin-docs"
+      ],
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/delegated-properties.html",
+          "title": "Delegated properties",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-02",
+          "claim": "For a read-only property a delegate must provide an operator `getValue()` with `thisRef` (the owner type or a supertype) and `property` (`KProperty<*>` or a supertype); a mutable property's delegate must also provide `setValue()`; `ReadOnlyProperty` and `ReadWriteProperty` can be implemented instead."
+        }
+      ]
+    },
+    {
+      "id": "c004-q02",
+      "lesson": null,
+      "concept": "c004-viewmodels-not-passed-down",
+      "type": "multiple_choice",
+      "prompt": "A `ProductCard` composable, used on several screens, takes `viewModel: CartViewModel` so it can read the cart and call `addToCart()`. What does the state-holder guide recommend?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Keep it, as long as every screen shares one `CartViewModel` instance"
+        },
+        {
+          "id": "b",
+          "text": "Pass down only the state it needs, and send its events up as lambdas"
+        },
+        {
+          "id": "c",
+          "text": "Give `ProductCard` its own `ViewModel`, created with `viewModel()`"
+        },
+        {
+          "id": "d",
+          "text": "Keep it, and mark `CartViewModel` `@Stable` so the card still skips"
+        }
+      ],
+      "answer": "b",
+      "explanation": "The guide says not to pass ViewModel instances down to other composables: it couples the composable to the ViewModel type and makes it less reusable and harder to test and preview. Pass down just the state it needs, and propagate events up until they reach the screen-level composable that owns the ViewModel. A reusable component that needs its own state uses a plain state holder, not a ViewModel.",
+      "materials": [
+        "android-app-architecture"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/architecture/ui-layer/stateholders",
+          "title": "State holders and UI state",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "Don't pass ViewModel instances down to other composable functions, because it couples them to the ViewModel type and makes them less reusable and harder to test and preview; pass down only the necessary state and propagate events up to the ViewModel's composable; reusable UI uses plain class state holders."
+        }
+      ]
+    },
+    {
+      "id": "c004-q03",
+      "lesson": null,
+      "concept": "c004-read-only-vs-immutable-collections",
+      "type": "written",
+      "prompt": "Explain the difference between `List` and `MutableList` in Kotlin. Does `val items: List<Item>` guarantee that the contents of `items` never change?",
+      "model_answer": {
+        "summary": "No. `List` is a read-only interface that only offers access, and `val` only fixes the reference, so the object behind it can still be a mutable list that other code changes.",
+        "key_points": [
+          "`List` is a read-only interface with access operations only; `MutableList` extends it with write operations such as add, remove and update",
+          "`val` protects the reference from being reassigned, not the collection's contents: a `MutableList` in a `val` can still be changed",
+          "A `List` reference can point to a mutable collection (such as the `ArrayList` from `mutableListOf`) that its owner keeps changing, so read-only does not mean immutable",
+          "Read-only collection types are covariant (a `List<Rectangle>` can be used as a `List<Shape>`), while mutable ones are not"
+        ]
+      },
+      "explanation": "Read-only is a property of the interface you hold, not of the object. That is why a class that exposes its private `MutableList` as a `List` still lets readers see changes under them.",
+      "materials": [
+        "kotlin-docs"
+      ],
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/collections-overview.html",
+          "title": "Collections overview",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-02",
+          "claim": "Read-only collection interfaces provide access operations only and mutable ones extend them with write operations; a mutable collection assigned to a `val` can still be changed because `val` protects only the reference; read-only collection types are covariant and the default `MutableList` implementation is `ArrayList`."
+        }
+      ]
+    },
+    {
+      "id": "c004-q04",
+      "lesson": null,
+      "concept": "c004-custom-property-delegates",
+      "type": "multiple_choice",
+      "prompt": "In a class `C`, you declare `var prop: Type by MyDelegate()`. What does the Kotlin compiler generate?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A hidden `prop$delegate` field that the getter and setter call"
+        },
+        {
+          "id": "b",
+          "text": "A copy of `MyDelegate`'s code, inlined wherever `prop` is read"
+        },
+        {
+          "id": "c",
+          "text": "A `prop` backing field, which `MyDelegate` updates by reflection"
+        },
+        {
+          "id": "d",
+          "text": "A new `MyDelegate()` instance, created each time `prop` is read"
+        }
+      ],
+      "answer": "a",
+      "explanation": "The compiler stores the delegate in a hidden `prop$delegate` field, created once with the object, and generates a getter that calls `prop$delegate.getValue(this, this::prop)` and a setter that calls `setValue(this, this::prop, value)`. There is no backing field for `prop` itself, and nothing is inlined or re-created per access.",
+      "materials": [
+        "kotlin-docs"
+      ],
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/delegated-properties.html",
+          "title": "Delegated properties",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-02",
+          "claim": "For `var prop: Type by MyDelegate()` the compiler generates a hidden `prop$delegate` field initialised with the delegate, and accessors that call `prop$delegate.getValue(this, this::prop)` and `prop$delegate.setValue(this, this::prop, value)`."
+        }
+      ]
+    },
+    {
+      "id": "c004-q05",
+      "lesson": null,
+      "concept": "c004-viewmodels-not-passed-down",
+      "type": "written",
+      "prompt": "In a code review, a reusable `CommentRow` composable takes the screen's `ThreadViewModel` as a parameter. Why would you push back, and what would you suggest instead?",
+      "model_answer": {
+        "summary": "Passing a ViewModel down couples a reusable composable to one ViewModel type; it should take plain state and event lambdas, with the ViewModel used only at the screen level.",
+        "key_points": [
+          "Passing a ViewModel into a composable couples it to that ViewModel type, making it less reusable and harder to test and preview",
+          "Pass down only the state the row needs, and send its events up (as lambdas) until they reach the screen-level composable that owns the ViewModel",
+          "ViewModels are best used for navigation destinations and access to business logic; a ViewModel is unique to its UI and not reusable",
+          "If the row needs its own UI element state, use a plain state holder class rather than a ViewModel"
+        ]
+      },
+      "explanation": "This keeps unidirectional data flow: state goes down from the single owner, events go up. A row that only takes values and lambdas can be previewed and tested without a ViewModel at all.",
+      "materials": [
+        "android-app-architecture"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/architecture/ui-layer/stateholders",
+          "title": "State holders and UI state",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "Don't pass ViewModel instances down to other composables, because it couples them to the ViewModel type and makes them less reusable and harder to test and preview; pass down the necessary state and propagate events up; ViewModels are unique to their UI, best used for navigation destinations and business logic, and plain class state holders suit reusable UI."
+        }
+      ]
+    },
+    {
+      "id": "c004-q06",
+      "lesson": null,
+      "concept": "c004-read-only-vs-immutable-collections",
+      "type": "multiple_choice",
+      "prompt": "```kotlin\nval numbers = mutableListOf(1, 2)\nval view: List<Int> = numbers\nnumbers.add(3)\n```\nWhat is `view.size` afterwards?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "2, because assigning it to a `List` made a read-only copy"
+        },
+        {
+          "id": "b",
+          "text": "3, because `view` and `numbers` are the very same list object"
+        },
+        {
+          "id": "c",
+          "text": "It doesn't compile, since `numbers` is a `val` and can't be changed"
+        },
+        {
+          "id": "d",
+          "text": "It throws `UnsupportedOperationException`, as `view` is read-only"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Assigning to a `List` type copies nothing: `view` is a read-only view of the same mutable list, so it sees the third element. `val` only stops `numbers` from being reassigned; write operations on a mutable collection in a `val` are still allowed.",
+      "materials": [
+        "kotlin-docs"
+      ],
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/collections-overview.html",
+          "title": "Collections overview",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-02",
+          "claim": "A mutable collection assigned to a `val` still allows write operations, because `val` protects only the reference; read-only collection interfaces only restrict which operations you can call through them."
+        }
+      ]
+    }
+  ]
+}

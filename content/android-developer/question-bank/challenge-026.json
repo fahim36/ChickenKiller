@@ -1,0 +1,225 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c026-component-modifier-param",
+      "name": "The modifier parameter of a reusable component"
+    },
+    {
+      "id": "c026-semantics-traversal-order",
+      "name": "Traversal order with isTraversalGroup and traversalIndex"
+    },
+    {
+      "id": "c026-small-cls",
+      "name": "Small, self-contained changes for code review"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c026-q01",
+      "lesson": null,
+      "concept": "c026-component-modifier-param",
+      "type": "multiple_choice",
+      "prompt": "You are adding a `ProfileCard` composable to your team's design system. Following the Compose component API guidelines, how should it take a `Modifier`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "As the first required parameter, so every caller has to pass one"
+        },
+        {
+          "id": "b",
+          "text": "As separate `cardModifier` and `avatarModifier`, one per part"
+        },
+        {
+          "id": "c",
+          "text": "As `modifier: Modifier = Modifier`, first optional, on the root"
+        },
+        {
+          "id": "d",
+          "text": "As the last parameter, applied after the card's own modifiers"
+        }
+      ],
+      "answer": "c",
+      "explanation": "The guidelines say a component has exactly one `modifier` parameter of type `Modifier`, the first optional parameter, with the no-op default `Modifier`, applied once as the first modifier in the chain of the root-most layout. It describes the component's external behaviour, so one modifier per sub-part (`avatarModifier`) is a don't, and applying it last lets the component's own modifiers win over the caller's.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://android.googlesource.com/platform/frameworks/support/+/androidx-main/compose/docs/compose-component-api-guidelines.md",
+          "title": "API Guidelines for Components in Jetpack Compose",
+          "publisher": "Android Open Source Project",
+          "accessed": "2026-10-02",
+          "claim": "A component's `modifier` parameter has type `Modifier`, is the first optional parameter with the no-op default `Modifier`, is applied once as the first modifier in the chain to the root-most layout, and there is only one modifier parameter (not one per subpart)."
+        }
+      ]
+    },
+    {
+      "id": "c026-q02",
+      "lesson": null,
+      "concept": "c026-semantics-traversal-order",
+      "type": "multiple_choice",
+      "prompt": "A card shows two side-by-side `Column`s of text, and TalkBack reads them row by row, mixing the two columns. What is the documented fix?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Set `isTraversalGroup = true` in each column's `semantics`"
+        },
+        {
+          "id": "b",
+          "text": "Set `traversalIndex` on each `Column`, which isn't focusable"
+        },
+        {
+          "id": "c",
+          "text": "Nothing: TalkBack already reads in code order, column by column"
+        },
+        {
+          "id": "d",
+          "text": "Add a `contentDescription` to each `Text` naming its column"
+        }
+      ],
+      "answer": "a",
+      "explanation": "By default Compose reads in visual order, left to right and then top to bottom, so side-by-side columns get mixed. Marking each column as a traversal group makes TalkBack visit all of a group's children before moving on. `traversalIndex` only changes order when set on an element accessibility services can focus, such as text or buttons, so setting it on a plain `Column` does nothing.",
+      "materials": [
+        "compose-accessibility"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/accessibility/traversal",
+          "title": "Modify traversal order",
+          "publisher": "Android Developers (Google)",
+          "accessed": "2026-10-02",
+          "claim": "Default order is left-to-right then top-to-bottom; `isTraversalGroup = true` makes all of a node's children be visited before other elements (fixing the two-column example); `traversalIndex` only has an effect on elements that are focusable by accessibility services."
+        }
+      ]
+    },
+    {
+      "id": "c026-q03",
+      "lesson": null,
+      "concept": "c026-small-cls",
+      "type": "written",
+      "prompt": "A teammate opens a 1,800-line pull request that refactors the networking layer and adds offline sync at the same time. How would you ask them to split it, and why does it matter?",
+      "model_answer": {
+        "summary": "Ask for small, self-contained changes: the refactor separate from the feature, each with its tests, stacked or split so every one leaves the build working, because small changes are reviewed faster and better and are safer to merge and roll back.",
+        "key_points": [
+          "Small changes are reviewed faster and more thoroughly, cause fewer bugs, waste less work if rejected, and are easier to merge and roll back",
+          "Each change should be one self-contained thing; around 100 lines is usually reasonable and 1,000 is usually too large",
+          "Separate the refactoring from the feature change, and keep each change's tests in the same change as the code",
+          "Split by stacking dependent changes, by files or reviewers, or into horizontal or vertical slices, with the system still working after each one"
+        ]
+      },
+      "explanation": "Google's code review guide treats size as a review-quality issue, not style: reviewers can reject a change only for being too large. The tempting reply, \"just review it carefully\", ignores that a mixed refactor and feature hides which lines change behaviour.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://google.github.io/eng-practices/review/developer/small-cls.html",
+          "title": "Small CLs",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "Small CLs are reviewed more quickly and thoroughly, have fewer bugs, waste less work and are easier to merge and roll back; a CL should be one self-contained change (100 lines reasonable, 1000 usually too large); separate refactorings from feature changes, keep tests in the same CL, split by stacking, files, horizontal or vertical slices, and keep the build working after each CL."
+        }
+      ]
+    },
+    {
+      "id": "c026-q04",
+      "lesson": null,
+      "concept": "c026-component-modifier-param",
+      "type": "written",
+      "prompt": "Review this design-system signature: `fun TagChip(text: String, modifier: Modifier, rowModifier: Modifier = Modifier, iconModifier: Modifier = Modifier)`. What would you change, and why?",
+      "model_answer": {
+        "summary": "Keep a single `modifier: Modifier = Modifier` as the first optional parameter, applied once as the first modifier of the root layout, and drop the per-part modifiers.",
+        "key_points": [
+          "There should be one modifier parameter only; `rowModifier` and `iconModifier` should go",
+          "`modifier` should be optional with the no-op default `Modifier`, as the first optional parameter",
+          "It is applied once, as the first modifier in the chain, to the root-most layout of the component",
+          "The modifier describes the component's external behaviour; parts are customised by explicit parameters or slots instead"
+        ]
+      },
+      "explanation": "The guidelines reserve `modifier` for how the caller places and decorates the whole component. Per-part modifiers leak the component's internal structure into its API, which makes later changes to it breaking.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://android.googlesource.com/platform/frameworks/support/+/androidx-main/compose/docs/compose-component-api-guidelines.md",
+          "title": "API Guidelines for Components in Jetpack Compose",
+          "publisher": "Android Open Source Project",
+          "accessed": "2026-10-02",
+          "claim": "The `modifier` parameter is the first optional parameter with default `Modifier`, applied once first in the chain to the root-most layout; there should be only one, since it specifies the component's external behaviour rather than its subparts."
+        }
+      ]
+    },
+    {
+      "id": "c026-q05",
+      "lesson": null,
+      "concept": "c026-semantics-traversal-order",
+      "type": "multiple_choice",
+      "prompt": "Inside one traversal group, a floating action button has `traversalIndex = -1f` and the other elements keep the default. When does TalkBack reach the button?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Before the other elements of its group, as lower values go first"
+        },
+        {
+          "id": "b",
+          "text": "Last in its group, since a negative index is moved to the end"
+        },
+        {
+          "id": "c",
+          "text": "First on the whole screen, before the elements of every group"
+        },
+        {
+          "id": "d",
+          "text": "In its usual place, as the index only applies to grouped `Column`s"
+        }
+      ],
+      "answer": "a",
+      "explanation": "`traversalIndex` is a float that defaults to `0f`, may be negative, and lower values are visited first. It is only relative to other indexes in the same traversal group, so the button goes first within its group, not before the whole screen.",
+      "materials": [
+        "compose-accessibility"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/accessibility/traversal",
+          "title": "Modify traversal order",
+          "publisher": "Android Developers (Google)",
+          "accessed": "2026-10-02",
+          "claim": "`traversalIndex` defaults to 0f, can be positive or negative, lower values are prioritized first, and indexes are only relative to others within the same grouping."
+        }
+      ]
+    },
+    {
+      "id": "c026-q06",
+      "lesson": null,
+      "concept": "c026-small-cls",
+      "type": "multiple_choice",
+      "prompt": "Your change renames a widely used class across 40 files and also fixes a bug in one of them. What does Google's code review guide recommend?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Send it as one change, so reviewers see the fix in its full context"
+        },
+        {
+          "id": "b",
+          "text": "Send the rename and the bug fix as two separate changes for review"
+        },
+        {
+          "id": "c",
+          "text": "Send one change, and move the fix's tests into a later follow-up"
+        },
+        {
+          "id": "d",
+          "text": "Split it by file, ten files a change, with the fix spread among them"
+        }
+      ],
+      "answer": "b",
+      "explanation": "The guide says to keep refactorings separate from feature changes and bug fixes, so the reviewer can see what each change does, and to keep tests in the same change as the code they test. Splitting arbitrarily by file count would leave a fix spread across several changes.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://google.github.io/eng-practices/review/developer/small-cls.html",
+          "title": "Small CLs",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "It's usually best to do refactorings in a separate CL from feature changes or bug fixes, and related test code belongs in the same CL as the code it tests."
+        }
+      ]
+    }
+  ]
+}

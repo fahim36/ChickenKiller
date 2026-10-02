@@ -1,0 +1,223 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c019-binder-transaction-size-limit",
+      "name": "The Binder transaction limit on saved state and Intent extras"
+    },
+    {
+      "id": "c019-package-visibility-queries",
+      "name": "Package visibility and the <queries> element"
+    },
+    {
+      "id": "c019-mockk-object-static-mocks",
+      "name": "Mocking Kotlin objects and top-level functions with MockK"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c019-q01",
+      "lesson": null,
+      "concept": "c019-binder-transaction-size-limit",
+      "type": "multiple_choice",
+      "prompt": "A screen saves its whole loaded list (about 2 MB) with `rememberSaveable`, and the app crashes with `TransactionTooLargeException` when the user leaves it. Why?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Saved state goes over Binder, whose buffer of about 1 MB is shared by the process"
+        },
+        {
+          "id": "b",
+          "text": "`rememberSaveable` writes to disk, and the app's 1 MB saved-state file is now full"
+        },
+        {
+          "id": "c",
+          "text": "Compose caps each `rememberSaveable` value at 64 KB, unless it is a Parcelable"
+        },
+        {
+          "id": "d",
+          "text": "That Bundle is too large for one key, so the fix is to split it over two keys"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Saved state is sent to the system process through Binder, whose transaction buffer is a fixed size, currently 1 MB, shared by all of the process's transactions in progress. Going over it throws `TransactionTooLargeException` (a runtime exception since Android 7.0). Splitting keys doesn't help because the limit is per process; keep saved state under 50 KB and save IDs, reloading the data from a database or the ViewModel.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://developer.android.com/guide/components/activities/parcelables-and-bundles",
+          "title": "Parcelables and Bundles | App architecture | Android Developers",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "The Binder transaction buffer is a fixed size, currently 1MB, shared by all transactions in progress for the process, including startActivity, rememberSaveable and system calls; exceeding it throws TransactionTooLargeException (a runtime exception on Android 7.0+); keep saved state under 50KB."
+        }
+      ]
+    },
+    {
+      "id": "c019-q02",
+      "lesson": null,
+      "concept": "c019-package-visibility-queries",
+      "type": "multiple_choice",
+      "prompt": "Your app targets API 30+ and calls `getPackageInfo(\"com.example.maps\", 0)` to see whether a partner app is installed. It reports the app as missing, though it is installed. What fixes it?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Request `QUERY_ALL_PACKAGES` at runtime; Play allows it for any app that asks"
+        },
+        {
+          "id": "b",
+          "text": "Call it from a background thread, since main-thread calls see filtered results"
+        },
+        {
+          "id": "c",
+          "text": "Add `<queries><package android:name=\"com.example.maps\" /></queries>`"
+        },
+        {
+          "id": "d",
+          "text": "Use `getInstalledApplications()`, which isn't filtered on API 30 and above"
+        }
+      ],
+      "answer": "c",
+      "explanation": "From API 30, the system filters which other apps your app can see, and package queries such as `getPackageInfo()`, `getInstalledApplications()` and `queryIntentActivities()` only return visible ones. Declare what you need in a `<queries>` element, here by package name. `QUERY_ALL_PACKAGES` is for rare cases and needs Google Play's approval.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://developer.android.com/training/package-visibility",
+          "title": "Package visibility filtering on Android | App architecture | Android Developers",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "Apps targeting Android 11 (API 30)+ get filtered results from getPackageInfo(), getInstalledApplications(), queryIntentActivities() and resolveActivity(); declare needs with <queries> by package or intent; QUERY_ALL_PACKAGES is for rare cases and subject to Play approval."
+        }
+      ]
+    },
+    {
+      "id": "c019-q03",
+      "lesson": null,
+      "concept": "c019-mockk-object-static-mocks",
+      "type": "written",
+      "prompt": "Code under test calls a Kotlin `object AnalyticsTracker` and a top-level extension `fun String.toSlug()` declared in `StringUtils.kt`. How do you stub each with MockK, and how do you keep these mocks from leaking into other tests?",
+      "model_answer": {
+        "summary": "Use `mockkObject` for the object and `mockkStatic` on the file's generated class for the top-level function, then undo them with `unmockkAll`/`clearAllMocks` or let `MockKExtension` do it.",
+        "key_points": [
+          "`mockkObject(AnalyticsTracker)` turns the object into a mock that you stub with `every`; `unmockkObject` reverts it",
+          "Top-level and extension functions need `mockkStatic` with the file's generated class name, such as `\"pkg.StringUtilsKt\"` (or a function reference), and that mocks the whole `StringUtilsKt` class, not just `toSlug()`",
+          "Clean up with `unmockkAll()` (object, static and constructor mocks) and `clearAllMocks()`, for example after each test, or use JUnit 5's `MockKExtension`, which calls both in `@AfterAll` for each test class"
+        ]
+      },
+      "explanation": "Object and static mocks change shared classes rather than one instance you pass in, so a test has to undo them. The tempting mistake is to `mockkStatic` a file and forget that every function in it is now mocked.",
+      "materials": [
+        "mockk"
+      ],
+      "sources": [
+        {
+          "url": "https://mockk.io/",
+          "title": "MockK",
+          "publisher": "MockK",
+          "accessed": "2026-10-02",
+          "claim": "mockkObject turns an object into a mock (reverted with unmockkObject); module-wide extension functions are mocked with mockkStatic(\"pkg.FileKt\"), which mocks the whole pkg.FileKt class, not just one function; unmockkAll unmocks object, static and constructor mocks, clearAllMocks clears all mocks, and MockKExtension calls both in an @AfterAll callback so the environment is clean after each test class."
+        }
+      ]
+    },
+    {
+      "id": "c019-q04",
+      "lesson": null,
+      "concept": "c019-binder-transaction-size-limit",
+      "type": "written",
+      "prompt": "Screen A passes a list of 300 Parcelable products to screen B in an Intent extra, and some users crash on navigation. Explain the risk and a better design.",
+      "model_answer": {
+        "summary": "Intent extras travel through a Binder buffer of about 1 MB shared by the process, so large payloads throw `TransactionTooLargeException`; pass an ID and load the data on screen B.",
+        "key_points": [
+          "Intent extras and saved state go through Binder, whose transaction buffer (currently 1 MB) is shared by all the process's transactions in progress",
+          "Going over it throws `TransactionTooLargeException`, a runtime exception since Android 7.0",
+          "Keep Intent data to a few KB (and saved state under 50 KB): pass an ID and load the products from a database or repository on screen B"
+        ]
+      },
+      "explanation": "The crash depends on list size and on what else the process is sending at the time, which is why only some users see it. Passing identifiers removes the risk entirely.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://developer.android.com/guide/components/activities/parcelables-and-bundles",
+          "title": "Parcelables and Bundles | App architecture | Android Developers",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "The Binder transaction buffer is currently 1MB and shared by all transactions in progress for the process; exceeding it throws TransactionTooLargeException (runtime exception on Android 7.0+); limit Intent data to a few KB, keep saved state under 50KB, and store identifiers while persisting data elsewhere."
+        }
+      ]
+    },
+    {
+      "id": "c019-q05",
+      "lesson": null,
+      "concept": "c019-package-visibility-queries",
+      "type": "multiple_choice",
+      "prompt": "Under API 30+ package visibility filtering, which call still works without any `<queries>` entry?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`queryIntentActivities()` for a share Intent, to list every app that handles it"
+        },
+        {
+          "id": "b",
+          "text": "`startActivity()` with an implicit share Intent, letting the user pick an app"
+        },
+        {
+          "id": "c",
+          "text": "`getPackageInfo()` for a third-party app that you know is already installed"
+        },
+        {
+          "id": "d",
+          "text": "`resolveActivity()` on a share Intent, to check before you show the button"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Implicit intents sent with `startActivity()` keep working under package visibility filtering. The query methods are filtered: `queryIntentActivities()`, `getPackageInfo()` and `resolveActivity()` only see visible apps, so code that checks first and launches second can wrongly hide a feature unless it declares `<queries>`.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://developer.android.com/training/package-visibility",
+          "title": "Package visibility filtering on Android | App architecture | Android Developers",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "Implicit intents called with startActivity() continue to work; queryIntentActivities(), getPackageInfo(), getInstalledApplications() and resolveActivity() return only visible apps."
+        }
+      ]
+    },
+    {
+      "id": "c019-q06",
+      "lesson": null,
+      "concept": "c019-mockk-object-static-mocks",
+      "type": "multiple_choice",
+      "prompt": "A test calls `mockkStatic(\"com.app.util.StringUtilsKt\")` to stub the extension `String.toSlug()` from `StringUtils.kt`. What does that call mock?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Only `toSlug()`, since MockK mocks just the functions that you then stub"
+        },
+        {
+          "id": "b",
+          "text": "Nothing until `unmockkAll()` is called, which is what turns static mocks on"
+        },
+        {
+          "id": "c",
+          "text": "Each function in `StringUtils.kt`: it mocks the whole `StringUtilsKt` class"
+        },
+        {
+          "id": "d",
+          "text": "Every Kotlin file in the module, because they all compile into one shared class"
+        }
+      ],
+      "answer": "c",
+      "explanation": "`mockkStatic` with a file's generated class name mocks that whole class, so every top-level function in `StringUtils.kt` is affected, not only `toSlug()`. `unmockkAll()` does the opposite: it removes object, static and constructor mocks, which is why tests call it during cleanup.",
+      "materials": [
+        "mockk"
+      ],
+      "sources": [
+        {
+          "url": "https://mockk.io/",
+          "title": "MockK",
+          "publisher": "MockK",
+          "accessed": "2026-10-02",
+          "claim": "To mock module-wide extension functions, build mockkStatic with the module's class name, such as pkg.FileKt; this mocks the whole pkg.FileKt class, not just the extension function; unmockkAll unmocks object, static and constructor mocks."
+        }
+      ]
+    }
+  ]
+}

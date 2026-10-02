@@ -1,0 +1,243 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c006-tcs-inline-continuations",
+      "name": "TaskCompletionSource continuations running inline"
+    },
+    {
+      "id": "c006-async-dispose-pattern",
+      "name": "IAsyncDisposable, await using and async disposal pitfalls"
+    },
+    {
+      "id": "c006-gha-deploy-concurrency",
+      "name": "Serializing deployments with GitHub Actions concurrency groups"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c006-q01",
+      "lesson": null,
+      "concept": "c006-tcs-inline-continuations",
+      "type": "multiple_choice",
+      "prompt": "A connection class completes pending requests with `tcs.SetResult(response)` from its one socket-reader loop. Under load the reader stalls, because it ends up running the awaiting callers' code. What is the usual fix?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Call `TrySetResult` instead of `SetResult`, so the reader no longer waits for the awaiting callers"
+        },
+        {
+          "id": "b",
+          "text": "Create each `TaskCompletionSource` with `TaskCreationOptions.LongRunning`, so callers get their own thread"
+        },
+        {
+          "id": "c",
+          "text": "Create each `TaskCompletionSource` with `TaskCreationOptions.RunContinuationsAsynchronously`"
+        },
+        {
+          "id": "d",
+          "text": "Add `ConfigureAwait(false)` inside the reader loop, so continuations stop running on the reader's thread"
+        }
+      ],
+      "answer": "c",
+      "explanation": "By default a task's continuations may run synchronously, inline on the thread that completes it, so `SetResult` can run every awaiting caller's code on the reader thread. `RunContinuationsAsynchronously` makes them dispatch to the thread pool instead. `TrySetResult` only differs in not throwing when the task is already complete, `LongRunning` is a scheduling hint about a task's own work, and `ConfigureAwait(false)` on the reader's own awaits doesn't change where other code's continuations run.",
+      "materials": [
+        "aspnetcore-diagnostic-scenarios"
+      ],
+      "sources": [
+        {
+          "url": "https://github.com/davidfowl/AspNetCoreDiagnosticScenarios/blob/master/AsyncGuidance.md",
+          "title": "AspNetCoreDiagnosticScenarios: AsyncGuidance.md",
+          "publisher": "David Fowler (Microsoft), GitHub",
+          "accessed": "2026-10-02",
+          "claim": "Always create TaskCompletionSource<T> with TaskCreationOptions.RunContinuationsAsynchronously: by default continuations can run inline on the thread that completes the task, which risks deadlocks and thread-pool starvation; the flag dispatches them to the thread pool."
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/api/system.threading.tasks.taskcreationoptions",
+          "title": "TaskCreationOptions Enum (System.Threading.Tasks)",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "RunContinuationsAsynchronously forces continuations added to the task to run asynchronously; LongRunning is only a scheduling hint that oversubscription may be warranted; the options can be passed to the TaskCompletionSource<TResult> constructor."
+        }
+      ]
+    },
+    {
+      "id": "c006-q02",
+      "lesson": null,
+      "concept": "c006-async-dispose-pattern",
+      "type": "multiple_choice",
+      "prompt": "A library type wraps a network stream and implements only `IAsyncDisposable`, flushing buffered data in `DisposeAsync`. What risk does Microsoft's dispose guidance warn about with this design?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Code that disposes it only through `IDisposable` never calls `DisposeAsync`, so it leaks"
+        },
+        {
+          "id": "b",
+          "text": "`await using` refuses to compile for it, since that statement also needs `IDisposable`"
+        },
+        {
+          "id": "c",
+          "text": "The GC calls `DisposeAsync` on the finalizer thread, which can deadlock the whole process"
+        },
+        {
+          "id": "d",
+          "text": "`DisposeAsync` must return a `Task`, so every single disposal allocates on the heap"
+        }
+      ],
+      "answer": "a",
+      "explanation": "If a class implements `IAsyncDisposable` but not `IDisposable`, a consumer that only knows `Dispose` (an older container or wrapper, say) never reaches `DisposeAsync`, and the resource leaks. That's why the guidance suggests implementing both when synchronous disposal is possible. `await using` works with `IAsyncDisposable` alone, the GC never calls `DisposeAsync`, and `DisposeAsync` returns a `ValueTask`.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/standard/garbage-collection/implementing-disposeasync",
+          "title": "Implement a DisposeAsync method - .NET",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "If a class implements IAsyncDisposable but not IDisposable and a consumer only calls Dispose, DisposeAsync is never called and resources leak; DisposeAsync returns a ValueTask and is called by await using; stacked await using statements where a later constructor throws leave neither object disposed."
+        }
+      ]
+    },
+    {
+      "id": "c006-q03",
+      "lesson": null,
+      "concept": "c006-gha-deploy-concurrency",
+      "type": "written",
+      "prompt": "Two merges to `main` a minute apart both start your GitHub Actions workflow that deploys to production, and the two deploys overlap. How would you use `concurrency` to stop this, and what do its settings do to running and waiting runs?",
+      "model_answer": {
+        "summary": "Put the deploy in a concurrency group named for the environment so only one deploy runs at a time; by default a newer waiting run replaces an older one, and `cancel-in-progress` decides whether the running deploy is cancelled.",
+        "key_points": [
+          "A concurrency group allows at most one running job or workflow run at a time; a run that starts while another is in progress waits as pending",
+          "By default only one run can be pending: a newer run cancels the older pending one, so intermediate commits are skipped (`queue: max` lets up to 100 wait instead)",
+          "`cancel-in-progress: true` cancels the running one, which suits CI on a branch but risks leaving a production deploy half done",
+          "Group names are shared by every workflow in the repository, so name them uniquely, for example with `github.workflow` and the environment"
+        ]
+      },
+      "explanation": "Concurrency groups serialize deploys without any locking in your scripts. The tempting fix is `cancel-in-progress: true` everywhere, but for a production deploy you usually want the running one to finish and only the latest waiting commit to follow it.",
+      "materials": [
+        "github-actions"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency",
+          "title": "Control the concurrency of workflows and jobs",
+          "publisher": "GitHub",
+          "accessed": "2026-10-02",
+          "claim": "A concurrency group has at most one running and, by default, one pending job or run; a newly queued run cancels the existing pending one and takes its place; cancel-in-progress: true cancels the running one; queue: max allows up to 100 pending; group names must be unique across workflows to avoid cancelling other workflows' runs."
+        }
+      ]
+    },
+    {
+      "id": "c006-q04",
+      "lesson": null,
+      "concept": "c006-tcs-inline-continuations",
+      "type": "written",
+      "prompt": "Async guidance from the ASP.NET Core team says to always create `TaskCompletionSource<T>` with `TaskCreationOptions.RunContinuationsAsynchronously`. Explain what can go wrong without it.",
+      "model_answer": {
+        "summary": "Without the flag, completing the task can run the awaiting code inline on the completing thread, which can stall that thread, deadlock it or starve the pool; the flag sends the continuations to the thread pool.",
+        "key_points": [
+          "By default, continuations on the task may run synchronously, on the thread that calls `SetResult`, `SetException` or `SetCanceled`",
+          "That thread then runs arbitrary caller code before `SetResult` returns, so a producer loop or timer callback stalls behind it",
+          "If the completing code holds a lock or is a scarce thread, inline continuations can cause deadlocks and thread-pool starvation",
+          "`RunContinuationsAsynchronously` forces the continuations to be queued to the thread pool, so `SetResult` returns quickly"
+        ]
+      },
+      "explanation": "A `TaskCompletionSource` is often completed from infrastructure code: a socket reader, a callback, a lock-protected section. Running callers' continuations inline there couples that code to whatever the callers do next.",
+      "materials": [
+        "aspnetcore-diagnostic-scenarios"
+      ],
+      "sources": [
+        {
+          "url": "https://github.com/davidfowl/AspNetCoreDiagnosticScenarios/blob/master/AsyncGuidance.md",
+          "title": "AspNetCoreDiagnosticScenarios: AsyncGuidance.md",
+          "publisher": "David Fowler (Microsoft), GitHub",
+          "accessed": "2026-10-02",
+          "claim": "Always create TaskCompletionSource<T> with TaskCreationOptions.RunContinuationsAsynchronously: by default continuations can run inline on the thread that completes the task, which risks deadlocks and thread-pool starvation; the flag dispatches them to the thread pool."
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/api/system.threading.tasks.taskcreationoptions",
+          "title": "TaskCreationOptions Enum (System.Threading.Tasks)",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "RunContinuationsAsynchronously forces continuations added to the task to run asynchronously; LongRunning is only a scheduling hint that oversubscription may be warranted; the options can be passed to the TaskCompletionSource<TResult> constructor."
+        }
+      ]
+    },
+    {
+      "id": "c006-q05",
+      "lesson": null,
+      "concept": "c006-async-dispose-pattern",
+      "type": "multiple_choice",
+      "prompt": "```csharp\nvar a = new ExampleAsyncDisposable();\nvar b = new AnotherAsyncDisposable(); // throws\nawait using (a.ConfigureAwait(false))\nawait using (b.ConfigureAwait(false)) { }\n```\n\nThe second constructor throws. What happens to `a`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It is disposed as the exception leaves, because its `await using` is listed first here"
+        },
+        {
+          "id": "b",
+          "text": "It is never disposed, because the throw happens before either `await using` starts"
+        },
+        {
+          "id": "c",
+          "text": "It is disposed by its finalizer at once, as `await using` registered it up front"
+        },
+        {
+          "id": "d",
+          "text": "It is disposed with `b`, because the compiler moves each `await using` above both"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Microsoft's guidance calls this \"stacked usings\" and says to avoid it: `b`'s constructor throws before execution reaches either `await using`, so `DisposeAsync` is never called on `a`. Nest the blocks, or create each object right before its own `await using`, so every object that was created is disposed.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/standard/garbage-collection/implementing-disposeasync",
+          "title": "Implement a DisposeAsync method - .NET",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "If a class implements IAsyncDisposable but not IDisposable and a consumer only calls Dispose, DisposeAsync is never called and resources leak; DisposeAsync returns a ValueTask and is called by await using; stacked await using statements where a later constructor throws leave neither object disposed."
+        }
+      ]
+    },
+    {
+      "id": "c006-q06",
+      "lesson": null,
+      "concept": "c006-gha-deploy-concurrency",
+      "type": "multiple_choice",
+      "prompt": "A deploy workflow uses `concurrency: production` with the default settings. Run A is deploying and run B is pending when run C is queued. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A is canceled, so that C, the newest run, starts deploying now"
+        },
+        {
+          "id": "b",
+          "text": "B and C both wait in order, and each deploys after the one before"
+        },
+        {
+          "id": "c",
+          "text": "C fails at once, because the group already holds a pending run"
+        },
+        {
+          "id": "d",
+          "text": "B is canceled and C waits as pending; C deploys once A finishes"
+        }
+      ],
+      "answer": "d",
+      "explanation": "A concurrency group has at most one running and, by default, one pending run. A newly queued run cancels the existing pending one and takes its place, so B is skipped and C runs after A. The running deploy is cancelled only with `cancel-in-progress: true`; keeping several waiting runs needs `queue: max`.",
+      "materials": [
+        "github-actions"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency",
+          "title": "Control the concurrency of workflows and jobs",
+          "publisher": "GitHub",
+          "accessed": "2026-10-02",
+          "claim": "A concurrency group has at most one running and, by default, one pending job or run; a newly queued run cancels the existing pending one and takes its place; cancel-in-progress: true cancels the running one; queue: max allows up to 100 pending; group names must be unique across workflows to avoid cancelling other workflows' runs."
+        }
+      ]
+    }
+  ]
+}

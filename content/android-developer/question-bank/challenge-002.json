@@ -1,0 +1,247 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c002-when-guard-conditions",
+      "name": "Guard conditions in `when` (Kotlin 2.2+)"
+    },
+    {
+      "id": "c002-lambda-return-labels",
+      "name": "Returns and labels inside lambdas"
+    },
+    {
+      "id": "c002-data-operation-lifetimes",
+      "name": "UI-, app- and business-oriented data operations"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c002-q01",
+      "lesson": null,
+      "concept": "c002-when-guard-conditions",
+      "type": "multiple_choice",
+      "prompt": "In Kotlin 2.2+, `state` is `Ui.Error(retryable = false)`. What runs?\n\n```kotlin\nwhen (state) {\n    is Ui.Error if state.retryable -> showRetry()\n    is Ui.Error -> showFatal()\n    is Ui.Loading -> showSpinner()\n}\n```",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Nothing runs, since the first `is Ui.Error` branch already matched"
+        },
+        {
+          "id": "b",
+          "text": "It throws `NoWhenBranchMatchedException`, as the guard was false"
+        },
+        {
+          "id": "c",
+          "text": "`showFatal()` runs: the guard fails, so the next branch is tried"
+        },
+        {
+          "id": "d",
+          "text": "`showRetry()` runs, because guards are only checked in expressions"
+        }
+      ],
+      "answer": "c",
+      "explanation": "A branch with a guard condition runs only when both its primary condition and its guard are true. Here `is Ui.Error` matches but `state.retryable` is false, so `when` moves on and the plain `is Ui.Error` branch runs `showFatal()`. A false guard doesn't end the `when` or throw, and guards apply to statements as well as expressions. Guard conditions became Stable in Kotlin 2.2.0 (a preview in 2.1.0).",
+      "materials": [
+        "kotlin-docs"
+      ],
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/control-flow.html",
+          "title": "Conditions and loops",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-02",
+          "claim": "The code in a branch with a guard condition runs only if both the primary condition and the guard condition are true; otherwise the next branch is evaluated, and guards can be used in `when` statements and expressions that have a subject."
+        },
+        {
+          "url": "https://kotlinlang.org/docs/whatsnew22.html",
+          "title": "What's new in Kotlin 2.2.0",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-02",
+          "claim": "Guard conditions in `when` with a subject are Stable in Kotlin 2.2.0, after being in preview in 2.1.0."
+        }
+      ]
+    },
+    {
+      "id": "c002-q02",
+      "lesson": null,
+      "concept": "c002-lambda-return-labels",
+      "type": "multiple_choice",
+      "prompt": "What does `printPositive(listOf(1, -2, 3))` print, and what does it return?\n\n```kotlin\nfun printPositive(xs: List<Int>): String {\n    xs.forEach {\n        if (it < 0) return@forEach\n        println(it)\n    }\n    return \"done\"\n}\n```",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Only 1, because `return@forEach` stops the whole `forEach` loop"
+        },
+        {
+          "id": "b",
+          "text": "Only 1, then it returns from `printPositive` before `\"done\"`"
+        },
+        {
+          "id": "c",
+          "text": "It won't compile: a labelled return needs an explicit `lit@` label"
+        },
+        {
+          "id": "d",
+          "text": "1 and 3, then `\"done\"`: `return@forEach` skips just one element"
+        }
+      ],
+      "answer": "d",
+      "explanation": "`return@forEach` is a local return to the lambda, using the implicit label named after the function the lambda is passed to. It ends only the current call of the lambda, which works like `continue` in a loop, so 1 and 3 are printed and the function returns `\"done\"`. A bare `return` would be a non-local return from `printPositive` (allowed because `forEach` is inline). To stop the loop like `break`, wrap it in `run loop@ { ... }` and `return@loop`.",
+      "materials": [
+        "kotlin-docs"
+      ],
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/returns.html",
+          "title": "Returns and jumps",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-02",
+          "claim": "A `return` qualified with a label, such as the implicit `return@forEach`, returns only from the lambda, which is similar to `continue` in a regular loop; an unqualified `return` in a lambda passed to an inline function returns from the enclosing function."
+        }
+      ]
+    },
+    {
+      "id": "c002-q03",
+      "lesson": null,
+      "concept": "c002-data-operation-lifetimes",
+      "type": "written",
+      "prompt": "In a social app, (1) a profile is shown from the database, (2) the feed is refreshed and cached even if the user leaves the screen mid-refresh, and (3) a photo the user posted must finish uploading. Which scope or API should run each, and why?",
+      "model_answer": {
+        "summary": "Match each operation's lifetime: UI-oriented work follows the caller (the ViewModel's scope), app-oriented work runs in an external scope injected into the repository, and business-oriented work that must survive process death goes to WorkManager.",
+        "key_points": [
+          "Showing the profile is a UI-oriented operation: it only matters on that screen, is cancelled when the user leaves, and follows the caller's lifecycle, such as `viewModelScope`",
+          "Refreshing and caching the feed is app-oriented: it should finish while the app is open but may stop if the process dies, so it follows the Application or data layer's lifecycle",
+          "For app-oriented work, the repository receives an external `CoroutineScope` in its constructor (for example `SupervisorJob() + Dispatchers.Default`) instead of creating its own; with `async` there and `await` in the caller, leaving the screen cancels only the `await`",
+          "Finishing the photo upload is business-oriented: it must not be cancelled and should survive process death, so it runs with WorkManager"
+        ]
+      },
+      "explanation": "The data-layer guide sorts operations by how critical they are. Running everything in `viewModelScope` loses the feed refresh when the user navigates away, and putting everything in WorkManager is heavy for work that only matters while the app is open.",
+      "materials": [
+        "android-app-architecture"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/architecture/data-layer",
+          "title": "Data layer",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "UI-oriented operations are cancelled when the user leaves the screen and follow the caller's lifecycle, app-oriented operations last while the app is open and follow the Application or data layer's lifecycle, and business-oriented operations must survive process death and should use WorkManager; for app-oriented work a repository takes an external `CoroutineScope` as a constructor parameter instead of creating its own."
+        }
+      ]
+    },
+    {
+      "id": "c002-q04",
+      "lesson": null,
+      "concept": "c002-when-guard-conditions",
+      "type": "written",
+      "prompt": "What do guard conditions in `when` let you write that a plain branch can't, and what are their limits?",
+      "model_answer": {
+        "summary": "A guard (`is Cat if !cat.hunts ->`) adds an extra condition to a branch; if it fails, `when` tries the next branches. Guards need a `when` with a subject, can't be combined with comma-separated conditions, and `when` expressions must still be exhaustive.",
+        "key_points": [
+          "A guard is written after the primary condition with `if`, and the branch runs only when both the primary condition and the guard are true",
+          "If the guard is false, `when` goes on to check the following branches, so a more specific guarded branch can sit before a general one",
+          "Guards work only in a `when` with a subject, and not in a branch with several comma-separated conditions",
+          "A `when` used as an expression must still be exhaustive, so guarded branches usually need a plain branch or `else` for the remaining cases"
+        ]
+      },
+      "explanation": "Guards replace nested `if`s inside a branch, which can't fall through to later branches. They are Stable from Kotlin 2.2.0; in 2.1.0 they were a preview behind `-Xwhen-guards`.",
+      "materials": [
+        "kotlin-docs"
+      ],
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/control-flow.html",
+          "title": "Conditions and loops",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-02",
+          "claim": "Guard conditions run a branch only if both the primary condition and the guard are true; they can be used only in `when` with a subject, not with multiple comma-separated conditions, and `when` expressions with guards must still be exhaustive."
+        },
+        {
+          "url": "https://kotlinlang.org/docs/whatsnew22.html",
+          "title": "What's new in Kotlin 2.2.0",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-02",
+          "claim": "Guard conditions in `when` with a subject are Stable in Kotlin 2.2.0, after being in preview in 2.1.0."
+        }
+      ]
+    },
+    {
+      "id": "c002-q05",
+      "lesson": null,
+      "concept": "c002-lambda-return-labels",
+      "type": "multiple_choice",
+      "prompt": "You iterate with `list.forEach { ... }` and want to stop the whole loop at the first `3`, like `break`. Which way does the Kotlin documentation show?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Call `return@forEach`, which ends the `forEach` call at that element"
+        },
+        {
+          "id": "b",
+          "text": "Wrap the call in `run loop@ { ... }`, and `return@loop` from inside"
+        },
+        {
+          "id": "c",
+          "text": "Return `false` from the lambda, which tells `forEach` to stop early"
+        },
+        {
+          "id": "d",
+          "text": "Pass an anonymous function instead, and `return` from inside of it"
+        }
+      ],
+      "answer": "b",
+      "explanation": "`return@forEach` and `return` inside an anonymous function both end only the current call, so they act like `continue`. To leave the loop, the docs nest it in another lambda with a label, such as `run loop@ { ... }`, and `return@loop` from inside `forEach`, which leaves the `run` block. `forEach`'s lambda returns `Unit`, so returning `false` means nothing to it.",
+      "materials": [
+        "kotlin-docs"
+      ],
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/returns.html",
+          "title": "Returns and jumps",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-02",
+          "claim": "Local returns with `return@forEach` or from an anonymous function are similar to `continue`; to simulate `break`, the docs wrap the loop in `run loop@{ ... }` and use `return@loop` from the nested lambda."
+        }
+      ]
+    },
+    {
+      "id": "c002-q06",
+      "lesson": null,
+      "concept": "c002-data-operation-lifetimes",
+      "type": "multiple_choice",
+      "prompt": "`NewsRepository.refresh()` must finish caching even if the user leaves the screen, but it may stop if the process is killed. What does the data-layer guide recommend?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Run it in `viewModelScope`, since it outlives the screen's composables"
+        },
+        {
+          "id": "b",
+          "text": "Enqueue it with WorkManager, the API for work that must never be lost"
+        },
+        {
+          "id": "c",
+          "text": "Run it in an external `CoroutineScope` injected into the repository"
+        },
+        {
+          "id": "d",
+          "text": "Have the repository create its own `CoroutineScope` in its constructor"
+        }
+      ],
+      "answer": "c",
+      "explanation": "This is an app-oriented operation: it should outlive the screen but needn't survive process death. The guide injects an external `CoroutineScope` into the repository's constructor rather than letting it create its own, following dependency injection practice. `viewModelScope` is cancelled when the screen's ViewModel is cleared, and WorkManager is for business-oriented work that must survive process death.",
+      "materials": [
+        "android-app-architecture"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/architecture/data-layer",
+          "title": "Data layer",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "Fetching the latest news is an app-oriented operation; `NewsRepository` should receive a `CoroutineScope` as a constructor parameter instead of creating its own, while business-oriented operations that must survive process death should use WorkManager."
+        }
+      ]
+    }
+  ]
+}

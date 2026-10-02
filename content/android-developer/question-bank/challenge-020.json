@@ -1,0 +1,231 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c020-android16-fixed-rate-scheduling",
+      "name": "Android 16's change to missed scheduleAtFixedRate runs"
+    },
+    {
+      "id": "c020-workmanager-long-running-workers",
+      "name": "Long-running workers and their foreground service types"
+    },
+    {
+      "id": "c020-compose-uiautomator-test-tags",
+      "name": "Exposing Compose test tags to UI Automator"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c020-q01",
+      "lesson": null,
+      "concept": "c020-android16-fixed-rate-scheduling",
+      "type": "multiple_choice",
+      "prompt": "A `ScheduledExecutorService` runs `scheduleAtFixedRate(tick, 0, 1, MINUTES)`. The app's process sits cached for 10 minutes, then comes back. If the app targets API 36 (Android 16), how many missed `tick` runs fire at once?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "None: missed runs are dropped, and the next tick waits a full minute"
+        },
+        {
+          "id": "b",
+          "text": "All ten, back to back, so the total count of runs still adds up"
+        },
+        {
+          "id": "c",
+          "text": "At most one, and then the schedule carries on at its fixed rate"
+        },
+        {
+          "id": "d",
+          "text": "Ten, but spread over the next minute rather than all at once"
+        }
+      ],
+      "answer": "c",
+      "explanation": "For apps targeting Android 16, `scheduleAtFixedRate()` runs at most one missed execution when the app returns to a valid lifecycle, instead of running every missed one. So code that counts ticks to measure time undercounts after the app was cached. You can test the change with the `STPE_SKIP_MULTIPLE_MISSED_PERIODIC_TASKS` compatibility flag.",
+      "materials": [
+        "android-16-behavior-changes"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/about/versions/16/behavior-changes-16",
+          "title": "Behavior changes: Apps targeting Android 16 or higher | Android Developers",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "For apps targeting Android 16, scheduleAtFixedRate() executes at most one missed execution, instead of all missed executions, when the app returns to a valid lifecycle; test with the STPE_SKIP_MULTIPLE_MISSED_PERIODIC_TASKS compat flag."
+        }
+      ]
+    },
+    {
+      "id": "c020-q02",
+      "lesson": null,
+      "concept": "c020-workmanager-long-running-workers",
+      "type": "multiple_choice",
+      "prompt": "A `CoroutineWorker` records GPS for a 30-minute run and calls `setForeground(ForegroundInfo(id, notification))` with no service type. The app targets Android 14. What is missing?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Nothing: WorkManager chooses the type from the permissions that the app holds"
+        },
+        {
+          "id": "b",
+          "text": "A call to `startForegroundService()` of your own before the worker even starts"
+        },
+        {
+          "id": "c",
+          "text": "An expedited request, because only expedited work may run over 10 minutes"
+        },
+        {
+          "id": "d",
+          "text": "A `location` type in `ForegroundInfo` and on `SystemForegroundService`"
+        }
+      ],
+      "answer": "d",
+      "explanation": "WorkManager runs a long-running worker in a foreground service it manages for you. On Android 14+ every long-running worker must specify a foreground service type: pass it in `ForegroundInfo` and declare it on `androidx.work.impl.foreground.SystemForegroundService` in the manifest (`location` here). You don't start a service yourself, and expedited work is a separate feature.",
+      "materials": [
+        "android-workmanager"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/background-work/background-tasks/persistent/how-to/long-running",
+          "title": "Support for long-running workers | Background work | Android Developers",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "WorkManager runs long-running workers (over 10 minutes) in a foreground service it manages via setForeground(ForegroundInfo); on Android 14+ a foreground service type is required for all long-running workers, passed in ForegroundInfo and declared on SystemForegroundService in the manifest."
+        }
+      ]
+    },
+    {
+      "id": "c020-q03",
+      "lesson": null,
+      "concept": "c020-compose-uiautomator-test-tags",
+      "type": "written",
+      "prompt": "A UI Automator test can't find a `LazyColumn` that has `Modifier.testTag(\"feed\")`, though Compose tests find it fine. Explain why, and how you fix it.",
+      "model_answer": {
+        "summary": "UI Automator doesn't see Compose test tags by default; set `testTagsAsResourceId = true` high in the hierarchy and find the node with `By.res(\"feed\")`.",
+        "key_points": [
+          "By default UI Automator finds composables only by descriptors such as displayed text or content description, not by `Modifier.testTag`",
+          "Set `Modifier.semantics { testTagsAsResourceId = true }` high in the hierarchy (on the `Scaffold`, say) so nested test tags are exposed as resource IDs",
+          "Then find it with `By.res(\"feed\")`, not `By.res(package, id)`, which is formatted differently from the test tag"
+        ]
+      },
+      "explanation": "Compose test tags live in the semantics tree that Compose tests read; UI Automator reads the accessibility view of the screen, so the tags must be mapped to resource IDs first.",
+      "materials": [
+        "compose-testing"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/testing/interoperability",
+          "title": "Interoperability | Jetpack Compose | Android Developers",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "Composables are accessible from UiAutomator only by descriptors like text or content description unless testTagsAsResourceId is enabled high in the hierarchy; then a Modifier.testTag can be found with By.res(resourceName), not By.res(resourcePackage, resourceId)."
+        }
+      ]
+    },
+    {
+      "id": "c020-q04",
+      "lesson": null,
+      "concept": "c020-android16-fixed-rate-scheduling",
+      "type": "written",
+      "prompt": "Your app counts `scheduleAtFixedRate` ticks to track how long a workout session has run. Explain what Android 16 changes for this code, and how you would fix and test it.",
+      "model_answer": {
+        "summary": "Targeting Android 16, missed fixed-rate runs collapse to at most one when the app returns, so tick counts undercount; measure elapsed time from timestamps and test with the compat flag.",
+        "key_points": [
+          "For apps targeting Android 16 (API 36), `scheduleAtFixedRate()` runs at most one missed execution when the app returns to a valid lifecycle, instead of all of them",
+          "So counting ticks undercounts time spent while the app was cached; compute elapsed time from stored timestamps instead",
+          "Test the new behaviour with the compatibility framework's `STPE_SKIP_MULTIPLE_MISSED_PERIODIC_TASKS` flag"
+        ]
+      },
+      "explanation": "Before Android 16, all missed runs fired at once on return, which hid the design flaw of using a tick count as a clock. The fix is to stop relying on the executor's catch-up.",
+      "materials": [
+        "android-16-behavior-changes"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/about/versions/16/behavior-changes-16",
+          "title": "Behavior changes: Apps targeting Android 16 or higher | Android Developers",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "For apps targeting Android 16, scheduleAtFixedRate() executes at most one missed execution, instead of all missed executions, when the app returns to a valid lifecycle; test with the STPE_SKIP_MULTIPLE_MISSED_PERIODIC_TASKS compat flag."
+        }
+      ]
+    },
+    {
+      "id": "c020-q05",
+      "lesson": null,
+      "concept": "c020-workmanager-long-running-workers",
+      "type": "multiple_choice",
+      "prompt": "How does WorkManager run a worker that calls `setForeground()`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It moves the worker to a new process that the system won't kill for memory"
+        },
+        {
+          "id": "b",
+          "text": "It turns the request into an exact alarm, so Doze can't hold it back"
+        },
+        {
+          "id": "c",
+          "text": "It runs it in a foreground service it manages, with your notification"
+        },
+        {
+          "id": "d",
+          "text": "It schedules a UIDT job instead, which standby quotas don't apply to"
+        }
+      ],
+      "answer": "c",
+      "explanation": "For long-running work, WorkManager manages and runs a foreground service on your behalf to execute the request, showing the notification from your `ForegroundInfo`. This is what lets a worker run longer than 10 minutes; it is not an alarm, a separate process or a UIDT job.",
+      "materials": [
+        "android-workmanager"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/background-work/background-tasks/persistent/how-to/long-running",
+          "title": "Support for long-running workers | Background work | Android Developers",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "Under the hood, WorkManager manages and runs a foreground service on your behalf to execute the WorkRequest, while also showing a configurable notification; this supports workers that run longer than 10 minutes."
+        }
+      ]
+    },
+    {
+      "id": "c020-q06",
+      "lesson": null,
+      "concept": "c020-compose-uiautomator-test-tags",
+      "type": "multiple_choice",
+      "prompt": "You set `Modifier.semantics { testTagsAsResourceId = true }` on your `Scaffold`. Which UI Automator selector finds a child with `Modifier.testTag(\"feed\")`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`By.res(context.packageName, \"feed\")`, like a View ID"
+        },
+        {
+          "id": "b",
+          "text": "`By.desc(\"feed\")`, since test tags become descriptions"
+        },
+        {
+          "id": "c",
+          "text": "`By.text(\"feed\")`, since test tags become the node text"
+        },
+        {
+          "id": "d",
+          "text": "`By.res(\"feed\")`, with the test tag as resource name"
+        }
+      ],
+      "answer": "d",
+      "explanation": "With `testTagsAsResourceId` enabled, a test tag is exposed as a resource name, so `By.res(\"feed\")` finds it. The two-argument `By.res(package, id)` builds a differently formatted name and won't match. Test tags don't become text or content descriptions.",
+      "materials": [
+        "compose-testing"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/testing/interoperability",
+          "title": "Interoperability | Jetpack Compose | Android Developers",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "Any composable with Modifier.testTag(tag) can be accessed with By.res(resourceName) using the tag as resourceName; use By.res(resourceName) only, not By.res(resourcePackage, resourceId), which formats differently."
+        }
+      ]
+    }
+  ]
+}

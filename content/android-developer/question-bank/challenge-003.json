@@ -1,0 +1,240 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c003-generic-type-erasure-checks",
+      "name": "Type erasure, generic `is` checks and unchecked casts"
+    },
+    {
+      "id": "c003-internal-visibility-from-java",
+      "name": "How `internal` declarations look to Java"
+    },
+    {
+      "id": "c003-binds-vs-provides",
+      "name": "`@Binds` vs `@Provides` in Hilt modules"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c003-q01",
+      "lesson": null,
+      "concept": "c003-generic-type-erasure-checks",
+      "type": "multiple_choice",
+      "prompt": "`fun handle(payload: Any) { if (payload is List<String>) { /* ... */ } }` fails to compile. Why, and what is the usual fix?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`is` needs a reified type, so marking `handle` as `inline` makes it legal"
+        },
+        {
+          "id": "b",
+          "text": "Type arguments are erased at runtime, so check `is List<*>` instead"
+        },
+        {
+          "id": "c",
+          "text": "`List` is an interface, so check against `ArrayList<String>` instead"
+        },
+        {
+          "id": "d",
+          "text": "`Any` blocks smart casts, so cast with `payload as List<String>` first"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Because of type erasure, Kotlin can't check at runtime which type arguments a generic instance was created with, so it refuses `is List<String>`. A star-projected check, `is List<*>`, is allowed, and its items are typed `Any?`. `inline` alone doesn't help: only a reified type parameter of an inline function can be checked, and `ArrayList<String>` is erased just the same.",
+      "materials": [
+        "kotlin-docs"
+      ],
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/generics.html",
+          "title": "Generics: in, out, where",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-02",
+          "claim": "Due to type erasure there is no general way to check at runtime whether a generic instance was created with certain type arguments, so the compiler prohibits checks such as `is List<Int>`; checking against a star-projected type like `List<*>` is allowed, and only reified type parameters of inline functions can be checked."
+        }
+      ]
+    },
+    {
+      "id": "c003-q02",
+      "lesson": null,
+      "concept": "c003-internal-visibility-from-java",
+      "type": "multiple_choice",
+      "prompt": "A Kotlin library module declares `class Cache { internal fun evictAll() { } }`. What does Java code in another module see in the compiled bytecode?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Nothing, since `internal` compiles to package-private, which Java hides"
+        },
+        {
+          "id": "b",
+          "text": "A private method, plus a synthetic accessor that only Kotlin can call"
+        },
+        {
+          "id": "c",
+          "text": "A public method with a mangled name, so it is not used by accident"
+        },
+        {
+          "id": "d",
+          "text": "A public `evictAll()`, callable just like any other public method"
+        }
+      ],
+      "answer": "c",
+      "explanation": "`internal` declarations become `public` in Java bytecode, but the compiler mangles the names of `internal` members. That prevents accidental overrides across modules (for example a Java subclass) and accidental use, though Java can still call the mangled name. Public members of an `internal` class are the exception: they are not mangled and stay callable from Java.",
+      "materials": [
+        "kotlin-docs"
+      ],
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/java-to-kotlin-interop.html",
+          "title": "Calling Kotlin from Java",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-02",
+          "claim": "`internal` declarations become `public` in Java; the compiler mangles the names of `internal` members to prevent accidental overrides across modules, while public members of `internal` classes aren't mangled and remain callable from Java."
+        }
+      ]
+    },
+    {
+      "id": "c003-q03",
+      "lesson": null,
+      "concept": "c003-binds-vs-provides",
+      "type": "written",
+      "prompt": "Your Hilt graph must supply `AuthRepository` (an interface, implemented by your `AuthRepositoryImpl` with an `@Inject` constructor) and a `Retrofit` instance. Which annotation do you use for each, and why?",
+      "model_answer": {
+        "summary": "Bind the interface to its implementation with an abstract `@Binds` function, and build `Retrofit` in a `@Provides` function, because you don't own it and it is created with a builder.",
+        "key_points": [
+          "`@Binds` goes on an abstract function in an abstract module: its return type is the interface and its single parameter is the implementation, which must itself be injectable (an `@Inject` constructor)",
+          "`@Provides` is for types you don't own or that need a builder, like Retrofit, OkHttp or a Room database: the return type is what it provides, the parameters are its dependencies, and the body says how to build it",
+          "Prefer `@Binds` over a `@Provides` that just returns its parameter, because Dagger's generated code for `@Binds` is likely more efficient",
+          "Hilt runs an unscoped `@Provides` body every time it needs an instance, so an expensive object like Retrofit is usually scoped, for example with `@Singleton`"
+        ]
+      },
+      "explanation": "Both annotations add a binding, but they say different things: `@Binds` only maps an interface to an implementation Dagger can already build, while `@Provides` contains code that builds an object Dagger can't construct itself. Writing every binding with `@Provides` works but adds code Dagger has to call.",
+      "materials": [
+        "android-hilt"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/training/dependency-injection/hilt-android",
+          "title": "Dependency injection with Hilt",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "`@Binds` is an abstract function whose return type is the interface and whose parameter is the implementation to provide; `@Provides` supplies types you don't own or that use a builder (Retrofit, OkHttpClient, Room), where parameters are dependencies and Hilt executes the body every time it needs an instance."
+        },
+        {
+          "url": "https://dagger.dev/api/latest/dagger/Binds.html",
+          "title": "Binds (Dagger API)",
+          "publisher": "Dagger (Google)",
+          "accessed": "2026-10-02",
+          "claim": "`@Binds` methods must be abstract with a single parameter assignable to the return type, may be scoped, and are a drop-in replacement for `@Provides` methods that simply return an injected parameter; prefer `@Binds` because the generated implementation is likely more efficient."
+        }
+      ]
+    },
+    {
+      "id": "c003-q04",
+      "lesson": null,
+      "concept": "c003-generic-type-erasure-checks",
+      "type": "multiple_choice",
+      "prompt": "`readDictionary()` returns `Map<String, *>`. You write `val ints = readDictionary() as Map<String, Int>`, which compiles with an unchecked-cast warning. What happens at runtime if one value is really a `String`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The cast throws `ClassCastException` at once, as the values are checked"
+        },
+        {
+          "id": "b",
+          "text": "The compiler refuses the code, since unchecked generic casts are errors"
+        },
+        {
+          "id": "c",
+          "text": "Kotlin converts each value to an `Int`, failing only if it can't parse"
+        },
+        {
+          "id": "d",
+          "text": "The cast succeeds; the problem only shows up where a value is used"
+        }
+      ],
+      "answer": "d",
+      "explanation": "A cast to a generic type with concrete type arguments can't be checked at runtime, because the arguments are erased: only the `Map` part is checked. So the cast succeeds, and the wrong value fails later, where code reads it as an `Int`. The compiler reports a warning, not an error, and casts never convert values.",
+      "materials": [
+        "kotlin-docs"
+      ],
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/generics.html",
+          "title": "Generics: in, out, where",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-02",
+          "claim": "Type casts to generic types with concrete type arguments such as `foo as List<String>` cannot be checked at runtime; they are unchecked casts, reported with a warning, used when type safety is implied by program logic."
+        }
+      ]
+    },
+    {
+      "id": "c003-q05",
+      "lesson": null,
+      "concept": "c003-internal-visibility-from-java",
+      "type": "written",
+      "prompt": "A Kotlin SDK module marks its implementation classes and helper functions `internal`. A Java app uses the SDK. How do those declarations look to the Java code, and what should the SDK author keep in mind?",
+      "model_answer": {
+        "summary": "In bytecode `internal` becomes `public`, with mangled names for `internal` members, so Java can technically reach them; the author shouldn't treat `internal` as a hard barrier for Java callers.",
+        "key_points": [
+          "`internal` has no Java equivalent, so `internal` declarations compile to `public` in the bytecode",
+          "The compiler mangles the names of `internal` members, which prevents accidental overrides across modules (such as a Java subclass) and makes accidental calls unlikely",
+          "Public members of an `internal` class are not mangled, so they remain callable from Java",
+          "So Java callers can still reach `internal` code; the module boundary is only enforced by the Kotlin compiler"
+        ]
+      },
+      "explanation": "Module visibility is a Kotlin concept the JVM doesn't have. The mangling discourages Java use, but it is not access control, which matters when a library is used from Java.",
+      "materials": [
+        "kotlin-docs"
+      ],
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/java-to-kotlin-interop.html",
+          "title": "Calling Kotlin from Java",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-02",
+          "claim": "`internal` declarations become `public` in Java; the Kotlin compiler mangles the names of `internal` members to prevent accidental overrides across modules, and the names of public members of `internal` classes aren't mangled and remain callable from Java."
+        }
+      ]
+    },
+    {
+      "id": "c003-q06",
+      "lesson": null,
+      "concept": "c003-binds-vs-provides",
+      "type": "multiple_choice",
+      "prompt": "A Hilt module has `@Provides fun repo(impl: AuthRepositoryImpl): AuthRepository = impl`, and `AuthRepositoryImpl` has an `@Inject` constructor. What does Dagger's documentation recommend?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Replace it with an abstract `@Binds` method, likely more efficient"
+        },
+        {
+          "id": "b",
+          "text": "Keep it, as a `@Provides` that returns its parameter is how interfaces bind"
+        },
+        {
+          "id": "c",
+          "text": "Add `@Singleton` to it, because a binding for an interface must be scoped"
+        },
+        {
+          "id": "d",
+          "text": "Call `AuthRepositoryImpl()` in the body, so Dagger skips its constructor"
+        }
+      ],
+      "answer": "a",
+      "explanation": "A `@Provides` method that only returns its injected parameter is exactly what `@Binds` replaces: an abstract method with one parameter assignable to the return type. Dagger says to prefer `@Binds` because its generated implementation is likely more efficient. Scoping is optional for both, and constructing the class by hand would bypass the injection of its own dependencies.",
+      "materials": [
+        "android-hilt"
+      ],
+      "sources": [
+        {
+          "url": "https://dagger.dev/api/latest/dagger/Binds.html",
+          "title": "Binds (Dagger API)",
+          "publisher": "Dagger (Google)",
+          "accessed": "2026-10-02",
+          "claim": "`@Binds` methods are a drop-in replacement for `@Provides` methods that simply return an injected parameter; prefer `@Binds` because the generated implementation is likely more efficient, and `@Binds` methods may be scoped."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,246 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c008-temperature-top-p",
+      "name": "Temperature and top-p (nucleus) sampling"
+    },
+    {
+      "id": "c008-cache-aware-itpm",
+      "name": "Cached tokens and input-token rate limits"
+    },
+    {
+      "id": "c008-chunk-size-overlap",
+      "name": "Choosing chunk size and overlap"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c008-q01",
+      "lesson": null,
+      "concept": "c008-temperature-top-p",
+      "type": "multiple_choice",
+      "prompt": "A model's next-token logits are divided by a temperature `t` before the softmax, and then top-p (nucleus) sampling with `p = 0.9` picks the token. What does each setting do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`t` sets how many tokens are kept; top-p then rescales the logits before softmax"
+        },
+        {
+          "id": "b",
+          "text": "Low `t` favours likely tokens; top-p samples the smallest set with 90% of mass"
+        },
+        {
+          "id": "c",
+          "text": "Low `t` favours rare tokens; top-p always keeps the 90 most likely next tokens"
+        },
+        {
+          "id": "d",
+          "text": "Both only change length; top-p ends the answer once 90% of `max_tokens` is used"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Dividing the logits by a temperature below 1 sharpens the softmax towards high-probability tokens and shrinks the tail. Nucleus sampling then keeps the smallest set of tokens whose probabilities add up to at least `p`, so the set is small when the model is confident and large when it isn't. Keeping a fixed number of tokens is top-k, not top-p.",
+      "materials": [
+        "transformer-explainer"
+      ],
+      "sources": [
+        {
+          "url": "https://arxiv.org/pdf/1904.09751",
+          "title": "The Curious Case of Neural Text Degeneration",
+          "publisher": "Holtzman et al. (ICLR 2020, arXiv)",
+          "accessed": "2026-10-02",
+          "claim": "Temperature divides the logits before the softmax, and t in [0, 1) skews the distribution towards high-probability tokens and lowers the tail's mass; Nucleus (top-p) sampling samples from the smallest set of tokens whose cumulative probability is at least p, so the set's size changes with the shape of the distribution, unlike top-k's fixed k."
+        }
+      ]
+    },
+    {
+      "id": "c008-q02",
+      "lesson": null,
+      "concept": "c008-cache-aware-itpm",
+      "type": "multiple_choice",
+      "prompt": "Your support agent sends a 40,000-token cached system prompt and tool list on every call, plus a few hundred new tokens. For most current Claude models, which input tokens count toward the input-tokens-per-minute (ITPM) limit?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "All input tokens, cached or not, since ITPM counts the whole prompt"
+        },
+        {
+          "id": "b",
+          "text": "Only `cache_read_input_tokens`, since new tokens are billed apart"
+        },
+        {
+          "id": "c",
+          "text": "Input and output tokens together, in one tokens-per-minute pool"
+        },
+        {
+          "id": "d",
+          "text": "`input_tokens` and `cache_creation_input_tokens`, not cache reads"
+        }
+      ],
+      "answer": "d",
+      "explanation": "Claude's ITPM limit is cache-aware: uncached input (`input_tokens`) and tokens being written to the cache count, but tokens read from the cache don't, on most models. So a well-cached prompt raises your effective throughput: with 2,000,000 ITPM and an 80% hit rate you can process about 10,000,000 input tokens a minute. Output has its own OTPM limit.",
+      "materials": [
+        "anthropic-docs-rate-limits",
+        "anthropic-docs-prompt-caching"
+      ],
+      "sources": [
+        {
+          "url": "https://platform.claude.com/docs/en/api/rate-limits",
+          "title": "Rate limits",
+          "publisher": "Anthropic",
+          "accessed": "2026-10-02",
+          "claim": "For most Claude models only uncached input tokens count toward ITPM: `input_tokens` and `cache_creation_input_tokens` count, `cache_read_input_tokens` do not; with a 2,000,000 ITPM limit and an 80% cache hit rate you could process 10,000,000 total input tokens per minute. Limits use a token bucket, and exceeding one returns a 429 with a `retry-after` header."
+        }
+      ]
+    },
+    {
+      "id": "c008-q03",
+      "lesson": null,
+      "concept": "c008-chunk-size-overlap",
+      "type": "written",
+      "prompt": "You are chunking 100 pages of help-centre articles for RAG with a recursive text splitter. How do you choose the chunk size and overlap, and how do you check the choice?",
+      "model_answer": {
+        "summary": "Split on natural boundaries, size chunks so each holds one retrievable idea within the embedding model's limit, add a modest overlap so facts at a boundary survive, and pick the settings by measuring retrieval on your own queries.",
+        "key_points": [
+          "A recursive splitter tries paragraph breaks, then line breaks, then spaces, so chunks keep related text together",
+          "Chunks that are too small or too large both hurt retrieval, and text past the embedding model's input limit may be truncated; `chunk_size` is in characters by default unless you pass a token `length_function`",
+          "Overlap repeats some text between neighbouring chunks so information split across a boundary isn't lost",
+          "Test a range of sizes on a representative set of queries you can score, and keep the best one, rather than guessing"
+        ]
+      },
+      "explanation": "There is no universal chunk size: it depends on the content, the embedding model and the queries. The tempting answer is a fixed number from a tutorial, but the reliable one is to compare a few settings on queries from your own data and measure which retrieves the right chunks.",
+      "materials": [
+        "pinecone-chunking-strategies"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.langchain.com/oss/python/integrations/splitters/recursive_text_splitter",
+          "title": "Splitting recursively",
+          "publisher": "LangChain",
+          "accessed": "2026-10-02",
+          "claim": "RecursiveCharacterTextSplitter tries the separators `[\"\\n\\n\", \"\\n\", \" \", \"\"]` in order until chunks are small enough, keeping paragraphs, then sentences, then words together; `chunk_size` is measured by `length_function`, characters by default, and `chunk_overlap` repeats text between chunks to reduce information lost at a split."
+        },
+        {
+          "url": "https://www.pinecone.io/learn/chunking-strategies/",
+          "title": "Chunking Strategies for LLM Applications",
+          "publisher": "Pinecone",
+          "accessed": "2026-10-02",
+          "claim": "Chunks that are too small or too large lead to imprecise search results; text past the embedding model's context window may be truncated; pick the chunk size by testing a range of sizes on a representative dataset with queries you can evaluate, iteratively."
+        }
+      ]
+    },
+    {
+      "id": "c008-q04",
+      "lesson": null,
+      "concept": "c008-temperature-top-p",
+      "type": "written",
+      "prompt": "Your team wants steadier output from an extraction step on Claude Opus 4.7 or later, and plans to lower `temperature` and `top_p`. Explain what each parameter does, and what you would do on these models instead.",
+      "model_answer": {
+        "summary": "Temperature reshapes the softmax and top-p truncates it to the most likely tokens, but Claude Opus 4.7 and later reject non-default sampling values, so you omit them and steer the output with prompting.",
+        "key_points": [
+          "Temperature divides the logits before the softmax; a low value pushes probability towards the likeliest tokens, at the cost of diversity",
+          "Top-p samples from the smallest set of tokens whose probabilities add up to at least `p`, so the set's size adapts to the distribution",
+          "On Claude Opus 4.7 and later, a non-default `temperature`, `top_p` or `top_k` returns a 400 error",
+          "So remove the sampling parameters and guide the behaviour with the prompt instead"
+        ]
+      },
+      "explanation": "Knowing what the knobs do still matters for other models and for interviews, but on recent Claude models the API refuses them. Code that keeps sending `temperature: 0` breaks on migration; Anthropic's guide says to omit the parameters and use prompting.",
+      "materials": [
+        "transformer-explainer"
+      ],
+      "sources": [
+        {
+          "url": "https://arxiv.org/pdf/1904.09751",
+          "title": "The Curious Case of Neural Text Degeneration",
+          "publisher": "Holtzman et al. (ICLR 2020, arXiv)",
+          "accessed": "2026-10-02",
+          "claim": "Temperature divides the logits before the softmax, and t in [0, 1) skews the distribution towards high-probability tokens and lowers the tail's mass; Nucleus (top-p) sampling samples from the smallest set of tokens whose cumulative probability is at least p, so the set's size changes with the shape of the distribution, unlike top-k's fixed k."
+        },
+        {
+          "url": "https://platform.claude.com/docs/en/models/opus-5-5/migration-guide",
+          "title": "Migrating to Claude Opus 5.5",
+          "publisher": "Anthropic",
+          "accessed": "2026-10-02",
+          "claim": "Setting `temperature`, `top_p` or `top_k` to any non-default value on Claude Opus 4.7 and later models returns a 400 error; the safest migration is to omit them and use prompting to guide the model's behaviour."
+        }
+      ]
+    },
+    {
+      "id": "c008-q05",
+      "lesson": null,
+      "concept": "c008-cache-aware-itpm",
+      "type": "multiple_choice",
+      "prompt": "Your organization has a 2,000,000 ITPM limit on a Claude model and an 80% prompt-cache hit rate. About how many total input tokens per minute can you process before ITPM stops you?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "About 2,000,000, since cached tokens count at their full size"
+        },
+        {
+          "id": "b",
+          "text": "About 10,000,000: 2M uncached plus 8M read from the cache"
+        },
+        {
+          "id": "c",
+          "text": "About 20,000,000, since cache reads count at a tenth of size"
+        },
+        {
+          "id": "d",
+          "text": "About 1,600,000, since cache writes take 20% of the limit"
+        }
+      ],
+      "answer": "b",
+      "explanation": "On most Claude models, cache reads don't count toward ITPM at all, so only the 20% uncached share uses the limit: 2M uncached tokens allow about 8M more from the cache, 10M in total. Cache reads are billed at a fraction of the input price, but that is pricing, not the rate limit.",
+      "materials": [
+        "anthropic-docs-rate-limits"
+      ],
+      "sources": [
+        {
+          "url": "https://platform.claude.com/docs/en/api/rate-limits",
+          "title": "Rate limits",
+          "publisher": "Anthropic",
+          "accessed": "2026-10-02",
+          "claim": "For most Claude models only uncached input tokens count toward ITPM: `input_tokens` and `cache_creation_input_tokens` count, `cache_read_input_tokens` do not; with a 2,000,000 ITPM limit and an 80% cache hit rate you could process 10,000,000 total input tokens per minute. Limits use a token bucket, and exceeding one returns a 429 with a `retry-after` header."
+        }
+      ]
+    },
+    {
+      "id": "c008-q06",
+      "lesson": null,
+      "concept": "c008-chunk-size-overlap",
+      "type": "multiple_choice",
+      "prompt": "You create `RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)` with no other arguments. What is `chunk_size` measured in, and where does it try to split first?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Tokens of the embedding model; it splits at sentence ends first"
+        },
+        {
+          "id": "b",
+          "text": "Words; it splits on spaces first, then on newlines if still too long"
+        },
+        {
+          "id": "c",
+          "text": "Characters; it tries blank lines (`\\n\\n`), then `\\n`, then spaces"
+        },
+        {
+          "id": "d",
+          "text": "Bytes; it cuts at exactly 1,000 bytes, then steps back 200 bytes"
+        }
+      ],
+      "answer": "c",
+      "explanation": "By default the splitter measures length in characters and tries its separators in order: blank lines, then newlines, then spaces, then single characters, so paragraphs stay whole when they fit. To size chunks in tokens you pass a token-counting `length_function`. The 200-character overlap repeats text between neighbouring chunks.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://docs.langchain.com/oss/python/integrations/splitters/recursive_text_splitter",
+          "title": "Splitting recursively",
+          "publisher": "LangChain",
+          "accessed": "2026-10-02",
+          "claim": "RecursiveCharacterTextSplitter tries the separators `[\"\\n\\n\", \"\\n\", \" \", \"\"]` in order until chunks are small enough, keeping paragraphs, then sentences, then words together; `chunk_size` is measured by `length_function`, characters by default, and `chunk_overlap` repeats text between chunks to reduce information lost at a split."
+        }
+      ]
+    }
+  ]
+}

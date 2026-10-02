@@ -1,0 +1,257 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c021-composable-side-effect-free",
+      "name": "Composables must be free of side effects"
+    },
+    {
+      "id": "c021-network-security-config-defaults",
+      "name": "Network security config defaults: cleartext and trust anchors"
+    },
+    {
+      "id": "c021-broadcast-receiver-goasync-timeouts",
+      "name": "Broadcast receiver timeouts and goAsync"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c021-q01",
+      "lesson": null,
+      "concept": "c021-composable-side-effect-free",
+      "type": "multiple_choice",
+      "prompt": "A composable declares `var items = 0`, runs `items++` inside the `for` loop that emits each `Card`, then shows `Text(\"Count: $items\")`. Why does the count come out wrong?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Composables can run in any order and as often as every frame, so writes repeat"
+        },
+        {
+          "id": "b",
+          "text": "The slot table resets every local `var` to its first value before each new frame"
+        },
+        {
+          "id": "c",
+          "text": "`items` must be a `mutableStateOf(0)`, so Compose can observe every increment"
+        },
+        {
+          "id": "d",
+          "text": "Each `Card` lambda already runs on a background thread, so the increments race"
+        }
+      ],
+      "answer": "a",
+      "explanation": "The Compose mental model guide uses this exact bug: composables and their lambdas can run in any order, may recompose on their own, and can rerun as often as every frame, so a write to a shared variable during composition gives a wrong count. Making `items` a `mutableStateOf` doesn't help: it is still a write during composition, which the docs say never to do. Composables don't run in parallel today; the rule exists so Compose could do that later.",
+      "materials": [
+        "compose-mental-model"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/mental-model",
+          "title": "Thinking in Compose",
+          "publisher": "Android Developers",
+          "accessed": "2026-10-02",
+          "claim": "The guide's `ListWithBug` example shows `items++` inside a composable displaying the wrong count, because composables can execute in any order, may run as often as every frame, and writes like this are not supported; composables cannot currently run in parallel."
+        },
+        {
+          "url": "https://developer.android.com/develop/ui/compose/performance/bestpractices",
+          "title": "Follow best practices (Compose performance)",
+          "publisher": "Android Developers",
+          "accessed": "2026-10-02",
+          "claim": "You can avoid backwards writes altogether by never writing to state in Composition; write to state in response to an event, in a lambda such as `onClick`."
+        }
+      ]
+    },
+    {
+      "id": "c021-q02",
+      "lesson": null,
+      "concept": "c021-network-security-config-defaults",
+      "type": "multiple_choice",
+      "prompt": "Your app targets API 35 and must load images from one legacy host that only serves `http://`. Every other call uses HTTPS. What is the narrowest change that works?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Set `cleartextTrafficPermitted=\"true\"` on `base-config`, which then covers every host"
+        },
+        {
+          "id": "b",
+          "text": "Nothing: cleartext is allowed until the app declares a network security config file"
+        },
+        {
+          "id": "c",
+          "text": "Add a `domain-config` for that one host with `cleartextTrafficPermitted=\"true\"`"
+        },
+        {
+          "id": "d",
+          "text": "List the host under `debug-overrides`, whose settings also apply to release builds"
+        }
+      ],
+      "answer": "c",
+      "explanation": "Apps targeting Android 9 (API 28) or higher get a default `base-config` with `cleartextTrafficPermitted=\"false\"`, so the `http://` call is refused even with no config file. A `domain-config` scoped to the one host re-allows cleartext there and nowhere else; changing `base-config` would also work but allows HTTP to every host. `debug-overrides` is ignored entirely when the app isn't debuggable, which is the case for release builds.",
+      "materials": [
+        "android-security-tips"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/privacy-and-security/security-config",
+          "title": "Network security configuration",
+          "publisher": "Android Developers",
+          "accessed": "2026-10-02",
+          "claim": "The default configuration for apps targeting Android 9 (API 28) and higher has `base-config cleartextTrafficPermitted=\"false\"` trusting system CAs; `domain-config` sets cleartextTrafficPermitted per domain; `debug-overrides` is completely ignored when `android:debuggable` is false."
+        }
+      ]
+    },
+    {
+      "id": "c021-q03",
+      "lesson": null,
+      "concept": "c021-broadcast-receiver-goasync-timeouts",
+      "type": "written",
+      "prompt": "A manifest-declared `BroadcastReceiver` uploads a log file from `onReceive()`. You see broadcast ANRs, and when you move the upload to a new thread some uploads never finish. Explain both problems and how you would fix them.",
+      "model_answer": {
+        "summary": "`onReceive()` runs on the main thread under an ANR timeout, and once it returns the process may be killed, so a bare thread is unsafe; `goAsync()` only buys time until the same timeout, so long work belongs in a scheduled job.",
+        "key_points": [
+          "`onReceive()` runs on the main thread and must finish within the broadcast timeout (10 seconds for a foreground broadcast on Android 13 and lower, 10-20 seconds on 14+, longer for background broadcasts), so a slow upload there causes an ANR",
+          "After `onReceive()` returns, the system may kill a process that only hosts a manifest-declared receiver, so a thread started there can die before the upload finishes",
+          "`goAsync()` keeps the broadcast active and lets the work move off the main thread, but `PendingResult.finish()` must be called on every path, within the same timeout",
+          "Long work such as an upload should be scheduled as a job (JobScheduler, or a library on top of it) instead of running inside the receiver"
+        ]
+      },
+      "explanation": "Broadcast receivers are meant for small, quick work. Spawning a thread looks like the fix for the ANR, but it trades it for lost work, since the receiver's process has low importance once `onReceive()` returns. `goAsync()` is still bound by the timeout (the docs say the system expects you to finish in under 10 seconds), so it suits short async work, not an upload.",
+      "materials": [
+        "android-anr"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/background-work/background-tasks/broadcasts",
+          "title": "Broadcasts overview",
+          "publisher": "Android Developers",
+          "accessed": "2026-10-02",
+          "claim": "`onReceive()` runs on the main thread and should return quickly; the system can kill a process hosting only a manifest-declared receiver after `onReceive()` returns; `goAsync()` keeps the broadcast active but the system still expects you to finish within 10 seconds, and long work should be scheduled with JobScheduler."
+        },
+        {
+          "url": "https://developer.android.com/topic/performance/anrs/diagnose-and-fix-anrs",
+          "title": "Diagnose and fix ANRs",
+          "publisher": "Android Developers",
+          "accessed": "2026-10-02",
+          "claim": "Broadcast timeouts are 10 seconds (foreground) and 60 seconds (background) on Android 13 and lower and 10-20 or 60-120 seconds on Android 14+; with `goAsync()` a timeout means `PendingResult.finish()` was not called in time, and forgetting `finish()` on a code path is a common cause."
+        }
+      ]
+    },
+    {
+      "id": "c021-q04",
+      "lesson": null,
+      "concept": "c021-composable-side-effect-free",
+      "type": "multiple_choice",
+      "prompt": "A list row calls `analytics.logImpression(item.id)` directly in its composable body, to log each item once when it is shown. Why is this unreliable?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Strong Skipping skips every non-composable call, so the impression is never logged"
+        },
+        {
+          "id": "b",
+          "text": "Compose runs a composable body only once, at first composition, and never again"
+        },
+        {
+          "id": "c",
+          "text": "The compiler rejects it, as composable bodies may only call other composables"
+        },
+        {
+          "id": "d",
+          "text": "Recomposition can rerun or be canceled, so it logs repeats or for UI never shown"
+        }
+      ],
+      "answer": "d",
+      "explanation": "A composable body can run many times, as often as every frame, and recomposition is optimistic: Compose may cancel it and discard the UI tree, but a side effect already applied stays applied. So logging from the body double-counts and can log rows the user never saw. Run such work in an effect handler such as `LaunchedEffect` keyed on the item, or from an event.",
+      "materials": [
+        "compose-mental-model"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/mental-model",
+          "title": "Thinking in Compose",
+          "publisher": "Android Developers",
+          "accessed": "2026-10-02",
+          "claim": "Recomposition is optimistic and may be canceled, discarding the UI tree while side effects already applied remain; composable functions might run as often as every frame; updating shared objects or observables is a dangerous side effect."
+        }
+      ]
+    },
+    {
+      "id": "c021-q05",
+      "lesson": null,
+      "concept": "c021-network-security-config-defaults",
+      "type": "multiple_choice",
+      "prompt": "A QA tester installs a proxy's CA certificate as a user certificate to inspect your release build's HTTPS traffic. The app targets API 35 and has no network security config. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The app trusts it, since every installed CA is trusted unless pinning is configured"
+        },
+        {
+          "id": "b",
+          "text": "The app trusts it only if the tester also sets the app's debuggable flag in Settings"
+        },
+        {
+          "id": "c",
+          "text": "The app still trusts only system CAs by default, so the proxied connections fail"
+        },
+        {
+          "id": "d",
+          "text": "The app trusts it for cleartext HTTP but rejects it for any connection over HTTPS"
+        }
+      ],
+      "answer": "c",
+      "explanation": "Since Android 7.0 (API 24), apps by default trust only the system CA store; user-added CAs are trusted by default only for apps targeting API 23 or lower. To inspect traffic in development, add the proxy CA under `debug-overrides`, which applies only when the app is debuggable and is ignored in release builds.",
+      "materials": [
+        "android-security-tips"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/privacy-and-security/security-config",
+          "title": "Network security configuration",
+          "publisher": "Android Developers",
+          "accessed": "2026-10-02",
+          "claim": "Default configurations trust only `system` certificates for apps targeting API 24 and higher, and `system` plus `user` certificates only for API 23 and lower; `debug-overrides` trust anchors apply only when `android:debuggable` is true."
+        }
+      ]
+    },
+    {
+      "id": "c021-q06",
+      "lesson": null,
+      "concept": "c021-broadcast-receiver-goasync-timeouts",
+      "type": "multiple_choice",
+      "prompt": "A receiver calls `goAsync()` and passes the `PendingResult` to a worker thread. One error path returns without calling `finish()`. What happens when that path runs?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The broadcast times out, and the app gets a broadcast receiver ANR"
+        },
+        {
+          "id": "b",
+          "text": "Nothing: the system calls `finish()` once `onReceive()` has returned"
+        },
+        {
+          "id": "c",
+          "text": "The broadcast is delivered again the next time the process starts up"
+        },
+        {
+          "id": "d",
+          "text": "Only a logcat warning, since an ANR can come from the main thread only"
+        }
+      ],
+      "answer": "a",
+      "explanation": "For a receiver that calls `goAsync()`, the broadcast timeout means `PendingResult.finish()` wasn't called in time, and a missing `finish()` on some code path is one of the documented causes of broadcast ANRs. The work being on a worker thread doesn't exempt it: the same timeout applies as for a synchronous receiver.",
+      "materials": [
+        "android-anr"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/performance/anrs/diagnose-and-fix-anrs",
+          "title": "Diagnose and fix ANRs",
+          "publisher": "Android Developers",
+          "accessed": "2026-10-02",
+          "claim": "For async receivers that call `goAsync()`, a broadcast ANR means `PendingResult.finish()` wasn't called in time; 'Forgot to call PendingResult.finish' is a listed cause, and `finish()` is subject to the same timeout as synchronous receivers."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,243 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c024-mcp-transport-choice",
+      "name": "MCP transports: stdio vs Streamable HTTP"
+    },
+    {
+      "id": "c024-chat-history-reduction",
+      "name": "Trimming chat history with IChatReducer"
+    },
+    {
+      "id": "c024-overposting-input-models",
+      "name": "Overposting and binding to input models"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c024-q01",
+      "lesson": null,
+      "concept": "c024-mcp-transport-choice",
+      "type": "multiple_choice",
+      "prompt": "Your .NET MCP server uses the stdio transport and logs every request with `Console.WriteLine`. Clients report garbled, unparseable messages. What does the MCP specification say?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Only MCP messages may go to stdout; write the logs to stderr instead"
+        },
+        {
+          "id": "b",
+          "text": "Logs are allowed on stdout as long as each line starts with a `#` marker"
+        },
+        {
+          "id": "c",
+          "text": "A stdio server must send its logs over a second port that the client opens"
+        },
+        {
+          "id": "d",
+          "text": "Clients must skip any non-JSON lines, so the fault lies with the client"
+        }
+      ],
+      "answer": "a",
+      "explanation": "With stdio the client launches the server as a subprocess and reads newline-delimited JSON-RPC messages from its stdout. The server must not write anything to stdout that isn't a valid MCP message; it may write logs to stderr, which the client can capture or ignore. `Console.WriteLine` writes to stdout, so it corrupts the message stream.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio",
+          "title": "stdio (MCP specification 2026-07-28)",
+          "publisher": "Model Context Protocol",
+          "accessed": "2026-10-02",
+          "claim": "In the stdio transport the client launches the server as a subprocess; messages are newline-delimited JSON-RPC on stdin/stdout; the server MUST NOT write anything to stdout that is not a valid MCP message and MAY write logs to stderr."
+        }
+      ]
+    },
+    {
+      "id": "c024-q02",
+      "lesson": null,
+      "concept": "c024-chat-history-reduction",
+      "type": "multiple_choice",
+      "prompt": "A support chat built on Microsoft.Extensions.AI resends its whole history on every turn and hits the context limit in long sessions. You add `MessageCountingChatReducer` with a limit of 20. What does the reducer keep?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A model-written summary of older turns plus the 20 newest messages"
+        },
+        {
+          "id": "b",
+          "text": "The 20 messages with the most tokens, so the richest context survives"
+        },
+        {
+          "id": "c",
+          "text": "The first system message and the 20 most recent non-system messages"
+        },
+        {
+          "id": "d",
+          "text": "The 20 newest messages, dropping the system prompt once it's old"
+        }
+      ],
+      "answer": "c",
+      "explanation": "`MessageCountingChatReducer` keeps the first system message, if there is one, plus up to the given number of the most recent non-system messages; messages with function call or function result content are left out. Writing a summary of older turns is what `SummarizingChatReducer` does, at the cost of an extra model call. Both reducers are experimental (MEAI001).",
+      "materials": [
+        "microsoft-extensions-ai"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/api/microsoft.extensions.ai.messagecountingchatreducer",
+          "title": "MessageCountingChatReducer Class (Microsoft.Extensions.AI)",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "MessageCountingChatReducer always includes the first system message, if any, then up to the specified number of the most recent non-system messages; messages with function call or result content are excluded; it is marked experimental (MEAI001)."
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/ai/ichatclient",
+          "title": "Use the IChatClient interface - .NET",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "Microsoft.Extensions.AI's experimental chat reduction provides MessageCountingChatReducer, which limits the number of non-system messages, and SummarizingChatReducer, which summarizes older messages."
+        }
+      ]
+    },
+    {
+      "id": "c024-q03",
+      "lesson": null,
+      "concept": "c024-overposting-input-models",
+      "type": "written",
+      "prompt": "An MVC `Edit` action binds the posted form straight to your EF Core `User` entity and calls `SaveChangesAsync`. The form shows only name and email, but the entity also has an `IsAdmin` property. What is the risk, and how do you fix it?",
+      "model_answer": {
+        "summary": "This is overposting: model binding sets any property a request names, so anyone can post `IsAdmin=true`; bind only an allowlist, through an input model or `TryUpdateModelAsync` with listed properties.",
+        "key_points": [
+          "Model binding sets any entity property that matches a posted field, so a user can add `IsAdmin=true` with a proxy tool or a script even though the form doesn't show it (overposting, or mass assignment)",
+          "Bind to an input or view model that has only the fields the page edits, then copy them onto the entity, for example with `SetValues`",
+          "Or load the entity and call `TryUpdateModelAsync` with an explicit list of the properties that may change",
+          "Leaving a field off the form is not a control: the server must decide which fields a request can change"
+        ]
+      },
+      "explanation": "The page's markup doesn't limit what a request can contain. Microsoft's EF Core tutorial shows a hidden `Secret` property being set this way with Fiddler. Validation attributes don't help either, because the extra field is perfectly valid; only an allowlist of bound properties does.",
+      "materials": [
+        "owasp-cheat-sheets"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/data/ef-rp/crud",
+          "title": "Part 2: Razor Pages - EF Core in ASP.NET, CRUD",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "Binding directly to an entity allows overposting: a hacker can post a value for a property the page doesn't show, such as Secret; TryUpdateModelAsync with listed properties, or a view model with only the page's fields copied with SetValues, prevents it."
+        }
+      ]
+    },
+    {
+      "id": "c024-q04",
+      "lesson": null,
+      "concept": "c024-mcp-transport-choice",
+      "type": "multiple_choice",
+      "prompt": "You run an MCP server with the Streamable HTTP transport on a developer's laptop. Which hardening does the MCP specification call for?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Bind to 0.0.0.0 so local tools can reach it, and rely on an unusual port number"
+        },
+        {
+          "id": "b",
+          "text": "Skip authentication for local servers, since browsers block cross-site requests"
+        },
+        {
+          "id": "c",
+          "text": "Validate the `Origin` header, bind to 127.0.0.1, and authenticate connections"
+        },
+        {
+          "id": "d",
+          "text": "Skip `Origin` checks entirely, since only stdio servers face rebinding attacks"
+        }
+      ],
+      "answer": "c",
+      "explanation": "Streamable HTTP servers must validate the `Origin` header on every connection to stop DNS rebinding, and return 403 for an invalid one. Local servers should bind only to localhost rather than all interfaces, and servers should authenticate all connections. Without these, a remote website can use DNS rebinding to talk to a local MCP server.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http",
+          "title": "Streamable HTTP (MCP specification 2026-07-28)",
+          "publisher": "Model Context Protocol",
+          "accessed": "2026-10-02",
+          "claim": "Streamable HTTP servers MUST validate the Origin header to prevent DNS rebinding (403 if invalid), SHOULD bind only to localhost when running locally rather than 0.0.0.0, and SHOULD implement authentication for all connections."
+        }
+      ]
+    },
+    {
+      "id": "c024-q05",
+      "lesson": null,
+      "concept": "c024-chat-history-reduction",
+      "type": "written",
+      "prompt": "Compare `MessageCountingChatReducer` and `SummarizingChatReducer` for keeping a long Microsoft.Extensions.AI conversation inside the model's context window. What does each keep, and what does each cost you?",
+      "model_answer": {
+        "summary": "The counting reducer keeps the first system message and the newest N other messages and drops the rest; the summarizing reducer replaces older messages with a summary written by a model, which keeps more context but costs a model call and loses detail.",
+        "key_points": [
+          "`MessageCountingChatReducer` keeps the first system message and the N most recent non-system messages; older turns are dropped completely",
+          "`SummarizingChatReducer` summarises older messages once the conversation passes a threshold, keeping system messages; it needs an `IChatClient`, so it costs an extra model call and the summary is lossy",
+          "Messages with function call or function result content are dropped by the counting reducer and left out of the summary by the summarizing one",
+          "Both are experimental (diagnostic MEAI001), so their behaviour may change between versions"
+        ]
+      },
+      "explanation": "Neither reducer is free. Counting is cheap and predictable but forgets early facts the user stated; summarising keeps the gist at the price of latency, tokens and possible errors in the summary. Which one fits depends on whether early turns matter later in the conversation.",
+      "materials": [
+        "microsoft-extensions-ai"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/api/microsoft.extensions.ai.messagecountingchatreducer",
+          "title": "MessageCountingChatReducer Class (Microsoft.Extensions.AI)",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "MessageCountingChatReducer keeps the first system message and up to the specified number of most recent non-system messages, excludes function call and result messages, and is experimental (MEAI001)."
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/api/microsoft.extensions.ai.summarizingchatreducer",
+          "title": "SummarizingChatReducer Class (Microsoft.Extensions.AI)",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "SummarizingChatReducer is constructed with an IChatClient, a target count and an optional threshold; it summarizes older messages when the conversation exceeds a length, maintains system messages, excludes function call and result messages from summarization, and is experimental (MEAI001)."
+        }
+      ]
+    },
+    {
+      "id": "c024-q06",
+      "lesson": null,
+      "concept": "c024-overposting-input-models",
+      "type": "multiple_choice",
+      "prompt": "A Razor Pages Create page binds `[BindProperty] public Student Student { get; set; }`, and `Student` has a `Secret` property the page never shows. Which change stops overposting?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Bind a `StudentVM` with only the page's fields, then copy them with `SetValues`"
+        },
+        {
+          "id": "b",
+          "text": "Add `[Required]` to every `Student` property, so validation rejects extra fields"
+        },
+        {
+          "id": "c",
+          "text": "Remove the `Secret` input from the Razor markup, so the browser can't send it"
+        },
+        {
+          "id": "d",
+          "text": "Switch the form from POST to GET, so only query-string fields reach the binder"
+        }
+      ],
+      "answer": "a",
+      "explanation": "A view model containing only the page's fields means there is nothing named `Secret` to bind, and `SetValues` copies the allowed values onto the new entity. The page never had a `Secret` input in the first place, yet a crafted request can still post one; validation attributes and changing the HTTP method don't limit which properties get bound.",
+      "materials": [
+        "owasp-cheat-sheets"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/data/ef-rp/crud",
+          "title": "Part 2: Razor Pages - EF Core in ASP.NET, CRUD",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "Even without a Secret field on the page, a hacker can post a Secret value; a view model with only the page's properties, copied to the entity with SetValues, prevents overposting."
+        }
+      ]
+    }
+  ]
+}

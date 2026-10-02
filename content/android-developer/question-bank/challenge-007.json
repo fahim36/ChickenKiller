@@ -1,0 +1,250 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c007-async-start-and-await-order",
+      "name": "When `async` work actually runs concurrently"
+    },
+    {
+      "id": "c007-paging-cachedin",
+      "name": "Caching PagingData with cachedIn"
+    },
+    {
+      "id": "c007-kmp-swift-exceptions",
+      "name": "Kotlin exceptions crossing into Swift and `@Throws`"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c007-q01",
+      "lesson": null,
+      "concept": "c007-async-start-and-await-order",
+      "type": "multiple_choice",
+      "prompt": "```kotlin\nsuspend fun load() = coroutineScope {\n  val a = async(start = CoroutineStart.LAZY) { fetchA() } // 1 s\n  val b = async(start = CoroutineStart.LAZY) { fetchB() } // 1 s\n  a.await() + b.await()\n}\n```\nAbout how long does `load()` take?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "About 1 s: both `async` blocks start as soon as `coroutineScope` runs"
+        },
+        {
+          "id": "b",
+          "text": "It never returns: a lazy `async` only runs after an explicit `start()`"
+        },
+        {
+          "id": "c",
+          "text": "About 2 s: `await` starts each lazy coroutine, so they run one by one"
+        },
+        {
+          "id": "d",
+          "text": "About 1 s: the first `await` starts every lazy child of the same scope"
+        }
+      ],
+      "answer": "c",
+      "explanation": "A lazy `async` doesn't start until `start()` or `await()` is called. Here `a.await()` starts `a` and waits for it, and only then does `b.await()` start `b`, so the calls run in sequence. To run them concurrently, call `a.start()` and `b.start()` first, or drop `LAZY`.",
+      "materials": [
+        "kotlin-coroutines-guide"
+      ],
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/composing-suspending-functions.html",
+          "title": "Composing suspending functions",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-02",
+          "claim": "Code in coroutines is sequential by default; two `async` calls started before awaiting run concurrently; with `CoroutineStart.LAZY`, calling only `await` without `start` runs the coroutines sequentially because `await` starts the coroutine and waits for it."
+        }
+      ]
+    },
+    {
+      "id": "c007-q02",
+      "lesson": null,
+      "concept": "c007-paging-cachedin",
+      "type": "multiple_choice",
+      "prompt": "A ViewModel exposes `pager.flow.map { data -> data.map(::toUiItem) }`. The screen recollects it after a configuration change and also `combine`s it with a filter flow. What does adding `.cachedIn(viewModelScope)` at the end do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It writes the loaded pages to Room, so that they survive process death"
+        },
+        {
+          "id": "b",
+          "text": "It turns the flow into a `StateFlow` whose `value` is the latest list"
+        },
+        {
+          "id": "c",
+          "text": "It caches only the raw pages, so `toUiItem` runs again for each collector"
+        },
+        {
+          "id": "d",
+          "text": "It caches the loaded, mapped pages and shares one stream of PagingData"
+        }
+      ],
+      "answer": "d",
+      "explanation": "By default a `PagingData` can only be used once. `cachedIn` multicasts the stream and caches the loaded data, including the results of transformations before it, in the given scope, so a recollection after rotation or a `combine` reuses what was loaded. It is an in-memory cache tied to the scope; persisting pages to a database is a `RemoteMediator`'s job.",
+      "materials": [
+        "android-paging-3"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/libraries/architecture/paging/v3-paged-data",
+          "title": "Load and display paged data",
+          "publisher": "Google (Android Developers)",
+          "accessed": "2026-10-02",
+          "claim": "The `cachedIn` operator makes the PagingData stream shareable and caches the loaded data in the provided CoroutineScope; without it, PagingData cannot be recollected."
+        },
+        {
+          "url": "https://developer.android.com/topic/libraries/architecture/paging/v3-transform",
+          "title": "Transform data streams",
+          "publisher": "Google (Android Developers)",
+          "accessed": "2026-10-02",
+          "claim": "`cachedIn()` caches the results of any transformations that occur before it; by default each PagingData instance can be used once, and `cachedIn` multicasts the stream so later collections reuse the cached PagingData, which helps with operators like `combine`."
+        }
+      ]
+    },
+    {
+      "id": "c007-q03",
+      "lesson": null,
+      "concept": "c007-kmp-swift-exceptions",
+      "type": "written",
+      "prompt": "Your shared KMP repository has `fun loadProfile(): Profile`, which throws `IOException` when offline. On iOS the app crashes instead of showing an error. Explain why, and how you would design the API so Swift can handle the failure.",
+      "model_answer": {
+        "summary": "A Kotlin exception that reaches Swift without being declared is unhandled and terminates the program. Declare the expected exceptions with `@Throws` so Swift sees a `throws` method, or catch them in Kotlin and return a result type instead.",
+        "key_points": [
+          "Kotlin exceptions that reach Swift/Objective-C undeclared are treated as unhandled and terminate the program; a non-suspend function without `@Throws` propagates none",
+          "Annotate it with `@Throws(IOException::class)`: matching exceptions (and their subclasses) become `NSError`, and the function is a `throws` method in Swift",
+          "An exception of a class not listed in `@Throws` still terminates the app, so list what callers must handle or catch and map errors at the boundary",
+          "A `suspend` function without `@Throws` propagates only `CancellationException` to Swift"
+        ]
+      },
+      "explanation": "Swift has no idea a Kotlin function can throw unless the signature says so, and Kotlin has no checked exceptions to tell it. `@Throws` is the contract: listed exceptions cross as `NSError`, anything else is still fatal. Many teams avoid the problem by returning a sealed result type from shared APIs.",
+      "materials": [
+        "kmp-get-started"
+      ],
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/native-objc-interop.html",
+          "title": "Interoperability with Swift/Objective-C",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-02",
+          "claim": "Kotlin exceptions reaching Swift/Objective-C that are not declared are unhandled and terminate the program; non-suspend functions without @Throws propagate none and suspend functions without @Throws propagate only CancellationException; exceptions of the @Throws classes (or subclasses) become NSError and such functions are `throws` methods in Swift; suspend functions always have an error parameter in the completion handler."
+        }
+      ]
+    },
+    {
+      "id": "c007-q04",
+      "lesson": null,
+      "concept": "c007-async-start-and-await-order",
+      "type": "multiple_choice",
+      "prompt": "Inside `coroutineScope`, a teammate writes `val user = async { api.user() }.await()` and then `val feed = async { api.feed() }.await()` (1 s each). Why does this gain nothing over two plain calls?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Each `await()` returns before the next `async` has even been created"
+        },
+        {
+          "id": "b",
+          "text": "`async` always runs on the caller's thread, so the calls can't overlap"
+        },
+        {
+          "id": "c",
+          "text": "Both calls overlap, but the second `await` adds on the first one's time"
+        },
+        {
+          "id": "d",
+          "text": "An `async` without `CoroutineStart.LAZY` waits for `await` to begin"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Code in a coroutine is sequential by default. Here each `async` is awaited at once, so the first request finishes before the second `async` is even created: about 2 s in total. Concurrency comes from starting both `async` blocks first and awaiting afterwards.",
+      "materials": [
+        "kotlin-coroutines-guide"
+      ],
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/composing-suspending-functions.html",
+          "title": "Composing suspending functions",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-02",
+          "claim": "Code in coroutines is sequential by default; two `async` calls started before awaiting run concurrently; with `CoroutineStart.LAZY`, calling only `await` without `start` runs the coroutines sequentially because `await` starts the coroutine and waits for it."
+        }
+      ]
+    },
+    {
+      "id": "c007-q05",
+      "lesson": null,
+      "concept": "c007-paging-cachedin",
+      "type": "multiple_choice",
+      "prompt": "A ViewModel exposes `pager.flow.cachedIn(viewModelScope).map { data -> data.map(::toUiItem) }`. What is the problem with this order?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`toUiItem` isn't cached: `cachedIn` caches only what comes before it"
+        },
+        {
+          "id": "b",
+          "text": "It crashes: `cachedIn` must come directly after `Pager.flow` and `map`"
+        },
+        {
+          "id": "c",
+          "text": "None: `cachedIn` caches every transformation in the chain, before or after"
+        },
+        {
+          "id": "d",
+          "text": "The mapped items are cached twice, which doubles the memory that's used"
+        }
+      ],
+      "answer": "a",
+      "explanation": "`cachedIn()` caches the results of the transformations that happen before it. A `map` after it runs again on every collection, so a recollection after rotation redoes the mapping. Put `map` and `filter` first, then `cachedIn(viewModelScope)`, before exposing the flow to the UI.",
+      "materials": [
+        "android-paging-3"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/libraries/architecture/paging/v3-transform",
+          "title": "Transform data streams",
+          "publisher": "Google (Android Developers)",
+          "accessed": "2026-10-02",
+          "claim": "`cachedIn()` caches the results of any transformations that occur before it; by default each PagingData instance can be used once, and `cachedIn` multicasts the stream so later collections reuse the cached PagingData, which helps with operators like `combine`."
+        }
+      ]
+    },
+    {
+      "id": "c007-q06",
+      "lesson": null,
+      "concept": "c007-kmp-swift-exceptions",
+      "type": "multiple_choice",
+      "prompt": "A shared `suspend fun sync()` has no `@Throws` annotation and throws `IOException`. Swift calls it with `try await sync()`. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Swift's `catch` block receives the `IOException` as an `NSError`"
+        },
+        {
+          "id": "b",
+          "text": "The app terminates: only cancellation crosses without `@Throws`"
+        },
+        {
+          "id": "c",
+          "text": "The error is swallowed, and Swift's call simply returns normally"
+        },
+        {
+          "id": "d",
+          "text": "It doesn't compile, since only `@Throws` functions can be awaited"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Without `@Throws`, a `suspend` function propagates only `CancellationException` to Swift; any other exception that reaches Swift is unhandled and terminates the program. It does compile: a suspend function always has an error in its completion handler, so Swift can `try await` it. Add `@Throws(IOException::class)` to make the error catchable.",
+      "materials": [
+        "kmp-get-started"
+      ],
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/native-objc-interop.html",
+          "title": "Interoperability with Swift/Objective-C",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-02",
+          "claim": "Kotlin exceptions reaching Swift/Objective-C that are not declared are unhandled and terminate the program; non-suspend functions without @Throws propagate none and suspend functions without @Throws propagate only CancellationException; exceptions of the @Throws classes (or subclasses) become NSError and such functions are `throws` methods in Swift; suspend functions always have an error parameter in the completion handler."
+        }
+      ]
+    }
+  ]
+}

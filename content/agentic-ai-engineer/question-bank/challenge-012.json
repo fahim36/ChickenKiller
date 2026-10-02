@@ -1,0 +1,232 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c012-streaming-events",
+      "name": "The Messages API streaming event flow"
+    },
+    {
+      "id": "c012-recall-and-mrr",
+      "name": "Recall@k vs mean reciprocal rank"
+    },
+    {
+      "id": "c012-batch-results-handling",
+      "name": "Matching and retrying Message Batch results"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c012-q01",
+      "lesson": null,
+      "concept": "c012-streaming-events",
+      "type": "multiple_choice",
+      "prompt": "You stream a Claude response that ends in a tool call. Which event carries the `stop_reason`, and when can you parse the tool's input?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`message_start`; parse each `input_json_delta` as it comes in"
+        },
+        {
+          "id": "b",
+          "text": "`message_delta`; parse the joined `partial_json` at `content_block_stop`"
+        },
+        {
+          "id": "c",
+          "text": "`message_stop`; the input arrives whole and parsed in `content_block_start`"
+        },
+        {
+          "id": "d",
+          "text": "Each `content_block_delta`; the last delta holds the whole input as an object"
+        }
+      ],
+      "answer": "b",
+      "explanation": "`message_start` has `stop_reason: null`; the real value arrives in `message_delta`, near the end of the stream. Tool input streams as `input_json_delta` events whose `partial_json` strings aren't valid JSON on their own, so you join them and parse at the block's `content_block_stop` (or use the SDK helpers).",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://platform.claude.com/docs/en/build-with-claude/streaming",
+          "title": "Streaming messages",
+          "publisher": "Anthropic",
+          "accessed": "2026-10-02",
+          "claim": "A stream is `message_start` (empty content), then per content block `content_block_start`, `content_block_delta` events and `content_block_stop`, then `message_delta` events with top-level changes such as `stop_reason`, then `message_stop`; `ping` events can appear anywhere; `usage` in `message_delta` is cumulative; tool input arrives as `input_json_delta` partial JSON strings to accumulate and parse at `content_block_stop`; error events such as `overloaded_error` can arrive in the stream."
+        },
+        {
+          "url": "https://platform.claude.com/docs/en/build-with-claude/handling-stop-reasons",
+          "title": "Handling stop reasons",
+          "publisher": "Anthropic",
+          "accessed": "2026-10-02",
+          "claim": "When streaming, `stop_reason` is null in `message_start` and is provided in the `message_delta` event."
+        }
+      ]
+    },
+    {
+      "id": "c012-q02",
+      "lesson": null,
+      "concept": "c012-recall-and-mrr",
+      "type": "multiple_choice",
+      "prompt": "For one query in your golden set, only one chunk is relevant, and your retriever returns it at rank 3 of the top 5. What are recall@5 and the reciprocal rank for this query?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Recall@5 is 0.2 and the reciprocal rank is 3"
+        },
+        {
+          "id": "b",
+          "text": "Recall@5 is 0.6 and the reciprocal rank is 0.33"
+        },
+        {
+          "id": "c",
+          "text": "Recall@5 is 1.0 and the reciprocal rank is 0.33"
+        },
+        {
+          "id": "d",
+          "text": "Recall@5 is 1.0 and the reciprocal rank is 1, as it's in the top 5"
+        }
+      ],
+      "answer": "c",
+      "explanation": "Recall@5 is the share of all relevant chunks that appear in the top 5: one of one, so 1.0, wherever it sits. Reciprocal rank is 1 over the rank of the first relevant result, so rank 3 gives 1/3. Recall ignores position; MRR, its average over queries, rewards putting the right chunk first.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.elastic.co/docs/reference/elasticsearch/rest-apis/search-rank-eval",
+          "title": "Ranking evaluation",
+          "publisher": "Elastic",
+          "accessed": "2026-10-02",
+          "claim": "Recall at k is the fraction of all relevant documents that appear in the first k results and ignores their positions; reciprocal rank is 1 over the rank of the first relevant document (rank 3 gives 1/3), and mean reciprocal rank averages it over the queries."
+        }
+      ]
+    },
+    {
+      "id": "c012-q03",
+      "lesson": null,
+      "concept": "c012-batch-results-handling",
+      "type": "written",
+      "prompt": "You extract fields from 50,000 invoices overnight with the Message Batches API. How do you submit them, match the results to invoices, and handle the requests that don't succeed?",
+      "model_answer": {
+        "summary": "Give each request a unique `custom_id` such as the invoice ID, match results by that ID rather than by position, and resubmit or fix the requests that end errored or expired.",
+        "key_points": [
+          "Each request gets a unique `custom_id` (for example the invoice ID), because results can come back in any order",
+          "Each request ends `succeeded`, `errored`, `canceled` or `expired`, and only succeeded requests are billed",
+          "Resubmit expired requests and those with server errors in a new batch; fix invalid ones, since `params` are validated only while the batch runs",
+          "Plan for the timing: most batches finish within an hour but can take up to 24 hours, and results are kept for 29 days"
+        ]
+      },
+      "explanation": "The batch API is half price because it is asynchronous, which moves the work into your result handling. Writing results back by position, or assuming every request succeeded, silently corrupts records; checking the request shape against the Messages API first catches invalid requests before a whole batch is wasted.",
+      "materials": [
+        "anthropic-docs-batch-processing"
+      ],
+      "sources": [
+        {
+          "url": "https://platform.claude.com/docs/en/build-with-claude/batch-processing",
+          "title": "Batch processing",
+          "publisher": "Anthropic",
+          "accessed": "2026-10-02",
+          "claim": "Each batch request has a unique `custom_id`; results can come back in any order, so match them by `custom_id`; each request ends as `succeeded`, `errored`, `canceled` or `expired`, and the last three are not billed; `params` are validated asynchronously, with errors returned when the batch ends; batches expire if not done within 24 hours, most finish within 1 hour, results are available for 29 days, and cost is 50% lower."
+        }
+      ]
+    },
+    {
+      "id": "c012-q04",
+      "lesson": null,
+      "concept": "c012-streaming-events",
+      "type": "written",
+      "prompt": "Your client streams Claude responses, prints text as it arrives and records token usage. Describe the event flow of a stream and two mistakes the client must avoid.",
+      "model_answer": {
+        "summary": "A stream opens with `message_start`, sends each content block as start, deltas and stop, then `message_delta` and `message_stop`; the client must not add up the cumulative usage, and must handle pings, error events and partial tool JSON.",
+        "key_points": [
+          "`message_start` has an empty message; each content block then sends `content_block_start`, one or more `content_block_delta` events and `content_block_stop`",
+          "`message_delta` events carry top-level changes such as `stop_reason` and `usage`, and `message_stop` ends the stream",
+          "The `usage` counts in `message_delta` are cumulative, so take the last value instead of summing them",
+          "`ping` events and `error` events such as `overloaded_error` can arrive mid-stream, and tool input arrives as partial JSON to parse only at `content_block_stop`"
+        ]
+      },
+      "explanation": "Most streaming bugs come from treating the stream as plain text: double-counted usage, a crash on a `ping`, or a JSON parse on half a tool input. An error event can also arrive after the HTTP 200, so the client needs error handling inside the stream, not only around the request.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://platform.claude.com/docs/en/build-with-claude/streaming",
+          "title": "Streaming messages",
+          "publisher": "Anthropic",
+          "accessed": "2026-10-02",
+          "claim": "A stream is `message_start` (empty content), then per content block `content_block_start`, `content_block_delta` events and `content_block_stop`, then `message_delta` events with top-level changes such as `stop_reason`, then `message_stop`; `ping` events can appear anywhere; `usage` in `message_delta` is cumulative; tool input arrives as `input_json_delta` partial JSON strings to accumulate and parse at `content_block_stop`; error events such as `overloaded_error` can arrive in the stream."
+        }
+      ]
+    },
+    {
+      "id": "c012-q05",
+      "lesson": null,
+      "concept": "c012-recall-and-mrr",
+      "type": "multiple_choice",
+      "prompt": "Retrieval setups A and B both score recall@5 of 0.9 on your golden set, but A's MRR is 0.85 and B's is 0.45. What does that tell you?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Both find the answer as often, but A ranks it higher"
+        },
+        {
+          "id": "b",
+          "text": "A finds the relevant chunk in many more of the queries"
+        },
+        {
+          "id": "c",
+          "text": "B is better, since a lower MRR means fewer rank errors"
+        },
+        {
+          "id": "d",
+          "text": "Nothing; MRR and recall@5 measure exactly the same thing"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Equal recall@5 means both put a relevant chunk in the top 5 for the same share of queries. MRR averages 1 over the rank of the first relevant chunk, so A's higher MRR means its relevant chunks sit nearer the top. That matters when you pass only the first few chunks to the model, or when a reranker would be added.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.elastic.co/docs/reference/elasticsearch/rest-apis/search-rank-eval",
+          "title": "Ranking evaluation",
+          "publisher": "Elastic",
+          "accessed": "2026-10-02",
+          "claim": "Recall at k is the fraction of all relevant documents that appear in the first k results and ignores their positions; reciprocal rank is 1 over the rank of the first relevant document (rank 3 gives 1/3), and mean reciprocal rank averages it over the queries."
+        }
+      ]
+    },
+    {
+      "id": "c012-q06",
+      "lesson": null,
+      "concept": "c012-batch-results-handling",
+      "type": "multiple_choice",
+      "prompt": "You read a finished Message Batch's results and write each result to the invoice at the same position in your input list. What goes wrong?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Nothing, since results always come back in request order"
+        },
+        {
+          "id": "b",
+          "text": "Results can come in any order; match them by `custom_id`"
+        },
+        {
+          "id": "c",
+          "text": "Results are sorted by `custom_id`, so the positions shift"
+        },
+        {
+          "id": "d",
+          "text": "Errored requests are dropped, so the later results shift up"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Batch results can be returned in any order, not necessarily the order of the requests, so position means nothing; the `custom_id` you set on each request is how you match a result to its invoice. Every request still gets a result, including `errored` and `expired` ones, so nothing is dropped.",
+      "materials": [
+        "anthropic-docs-batch-processing"
+      ],
+      "sources": [
+        {
+          "url": "https://platform.claude.com/docs/en/build-with-claude/batch-processing",
+          "title": "Batch processing",
+          "publisher": "Anthropic",
+          "accessed": "2026-10-02",
+          "claim": "Each batch request has a unique `custom_id`; results can come back in any order, so match them by `custom_id`; each request ends as `succeeded`, `errored`, `canceled` or `expired`, and the last three are not billed; `params` are validated asynchronously, with errors returned when the batch ends; batches expire if not done within 24 hours, most finish within 1 hour, results are available for 29 days, and cost is 50% lower."
+        }
+      ]
+    }
+  ]
+}

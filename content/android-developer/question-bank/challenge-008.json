@@ -1,0 +1,253 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c008-threadlocal-context-element",
+      "name": "Thread-local values in coroutines with asContextElement"
+    },
+    {
+      "id": "c008-json-unknown-keys-coercion",
+      "name": "kotlinx.serialization: unknown keys and coerced values"
+    },
+    {
+      "id": "c008-room-fts-search",
+      "name": "Full-text search in Room with FTS tables"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c008-q01",
+      "lesson": null,
+      "concept": "c008-threadlocal-context-element",
+      "type": "multiple_choice",
+      "prompt": "A logging library reads the request ID from a `ThreadLocal`. You set it at the start of a coroutine on `Dispatchers.IO`, but after a suspending call the logs show a wrong ID. What fixes it?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Run the coroutine on `Dispatchers.Unconfined`, so it never changes thread"
+        },
+        {
+          "id": "b",
+          "text": "Set the value once in `Application.onCreate()`, so every thread shares it"
+        },
+        {
+          "id": "c",
+          "text": "Add `requestId.asContextElement(id)`, which restores it on every resume"
+        },
+        {
+          "id": "d",
+          "text": "Read it with `coroutineContext[ThreadLocal]`, which follows the coroutine"
+        }
+      ],
+      "answer": "c",
+      "explanation": "A coroutine can resume on a different pool thread after any suspension, and a `ThreadLocal` belongs to a thread. `asContextElement(value)` adds a context element that puts the value back every time the coroutine switches context. `Unconfined` doesn't help: after the first suspension it resumes on whatever thread the suspending function used.",
+      "materials": [
+        "kotlin-coroutines-guide"
+      ],
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/coroutine-context-and-dispatchers.html",
+          "title": "Coroutine context and dispatchers",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-02",
+          "claim": "`ThreadLocal.asContextElement` keeps a value and restores it every time the coroutine switches its context; a value set inside the coroutine is not propagated and is lost on the next suspension (use `withContext` to change it); `Dispatchers.Unconfined` resumes on whatever thread the suspending function used."
+        }
+      ]
+    },
+    {
+      "id": "c008-q02",
+      "lesson": null,
+      "concept": "c008-json-unknown-keys-coercion",
+      "type": "multiple_choice",
+      "prompt": "The backend adds a new `badge` field to the feed JSON. The released app decodes with a default `Json` instance and now fails on every response. Which setting prevents this?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`coerceInputValues = true`, so any unexpected input is replaced by defaults"
+        },
+        {
+          "id": "b",
+          "text": "`isLenient = true`, so the parser accepts input that isn't strict JSON"
+        },
+        {
+          "id": "c",
+          "text": "`explicitNulls = false`, so keys missing from the class decode as null"
+        },
+        {
+          "id": "d",
+          "text": "`ignoreUnknownKeys = true`, so keys with no matching property are skipped"
+        }
+      ],
+      "answer": "d",
+      "explanation": "By default, kotlinx.serialization fails when the JSON has a key the class doesn't declare. `ignoreUnknownKeys = true` skips such keys, which lets the server add fields without breaking old app versions. `coerceInputValues` only covers nulls for non-nullable properties and unknown enum values, and `isLenient` only relaxes quoting rules.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/serialization-json-configuration.html",
+          "title": "Customize the Json instance",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-02",
+          "claim": "By default, unknown keys result in an error during deserialization unless `ignoreUnknownKeys = true`; `coerceInputValues` treats null for non-nullable types and unknown enum values as missing, so the default is used; `isLenient` only relaxes quoting rules; `encodeDefaults` affects encoding; `explicitNulls = false` omits null values."
+        }
+      ]
+    },
+    {
+      "id": "c008-q03",
+      "lesson": null,
+      "concept": "c008-room-fts-search",
+      "type": "written",
+      "prompt": "Users search 50,000 offline notes by word with `WHERE body LIKE '%' || :term || '%'`, and it's slow. How would you add full-text search with Room, and what would you watch out for?",
+      "model_answer": {
+        "summary": "Back the search with an FTS4 (or FTS5) virtual table queried with `MATCH`, ideally in external-content mode over the notes table so the text isn't stored twice, and pick a tokenizer that fits the language.",
+        "key_points": [
+          "`LIKE '%term%'` is slow for word search; SQLite's own example shows an FTS `MATCH` query taking about 0.03 s where the `LIKE` query took 22.5 s",
+          "Add an `@Fts4` entity (an FTS virtual table) and search it with `MATCH`; if it declares a primary key, it must be an INTEGER column named `rowid`",
+          "Use `contentEntity = Note::class` so the FTS table doesn't duplicate the text; Room creates triggers to keep it in sync, so write only to the notes table (the triggers are dropped during migrations)",
+          "Choose a tokenizer, such as `porter`, which stems English words so 'frustrated' also matches 'frustration'"
+        ]
+      },
+      "explanation": "An FTS table keeps an index of the words in each row, which is what makes word queries fast. External-content mode saves the space of a second copy of every note, at the cost of keeping the two tables in sync, which Room's triggers do for normal writes but not inside migrations.",
+      "materials": [
+        "android-room"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/training/data-storage/room/defining-data",
+          "title": "Define data using Room entities",
+          "publisher": "Google (Android Developers)",
+          "accessed": "2026-10-02",
+          "claim": "For fast full-text search, back entities with an FTS virtual table using `@Fts3`, `@Fts4` or `@Fts5`; FTS tables always use an INTEGER primary key named `rowid`; the `tokenizer` option picks how text is tokenized."
+        },
+        {
+          "url": "https://developer.android.com/reference/kotlin/androidx/room/Fts4",
+          "title": "Fts4",
+          "publisher": "Google (Android Developers)",
+          "accessed": "2026-10-02",
+          "claim": "With `contentEntity`, the FTS table works in external content mode and doesn't store its own content; Room creates triggers to keep the tables in sync, so all writes should go to the content entity table; the triggers are removed before migrations and re-created after."
+        },
+        {
+          "url": "https://www.sqlite.org/fts3.html",
+          "title": "SQLite FTS3 and FTS4 Extensions",
+          "publisher": "SQLite",
+          "accessed": "2026-10-02",
+          "claim": "In SQLite's example, a MATCH query on an FTS table returned in about 0.03 s versus 22.5 s for LIKE '%linux%' on an ordinary table; the porter tokenizer stems words so 'Frustration' matches 'Frustrated'."
+        }
+      ]
+    },
+    {
+      "id": "c008-q04",
+      "lesson": null,
+      "concept": "c008-threadlocal-context-element",
+      "type": "multiple_choice",
+      "prompt": "```kotlin\nlaunch(Dispatchers.Default + tl.asContextElement(\"A\")) {\n  tl.set(\"B\")\n  delay(10)\n  println(tl.get())\n}\n```\nWhat does it print?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "B, because `set` copies the new value into the context element"
+        },
+        {
+          "id": "b",
+          "text": "B, as long as the coroutine resumes on the same thread as before"
+        },
+        {
+          "id": "c",
+          "text": "null, because a resumed coroutine starts with an empty value"
+        },
+        {
+          "id": "d",
+          "text": "A, because the change is lost at the next suspension point"
+        }
+      ],
+      "answer": "d",
+      "explanation": "The context element restores the value it was created with every time the coroutine resumes. It can't track direct `ThreadLocal` writes, so a value set with `set` inside the coroutine is lost at the next suspension, whichever thread it resumes on. To change the value for a block, use `withContext(tl.asContextElement(\"B\"))`.",
+      "materials": [
+        "kotlin-coroutines-guide"
+      ],
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/coroutine-context-and-dispatchers.html",
+          "title": "Coroutine context and dispatchers",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-02",
+          "claim": "`ThreadLocal.asContextElement` keeps a value and restores it every time the coroutine switches its context; a value set inside the coroutine is not propagated and is lost on the next suspension (use `withContext` to change it); `Dispatchers.Unconfined` resumes on whatever thread the suspending function used."
+        }
+      ]
+    },
+    {
+      "id": "c008-q05",
+      "lesson": null,
+      "concept": "c008-json-unknown-keys-coercion",
+      "type": "multiple_choice",
+      "prompt": "A model has `val status: Status = Status.UNKNOWN`. The server starts sending `\"status\": \"ARCHIVED\"`, which the enum lacks, and decoding fails. Which `Json` setting makes it decode as `UNKNOWN`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`ignoreUnknownKeys = true`, which skips values the app doesn't know"
+        },
+        {
+          "id": "b",
+          "text": "`coerceInputValues = true`, which treats the unknown value as missing"
+        },
+        {
+          "id": "c",
+          "text": "`encodeDefaults = true`, which makes the decoder fall back to defaults"
+        },
+        {
+          "id": "d",
+          "text": "`isLenient = true`, which accepts any string for an enum property"
+        }
+      ],
+      "answer": "b",
+      "explanation": "`coerceInputValues` treats certain invalid input as if the property were missing: a null for a non-nullable type, or an enum value the app doesn't know. A missing property gets its default, here `UNKNOWN`. `ignoreUnknownKeys` is about unknown keys, not values, and `encodeDefaults` only affects encoding.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/serialization-json-configuration.html",
+          "title": "Customize the Json instance",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-02",
+          "claim": "By default, unknown keys result in an error during deserialization unless `ignoreUnknownKeys = true`; `coerceInputValues` treats null for non-nullable types and unknown enum values as missing, so the default is used; `isLenient` only relaxes quoting rules; `encodeDefaults` affects encoding; `explicitNulls = false` omits null values."
+        }
+      ]
+    },
+    {
+      "id": "c008-q06",
+      "lesson": null,
+      "concept": "c008-room-fts-search",
+      "type": "multiple_choice",
+      "prompt": "You declare `@Fts4(contentEntity = Note::class)` on a `NoteFts` entity. Where should the app insert new notes?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Into both tables in one transaction, so that the two stay consistent"
+        },
+        {
+          "id": "b",
+          "text": "Into `NoteFts` only, since Room copies its rows back to the notes table"
+        },
+        {
+          "id": "c",
+          "text": "Into `Note` only: Room's triggers keep `NoteFts` in sync with it"
+        },
+        {
+          "id": "d",
+          "text": "Into `Note`, then rebuild `NoteFts` by hand after each batch of writes"
+        }
+      ],
+      "answer": "c",
+      "explanation": "With `contentEntity`, the FTS table runs in external-content mode: it stores no text of its own and reads it from the `Note` table. Room creates triggers that keep the two in sync, so all writes go to the content entity. The exception is a migration, when Room removes the triggers and you may need to write to both.",
+      "materials": [
+        "android-room"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/reference/kotlin/androidx/room/Fts4",
+          "title": "Fts4",
+          "publisher": "Google (Android Developers)",
+          "accessed": "2026-10-02",
+          "claim": "With `contentEntity`, the FTS table works in external content mode and doesn't store its own content; Room creates triggers to keep the tables in sync, so all writes should go to the content entity table; the triggers are removed before migrations and re-created after."
+        }
+      ]
+    }
+  ]
+}

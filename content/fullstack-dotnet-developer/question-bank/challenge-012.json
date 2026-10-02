@@ -1,0 +1,243 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c012-di-disposal-ownership",
+      "name": "Which disposable services the DI container disposes"
+    },
+    {
+      "id": "c012-crash-dump-capture",
+      "name": "Capturing a dump when a .NET process crashes"
+    },
+    {
+      "id": "c012-integration-test-auth-handler",
+      "name": "Faking authentication in WebApplicationFactory tests"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c012-q01",
+      "lesson": null,
+      "concept": "c012-di-disposal-ownership",
+      "type": "multiple_choice",
+      "prompt": "A service is registered with `builder.Services.AddSingleton(new ReportWriter())`, and `ReportWriter` implements `IDisposable`. What happens to it when the app shuts down?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Nothing: the container didn't create it, so your code must dispose it"
+        },
+        {
+          "id": "b",
+          "text": "The container disposes it, as it does every singleton it holds at shutdown"
+        },
+        {
+          "id": "c",
+          "text": "The container disposes it at the end of the first request scope that used it"
+        },
+        {
+          "id": "d",
+          "text": "The finalizer disposes it, because the container never disposes singletons"
+        }
+      ],
+      "answer": "a",
+      "explanation": "The container cleans up only the instances it creates: transient and scoped ones when their scope ends, singletons when the container is disposed. An instance you construct yourself and pass to `AddSingleton` is not created by the container, so it is not disposed for you. Registering the type (`AddSingleton<ReportWriter>()`) or a factory lets the container own it.",
+      "materials": [
+        "aspnetcore-di"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/extensions/dependency-injection/guidelines",
+          "title": "Dependency injection guidelines - .NET",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "The container calls Dispose on IDisposable types it creates (transient and scoped at the end of their scope, singletons when the container is disposed); an instance passed to AddSingleton(new ExampleService()) is not created by the container, is not disposed automatically, and the developer is responsible for disposing it."
+        }
+      ]
+    },
+    {
+      "id": "c012-q02",
+      "lesson": null,
+      "concept": "c012-crash-dump-capture",
+      "type": "multiple_choice",
+      "prompt": "A .NET service in a container crash-loops with an unhandled exception a few seconds after it starts, too fast to attach `dotnet-dump`. How do you get a dump of the crash?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Run `dotnet-counters` on the next start, since it writes a dump when the process exits"
+        },
+        {
+          "id": "b",
+          "text": "Set `DOTNET_DbgMiniDumpType=4` on its own; the runtime then writes a dump on crash"
+        },
+        {
+          "id": "c",
+          "text": "Set `DOTNET_DbgEnableMiniDump=1`, with `DOTNET_DbgMiniDumpName` on a persistent path"
+        },
+        {
+          "id": "d",
+          "text": "Do nothing: .NET writes `/tmp/coredump.<pid>` on every crash unless it's turned off"
+        }
+      ],
+      "answer": "c",
+      "explanation": "Crash dumps are configured with environment variables. `DOTNET_DbgEnableMiniDump=1` turns them on (the default is 0, so nothing is written otherwise), `DOTNET_DbgMiniDumpType` picks the dump type (Heap by default), and `DOTNET_DbgMiniDumpName` sets the path, with templates such as `%p` for the PID. The default path is under `/tmp` inside the container, so point it at storage that survives the restart. Setting only the type doesn't enable collection.",
+      "materials": [
+        "dotnet-diagnostics"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/diagnostics/collect-dumps-crash",
+          "title": "Collect Dumps on Crash - .NET",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "Setting DOTNET_DbgEnableMiniDump to 1 enables dump generation on crash (default 0); DOTNET_DbgMiniDumpType selects the type (default 2, Heap); DOTNET_DbgMiniDumpName sets the file path (default /tmp/coredump.<pid>), which must be writable, and supports %p, %e, %h and %t templates."
+        }
+      ]
+    },
+    {
+      "id": "c012-q03",
+      "lesson": null,
+      "concept": "c012-integration-test-auth-handler",
+      "type": "written",
+      "prompt": "Your `WebApplicationFactory` tests call endpoints protected by JWT bearer tokens from Entra ID. How do you send authenticated requests without calling Entra ID, and what do these tests still cover?",
+      "model_answer": {
+        "summary": "Register a test authentication handler in `ConfigureTestServices` that returns a fixed principal, and make it the default scheme. Requests are then authenticated locally, and the app's authorization still runs against the test claims.",
+        "key_points": [
+          "Write an `AuthenticationHandler<AuthenticationSchemeOptions>` whose `HandleAuthenticateAsync` returns `AuthenticateResult.Success` with a ticket holding test claims",
+          "Register it in `ConfigureTestServices` with `AddScheme`, and set it as the default authenticate (and challenge) scheme in `AddAuthentication`",
+          "Send requests from the factory's client with an `Authorization` header for that test scheme",
+          "Authorization policies and the endpoints still run against the test claims, but real token validation is not tested"
+        ]
+      },
+      "explanation": "The ASP.NET Core integration-testing docs mock authentication this way: the test handler replaces only the step that turns a request into a user, so the rest of the pipeline is real. The tempting shortcut is to remove authorization or add `[AllowAnonymous]` for tests, but then the tests no longer check who may call what.",
+      "materials": [
+        "aspnetcore-integration-tests"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/test/integration-tests",
+          "title": "Integration tests in ASP.NET Core",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "To mock authentication, a TestAuthHandler derived from AuthenticationHandler<AuthenticationSchemeOptions> returns AuthenticateResult.Success with a ticket for test claims; it is registered in ConfigureTestServices with AddAuthentication setting DefaultAuthenticateScheme and DefaultChallengeScheme to \"TestScheme\" and AddScheme, and the client sends an Authorization header for that scheme."
+        }
+      ]
+    },
+    {
+      "id": "c012-q04",
+      "lesson": null,
+      "concept": "c012-di-disposal-ownership",
+      "type": "multiple_choice",
+      "prompt": "A console job resolves a transient `IDisposable` `CsvExporter` from the root `IServiceProvider` inside a loop that runs 10,000 times. What is the risk?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Each one is disposed right after it's resolved, so later use throws an exception"
+        },
+        {
+          "id": "b",
+          "text": "The container keeps every instance until it is disposed, so memory grows"
+        },
+        {
+          "id": "c",
+          "text": "Transients can't be resolved from the root provider at all, so the call throws"
+        },
+        {
+          "id": "d",
+          "text": "The root provider caches one transient, so all 10,000 loops share one exporter"
+        }
+      ],
+      "answer": "b",
+      "explanation": "The container tracks the disposable transients it creates so it can dispose them when their scope ends. Resolved from the root provider, that scope is the container itself, so all 10,000 exporters stay referenced until the app disposes the container: a memory leak. Resolve them from a scope you dispose, or create them with a factory you dispose yourself.",
+      "materials": [
+        "aspnetcore-di"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/extensions/dependency-injection/guidelines",
+          "title": "Dependency injection guidelines - .NET",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "Disposable transient services are captured by the container for disposal and aren't disposed until the container (if resolved from the root) or scope is disposed, which can become a memory leak when resolved from the top-level container; don't resolve transient or scoped IDisposable instances in the root scope."
+        }
+      ]
+    },
+    {
+      "id": "c012-q05",
+      "lesson": null,
+      "concept": "c012-crash-dump-capture",
+      "type": "multiple_choice",
+      "prompt": "You turn on crash dumps for a service published with Native AOT. Which `DOTNET_DbgMiniDumpType` do you have to use?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "1 (`Mini`): module and thread lists and all stacks"
+        },
+        {
+          "id": "b",
+          "text": "2 (`Heap`), the default: all memory but mapped images"
+        },
+        {
+          "id": "c",
+          "text": "3 (`Triage`): like `Mini`, with personal data removed"
+        },
+        {
+          "id": "d",
+          "text": "4 (`Full`): all memory, including the module images"
+        }
+      ],
+      "answer": "d",
+      "explanation": "Only full dumps are supported by the single-file and Native AOT app models, so the type must be 4. Heap (2) is the default for other apps and leaves out mapped images; Mini (1) and Triage (3) are small dumps of stacks and threads, Triage with paths and passwords removed.",
+      "materials": [
+        "dotnet-diagnostics"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/diagnostics/collect-dumps-crash",
+          "title": "Collect Dumps on Crash - .NET",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "DOTNET_DbgMiniDumpType values are 1 Mini, 2 Heap (default), 3 Triage (Mini with personal information removed) and 4 Full (all memory including module images); only full dumps are supported by the single-file and Native AOT app models."
+        }
+      ]
+    },
+    {
+      "id": "c012-q06",
+      "lesson": null,
+      "concept": "c012-integration-test-auth-handler",
+      "type": "multiple_choice",
+      "prompt": "In `ConfigureTestServices` you call `AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(\"TestScheme\", ...)`, yet requests still go through JWT bearer and get 401. What is missing?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Calling `UseAuthentication()` a second time from inside `ConfigureTestServices`"
+        },
+        {
+          "id": "b",
+          "text": "Adding `[AllowAnonymous]` to the endpoints while the integration tests are running"
+        },
+        {
+          "id": "c",
+          "text": "Setting `DefaultAuthenticateScheme` to `\"TestScheme\"` in `AddAuthentication`"
+        },
+        {
+          "id": "d",
+          "text": "Setting `AllowAutoRedirect = false` on the client that the factory has created"
+        }
+      ],
+      "answer": "c",
+      "explanation": "Adding a scheme only registers it; the app keeps using its default scheme, JWT bearer. The docs' test setup calls `AddAuthentication` with `DefaultAuthenticateScheme` (and `DefaultChallengeScheme`) set to the test scheme, and the client sends an `Authorization` header for it. `[AllowAnonymous]` would make the request pass by skipping authorization, which defeats the test.",
+      "materials": [
+        "aspnetcore-integration-tests"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/test/integration-tests",
+          "title": "Integration tests in ASP.NET Core",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "The mock authentication setup registers TestAuthHandler with AddScheme(\"TestScheme\") inside AddAuthentication whose options set DefaultAuthenticateScheme and DefaultChallengeScheme to \"TestScheme\"; the client sets its Authorization header to that scheme."
+        }
+      ]
+    }
+  ]
+}

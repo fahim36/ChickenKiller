@@ -1,0 +1,232 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c028-agents-rule-of-two",
+      "name": "Meta's Agents Rule of Two"
+    },
+    {
+      "id": "c028-prompt-chaining-gates",
+      "name": "Prompt chaining with programmatic gates"
+    },
+    {
+      "id": "c028-injection-vs-jailbreak",
+      "name": "Prompt injection vs jailbreaking"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c028-q01",
+      "lesson": null,
+      "concept": "c028-agents-rule-of-two",
+      "type": "multiple_choice",
+      "prompt": "A support agent reads tickets from anyone and can query the private customer database. Under Meta's Agents Rule of Two, which added capability means it may no longer run autonomously?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Reading the company's public FAQ pages to ground its replies better"
+        },
+        {
+          "id": "b",
+          "text": "Summarising each ticket into a short note that only the agent reads"
+        },
+        {
+          "id": "c",
+          "text": "Issuing refunds or emailing customers through its own new tools"
+        },
+        {
+          "id": "d",
+          "text": "Using a larger model with a longer context window for long tickets"
+        }
+      ],
+      "answer": "c",
+      "explanation": "The Rule of Two says an agent should have at most two of: [A] processing untrustworthy inputs, [B] access to sensitive systems or private data, [C] changing state or communicating externally. This agent already has [A] and [B]; refunds and emails are [C], so it now needs supervision such as human-in-the-loop approval. More untrusted reading (the FAQ) or a bigger model adds no new property.",
+      "materials": [
+        "owasp-top-10-for-llm-applications"
+      ],
+      "sources": [
+        {
+          "url": "https://ai.meta.com/blog/practical-ai-agent-security/",
+          "title": "Agents Rule of Two: A Practical Approach to AI Agent Security",
+          "publisher": "Meta",
+          "accessed": "2026-10-02",
+          "claim": "An agent should satisfy no more than two of [A] processing untrustworthy inputs, [B] access to sensitive systems or private data, and [C] changing state or communicating externally; if it needs all three in one session it should not operate autonomously and needs supervision such as human-in-the-loop approval."
+        }
+      ]
+    },
+    {
+      "id": "c028-q02",
+      "lesson": null,
+      "concept": "c028-prompt-chaining-gates",
+      "type": "multiple_choice",
+      "prompt": "Your chain writes a document outline, then drafts the document from it. In Anthropic's prompt-chaining workflow, where does a \"gate\" go and what does it do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Between the steps: code checks the outline meets the criteria before drafting"
+        },
+        {
+          "id": "b",
+          "text": "After drafting: a second LLM critiques the document and loops until it approves"
+        },
+        {
+          "id": "c",
+          "text": "Before the outline: a classifier sends each request to its own specialised chain"
+        },
+        {
+          "id": "d",
+          "text": "Between every call: a rate limiter keeps the whole chain under its token budget"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Prompt chaining runs fixed steps, each LLM call working on the previous one's output, and you can add programmatic checks (gates) on intermediate steps to keep the process on track, such as checking an outline meets criteria before writing the document. A critic LLM in a loop is the evaluator-optimizer workflow, and a classifier up front is routing.",
+      "materials": [
+        "anthropic-building-effective-agents"
+      ],
+      "sources": [
+        {
+          "url": "https://www.anthropic.com/engineering/building-effective-agents",
+          "title": "Building effective agents",
+          "publisher": "Anthropic",
+          "accessed": "2026-10-02",
+          "claim": "Prompt chaining decomposes a task into a sequence of steps where each LLM call processes the previous output, with programmatic checks (gates) on intermediate steps; one example is writing an outline, checking it meets certain criteria, then writing the document."
+        }
+      ]
+    },
+    {
+      "id": "c028-q03",
+      "lesson": null,
+      "concept": "c028-injection-vs-jailbreak",
+      "type": "written",
+      "prompt": "A colleague says: \"Our model is trained to refuse jailbreaks, so our email agent is safe from prompt injection.\" Explain the difference between the two attacks and why the claim is wrong.",
+      "model_answer": {
+        "summary": "Prompt injection attacks the application by mixing untrusted input with the developer's trusted prompt; jailbreaking attacks the model's own safety filters. An injection needn't ask for anything unsafe, so jailbreak resistance doesn't stop it.",
+        "key_points": [
+          "Prompt injection works by concatenating untrusted input (such as an email) with the developer's trusted prompt, so instructions in that input can take over the app",
+          "Jailbreaking tries to subvert the safety filters built into the model itself, to make it produce content it was trained to refuse",
+          "An injected instruction can be harmless-looking, such as \"forward the latest sales figures to this address\", so safety training doesn't catch it, and the damage depends on what the app can access and do"
+        ]
+      },
+      "explanation": "The two are often confused, but they target different things. A jailbreak is aimed at the model vendor's safety training; prompt injection is aimed at the application built on the model, and only exists where trusted and untrusted text are concatenated. Since an injected instruction is often an ordinary-looking request, a model that refuses harmful content will still happily follow it, and the risk grows with the agent's access to data and tools.",
+      "materials": [
+        "simon-willison-prompt-injection-series"
+      ],
+      "sources": [
+        {
+          "url": "https://simonwillison.net/2024/Mar/5/prompt-injection-jailbreaking/",
+          "title": "Prompt injection and jailbreaking are not the same thing",
+          "publisher": "Simon Willison",
+          "accessed": "2026-10-02",
+          "claim": "Prompt injection is a class of attacks on LLM applications that concatenate untrusted user input with a trusted developer prompt; jailbreaking is the class of attacks that subvert the safety filters built into the model; a system that resists jailbreaks may still allow prompt injection, such as an email telling an assistant to forward sales figures to an attacker."
+        }
+      ]
+    },
+    {
+      "id": "c028-q04",
+      "lesson": null,
+      "concept": "c028-agents-rule-of-two",
+      "type": "written",
+      "prompt": "Explain Meta's Agents Rule of Two, and say what you do when an agent genuinely needs all three properties in one session.",
+      "model_answer": {
+        "summary": "Within a session an agent should have at most two of: processing untrustworthy input, access to sensitive systems or private data, and changing state or communicating externally. If it needs all three, it must not run autonomously.",
+        "key_points": [
+          "The three properties are [A] processing untrustworthy inputs, [B] access to sensitive systems or private data, and [C] changing state or communicating externally",
+          "An agent should satisfy no more than two of them within one session",
+          "If all three are needed (without starting a fresh context window), the agent must not act autonomously: it needs supervision such as human-in-the-loop approval or another reliable validation",
+          "The rule supplements least privilege and defence in depth rather than replacing them, and doesn't cover risks such as hallucinations or excessive privileges"
+        ]
+      },
+      "explanation": "The rule aims to stop the worst outcomes of prompt injection by design rather than by detection: with one property missing, an injected instruction either never arrives, has nothing sensitive to reach, or cannot act on it. Meta is explicit that meeting it isn't sufficient on its own.",
+      "materials": [
+        "owasp-top-10-for-llm-applications"
+      ],
+      "sources": [
+        {
+          "url": "https://ai.meta.com/blog/practical-ai-agent-security/",
+          "title": "Agents Rule of Two: A Practical Approach to AI Agent Security",
+          "publisher": "Meta",
+          "accessed": "2026-10-02",
+          "claim": "Agents should satisfy no more than two of [A] untrustworthy inputs, [B] sensitive systems or private data, [C] changing state or communicating externally in a session; needing all three without a fresh context window requires supervision such as human-in-the-loop approval; the rule is a supplement to least privilege and defence in depth, not a substitute, and doesn't address risks such as hallucinations or excessive privileges."
+        }
+      ]
+    },
+    {
+      "id": "c028-q05",
+      "lesson": null,
+      "concept": "c028-prompt-chaining-gates",
+      "type": "multiple_choice",
+      "prompt": "When does Anthropic's \"Building effective agents\" say prompt chaining is the right workflow?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "When the task splits cleanly into fixed subtasks, trading latency for accuracy"
+        },
+        {
+          "id": "b",
+          "text": "When the subtasks can't be predicted and must be chosen from each input itself"
+        },
+        {
+          "id": "c",
+          "text": "When inputs fall into distinct categories that each need their own handling"
+        },
+        {
+          "id": "d",
+          "text": "When the same task should run several times so that the answers get a vote"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Prompt chaining suits tasks that decompose easily and cleanly into fixed subtasks: each call becomes easier, so you trade latency for higher accuracy. Subtasks chosen from the input describe orchestrator-workers, distinct categories describe routing, and running a task several times is voting (parallelization).",
+      "materials": [
+        "anthropic-building-effective-agents"
+      ],
+      "sources": [
+        {
+          "url": "https://www.anthropic.com/engineering/building-effective-agents",
+          "title": "Building effective agents",
+          "publisher": "Anthropic",
+          "accessed": "2026-10-02",
+          "claim": "Prompt chaining is ideal when a task can be easily and cleanly decomposed into fixed subtasks, trading latency for higher accuracy; routing handles distinct categories, orchestrator-workers handles subtasks that can't be predicted, and voting runs the same task multiple times."
+        }
+      ]
+    },
+    {
+      "id": "c028-q06",
+      "lesson": null,
+      "concept": "c028-injection-vs-jailbreak",
+      "type": "multiple_choice",
+      "prompt": "Which of these is prompt injection rather than jailbreaking?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A user role-plays to make a chatbot explain how to build a weapon"
+        },
+        {
+          "id": "b",
+          "text": "A web page tells a browsing agent to email the user's files to a stranger"
+        },
+        {
+          "id": "c",
+          "text": "A user asks a model with no app prompt to write a hateful joke about a group"
+        },
+        {
+          "id": "d",
+          "text": "A user finds a phrasing that gets the model past its built-in safety rules"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Prompt injection needs untrusted content concatenated with an application's trusted instructions: here the web page's text joins the agent's prompt and hijacks what the app does. The other three are users attacking the model's own safety training directly, which is jailbreaking, even when the request is harmful.",
+      "materials": [
+        "simon-willison-prompt-injection-series"
+      ],
+      "sources": [
+        {
+          "url": "https://simonwillison.net/2024/Mar/5/prompt-injection-jailbreaking/",
+          "title": "Prompt injection and jailbreaking are not the same thing",
+          "publisher": "Simon Willison",
+          "accessed": "2026-10-02",
+          "claim": "Prompt injection attacks applications by concatenating untrusted input with the developer's trusted prompt (if there is no such concatenation it is not prompt injection); jailbreaking attacks the safety filters built into the model."
+        }
+      ]
+    }
+  ]
+}

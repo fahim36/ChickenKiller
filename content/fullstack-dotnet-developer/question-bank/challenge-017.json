@@ -1,0 +1,255 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c017-dbcontext-concurrent-use",
+      "name": "DbContext is not thread-safe: concurrent operations and context lifetime"
+    },
+    {
+      "id": "c017-react-state-snapshot",
+      "name": "React state as a snapshot, batching and updater functions"
+    },
+    {
+      "id": "c017-blazor-prerender-state",
+      "name": "Blazor prerendering runs initialization twice; persisting prerendered state"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c017-q01",
+      "lesson": null,
+      "concept": "c017-dbcontext-concurrent-use",
+      "type": "multiple_choice",
+      "prompt": "```csharp\nvar orders = db.Orders.Where(o => o.CustomerId == id).ToListAsync();\nvar invoices = db.Invoices.Where(i => i.CustomerId == id).ToListAsync();\nawait Task.WhenAll(orders, invoices);\n```\nBoth queries use the same injected `DbContext`. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "EF Core queues the second query behind the first, so it only runs slower"
+        },
+        {
+          "id": "b",
+          "text": "Both run in parallel on separate pooled connections, which is the speedup"
+        },
+        {
+          "id": "c",
+          "text": "It works as long as MARS is enabled in the SQL Server connection string"
+        },
+        {
+          "id": "d",
+          "text": "EF Core can throw: a second operation started on this context too early"
+        }
+      ],
+      "answer": "d",
+      "explanation": "A `DbContext` doesn't support parallel operations, async or threaded. EF Core throws `InvalidOperationException` (\"A second operation started on this context before a previous operation completed\") when it detects it, and undetected concurrent use can corrupt state. Await each call before the next, or give each parallel query its own context, for example from `IDbContextFactory`. EF Core neither queues the calls nor opens a second connection for you.",
+      "materials": [
+        "efcore-performance"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/ef/core/dbcontext-configuration/",
+          "title": "DbContext Lifetime, Configuration, and Initialization - EF Core",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "EF Core does not support multiple parallel operations on one DbContext instance and throws InvalidOperationException ('A second operation started on this context...') when it detects them; always await immediately or use separate instances; in Blazor Server a scoped context lives for the user's circuit, so use AddDbContextFactory and dispose the contexts you create."
+        }
+      ]
+    },
+    {
+      "id": "c017-q02",
+      "lesson": null,
+      "concept": "c017-react-state-snapshot",
+      "type": "multiple_choice",
+      "prompt": "```jsx\nconst [n, setN] = useState(0);\nfunction handleClick() {\n  setN(n + 5);\n  setN(m => m + 1);\n  alert(n);\n}\n```\nThe user clicks once. What does the alert show, and what does the counter show after the re-render?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Alert `6`, counter `6`: each setter runs at once and updates `n` in place"
+        },
+        {
+          "id": "b",
+          "text": "Alert `0`, counter `6`: `n` is this render's snapshot and updates queue"
+        },
+        {
+          "id": "c",
+          "text": "Alert `0`, counter `1`: the updater function ignores the `n + 5` before it"
+        },
+        {
+          "id": "d",
+          "text": "Alert `5`, counter `6`: the first setter updates `n` before the alert runs"
+        }
+      ],
+      "answer": "b",
+      "explanation": "State is a snapshot: `n` is 0 for the whole handler, so the alert shows 0. React queues the updates and applies them after the handler: \"replace with 5\", then the updater `m => m + 1` receives 5 and returns 6. Setters never change the variable in the running handler, and an updater reads the queued value, not the snapshot.",
+      "materials": [
+        "react-learn"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/learn/state-as-a-snapshot",
+          "title": "State as a Snapshot",
+          "publisher": "Meta (React)",
+          "accessed": "2026-10-02",
+          "claim": "A state variable never changes within a render: after setNumber(number + 5), alert(number) in the same handler still shows the old value, because every render's event handlers see that render's snapshot."
+        },
+        {
+          "url": "https://react.dev/learn/queueing-a-series-of-state-updates",
+          "title": "Queueing a Series of State Updates",
+          "publisher": "Meta (React)",
+          "accessed": "2026-10-02",
+          "claim": "React batches state updates until the event handler finishes; setNumber(number + 1) three times adds 1, an updater n => n + 1 reads the queued value, and setNumber(number + 5) followed by setNumber(n => n + 1) gives 6."
+        }
+      ]
+    },
+    {
+      "id": "c017-q03",
+      "lesson": null,
+      "concept": "c017-blazor-prerender-state",
+      "type": "written",
+      "prompt": "A .NET 10 Blazor Web App page with Interactive Server rendering loads products in `OnInitializedAsync`. Logs show the query running twice on every full page load, and the list flickers. Explain why, and how you would fix it.",
+      "model_answer": {
+        "summary": "Prerendering, on by default for interactive components, renders the page once to static HTML and again when it becomes interactive, so initialization runs twice; persist the prerendered data with `[PersistentState]` (or `PersistentComponentState`), or turn prerendering off for that page.",
+        "key_points": [
+          "Prerendering is on by default for interactive components: the component renders once on the server to static HTML, then again when it becomes interactive, so `OnInitializedAsync` runs twice",
+          "State built during prerendering is lost and must be recreated, and because it loads asynchronously the prerendered list is replaced, which causes the flicker",
+          "In .NET 10, put the data in a public property marked `[PersistentState]` and load it only when it is null (or use `PersistentComponentState` with `RegisterOnPersisting` and `TryTakeFromJson`); it is serialized into the page and restored, so the query runs once",
+          "Or disable prerendering for the page with `new InteractiveServerRenderMode(prerender: false)`, giving up the fast first paint; and with WebAssembly or Auto, persisted state is visible to the browser, so keep secrets out of it"
+        ]
+      },
+      "explanation": "The double call isn't a bug in your code: it is the cost of prerendering, which buys a fast first paint and SEO. Persisting the state keeps those benefits and makes the interactive render reuse the prerendered data, so the UI matches and nothing flickers.",
+      "materials": [
+        "blazor-docs"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/blazor/components/prerender",
+          "title": "Prerender ASP.NET Core Razor components",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "Prerendering is enabled by default for interactive components, so they render twice (once to static HTML, once for interactivity); it can be disabled with e.g. `new InteractiveServerRenderMode(prerender: false)`, and without persisting state the prerendered state is lost and the UI may flicker."
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/blazor/state-management/prerendered-state-persistence",
+          "title": "ASP.NET Core Blazor prerendered state persistence",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "OnInitialized runs again when a prerendered component renders interactively; in .NET 10 a public property marked [PersistentState] (or PersistentComponentState) is serialized into the prerendered HTML and restored, so initialization runs once; with WebAssembly or Auto the data is exposed to the browser, while Interactive Server protects it with Data Protection."
+        }
+      ]
+    },
+    {
+      "id": "c017-q04",
+      "lesson": null,
+      "concept": "c017-dbcontext-concurrent-use",
+      "type": "written",
+      "prompt": "In a Blazor Server app, components inject a scoped `DbContext`, and users intermittently get \"A second operation started on this context before a previous operation completed\". Explain why, and how you would fix it.",
+      "model_answer": {
+        "summary": "In Blazor Server the DI scope is the user's circuit, so every component and event handler of that user shares one long-lived `DbContext`, which doesn't support concurrent operations; register a context factory and create a short-lived context per operation.",
+        "key_points": [
+          "In Blazor Server one scope serves the whole user circuit, so a scoped `DbContext` is shared by all of that user's components for as long as the circuit lives",
+          "A `DbContext` isn't thread-safe and doesn't support parallel operations; overlapping async work on the shared instance makes EF Core throw `InvalidOperationException`, and undetected overlap can corrupt data",
+          "Register `AddDbContextFactory` and create a context per unit of work (`using var db = factory.CreateDbContext();`), disposing it yourself since the container doesn't",
+          "A context is designed for one short unit of work, so a circuit-long context is the wrong lifetime even when no error shows"
+        ]
+      },
+      "explanation": "The per-request scope that makes a scoped `DbContext` safe in MVC or Minimal APIs doesn't exist in Blazor Server: the circuit is one long logical request. Making the context transient or adding locks treats the symptom; a factory gives each operation its own short-lived context, which is the documented fix.",
+      "materials": [
+        "efcore-performance",
+        "blazor-docs"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/ef/core/dbcontext-configuration/",
+          "title": "DbContext Lifetime, Configuration, and Initialization - EF Core",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "EF Core does not support multiple parallel operations on one DbContext instance and throws InvalidOperationException ('A second operation started on this context...') when it detects them; always await immediately or use separate instances; in Blazor Server a scoped context lives for the user's circuit, so use AddDbContextFactory and dispose the contexts you create."
+        }
+      ]
+    },
+    {
+      "id": "c017-q05",
+      "lesson": null,
+      "concept": "c017-react-state-snapshot",
+      "type": "multiple_choice",
+      "prompt": "A \"+3\" button calls `setScore(score + 1)` three times in its click handler, but the score only goes up by 1. Which change makes it go up by 3?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Use the updater `setScore(s => s + 1)` so each call reads the queued value"
+        },
+        {
+          "id": "b",
+          "text": "Read `score` again between the calls, since each setter updates it in place"
+        },
+        {
+          "id": "c",
+          "text": "Copy `score` into a local `const` first so the three calls share a fresh value"
+        },
+        {
+          "id": "d",
+          "text": "Move the three calls into a `useEffect` so they run after the render commits"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Within one render `score` is a fixed snapshot, so all three calls are `setScore(0 + 1)`. React batches updates until the handler ends; an updater function is queued and receives the result of the previous update, so three of them add 3. Re-reading or copying `score` still gives the same snapshot value.",
+      "materials": [
+        "react-learn"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/learn/queueing-a-series-of-state-updates",
+          "title": "Queueing a Series of State Updates",
+          "publisher": "Meta (React)",
+          "accessed": "2026-10-02",
+          "claim": "React batches state updates until the event handler finishes; setNumber(number + 1) three times adds 1, an updater n => n + 1 reads the queued value, and setNumber(number + 5) followed by setNumber(n => n + 1) gives 6."
+        },
+        {
+          "url": "https://react.dev/learn/state-as-a-snapshot",
+          "title": "State as a Snapshot",
+          "publisher": "Meta (React)",
+          "accessed": "2026-10-02",
+          "claim": "A state variable never changes within a render: after setNumber(number + 5), alert(number) in the same handler still shows the old value, because every render's event handlers see that render's snapshot."
+        }
+      ]
+    },
+    {
+      "id": "c017-q06",
+      "lesson": null,
+      "concept": "c017-blazor-prerender-state",
+      "type": "multiple_choice",
+      "prompt": "A Blazor Web App page uses Interactive Auto with prerendering and persists a customer DTO with `[PersistentState]`, so it isn't loaded twice. What should you watch about that DTO?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It's serialized into the page; in WebAssembly the browser can read it"
+        },
+        {
+          "id": "b",
+          "text": "It's kept only in server memory, so a circuit reconnect always loses it"
+        },
+        {
+          "id": "c",
+          "text": "It's encrypted with Data Protection in every mode, so any data is fine"
+        },
+        {
+          "id": "d",
+          "text": "It must be a private field, since public properties get trimmed away"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Persisted prerendered state is serialized (System.Text.Json by default) into the prerendered HTML and restored on the client. With Interactive Server, ASP.NET Core Data Protection protects it, but in WebAssembly, and so in Auto, the data is exposed to the browser and must not contain sensitive information. The attribute goes on public properties, not private fields.",
+      "materials": [
+        "blazor-docs"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/blazor/state-management/prerendered-state-persistence",
+          "title": "ASP.NET Core Blazor prerendered state persistence",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "OnInitialized runs again when a prerendered component renders interactively; in .NET 10 a public property marked [PersistentState] (or PersistentComponentState) is serialized into the prerendered HTML and restored, so initialization runs once; with WebAssembly or Auto the data is exposed to the browser, while Interactive Server protects it with Data Protection."
+        }
+      ]
+    }
+  ]
+}

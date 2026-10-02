@@ -1,0 +1,242 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c024-not-in-null",
+      "name": "`NOT IN` with a NULL in the subquery"
+    },
+    {
+      "id": "c024-proxy-buffering-sse",
+      "name": "Proxy buffering breaks streamed responses"
+    },
+    {
+      "id": "c024-rls-views-security-invoker",
+      "name": "Views and RLS: `security_invoker`"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c024-q01",
+      "lesson": null,
+      "concept": "c024-not-in-null",
+      "type": "multiple_choice",
+      "prompt": "`SELECT id FROM conversations WHERE id NOT IN (SELECT conversation_id FROM messages)` returns no rows, though some conversations have no messages. A few `messages` rows have a NULL `conversation_id`. Why?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A NULL in the list makes `NOT IN` yield NULL, not true, for each id"
+        },
+        {
+          "id": "b",
+          "text": "`NOT IN` ignores NULLs, so the query must be failing on a type mismatch"
+        },
+        {
+          "id": "c",
+          "text": "PostgreSQL turns `NOT IN` into an inner join, which drops unmatched rows"
+        },
+        {
+          "id": "d",
+          "text": "The subquery is run once per outer row, and its first result is cached"
+        }
+      ],
+      "answer": "a",
+      "explanation": "When no value in the list equals the left side and at least one value is NULL, `NOT IN` yields NULL rather than true, by SQL's rules for comparisons with NULL. `WHERE` keeps only rows where the condition is true, so every row is dropped. Use `NOT EXISTS` (which only checks whether a matching row exists) or filter `conversation_id IS NOT NULL` inside the subquery.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/functions-subquery.html",
+          "title": "9.24. Subquery Expressions",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-02",
+          "claim": "If there are no equal right-hand values and at least one right-hand row yields null, the result of the NOT IN construct is null, not true; EXISTS is true if the subquery returns at least one row and false if it returns none."
+        }
+      ]
+    },
+    {
+      "id": "c024-q02",
+      "lesson": null,
+      "concept": "c024-proxy-buffering-sse",
+      "type": "multiple_choice",
+      "prompt": "Your FastAPI SSE endpoint streams tokens fine locally. Behind nginx with default proxy settings, the browser gets nothing for 20 seconds, then the whole answer at once. What is the likely cause?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "nginx closes idle connections after 20 seconds, and the browser retries"
+        },
+        {
+          "id": "b",
+          "text": "`proxy_read_timeout` defaults to 20 s, and nginx holds data until it ends"
+        },
+        {
+          "id": "c",
+          "text": "nginx buffers upstream responses by default; send `X-Accel-Buffering: no`"
+        },
+        {
+          "id": "d",
+          "text": "`proxy_buffering` is off by default, so nginx must be caching the reply"
+        }
+      ],
+      "answer": "c",
+      "explanation": "`proxy_buffering` is on by default: nginx reads the upstream response into its buffers (and temp files) as fast as it can, instead of passing each chunk to the client as it arrives. For a stream, turn it off for that location, or have the app send `X-Accel-Buffering: no` on the response. `proxy_read_timeout` defaults to 60 s and only limits the gap between two reads from the upstream.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://nginx.org/en/docs/http/ngx_http_proxy_module.html",
+          "title": "Module ngx_http_proxy_module",
+          "publisher": "nginx",
+          "accessed": "2026-10-02",
+          "claim": "proxy_buffering defaults to on, buffering the proxied response; when disabled the response is passed to the client synchronously as it is received; buffering can be turned off per response with an \"X-Accel-Buffering: no\" header; proxy_read_timeout defaults to 60s between two successive reads."
+        }
+      ]
+    },
+    {
+      "id": "c024-q03",
+      "lesson": null,
+      "concept": "c024-rls-views-security-invoker",
+      "type": "written",
+      "prompt": "RLS policies isolate tenants in `documents`. A migration adds `CREATE VIEW recent_docs AS SELECT * FROM documents WHERE created_at > now() - interval '7 days'`, owned by the role that owns `documents`, and the app reads the view. Explain the risk and the fix.",
+      "model_answer": {
+        "summary": "By default a view reads its tables with the view owner's privileges and RLS policies, and the table owner normally bypasses RLS, so every tenant sees all recent documents; make the view `security_invoker` so the querying role's policies apply.",
+        "key_points": [
+          "By default, access to a view's underlying tables is checked against the view owner's permissions, and the view owner's RLS policies apply, not the querying user's",
+          "Table owners normally bypass row security, so a view owned by the table owner returns every tenant's rows to whoever queries it",
+          "Create the view `WITH (security_invoker = true)` (PostgreSQL 15+), so the caller's permissions and policies apply as if it queried `documents` directly",
+          "Alternatively, have a role that is subject to the policies own the view, or `FORCE ROW LEVEL SECURITY` on the table"
+        ]
+      },
+      "explanation": "RLS is checked against a role, and a view changes which role that is. The tempting assumption is that the view inherits the caller's tenant filter because the table has policies; it doesn't, unless the view is a security invoker view. A tenant-isolation test should query the views the app uses, not only the tables.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/sql-createview.html",
+          "title": "CREATE VIEW",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-02",
+          "claim": "By default access to a view's base relations is checked against the view owner's permissions and the view owner's row-level security policies apply; with security_invoker set to true the invoking user's permissions and policies are used, as if the base relations were referenced directly."
+        },
+        {
+          "url": "https://www.postgresql.org/docs/15/sql-createview.html",
+          "title": "CREATE VIEW (PostgreSQL 15)",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-02",
+          "claim": "The security_invoker view option is documented in PostgreSQL 15's CREATE VIEW."
+        },
+        {
+          "url": "https://www.postgresql.org/docs/current/ddl-rowsecurity.html",
+          "title": "5.9. Row Security Policies",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-02",
+          "claim": "Superusers and roles with BYPASSRLS always bypass row security; table owners normally bypass it too unless the table uses ALTER TABLE ... FORCE ROW LEVEL SECURITY."
+        }
+      ]
+    },
+    {
+      "id": "c024-q04",
+      "lesson": null,
+      "concept": "c024-not-in-null",
+      "type": "written",
+      "prompt": "Explain why `WHERE id NOT IN (SELECT conversation_id FROM messages)` can silently return no rows, and how you would write this anti-join safely.",
+      "model_answer": {
+        "summary": "If the subquery returns any NULL and no value matches, `NOT IN` yields NULL rather than true, so `WHERE` drops the row; `NOT EXISTS` or excluding NULLs avoids it.",
+        "key_points": [
+          "When no list value equals the left side and at least one value is NULL, `NOT IN` evaluates to NULL, not true",
+          "`WHERE` keeps only rows where the condition is true, so a single NULL in the subquery removes every row",
+          "`NOT EXISTS (SELECT 1 FROM messages m WHERE m.conversation_id = c.id)` only checks whether a matching row exists, so NULLs don't affect it",
+          "Adding `WHERE conversation_id IS NOT NULL` inside the subquery also fixes the `NOT IN` version"
+        ]
+      },
+      "explanation": "This is SQL's three-valued logic: `x NOT IN (1, NULL)` means `x <> 1 AND x <> NULL`, and `x <> NULL` is unknown. The query doesn't fail, it just returns nothing, which is why it's a classic interview trap. `NOT EXISTS` is the safe default for anti-joins.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/functions-subquery.html",
+          "title": "9.24. Subquery Expressions",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-02",
+          "claim": "NOT IN yields null, not true, if there are no equal right-hand values and at least one right-hand row yields null; EXISTS returns true if the subquery returns at least one row and false otherwise."
+        }
+      ]
+    },
+    {
+      "id": "c024-q05",
+      "lesson": null,
+      "concept": "c024-proxy-buffering-sse",
+      "type": "multiple_choice",
+      "prompt": "You can't edit the nginx config in front of your SSE endpoint. How can the app itself stop nginx buffering that response?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Send the `Cache-Control: no-store` header with the response"
+        },
+        {
+          "id": "b",
+          "text": "Send the `X-Accel-Buffering: no` header with the response"
+        },
+        {
+          "id": "c",
+          "text": "Send `proxy_read_timeout: 0` as a header on each request"
+        },
+        {
+          "id": "d",
+          "text": "Flush the stream after each `data:` line, so nginx sends it"
+        }
+      ],
+      "answer": "b",
+      "explanation": "nginx lets the upstream switch buffering per response with the `X-Accel-Buffering` header (`yes` or `no`), unless the config ignores it with `proxy_ignore_headers`. Flushing in the app doesn't help, because with buffering on nginx keeps reading into its own buffers. `proxy_read_timeout` is a server directive, not a header, and `Cache-Control` is about caching, not proxy buffering.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://nginx.org/en/docs/http/ngx_http_proxy_module.html",
+          "title": "Module ngx_http_proxy_module",
+          "publisher": "nginx",
+          "accessed": "2026-10-02",
+          "claim": "Buffering can be enabled or disabled by passing \"yes\" or \"no\" in the X-Accel-Buffering response header field, which can be disabled with proxy_ignore_headers; with buffering on, nginx reads the response into buffers rather than passing it on synchronously."
+        }
+      ]
+    },
+    {
+      "id": "c024-q06",
+      "lesson": null,
+      "concept": "c024-rls-views-security-invoker",
+      "type": "multiple_choice",
+      "prompt": "In PostgreSQL 15+, what does `CREATE VIEW v WITH (security_invoker = true) AS SELECT * FROM documents` change compared with a plain view?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The view runs as its owner, so callers need no grant on `documents`"
+        },
+        {
+          "id": "b",
+          "text": "The view gets its own copy of the RLS policies on `documents` at creation"
+        },
+        {
+          "id": "c",
+          "text": "The view's `WHERE` clause is applied before any of the RLS policy checks"
+        },
+        {
+          "id": "d",
+          "text": "Access is checked as the querying user, under that user's policies"
+        }
+      ],
+      "answer": "d",
+      "explanation": "With `security_invoker`, the base tables are checked against the user running the query, and that user's RLS policies apply, exactly as if they had queried `documents` directly. A plain view is the opposite: it uses the view owner's permissions and policies, which is what lets callers read through a view without their own grant.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/sql-createview.html",
+          "title": "CREATE VIEW",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-02",
+          "claim": "If a view has security_invoker set to true, access to the underlying base relations is determined by the permissions of the user executing the query, and that user's row-level security policies are used; by default the view owner's permissions and policies apply."
+        },
+        {
+          "url": "https://www.postgresql.org/docs/15/sql-createview.html",
+          "title": "CREATE VIEW (PostgreSQL 15)",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-02",
+          "claim": "PostgreSQL 15's CREATE VIEW documents the security_invoker option."
+        }
+      ]
+    }
+  ]
+}

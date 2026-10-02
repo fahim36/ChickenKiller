@@ -1,0 +1,229 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c014-dependency-inversion-modules",
+      "name": "Dependency inversion between modules, wired in the app module"
+    },
+    {
+      "id": "c014-play-managed-publishing",
+      "name": "Play managed publishing: choosing when approved changes go live"
+    },
+    {
+      "id": "c014-suspending-statein",
+      "name": "The suspending `stateIn(scope)` without an initial value"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c014-q01",
+      "lesson": null,
+      "concept": "c014-dependency-inversion-modules",
+      "type": "multiple_choice",
+      "prompt": "`:feature:notes` needs storage. You have `:database:api` (interfaces and models), `:database:impl:room` and `:database:impl:firestore`. Which setup follows the dependency inversion pattern?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`:feature:notes` uses only `:database:api`, and the app module picks an impl"
+        },
+        {
+          "id": "b",
+          "text": "`:feature:notes` depends on both impl modules and picks one of them at runtime"
+        },
+        {
+          "id": "c",
+          "text": "`:database:api` depends on both impls, so features need just one module"
+        },
+        {
+          "id": "d",
+          "text": "Each impl module depends on `:feature:notes` so it can register itself"
+        }
+      ],
+      "answer": "a",
+      "explanation": "In dependency inversion, high-level modules (features) and implementation modules both depend on the abstraction module, and nobody depends on an implementation except the place that wires it, usually the app module (for example `debugImplementation(project(\":database:impl:room\"))`). Depending on both impls couples the feature to them; making the abstraction depend on the impls turns the arrows the wrong way.",
+      "materials": [
+        "android-modularization-patterns"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/modularization/patterns",
+          "title": "Common modularization patterns",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "With dependency inversion, high-level modules and implementation modules depend on the abstraction module rather than on concrete implementations, and the app module is usually the place that provides the implementation, possibly per build type."
+        }
+      ]
+    },
+    {
+      "id": "c014-q02",
+      "lesson": null,
+      "concept": "c014-play-managed-publishing",
+      "type": "multiple_choice",
+      "prompt": "Marketing wants version 8.0 and its new store listing to go live together at a launch event. Play review can take days, and you can't predict when it finishes. What should you do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Turn on managed publishing, then publish the approved changes at launch"
+        },
+        {
+          "id": "b",
+          "text": "Upload on launch day, since Play finishes reviewing within a few minutes"
+        },
+        {
+          "id": "c",
+          "text": "Wait for review to end first, since managed publishing can't apply mid-review"
+        },
+        {
+          "id": "d",
+          "text": "Publish the release early, and hold only the store listing back for later"
+        }
+      ],
+      "answer": "a",
+      "explanation": "With managed publishing on, changes are still reviewed, but approved changes wait until you publish them from the Managed publishing page, so the release and listing can go live together at the moment you choose. Review can take hours or up to seven days, and managed publishing can be turned on at any time, even while a change is in review.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://support.google.com/googleplay/android-developer/answer/9859654",
+          "title": "Control when app changes are reviewed and published",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "Changes are processed before they can be published, which can take a few hours or up to seven days; with managed publishing, approved changes aren't published until you publish them from the Managed publishing page; it can be turned on or off at any time, including while a change is being reviewed."
+        }
+      ]
+    },
+    {
+      "id": "c014-q03",
+      "lesson": null,
+      "concept": "c014-suspending-statein",
+      "type": "written",
+      "prompt": "A repository needs to expose a `StateFlow`, but there is no sensible initial value. Compare the suspending `stateIn(scope)` with `stateIn(scope, started, initialValue)`: what does each do, and what can go wrong with the suspending one?",
+      "model_answer": {
+        "summary": "`stateIn(scope, started, initialValue)` returns at once with a placeholder value, while `stateIn(scope)` starts the upstream and suspends until the first real value, failing if the upstream completes without one.",
+        "key_points": [
+          "`stateIn(scope, started, initialValue)` returns immediately with the initial value, and `started` controls when sharing starts and stops",
+          "The suspending `stateIn(scope)` starts the upstream in the scope and suspends until the first value is emitted, so it must be called from a coroutine and the caller waits",
+          "If the upstream completes without emitting, the suspending `stateIn` throws `NoSuchElementException`; if it never emits, the caller stays suspended",
+          "Both share one running upstream between all collectors, and an exception in the upstream ends the sharing and goes to the scope, not to the collectors"
+        ]
+      },
+      "explanation": "The suspending overload avoids an invented initial value, which suits code that genuinely needs real data before continuing. In UI code an explicit loading state as the initial value is usually better, because the screen can render at once instead of waiting on a suspended call.",
+      "materials": [
+        "android-stateflow-sharedflow"
+      ],
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/state-in.html",
+          "title": "stateIn",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-02",
+          "claim": "stateIn(scope, started, initialValue) converts a cold flow to a StateFlow whose start is controlled by started; the suspending stateIn(scope) starts the upstream in the scope, suspends until the first value is emitted and throws NoSuchElementException if the upstream emits no value; upstream exceptions terminate sharing and are handled by the scope."
+        }
+      ]
+    },
+    {
+      "id": "c014-q04",
+      "lesson": null,
+      "concept": "c014-dependency-inversion-modules",
+      "type": "written",
+      "prompt": "Explain dependency inversion between Gradle modules, and how it lets debug builds use a local Room database, release builds use Firestore and instrumented tests use a mock.",
+      "model_answer": {
+        "summary": "Put interfaces and models in an abstraction module that features and implementations both depend on, and let the app module choose the implementation per build type or test configuration.",
+        "key_points": [
+          "Split an abstraction module (interfaces and models) from implementation modules that depend on it",
+          "Features and other high-level modules depend only on the abstraction, never on an implementation",
+          "The app module wires the implementation per configuration, for example `debugImplementation` for Room, `releaseImplementation` for Firestore and `androidTestImplementation` for a mock",
+          "Features can then be built and tested without knowing which implementation runs"
+        ]
+      },
+      "explanation": "The point is the direction of the arrows: implementations depend on the contract, not the other way round. That keeps features decoupled from storage choices and moves the choice to one place. Depending on a concrete implementation from a feature is the tempting shortcut that undoes it.",
+      "materials": [
+        "android-modularization-patterns"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/modularization/patterns",
+          "title": "Common modularization patterns",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "Abstraction modules hold interfaces and models; implementation modules depend on them; high-level modules depend only on the abstraction; the app module provides the implementation, e.g. releaseImplementation for Firestore, debugImplementation for Room and androidTestImplementation for a mock."
+        }
+      ]
+    },
+    {
+      "id": "c014-q05",
+      "lesson": null,
+      "concept": "c014-play-managed-publishing",
+      "type": "multiple_choice",
+      "prompt": "Managed publishing is on. Which change goes live without you pressing \"Publish changes\"?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A new production release at a 10% staged rollout"
+        },
+        {
+          "id": "b",
+          "text": "Raising an existing staged rollout up to 100%"
+        },
+        {
+          "id": "c",
+          "text": "A new set of screenshots in the main store listing"
+        },
+        {
+          "id": "d",
+          "text": "A change to how testers are set up for a track"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Managed publishing holds back releases (full and staged), store listing changes and changes to how testers are configured for a track. A few changes skip it and publish straight away, including increasing an existing staged rollout to 100%, release notes updates and price changes.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://support.google.com/googleplay/android-developer/answer/9859654",
+          "title": "Control when app changes are reviewed and published",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "Managed publishing holds back full and staged releases, store listing changes and changes to how testers are configured for a track; increasing an existing staged roll-out to 100% is not controlled by managed publishing."
+        }
+      ]
+    },
+    {
+      "id": "c014-q06",
+      "lesson": null,
+      "concept": "c014-suspending-statein",
+      "type": "multiple_choice",
+      "prompt": "`val state = repo.updates().stateIn(scope)` is called, and `updates()` completes without emitting anything. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It returns a `StateFlow` whose `value` is `null` until data arrives"
+        },
+        {
+          "id": "b",
+          "text": "It returns a `StateFlow` that suspends every reader of its `value`"
+        },
+        {
+          "id": "c",
+          "text": "It throws `NoSuchElementException`, since there is no first value"
+        },
+        {
+          "id": "d",
+          "text": "It keeps restarting `updates()` until that flow emits a first value"
+        }
+      ],
+      "answer": "c",
+      "explanation": "The suspending `stateIn(scope)` starts the upstream and suspends until the first value, because a `StateFlow` always needs a current value. If the upstream completes without emitting, there is no value to start from, so it throws `NoSuchElementException`. It never invents a `null`, and it doesn't retry.",
+      "materials": [
+        "android-stateflow-sharedflow"
+      ],
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/state-in.html",
+          "title": "stateIn",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-02",
+          "claim": "The suspending stateIn(scope) suspends until the first value is emitted and throws NoSuchElementException if the upstream flow does not emit any value."
+        }
+      ]
+    }
+  ]
+}

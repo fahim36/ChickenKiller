@@ -1,0 +1,238 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c018-quadratic-string-concat",
+      "name": "Repeated string concatenation is quadratic"
+    },
+    {
+      "id": "c018-github-closing-keywords",
+      "name": "Closing issues with keywords in a pull request"
+    },
+    {
+      "id": "c018-disagree-and-commit",
+      "name": "Conflict stories: disagree and commit"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c018-q01",
+      "lesson": null,
+      "concept": "c018-quadratic-string-concat",
+      "type": "multiple_choice",
+      "prompt": "A function builds a long report with `out += line` inside a loop over thousands of lines. Why do the Python docs and PEP 8 say to collect the lines in a list and call `\"\".join(lines)` instead?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`str` is immutable, so each `+=` may copy everything: quadratic overall"
+        },
+        {
+          "id": "b",
+          "text": "`+=` on a `str` raises `MemoryError` once the string passes a size limit"
+        },
+        {
+          "id": "c",
+          "text": "`join` runs the loop in parallel threads, so it is faster on multicore CPUs"
+        },
+        {
+          "id": "d",
+          "text": "`+=` keeps every old copy alive until the function returns, leaking memory"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Concatenating immutable sequences always produces a new object, so building a string piece by piece can copy the growing string on every step: quadratic in its total length. `\"\".join()` (or `io.StringIO`) is linear. CPython sometimes resizes the string in place for `a += b`, but PEP 8 calls that optimisation fragile and says not to rely on it. `join` isn't parallel, and old copies are freed as soon as nothing refers to them.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/library/stdtypes.html",
+          "title": "Built-in Types",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-10-02",
+          "claim": "Concatenating immutable sequences always makes a new object, so building a sequence by repeated concatenation has a quadratic runtime cost in its total length; for `str`, build a list and call `str.join()` or write to `io.StringIO`, and for `bytes` use `bytes.join()`, `io.BytesIO` or an in-place `bytearray`."
+        },
+        {
+          "url": "https://peps.python.org/pep-0008/",
+          "title": "PEP 8 – Style Guide for Python Code",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-10-02",
+          "claim": "Don't rely on CPython's in-place optimisation of `a += b` for strings: it is fragile even in CPython and absent in other implementations; use `''.join()` so concatenation is linear time everywhere."
+        }
+      ]
+    },
+    {
+      "id": "c018-q02",
+      "lesson": null,
+      "concept": "c018-github-closing-keywords",
+      "type": "multiple_choice",
+      "prompt": "Your pull request targets `develop` in a repo whose default branch is `main`, and its description says `Fixes #42`. What happens to issue #42 when the PR is merged into `develop`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It closes, because any merged PR with a closing keyword closes the issue"
+        },
+        {
+          "id": "b",
+          "text": "Nothing: the keyword is ignored because the PR doesn't target `main`"
+        },
+        {
+          "id": "c",
+          "text": "It closes, but only after a maintainer approves the link in the sidebar"
+        },
+        {
+          "id": "d",
+          "text": "It is linked to the PR as fixed, but GitHub leaves the issue itself open"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Closing keywords in a PR description only work when the PR targets the repository's default branch. For a PR into any other branch GitHub ignores them: no link is created and merging has no effect on the issue. So option d is tempting but wrong too, since not even a link is made. Target `main`, or close the issue by hand when the work reaches it.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/linking-a-pull-request-to-an-issue",
+          "title": "Linking a pull request to an issue",
+          "publisher": "GitHub",
+          "accessed": "2026-10-02",
+          "claim": "Closing keywords (close, closes, closed, fix, fixes, fixed, resolve, resolves, resolved) in a pull request's description close the linked issue when the PR is merged into the default branch; if the PR targets another branch the keywords are ignored, no link is created and merging has no effect on the issues; each issue needs its own keyword."
+        }
+      ]
+    },
+    {
+      "id": "c018-q03",
+      "lesson": null,
+      "concept": "c018-disagree-and-commit",
+      "type": "written",
+      "prompt": "An interviewer asks: \"Tell me about a time you disagreed with your team's technical decision.\" What must your story show, and how should it end?",
+      "model_answer": {
+        "summary": "Show that you challenged the decision respectfully and with reasons, didn't fold just to keep the peace, and then committed fully once it was made, ending with the outcome and the trust you kept.",
+        "key_points": [
+          "You raised the disagreement openly and respectfully, with your reasons or data, even though it was uncomfortable",
+          "You didn't drop your view just to keep the peace, and you listened to the other side's reasons",
+          "Once the decision was made, you committed to it fully and say what you did to make it succeed, even if it wasn't your option",
+          "It ends with the result and what you learned, without making a colleague the villain"
+        ]
+      },
+      "explanation": "This question tests Amazon's \"Have Backbone; Disagree and Commit\" and \"Earn Trust\" principles, and most companies look for the same thing. The two common misses are a story where you kept quiet to avoid friction, and one where you never really accepted the decision (you kept arguing or quietly did it your way). A strong answer shows both halves: candid challenge, then real commitment.",
+      "materials": [
+        "tech-interview-handbook-behavioral-interviews"
+      ],
+      "sources": [
+        {
+          "url": "https://www.amazon.jobs/content/en/our-workplace/leadership-principles",
+          "title": "Leadership Principles",
+          "publisher": "Amazon",
+          "accessed": "2026-10-02",
+          "claim": "Have Backbone; Disagree and Commit: leaders respectfully challenge decisions they disagree with, even when uncomfortable, don't compromise just for social cohesion, and once a decision is made they commit to it wholly; Earn Trust: listen attentively, speak candidly and treat others respectfully."
+        }
+      ]
+    },
+    {
+      "id": "c018-q04",
+      "lesson": null,
+      "concept": "c018-quadratic-string-concat",
+      "type": "written",
+      "prompt": "A code review flags `for row in rows: csv_text += format_row(row)` in a hot path. Explain why it can be slow and what you would write instead.",
+      "model_answer": {
+        "summary": "Strings are immutable, so repeated concatenation can copy the growing string each time and cost quadratic time; collect the pieces in a list and `\"\".join()` them once, or write to `io.StringIO`.",
+        "key_points": [
+          "Each concatenation of immutable sequences makes a new object, so building a string this way can be quadratic in its final length",
+          "CPython can sometimes extend the string in place, but PEP 8 says the optimisation is fragile and other Python implementations lack it",
+          "Append each piece to a list and call `\"\".join(pieces)` at the end, or write to an `io.StringIO`, which is linear"
+        ]
+      },
+      "explanation": "The trap is that it often looks fine in a quick CPython test, because of an in-place optimisation PEP 8 says not to rely on. The documented, portable answer is `join` (or `StringIO`); for `bytes`, use `b\"\".join()`, `io.BytesIO` or a `bytearray`.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/library/stdtypes.html",
+          "title": "Built-in Types",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-10-02",
+          "claim": "Concatenating immutable sequences always makes a new object, so building a sequence by repeated concatenation has a quadratic runtime cost in its total length; for `str`, build a list and call `str.join()` or write to `io.StringIO`, and for `bytes` use `bytes.join()`, `io.BytesIO` or an in-place `bytearray`."
+        },
+        {
+          "url": "https://peps.python.org/pep-0008/",
+          "title": "PEP 8 – Style Guide for Python Code",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-10-02",
+          "claim": "Don't rely on CPython's in-place optimisation of `a += b` for strings: it is fragile even in CPython and absent in other implementations; use `''.join()` so concatenation is linear time everywhere."
+        }
+      ]
+    },
+    {
+      "id": "c018-q05",
+      "lesson": null,
+      "concept": "c018-github-closing-keywords",
+      "type": "multiple_choice",
+      "prompt": "One pull request into the default branch fixes issues #12 and #15 of the same repo. Which line in its description closes both when it is merged?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`Fixes #12, #15`"
+        },
+        {
+          "id": "b",
+          "text": "`Fixes #12, fixes #15`"
+        },
+        {
+          "id": "c",
+          "text": "`Fixes #12 and #15`"
+        },
+        {
+          "id": "d",
+          "text": "`Related to #12 and #15`"
+        }
+      ],
+      "answer": "b",
+      "explanation": "GitHub needs a closing keyword in front of each issue. `Fixes #12, #15` and `Fixes #12 and #15` close only #12, because #15 has no keyword of its own. \"Related to\" isn't a closing keyword at all, so it closes nothing. The full syntax also works across repos, as in `Fixes octo-org/octo-repo#100`.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/linking-a-pull-request-to-an-issue",
+          "title": "Linking a pull request to an issue",
+          "publisher": "GitHub",
+          "accessed": "2026-10-02",
+          "claim": "Closing keywords (close, closes, closed, fix, fixes, fixed, resolve, resolves, resolved) in a pull request's description close the linked issue when the PR is merged into the default branch; if the PR targets another branch the keywords are ignored, no link is created and merging has no effect on the issues; each issue needs its own keyword."
+        }
+      ]
+    },
+    {
+      "id": "c018-q06",
+      "lesson": null,
+      "concept": "c018-disagree-and-commit",
+      "type": "multiple_choice",
+      "prompt": "You're telling a story about disagreeing with your lead's choice of vector database. Which ending best shows \"Have Backbone; Disagree and Commit\"?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "I made my case with benchmarks; when we chose the other one, I helped ship it"
+        },
+        {
+          "id": "b",
+          "text": "I kept quiet because the lead had already decided, and the project went fine"
+        },
+        {
+          "id": "c",
+          "text": "I agreed in the meeting, then quietly built a prototype on mine to prove my case"
+        },
+        {
+          "id": "d",
+          "text": "I raised it again in each sprint review until the lead finally switched to mine"
+        }
+      ],
+      "answer": "a",
+      "explanation": "The principle has two halves: respectfully challenge a decision you disagree with, even when it is uncomfortable, and once it is made, commit to it wholly. Keeping quiet skips the first half, which Amazon calls compromising for social cohesion. Building your own version on the side, or reopening the decision every sprint, fails the second half.",
+      "materials": [
+        "tech-interview-handbook-behavioral-interviews"
+      ],
+      "sources": [
+        {
+          "url": "https://www.amazon.jobs/content/en/our-workplace/leadership-principles",
+          "title": "Leadership Principles",
+          "publisher": "Amazon",
+          "accessed": "2026-10-02",
+          "claim": "Have Backbone; Disagree and Commit: leaders respectfully challenge decisions they disagree with, even when uncomfortable, don't compromise just for social cohesion, and once a decision is made they commit to it wholly; Earn Trust: listen attentively, speak candidly and treat others respectfully."
+        }
+      ]
+    }
+  ]
+}

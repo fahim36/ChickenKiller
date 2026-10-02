@@ -1,0 +1,250 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c004-servicebus-duplicate-detection",
+      "name": "Service Bus duplicate detection: MessageId and the detection window"
+    },
+    {
+      "id": "c004-list-patterns-slices",
+      "name": "List patterns and the slice pattern"
+    },
+    {
+      "id": "c004-global-json-sdk-pinning",
+      "name": "Pinning the .NET SDK with global.json and rollForward"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c004-q01",
+      "lesson": null,
+      "concept": "c004-servicebus-duplicate-detection",
+      "type": "multiple_choice",
+      "prompt": "Duplicate detection is on for a Service Bus queue. After a send times out, the sender retries, and each attempt builds a new message with `MessageId = Guid.NewGuid().ToString()`. The first send had in fact succeeded. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The second copy is dropped, since its body and queue are the same"
+        },
+        {
+          "id": "b",
+          "text": "Both copies are queued, as each attempt has its own `MessageId`"
+        },
+        {
+          "id": "c",
+          "text": "The retry fails with an exception that reports a duplicate send"
+        },
+        {
+          "id": "d",
+          "text": "Both are queued, then the receiver's peek-lock drops the copy"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Duplicate detection compares only the application-controlled `MessageId` within the detection window; nothing else in the message is considered. A fresh GUID per attempt makes every retry look new, so both copies are delivered. Derive the ID from the business operation (an order number plus the message subject, say) so a retry carries the same ID. A real duplicate is reported as accepted and silently dropped, not rejected.",
+      "materials": [
+        "azure-service-bus"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/service-bus-messaging/duplicate-detection",
+          "title": "Azure Service Bus duplicate message detection",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "Duplicate detection tracks the application-controlled MessageId of messages sent during a time window; a new message with a logged MessageId is reported as accepted but dropped, no other part of the message is considered, and anchoring the MessageId to the business process makes it predictably repeatable."
+        }
+      ]
+    },
+    {
+      "id": "c004-q02",
+      "lesson": null,
+      "concept": "c004-list-patterns-slices",
+      "type": "multiple_choice",
+      "prompt": "```csharp\nstatic string Describe(int[] a) => a switch\n{\n    [] => \"empty\",\n    [var x] => $\"one: {x}\",\n    [var first, .., var last] => $\"{first}..{last}\",\n    null => \"null\",\n};\n\nConsole.WriteLine(Describe([7, 8]));\n```\n\nWhat is printed?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Nothing: it throws, as the last list pattern needs 3+ items"
+        },
+        {
+          "id": "b",
+          "text": "`one: 7`, because a list pattern checks only the first item"
+        },
+        {
+          "id": "c",
+          "text": "`7..8`, because the slice `..` can match zero elements"
+        },
+        {
+          "id": "d",
+          "text": "Nothing: it doesn't compile, as `..` can't sit in the middle"
+        }
+      ],
+      "answer": "c",
+      "explanation": "A list pattern matches only when the input has exactly as many elements as its patterns, unless it has a slice. `[var x]` needs exactly one element, so `[7, 8]` fails it. The slice `..` matches zero or more elements and may sit anywhere (at most one per list pattern), so `[var first, .., var last]` matches two elements with `first = 7` and `last = 8`.",
+      "materials": [
+        "csharp-docs"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/operators/patterns",
+          "title": "Patterns - Pattern matching using the is and switch expressions - C# reference",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "A list pattern matches when each nested pattern matches the corresponding element; a slice pattern `..` matches zero or more elements, at most one slice may appear in a list pattern, and it can be at the start, end or middle (e.g. `new[] { 1, 0, 0, 1 } is [1, 0, .., 0, 1]` is true)."
+        }
+      ]
+    },
+    {
+      "id": "c004-q03",
+      "lesson": null,
+      "concept": "c004-global-json-sdk-pinning",
+      "type": "written",
+      "prompt": "During a .NET 8 to .NET 10 upgrade, builds pass on developer laptops but fail on a CI agent that has a different set of SDKs installed. How would you use `global.json` to make SDK selection predictable, and what doesn't it control?",
+      "model_answer": {
+        "summary": "Commit a `global.json` that pins the SDK version with a deliberate `rollForward` range, install that SDK on CI and keep the pin updated; it chooses the SDK only, not the runtime the app targets or runs on.",
+        "key_points": [
+          "Without `global.json` the CLI uses the newest SDK installed on each machine, so laptops and CI agents can build with different SDKs",
+          "Commit `global.json` at the repo root with a full `sdk.version` such as `10.0.100` and a `rollForward` policy such as `latestFeature` or `latestPatch`; with a version and no policy the default is `patch`",
+          "Install the matching SDK on the CI agent and keep the pinned version current, for example with Dependabot, so you still get SDK fixes",
+          "`global.json` selects the SDK only; the APIs come from `TargetFramework` and the runtime from the runtime roll-forward rules"
+        ]
+      },
+      "explanation": "The SDK and the runtime are chosen separately. A newer SDK can build an older target framework, so differences in installed SDKs show up as different compiler, analyzer or MSBuild behaviour between machines. Pinning a range in source control makes every machine agree, while `rollForward` keeps you from being stuck on one exact patch.",
+      "materials": [
+        "dotnet-porting"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/tools/global-json",
+          "title": "global.json overview",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "global.json selects the .NET SDK version used by CLI commands, independently of the runtime a project targets; without it the highest installed SDK is used; sdk.version needs a full version, rollForward values include patch, latestPatch and latestFeature, and with a version and no rollForward the default policy is patch."
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/versions/selection",
+          "title": "Select which .NET version to use",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "SDK commands use the latest installed SDK by default unless global.json specifies one; target framework monikers define build-time APIs and framework-dependent apps roll forward at run time; consider a tool such as Dependabot to update a pinned SDK version."
+        }
+      ]
+    },
+    {
+      "id": "c004-q04",
+      "lesson": null,
+      "concept": "c004-servicebus-duplicate-detection",
+      "type": "multiple_choice",
+      "prompt": "A Service Bus queue has duplicate detection on with the default window. An outbox relay resends an event with the same `MessageId` 30 minutes after it first sent it. What happens to the resend?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It's queued again, as the ID is past the 10-minute default window"
+        },
+        {
+          "id": "b",
+          "text": "It's dropped, as Service Bus keeps every `MessageId` it has seen"
+        },
+        {
+          "id": "c",
+          "text": "It's dropped, as the default detection window for queues is 7 days"
+        },
+        {
+          "id": "d",
+          "text": "It's rejected, and the sender gets an error that the ID expired"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Service Bus remembers message IDs only for the duplicate detection window, which defaults to 10 minutes (configurable from 20 seconds to 7 days). After that the same ID counts as new, so a slow resend gets through and consumers still need to be idempotent. A larger window catches more but costs throughput, since every new ID is checked against the stored ones.",
+      "materials": [
+        "azure-service-bus"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/service-bus-messaging/duplicate-detection",
+          "title": "Azure Service Bus duplicate message detection",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "The duplicate detection history window defaults to 10 minutes for queues and topics, with a minimum of 20 seconds and a maximum of 7 days; message IDs are retained only during that window, and a larger window reduces throughput."
+        }
+      ]
+    },
+    {
+      "id": "c004-q05",
+      "lesson": null,
+      "concept": "c004-list-patterns-slices",
+      "type": "multiple_choice",
+      "prompt": "Which of these `is` expressions evaluates to `false`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`new[] { 1, 1 } is [_, _, ..]`"
+        },
+        {
+          "id": "b",
+          "text": "`new[] { 2, 4 } is [.., 2, 4]`"
+        },
+        {
+          "id": "c",
+          "text": "`new[] { 1, 0, 1 } is [1, 0, .., 0, 1]`"
+        },
+        {
+          "id": "d",
+          "text": "`new[] { 1, 2, 3, 4 } is [>= 0, .., 2 or 4]`"
+        }
+      ],
+      "answer": "c",
+      "explanation": "Patterns before and after a slice can't share elements. `[1, 0, .., 0, 1]` needs at least four elements (two at the start and two at the end), so a three-element array fails it. The others match: a slice can match zero elements, so `[_, _, ..]` matches two items and `[.., 2, 4]` matches `{ 2, 4 }`, and `[>= 0, .., 2 or 4]` only checks the first and last items.",
+      "materials": [
+        "csharp-docs"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/operators/patterns",
+          "title": "Patterns - Pattern matching using the is and switch expressions - C# reference",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "The docs' examples show `new[] { 1, 1 } is [_, _, ..]`, `new[] { 2, 4 } is [.., 2, 4]` and `new[] { 1, 2, 3, 4 } is [>= 0, .., 2 or 4]` as true and `new[] { 1, 0, 1 } is [1, 0, .., 0, 1]` as false."
+        }
+      ]
+    },
+    {
+      "id": "c004-q06",
+      "lesson": null,
+      "concept": "c004-global-json-sdk-pinning",
+      "type": "multiple_choice",
+      "prompt": "A repo's `global.json` is `{ \"sdk\": { \"version\": \"10.0.100\" } }`. A CI agent has SDKs 10.0.105 and 10.0.200 installed, but not 10.0.100. Which SDK does `dotnet build` use?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "10.0.200, the newest SDK that is installed on the agent"
+        },
+        {
+          "id": "b",
+          "text": "10.0.105, the latest patch in the same feature band"
+        },
+        {
+          "id": "c",
+          "text": "None: without `rollForward`, the build needs 10.0.100"
+        },
+        {
+          "id": "d",
+          "text": "The SDK matching the runtime that the projects target"
+        }
+      ],
+      "answer": "b",
+      "explanation": "With a version and no `rollForward`, the default policy is `patch`: use the specified version, or else the latest patch level in the same feature band (10.0.1xx), so 10.0.105. It won't move to the 10.0.2xx feature band without a policy such as `latestFeature`. Only `disable` demands an exact match, and the target framework doesn't choose the SDK.",
+      "materials": [
+        "dotnet-porting"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/tools/global-json",
+          "title": "global.json overview",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "If global.json specifies an SDK version and no rollForward, patch is the default policy: use the specified version, and if it isn't found roll forward to the latest patch level, else fail; SDK versions are x.y.znn where z is the feature band; disable requires an exact match."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,236 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c011-sharing-started-strategies",
+      "name": "shareIn/stateIn start strategies: Eagerly, Lazily and WhileSubscribed"
+    },
+    {
+      "id": "c011-non-transitive-r-classes",
+      "name": "Non-transitive R classes and resources from other modules"
+    },
+    {
+      "id": "c011-play-testing-tracks",
+      "name": "Google Play internal, closed and open testing tracks"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c011-q01",
+      "lesson": null,
+      "concept": "c011-sharing-started-strategies",
+      "type": "multiple_choice",
+      "prompt": "A ViewModel exposes `prices = ticker.shareIn(viewModelScope, SharingStarted.Eagerly, replay = 0)`. The ticker emits five prices before the screen starts collecting. What does the screen's collector get?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "All five earlier prices first, then each new price as it arrives later"
+        },
+        {
+          "id": "b",
+          "text": "Only the prices emitted after it subscribes; the first five are gone"
+        },
+        {
+          "id": "c",
+          "text": "Nothing at all, because `Eagerly` waits for a collector to appear"
+        },
+        {
+          "id": "d",
+          "text": "Only the newest of the five, then new ones, as a `StateFlow` would"
+        }
+      ],
+      "answer": "b",
+      "explanation": "`SharingStarted.Eagerly` starts the upstream before the first subscriber appears, and any value beyond the `replay` count emitted with nobody subscribed is discarded. With `replay = 0` nothing is kept, so the late collector sees only later prices. Getting every value is what `Lazily` gives its first subscriber; getting the newest one would need `replay = 1`.",
+      "materials": [
+        "android-stateflow-sharedflow"
+      ],
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/share-in.html",
+          "title": "shareIn",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-02",
+          "claim": "With Eagerly the upstream starts before the first subscriber and values emitted beyond the replay count are immediately discarded; Lazily starts on the first subscriber, which gets all values; WhileSubscribed starts on the first subscriber and stops when the last one disappears."
+        }
+      ]
+    },
+    {
+      "id": "c011-q02",
+      "lesson": null,
+      "concept": "c011-non-transitive-r-classes",
+      "type": "multiple_choice",
+      "prompt": "The app module's code refers to `R.string.retry`, a string defined in `:core:ui`. After moving to AGP 8, that line no longer compiles, though the string still exists. Why?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "R8 removed the string, because only `:core:ui` code referred to it"
+        },
+        {
+          "id": "b",
+          "text": "`:core:ui` must now expose its strings with `api`, not `implementation`"
+        },
+        {
+          "id": "c",
+          "text": "A resource must now be declared in the app module before it can be packaged"
+        },
+        {
+          "id": "d",
+          "text": "Each module's `R` now holds only its own resources; use `:core:ui`'s `R`"
+        }
+      ],
+      "answer": "d",
+      "explanation": "Since AGP 8.0, non-transitive R classes are the default: each module's `R` class contains only that module's own resources, not those of its dependencies. The string is still packaged; the app just has to name it through `:core:ui`'s `R` class (its namespace). R8 runs on release builds and can't break compilation, and `api` vs `implementation` controls classpath exposure, not what an `R` class contains.",
+      "materials": [
+        "android-gradle-build"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/build/optimize-your-build",
+          "title": "Optimize your build speed",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "Non-transitive R classes make each module's R class contain only references to its own resources, not its dependencies', which speeds up builds; this is the default in AGP 8.0.0 and higher."
+        }
+      ]
+    },
+    {
+      "id": "c011-q03",
+      "lesson": null,
+      "concept": "c011-play-testing-tracks",
+      "type": "written",
+      "prompt": "Before a production launch you want QA to get every build within minutes, then a beta for 1,500 invited users, then a public beta anyone can join. Which Google Play testing track fits each stage, and what limits or trade-offs come with each?",
+      "model_answer": {
+        "summary": "Internal testing for QA, closed testing for the invited beta and open testing for the public beta; each widens the audience but is slower and more visible.",
+        "key_points": [
+          "Internal testing fits QA: up to 100 testers per app, invited by email, and a new bundle reaches them within minutes",
+          "Closed testing fits the invited beta: testers come from email lists or Google Groups (up to 2,000 users per list), and a release can take hours to become available",
+          "Open testing fits the public beta: anyone can find and join it on Google Play, and it is visible in search",
+          "Feedback from testers doesn't affect the public rating: test versions can't get public reviews, only private feedback"
+        ]
+      },
+      "explanation": "The three tracks trade speed for reach. Internal testing is the fast lane for a small team and may skip the usual review, so it suits every CI build. Closed testing scales to invited groups, and open testing makes the beta public. A common mistake is to use open testing for QA builds, which exposes unfinished builds and waits for review.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://support.google.com/googleplay/android-developer/answer/9845334",
+          "title": "Set up an open, closed, or internal test",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "An internal test can have up to 100 testers per app and a new bundle becomes available within minutes; closed tests use email lists (up to 2,000 users each) or Google Groups and take hours to become available; open tests are visible on Google Play and anyone can join; testers can't leave public reviews and their feedback doesn't affect the public rating."
+        }
+      ]
+    },
+    {
+      "id": "c011-q04",
+      "lesson": null,
+      "concept": "c011-sharing-started-strategies",
+      "type": "written",
+      "prompt": "Compare `SharingStarted.Eagerly`, `SharingStarted.Lazily` and `SharingStarted.WhileSubscribed()` for `shareIn`. When does each start and stop the upstream, and what does a subscriber that arrives late get?",
+      "model_answer": {
+        "summary": "Eagerly starts at once and never waits for subscribers, Lazily starts on the first subscriber and then runs forever, and WhileSubscribed runs only while someone collects; late subscribers get only the replay cache, then new values.",
+        "key_points": [
+          "`Eagerly` starts the upstream immediately, before any subscriber, and values beyond the `replay` count emitted with no subscriber are discarded",
+          "`Lazily` starts the upstream when the first subscriber appears, so that subscriber gets every value, and keeps it running even after all subscribers leave",
+          "`WhileSubscribed()` starts on the first subscriber and stops when the last one disappears, keeping the replay cache",
+          "A late subscriber to any of them gets only the most recent `replay` values, then new emissions"
+        ]
+      },
+      "explanation": "The strategy decides how long the expensive upstream (a socket, a database query) stays alive. `Lazily` is tempting because it never misses values for the first subscriber, but it keeps the upstream active forever. `WhileSubscribed` is the usual choice for UI state because it stops work when nobody is watching.",
+      "materials": [
+        "android-stateflow-sharedflow"
+      ],
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/share-in.html",
+          "title": "shareIn",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-02",
+          "claim": "Eagerly starts before the first subscriber and discards values beyond replay; Lazily starts on the first subscriber, which gets all values, and stays active when subscribers disappear; WhileSubscribed stops when the last subscriber disappears, keeping the replay cache forever; later subscribers get the most recent replay values."
+        },
+        {
+          "url": "https://developer.android.com/kotlin/flow/stateflow-and-sharedflow",
+          "title": "StateFlow and SharedFlow",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "WhileSubscribed keeps the upstream producer active while there are active subscribers; Eagerly starts the producer immediately and Lazily starts after the first subscriber and keeps the flow active forever."
+        }
+      ]
+    },
+    {
+      "id": "c011-q05",
+      "lesson": null,
+      "concept": "c011-non-transitive-r-classes",
+      "type": "multiple_choice",
+      "prompt": "Why does AGP 8.0 and later turn on non-transitive R classes by default?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Each module's `R` lists only its own resources, so builds do less work"
+        },
+        {
+          "id": "b",
+          "text": "Resource IDs become `final` constants, so `when` branches can use them"
+        },
+        {
+          "id": "c",
+          "text": "It lets R8 rename every resource, which hides their names in the APK"
+        },
+        {
+          "id": "d",
+          "text": "Each module can then override any resource that a dependency defines"
+        }
+      ],
+      "answer": "a",
+      "explanation": "With non-transitive R classes, a module's `R` class no longer repeats every resource of its dependencies, which avoids duplication and lets Gradle skip recompiling modules (compilation avoidance), so builds get faster. The same page recommends non-constant R classes, the opposite of `final` constants, also the default in AGP 8.0.",
+      "materials": [
+        "android-gradle-build"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/build/optimize-your-build",
+          "title": "Optimize your build speed",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "Non-transitive R classes ensure each module's R class only includes its own resources, giving faster builds and compilation avoidance by preventing resource duplication; non-constant R classes are also recommended and are the default in AGP 8.0.0 and higher."
+        }
+      ]
+    },
+    {
+      "id": "c011-q06",
+      "lesson": null,
+      "concept": "c011-play-testing-tracks",
+      "type": "multiple_choice",
+      "prompt": "Five QA engineers must install every CI build from Google Play within minutes of upload. Which track fits best?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Open testing, since anyone with the link can join it straight away"
+        },
+        {
+          "id": "b",
+          "text": "Closed testing with a Google Group, since its builds skip Play review"
+        },
+        {
+          "id": "c",
+          "text": "Internal testing, which serves up to 100 testers within minutes"
+        },
+        {
+          "id": "d",
+          "text": "A 1% production rollout, limited to the accounts of the QA team"
+        }
+      ],
+      "answer": "c",
+      "explanation": "Internal testing is built for this: up to 100 testers per app, and a new bundle is available to them within minutes. Closed and open testing releases take hours to become available, and open testing is public. A staged production rollout picks a random share of real users; it can't be limited to chosen accounts.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://support.google.com/googleplay/android-developer/answer/9845334",
+          "title": "Set up an open, closed, or internal test",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "An internal test can have up to 100 testers per app and a new bundle becomes available to testers within minutes; closed and open tests take several hours to become available, and open tests are visible on Google Play."
+        }
+      ]
+    }
+  ]
+}

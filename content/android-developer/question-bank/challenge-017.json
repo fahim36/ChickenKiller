@@ -1,0 +1,234 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c017-pendingintent-mutability",
+      "name": "PendingIntent mutability flags"
+    },
+    {
+      "id": "c017-compose-test-rule-choice",
+      "name": "createComposeRule vs createAndroidComposeRule"
+    },
+    {
+      "id": "c017-local-test-android-stubs",
+      "name": "Android framework calls in local unit tests"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c017-q01",
+      "lesson": null,
+      "concept": "c017-pendingintent-mutability",
+      "type": "multiple_choice",
+      "prompt": "An app targeting Android 12 or higher builds `PendingIntent.getActivity(context, 0, intent, 0)` for a notification tap. What happens, and what is the right fix?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It works, but Lint warns; add `FLAG_UPDATE_CURRENT` to silence the warning"
+        },
+        {
+          "id": "b",
+          "text": "It throws `SecurityException`; mark the target Activity as exported instead"
+        },
+        {
+          "id": "c",
+          "text": "It still works and is mutable by default; add `FLAG_MUTABLE` only for inline replies"
+        },
+        {
+          "id": "d",
+          "text": "It throws `IllegalArgumentException`; pass `FLAG_IMMUTABLE` unless it must change"
+        }
+      ],
+      "answer": "d",
+      "explanation": "Apps targeting Android 12 (API 31) or higher must give every `PendingIntent` a mutability flag; without `FLAG_IMMUTABLE` or `FLAG_MUTABLE` the system throws `IllegalArgumentException`. Prefer `FLAG_IMMUTABLE`, so other apps can't fill in the intent, and use `FLAG_MUTABLE` only when a feature depends on it, such as direct reply or bubbles. Exporting the Activity is unrelated and would widen access.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://developer.android.com/guide/components/intents-filters",
+          "title": "Intents and intent filters | App architecture | Android Developers",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "Apps targeting Android 12 or higher must specify FLAG_IMMUTABLE or FLAG_MUTABLE for each PendingIntent, or the system throws IllegalArgumentException; use FLAG_IMMUTABLE whenever possible and FLAG_MUTABLE only when functionality depends on it."
+        },
+        {
+          "url": "https://developer.android.com/privacy-and-security/risks/pending-intent",
+          "title": "Pending intents | Security | Android Developers",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "Specify mutability, for example with FLAG_IMMUTABLE, to prevent unfilled fields from being filled in by a malicious application."
+        }
+      ]
+    },
+    {
+      "id": "c017-q02",
+      "lesson": null,
+      "concept": "c017-compose-test-rule-choice",
+      "type": "multiple_choice",
+      "prompt": "A Compose UI test must start your real `MainActivity` and read a string with that Activity's `getString()`. Which test rule fits?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`createComposeRule()`, because it always starts the app's launcher Activity"
+        },
+        {
+          "id": "b",
+          "text": "`createAndroidComposeRule<MainActivity>()`, which gives you that Activity"
+        },
+        {
+          "id": "c",
+          "text": "`createComposeRule()`, then call `setContent { MainActivity() }` in the test"
+        },
+        {
+          "id": "d",
+          "text": "Only an `ActivityScenarioRule`, because node finders need no Compose rule"
+        }
+      ],
+      "answer": "b",
+      "explanation": "`createComposeRule()` is for tests that don't need an Activity: you supply the content with `setContent {}`. When you need an Activity, its resources or its own content, use `createAndroidComposeRule<YourActivity>()`, which gives you that Activity. The finders and assertions such as `onNodeWithText` come from the Compose test rule, so an `ActivityScenarioRule` alone isn't enough.",
+      "materials": [
+        "compose-testing"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/testing",
+          "title": "Test your Compose layout | Jetpack Compose | Android Developers",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "Use createComposeRule() when you don't need access to an activity and set content with setContent; use createAndroidComposeRule<YourActivity>() when you need access to an activity; ui-test-manifest is needed for createComposeRule() but not for createAndroidComposeRule."
+        }
+      ]
+    },
+    {
+      "id": "c017-q03",
+      "lesson": null,
+      "concept": "c017-local-test-android-stubs",
+      "type": "written",
+      "prompt": "A local unit test of a formatter fails with `Method ... not mocked` when the code calls an Android framework class. Explain why, and compare the ways to fix it.",
+      "model_answer": {
+        "summary": "Local tests run against a stub Android library whose method bodies are removed, so framework calls throw; mocking or Robolectric are the fixes, and `returnDefaultValues` is a last resort.",
+        "key_points": [
+          "Local tests run on the JVM against a mockable Android library: the framework's public classes and methods with their code removed, so calling one throws `Method ... not mocked`",
+          "`unitTests.returnDefaultValues = true` makes those methods return null or zero, but it is a last resort: it can hide regressions and let failing tests pass",
+          "Prefer mocking the Android dependency (Mockito, MockK) or running the test with Robolectric's shadows of Android classes"
+        ]
+      },
+      "explanation": "The error is not a bug in the test; it is how local tests protect you from silently calling stubbed framework code. Switching on default values makes the error go away by hiding it, which is why the docs call it a last resort.",
+      "materials": [
+        "android-testing-fundamentals"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/training/testing/local-tests",
+          "title": "Build local unit tests | Test your app on Android | Android Developers",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "The mockable Android library has the framework's public methods with their code removed, so calling one in a local test throws 'Method ... not mocked'; mock the dependency or use Robolectric, and use unitTests.returnDefaultValues only as a last resort, since null/zero values can hide regressions and let failing tests pass."
+        }
+      ]
+    },
+    {
+      "id": "c017-q04",
+      "lesson": null,
+      "concept": "c017-pendingintent-mutability",
+      "type": "multiple_choice",
+      "prompt": "Which of these `PendingIntent`s genuinely needs `FLAG_MUTABLE`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A notification's content tap that opens one fixed screen of your app"
+        },
+        {
+          "id": "b",
+          "text": "A notification direct-reply action, which adds the typed text to it"
+        },
+        {
+          "id": "c",
+          "text": "A notification action that marks one message read through a receiver"
+        },
+        {
+          "id": "d",
+          "text": "A launcher shortcut that opens your settings screen with fixed extras"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Mutable PendingIntents are only for features that depend on the system or another app changing the intent: a direct reply action adds the reply to its clip data, and bubbles, location updates and `AlarmManager` alarms are other listed cases. The other three fire a fixed intent, so `FLAG_IMMUTABLE` is right and safer.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://developer.android.com/guide/components/intents-filters",
+          "title": "Intents and intent filters | App architecture | Android Developers",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "Use FLAG_MUTABLE only when functionality depends on it: direct reply actions in notifications (the reply changes the clip data), Android Auto, bubbles, location updates and AlarmManager alarms; otherwise use FLAG_IMMUTABLE."
+        }
+      ]
+    },
+    {
+      "id": "c017-q05",
+      "lesson": null,
+      "concept": "c017-compose-test-rule-choice",
+      "type": "written",
+      "prompt": "When do you choose `createComposeRule()` and when `createAndroidComposeRule<A>()` for a Compose UI test? Say what each gives you and what setup each needs.",
+      "model_answer": {
+        "summary": "`createComposeRule()` tests content you set yourself with no Activity of yours; `createAndroidComposeRule<A>()` is for when you need an Activity, and only the first needs the `ui-test-manifest` dependency.",
+        "key_points": [
+          "`createComposeRule()` when you don't need an Activity: you call `setContent {}` with the composable under test, for example a screen given a fake UI state",
+          "`createAndroidComposeRule<A>()` when you need access to an Activity, such as its resources or the real Activity's content",
+          "`createComposeRule()` needs `androidx.compose.ui:ui-test-manifest` as a `debugImplementation` dependency; `createAndroidComposeRule<A>()` doesn't"
+        ]
+      },
+      "explanation": "Testing a composable in isolation with fake state is the default, fast option. Reaching for the Activity rule makes sense only when the test really needs the Activity.",
+      "materials": [
+        "compose-testing"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/testing",
+          "title": "Test your Compose layout | Jetpack Compose | Android Developers",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "createComposeRule() is for tests that don't need an activity and uses setContent; createAndroidComposeRule<YourActivity>() is for when you need access to an activity; ui-test-manifest is needed for createComposeRule() but not for createAndroidComposeRule."
+        }
+      ]
+    },
+    {
+      "id": "c017-q06",
+      "lesson": null,
+      "concept": "c017-local-test-android-stubs",
+      "type": "multiple_choice",
+      "prompt": "A teammate sets `testOptions.unitTests.isReturnDefaultValues = true` so local tests stop throwing `Method ... not mocked`. What is the risk?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Framework calls now run the real code, so results depend on the host computer"
+        },
+        {
+          "id": "b",
+          "text": "Tests now run inside Robolectric, so the whole local suite gets much slower"
+        },
+        {
+          "id": "c",
+          "text": "Framework calls return null or zero, which can hide bugs and pass bad tests"
+        },
+        {
+          "id": "d",
+          "text": "It applies only to instrumented tests, so local tests keep throwing anyway"
+        }
+      ],
+      "answer": "c",
+      "explanation": "With `returnDefaultValues`, the stubbed framework methods return null or zero instead of throwing. Nothing real runs, so a test can pass while the code is wrong, and the regressions that follow are hard to debug. The docs recommend it only as a last resort, after mocking or Robolectric.",
+      "materials": [
+        "android-testing-fundamentals"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/training/testing/local-tests",
+          "title": "Build local unit tests | Test your app on Android | Android Developers",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "unitTests.returnDefaultValues makes stubbed methods return null or zero; these values can introduce regressions that are hard to debug and might allow failing tests to pass, so use it only as a last resort."
+        }
+      ]
+    }
+  ]
+}

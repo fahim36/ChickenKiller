@@ -1,0 +1,254 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c030-event-schema-evolution",
+      "name": "Evolving the schema of stored events"
+    },
+    {
+      "id": "c030-sortedset-comparer-semantics",
+      "name": "SortedSet comparer ties and live range views"
+    },
+    {
+      "id": "c030-waf-pillar-tradeoffs",
+      "name": "Well-Architected pillar trade-offs in a design review"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c030-q01",
+      "lesson": null,
+      "concept": "c030-event-schema-evolution",
+      "type": "multiple_choice",
+      "prompt": "An event store holds millions of version 1 `OrderPlaced` events, and version 2 splits `Address` into separate fields. Which approach keeps the stored events immutable while new code handles only version 2?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Run a migration that rewrites every stored v1 event in place to the v2 shape"
+        },
+        {
+          "id": "b",
+          "text": "Register an upcaster that converts v1 events to v2 as they're deserialized"
+        },
+        {
+          "id": "c",
+          "text": "Append a compensating event for each v1 event that restates its data as v2"
+        },
+        {
+          "id": "d",
+          "text": "Delete the v1 events and rebuild each order's state from the read model"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Upcasters transform old event shapes into the current one on read, and can be chained, so application code handles only the latest version while stored events stay unchanged. Rewriting events in place breaks immutability and the audit trail, so it is a last resort. Compensating events reverse or correct a business change, not a schema change.",
+      "materials": [
+        "azure-cloud-design-patterns"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/event-sourcing",
+          "title": "Event Sourcing Pattern - Azure Architecture Center",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "Strategies for changing event schemas are tolerant deserialization, event versioning, upcasting (transforming older schemas to the current one during deserialization while stored events stay unchanged) and in-place migration, which breaks immutability and is a last resort; compensating events reverse or correct previous events."
+        }
+      ]
+    },
+    {
+      "id": "c030-q02",
+      "lesson": null,
+      "concept": "c030-sortedset-comparer-semantics",
+      "type": "multiple_choice",
+      "prompt": "A leaderboard orders players by score only. What is `added` after this code runs?\n\n```csharp\nvar board = new SortedSet<Player>(\n    Comparer<Player>.Create((a, b) => b.Score.CompareTo(a.Score)));\nboard.Add(new Player(\"Ana\", 90));\nbool added = board.Add(new Player(\"Ben\", 90));\n```",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`true`, as two distinct `Player` objects are never duplicates in a set"
+        },
+        {
+          "id": "b",
+          "text": "It throws `ArgumentException`, since a `SortedSet<T>` rejects tied keys"
+        },
+        {
+          "id": "c",
+          "text": "`true`, and tied players are kept in insertion order like a stable sort"
+        },
+        {
+          "id": "d",
+          "text": "`false`: the comparer calls them equal, so Ben is a duplicate"
+        }
+      ],
+      "answer": "d",
+      "explanation": "A `SortedSet<T>` uses its comparer both to order items and to decide what is already in the set. The comparer returns 0 for equal scores, so Ben is treated as a duplicate: `Add` returns `false` and throws nothing, and Ben silently disappears from the board. Break ties on a unique field, such as the player's id, as the docs' own example comparer does.",
+      "materials": [
+        "csharp-docs"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/api/system.collections.generic.sortedset-1.add",
+          "title": "SortedSet<T>.Add(T) Method (System.Collections.Generic)",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "SortedSet<T> doesn't accept duplicate elements; if the item is already in the set, Add returns false and doesn't throw."
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/api/system.collections.generic.sortedset-1",
+          "title": "SortedSet<T> Class (System.Collections.Generic)",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "Duplicate elements are not allowed in a SortedSet<T>, and its Comparer is the IComparer<T> used to order the values."
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/api/system.collections.generic.sortedset-1.-ctor",
+          "title": "SortedSet<T> Constructors (System.Collections.Generic)",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "The documented example comparer (ByFileExtension) compares file extensions and, when they are equal, breaks the tie by comparing the full file names."
+        }
+      ]
+    },
+    {
+      "id": "c030-q03",
+      "lesson": null,
+      "concept": "c030-waf-pillar-tradeoffs",
+      "type": "written",
+      "prompt": "In an architecture review, a team proposes making its single-region .NET API active-active across two Azure regions for reliability. Using the Well-Architected Framework, which trade-offs would you raise before approving it?",
+      "model_answer": {
+        "summary": "Multi-region reliability costs something in every other pillar: more spend, more latency, more operational load and a larger attack surface, so the design should match the agreed reliability targets.",
+        "key_points": [
+          "Cost: more replicas and over-provisioned capacity cost money, and recovery capacity beyond the agreed RPO and RTO targets is waste",
+          "Performance Efficiency: replicating data across regions and balancing load between them add latency to writes and requests",
+          "Operational Excellence: managing two regions and the data replication between them adds operational complexity, monitoring, documentation and training",
+          "Security: replicas and any new components, such as a message bus, enlarge the surface area that must be secured"
+        ]
+      },
+      "explanation": "The Well-Architected Framework treats each pillar's choices as trade-offs against the others. A senior reviewer asks whether the business's reliability targets justify those costs, rather than approving redundancy by default.",
+      "materials": [
+        "azure-well-architected"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/well-architected/reliability/tradeoffs",
+          "title": "Reliability tradeoffs - Microsoft Azure Well-Architected Framework",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "Reliability trade-offs: replication and disaster recovery increase surface area (Security); more replicas, over-provisioning and excessive DR cost more (Cost Optimization); multiple regions and replication increase operational complexity and documentation effort (Operational Excellence); replication and cross-zone distribution add latency (Performance Efficiency)."
+        }
+      ]
+    },
+    {
+      "id": "c030-q04",
+      "lesson": null,
+      "concept": "c030-event-schema-evolution",
+      "type": "written",
+      "prompt": "Over the next year your event-sourced service must change several event types: some gain optional fields, and one renames and splits a field. How would you evolve the event schema?",
+      "model_answer": {
+        "summary": "Handle additive changes with tolerant deserialization, version every event, use upcasters for breaking changes, and leave stored history untouched except as a last resort.",
+        "key_points": [
+          "Additive changes such as a new optional field need only tolerant deserialization: ignore unknown fields and default missing ones",
+          "Put a version in each event, in the envelope's metadata or the type name, so consumers can pick the right handling",
+          "For breaking changes, register upcasters that convert old shapes to the current one on read, chained, so code handles only the latest version and stored events stay unchanged",
+          "Rewriting history in place breaks immutability and the audit trail, so keep it as a last resort; bad events from bugs are fixed with compensating events or upcasters"
+        ]
+      },
+      "explanation": "The event store is permanent, so schema change is a read-side problem. Choosing the lightest strategy for each change, and keeping the history intact, is what the guidance recommends.",
+      "materials": [
+        "azure-cloud-design-patterns"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/event-sourcing",
+          "title": "Event Sourcing Pattern - Azure Architecture Center",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "Never update event data; schema strategies are tolerant deserialization for additive changes, a version identifier per event, chained upcasters that transform older schemas on deserialization while stored events stay unchanged, and in-place migration only as a last resort; bad events from bugs may need compensating events or upcasters."
+        }
+      ]
+    },
+    {
+      "id": "c030-q05",
+      "lesson": null,
+      "concept": "c030-sortedset-comparer-semantics",
+      "type": "multiple_choice",
+      "prompt": "You keep request timestamps in a `SortedSet<DateTime>` and call `GetViewBetween(now.AddMinutes(-1), now)`. Which statement about the result is true?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It's a copy of the matching items, so later adds to the set never show up in it"
+        },
+        {
+          "id": "b",
+          "text": "It's a live window on the set, so changes made through either are seen in both"
+        },
+        {
+          "id": "c",
+          "text": "It's a read-only snapshot, so adding to it throws `NotSupportedException`"
+        },
+        {
+          "id": "d",
+          "text": "It lists the items in insertion order, since the view ignores the comparer"
+        }
+      ],
+      "answer": "b",
+      "explanation": "`GetViewBetween` doesn't copy elements: it returns a window onto the underlying set, ordered by its comparer, and you can make changes through either one. Adding a value outside the view's range throws `ArgumentOutOfRangeException`, and a lower bound above the upper bound throws `ArgumentException`.",
+      "materials": [
+        "csharp-docs"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/api/system.collections.generic.sortedset-1.getviewbetween",
+          "title": "SortedSet<T>.GetViewBetween(T, T) Method (System.Collections.Generic)",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "GetViewBetween doesn't copy elements but provides a window into the underlying SortedSet<T>, and changes can be made in both the view and the set; operations outside the range throw ArgumentOutOfRangeException and lowerValue above upperValue throws ArgumentException."
+        }
+      ]
+    },
+    {
+      "id": "c030-q06",
+      "lesson": null,
+      "concept": "c030-waf-pillar-tradeoffs",
+      "type": "multiple_choice",
+      "prompt": "During an incident, an engineer proposes temporarily widening a firewall rule and relaxing role assignments to speed up troubleshooting. Which Well-Architected trade-off does this show?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Cost vs Performance: wider rules cut what the firewall costs to run"
+        },
+        {
+          "id": "b",
+          "text": "Operational Excellence vs Cost: fewer rules mean less documentation"
+        },
+        {
+          "id": "c",
+          "text": "Reliability vs Security: urgency pushes teams to bypass controls"
+        },
+        {
+          "id": "d",
+          "text": "Performance vs Reliability: narrow rules add latency to requests"
+        }
+      ],
+      "answer": "c",
+      "explanation": "The Reliability pillar's trade-offs with Security include \"security control bypass\": under incident pressure, teams may disable controls that are tuned for routine access, leaving a stressed system exposed and risking that controls aren't restored. Security recommends that controls stay active in both normal and stressed systems.",
+      "materials": [
+        "azure-well-architected"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/well-architected/reliability/tradeoffs",
+          "title": "Reliability tradeoffs - Microsoft Azure Well-Architected Framework",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "Under active incident response, urgency can pressure teams to bypass or temporarily disable security controls, leaving the system exposed; the Security pillar recommends all controls remain active in normal and stressed systems."
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/well-architected/pillars",
+          "title": "Microsoft Azure Well-Architected Framework pillars",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "The Well-Architected Framework has five pillars (Reliability, Security, Cost Optimization, Operational Excellence, Performance Efficiency), each with its own tradeoffs."
+        }
+      ]
+    }
+  ]
+}

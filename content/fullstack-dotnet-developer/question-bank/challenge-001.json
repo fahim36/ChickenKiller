@@ -1,0 +1,249 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c001-struct-defensive-copies",
+      "name": "Hidden struct copies from readonly members and readonly fields"
+    },
+    {
+      "id": "c001-kafka-offset-commit-semantics",
+      "name": "Kafka offset commit timing: at-most-once vs at-least-once"
+    },
+    {
+      "id": "c001-runtime-roll-forward",
+      "name": "Runtime roll-forward for framework-dependent apps"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c001-q01",
+      "lesson": null,
+      "concept": "c001-struct-defensive-copies",
+      "type": "multiple_choice",
+      "prompt": "```csharp\nstruct Counter\n{\n    private int _n;\n    public void Increment() => _n++;\n    public readonly int IncrementAndGet() { Increment(); return _n; }\n}\n\nvar c = new Counter();\nConsole.WriteLine(c.IncrementAndGet());\n```\n\nWhat is printed?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "1, because `Increment` updates `_n` before it is read"
+        },
+        {
+          "id": "b",
+          "text": "0, because `Increment` runs on a hidden copy of `c`"
+        },
+        {
+          "id": "c",
+          "text": "Nothing: a `readonly` member can't call `Increment`"
+        },
+        {
+          "id": "d",
+          "text": "1 on the first call, then 0 once the copy is cached"
+        }
+      ],
+      "answer": "b",
+      "explanation": "A `readonly` member promises not to change the struct, yet it may call a non-`readonly` member. To keep the promise, the compiler copies the struct and calls `Increment` on the copy, so the original `_n` stays 0 and 0 is printed. It compiles (with a warning), so the 'can't call' answer is wrong. Mark `Increment`-free members `readonly`, or make the whole struct a `readonly struct`, to avoid these hidden copies.",
+      "materials": [
+        "csharp-docs"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/builtin-types/struct",
+          "title": "Structure types - C# reference",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "A readonly instance member can call a non-readonly member; the compiler then creates a copy of the structure instance and calls the non-readonly member on that copy, so the original instance isn't modified."
+        }
+      ]
+    },
+    {
+      "id": "c001-q02",
+      "lesson": null,
+      "concept": "c001-kafka-offset-commit-semantics",
+      "type": "multiple_choice",
+      "prompt": "A Kafka consumer reads a batch, commits its offsets straight away, and then processes the messages. It crashes halfway through the batch and restarts. What happens to the messages it hadn't processed?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Redelivered, because Kafka tracks an acknowledgement for each message"
+        },
+        {
+          "id": "b",
+          "text": "Skipped, because the committed position is already past them"
+        },
+        {
+          "id": "c",
+          "text": "Redelivered, because the crash rolls the committed offset back"
+        },
+        {
+          "id": "d",
+          "text": "Moved to a dead-letter topic when the consumer group rebalances"
+        }
+      ],
+      "answer": "b",
+      "explanation": "A Kafka consumer's progress is just its saved position in the partition log, not a per-message acknowledgement. Saving the position before processing gives at-most-once delivery: after a crash the consumer resumes from the saved position, so the unprocessed messages are never seen again. Processing first and saving the position afterwards gives at-least-once delivery instead, with possible duplicates. Kafka has no built-in dead-letter topic.",
+      "materials": [
+        "kafka-docs"
+      ],
+      "sources": [
+        {
+          "url": "https://kafka.apache.org/42/design/design/",
+          "title": "Design (Apache Kafka documentation)",
+          "publisher": "Apache Software Foundation",
+          "accessed": "2026-10-02",
+          "claim": "If the consumer saves its position and then processes the messages, a crash in between means the next consumer starts from the saved position and some messages are never processed (at-most-once); processing first and then saving the position gives at-least-once, with possible reprocessing after a crash."
+        }
+      ]
+    },
+    {
+      "id": "c001-q03",
+      "lesson": null,
+      "concept": "c001-runtime-roll-forward",
+      "type": "written",
+      "prompt": "Ops wants to install only the .NET 10 runtime on new servers and keep deploying your framework-dependent `net8.0` services there unchanged. Will the services start? Explain why, and give your options.",
+      "model_answer": {
+        "summary": "Not by default: a framework-dependent app rolls forward to a newer patch or minor version of its own major version, never to a new major, so a `net8.0` app won't start where only .NET 10 is installed. Install the .NET 8 runtime, deploy self-contained, retarget to `net10.0`, or opt in to major roll-forward after testing.",
+        "key_points": [
+          "The default roll-forward policy is `Minor`: the host uses the latest installed patch of the requested major.minor, or a higher minor of the same major, but never a higher major, so the app fails to start",
+          "You can opt in with a `RollForward` value such as `Major` or `LatestMajor` (project property, `runtimeconfig.json`, `DOTNET_ROLL_FORWARD` or `--roll-forward`), but only after testing on .NET 10, since behaviour can differ",
+          "Safer options are installing the .NET 8 runtime side by side, publishing self-contained so the app carries its own runtime, or retargeting the services to `net10.0`"
+        ]
+      },
+      "explanation": "Many people assume the newest runtime runs everything, as with .NET Framework 4.x in-place updates. Modern .NET runtimes are side by side: the host only rolls a framework-dependent app forward within its major version unless you change the `RollForward` policy. A self-contained deployment picks its runtime at publish time, so it doesn't depend on what the server has installed.",
+      "materials": [
+        "dotnet-porting"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/versions/selection",
+          "title": "Select which .NET version to use",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "A framework-dependent app uses the latest installed patch of its requested version, or rolls forward to a higher minor version (the default Minor policy) but not to a lower or higher major; RollForward can be set in the project, runtimeconfig.json, DOTNET_ROLL_FORWARD or --roll-forward to values such as Major or LatestMajor; self-contained deployments include the runtime selected at publish time."
+        }
+      ]
+    },
+    {
+      "id": "c001-q04",
+      "lesson": null,
+      "concept": "c001-struct-defensive-copies",
+      "type": "multiple_choice",
+      "prompt": "`Counter` is a mutable struct: `Increment()` does `_n++` and `Value` returns `_n`.\n\n```csharp\nclass Meter\n{\n    private readonly Counter _counter;\n    public int Tick() { _counter.Increment(); return _counter.Value; }\n}\n```\n\nWhat does `new Meter()` return from three calls to `Tick()`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "1, 2 and 3, since the field is updated where it lives"
+        },
+        {
+          "id": "b",
+          "text": "0 each time: each call increments a temporary copy"
+        },
+        {
+          "id": "c",
+          "text": "Nothing: a `readonly` field can't call `Increment`"
+        },
+        {
+          "id": "d",
+          "text": "1 and then it throws, since the field can't change"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Outside a constructor, a `readonly` field of a struct type is a value, not a variable. Calling a method on a value makes the compiler copy it into a temporary and call the method on the temporary, so `Increment` changes the copy and `_counter` stays 0. Nothing fails to compile or throws: the bug is silent. Make the struct immutable (`readonly struct`), or drop `readonly` from the field if it must mutate.",
+      "materials": [
+        "csharp-docs"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/language-specification/expressions",
+          "title": "Expressions - C# language specification",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "If a field is readonly and the reference occurs outside an instance constructor, the result is a value rather than a variable (§12.8.4); when a function member is invoked on a value of a value type, a temporary local variable is created, so modifications made to `this` don't affect the original (§12.6.6)."
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/keywords/readonly",
+          "title": "readonly keyword - C# reference",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "Because value types directly contain their data, a field that is a readonly value type is immutable."
+        }
+      ]
+    },
+    {
+      "id": "c001-q05",
+      "lesson": null,
+      "concept": "c001-kafka-offset-commit-semantics",
+      "type": "multiple_choice",
+      "prompt": "To stop losing messages, a team changes its Kafka consumer to process each batch first and commit the offsets only afterwards. What must the handler now cope with?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Lost messages, whenever it crashes before the commit runs"
+        },
+        {
+          "id": "b",
+          "text": "Duplicates, as a crash before the commit replays it"
+        },
+        {
+          "id": "c",
+          "text": "Out-of-order messages within a partition after late commits"
+        },
+        {
+          "id": "d",
+          "text": "The producer resending every message not yet committed"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Processing before saving the position is at-least-once delivery. If the consumer crashes after processing but before committing, it restarts from the old position and processes those messages again, so the handler must be idempotent. Nothing is lost, order within a partition is unchanged, and the producer isn't involved: the position belongs to the consumer.",
+      "materials": [
+        "kafka-docs"
+      ],
+      "sources": [
+        {
+          "url": "https://kafka.apache.org/42/design/design/",
+          "title": "Design (Apache Kafka documentation)",
+          "publisher": "Apache Software Foundation",
+          "accessed": "2026-10-02",
+          "claim": "If the consumer reads, processes and then saves its position, a crash after processing but before saving means the new consumer reprocesses some messages: at-least-once delivery."
+        }
+      ]
+    },
+    {
+      "id": "c001-q06",
+      "lesson": null,
+      "concept": "c001-runtime-roll-forward",
+      "type": "multiple_choice",
+      "prompt": "A framework-dependent app targets `net8.0` with default settings. The server has the .NET runtimes 8.0.5, 8.0.11 and 10.0.2 installed. Which one does it run on?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "10.0.2, because the host always picks the newest runtime"
+        },
+        {
+          "id": "b",
+          "text": "8.0.5, because the host binds to the lowest match it finds"
+        },
+        {
+          "id": "c",
+          "text": "8.0.11, the latest patch of the requested major and minor"
+        },
+        {
+          "id": "d",
+          "text": "None: it needs the exact patch it was compiled against"
+        }
+      ],
+      "answer": "c",
+      "explanation": "When the requested major.minor (8.0) is installed, the host uses its highest installed patch, so security fixes apply without rebuilding. It doesn't jump to a new major (10.0) unless you opt in with a `RollForward` policy such as `LatestMajor`, and it doesn't require the exact patch: only `Disable` does that, which is meant for testing.",
+      "materials": [
+        "dotnet-porting"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/versions/selection",
+          "title": "Select which .NET version to use",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "The host chooses the latest patch version installed for the requested version (the default Minor policy uses LatestPatch when the requested minor is present); major roll-forward needs Major or LatestMajor, and Disable binds only to the specified version."
+        }
+      ]
+    }
+  ]
+}

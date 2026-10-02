@@ -1,0 +1,242 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c021-hybrid-search-rrf",
+      "name": "Hybrid search and Reciprocal Rank Fusion"
+    },
+    {
+      "id": "c021-prompt-shields",
+      "name": "Prompt Shields for user prompt and document attacks"
+    },
+    {
+      "id": "c021-on-behalf-of-flow",
+      "name": "The on-behalf-of flow for calling downstream APIs"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c021-q01",
+      "lesson": null,
+      "concept": "c021-hybrid-search-rrf",
+      "type": "multiple_choice",
+      "prompt": "Your RAG search over support articles uses vector search only, and queries for exact part numbers like `XR-4471-B` keep missing the article that mentions them. What does Azure AI Search's hybrid search do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Runs the vector query first, then keeps only its top k hits with an exact keyword"
+        },
+        {
+          "id": "b",
+          "text": "Adds each document's BM25 and cosine scores together and sorts by the raw sum"
+        },
+        {
+          "id": "c",
+          "text": "Runs keyword and vector queries in parallel and fuses the two rankings with RRF"
+        },
+        {
+          "id": "d",
+          "text": "Embeds the part number again with a second model trained on product codes"
+        }
+      ],
+      "answer": "c",
+      "explanation": "A hybrid query is one request with both `search` and `vectorQueries`; the full-text and vector queries run in parallel and Reciprocal Rank Fusion merges their rankings. Keyword search is precise for exact strings such as product codes and names, which is where vector search is weak. It is not a filter over the vector hits, and it doesn't add raw scores: BM25 has no upper limit while cosine scores sit between about 0.33 and 1, so RRF combines rank positions instead.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/search/hybrid-search-overview",
+          "title": "Hybrid Search Overview - Azure AI Search",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "Hybrid search runs full-text and vector queries in parallel in one request and merges them with RRF; keyword search does better on product codes, jargon, dates and names because it finds exact matches."
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/search/hybrid-search-ranking",
+          "title": "Hybrid Search Scoring (RRF) - Azure AI Search",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "RRF scores each document 1/(rank + k) in each result list, with k a small constant such as 60, and sums them; BM25 scores have no upper limit while vector scores have a fixed range."
+        }
+      ]
+    },
+    {
+      "id": "c021-q02",
+      "lesson": null,
+      "concept": "c021-prompt-shields",
+      "type": "multiple_choice",
+      "prompt": "Your assistant summarises customer emails and can call tools. You turn on Prompt Shields in Azure AI Content Safety. Which statement about it is accurate?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It flags attacks in user prompts and in documents like emails, as one more layer"
+        },
+        {
+          "id": "b",
+          "text": "It checks only the user's own message, so text inside the emails isn't analysed"
+        },
+        {
+          "id": "c",
+          "text": "It guarantees injected text is ignored, so write tools no longer need any approval"
+        },
+        {
+          "id": "d",
+          "text": "It retrains your model deployment so that it learns to refuse jailbreak attempts"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Prompt Shields detects two kinds of attack: user prompt attacks (jailbreaks typed by the user) and document attacks (instructions hidden in third-party content such as emails, documents and web pages). It analyses inputs and reports or blocks what it detects; it doesn't change the model. Microsoft describes it as an additional layer of protection, so it is not a guarantee, and approvals on risky tools are still needed.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/ai-services/content-safety/concepts/jailbreak-detection",
+          "title": "Prompt Shields in Azure AI Content Safety",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "Prompt Shields analyses user prompts and documents before generation to detect user prompt attacks and document attacks (hidden instructions in third-party content such as emails), returns detected/filtered results, and is described as an additional layer of protection."
+        }
+      ]
+    },
+    {
+      "id": "c021-q03",
+      "lesson": null,
+      "concept": "c021-on-behalf-of-flow",
+      "type": "written",
+      "prompt": "Your ASP.NET Core API gets a user's Entra ID access token from a React SPA and must call a downstream Orders API as that user. A teammate proposes forwarding the incoming token unchanged. What is wrong with that, and how should your API get a token for Orders?",
+      "model_answer": {
+        "summary": "The incoming token was issued for your API, not for Orders, so it must not be forwarded; your API should use the on-behalf-of flow to exchange it for a new token for Orders that still carries the user's identity and delegated permissions.",
+        "key_points": [
+          "The incoming token's audience (`aud`) is your API; a token issued to the middle tier is meant only for it, and Orders should reject a token that wasn't issued for it",
+          "Use the on-behalf-of (OBO) flow: your API, as a confidential client with its own secret or certificate, sends the incoming token as the `assertion` with `requested_token_use=on_behalf_of` and Orders' scopes to the token endpoint (MSAL or Microsoft.Identity.Web does this for you)",
+          "The new token carries the user's identity and delegated scopes, not app roles; OBO works only for user tokens, so an app-only caller needs the client credentials flow instead",
+          "Consent for Orders must be granted up front (combined or admin consent), and a Conditional Access error from the OBO request is passed back to the client as a 401 with a claims challenge"
+        ]
+      },
+      "explanation": "OBO is how delegation works in OAuth: identity and permissions pass down the chain, but each hop gets a token minted for its own audience. Forwarding the original token breaks audience validation and is exactly what Microsoft warns against. Calling Orders with your API's own client credentials token would also work technically, but it drops the user's identity and permissions.",
+      "materials": [
+        "entra-identity-platform"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-on-behalf-of-flow",
+          "title": "Microsoft identity platform and OAuth2.0 On-Behalf-Of flow",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "The OBO flow lets a web API call another API with the user's identity: the middle tier posts the incoming token (whose aud must be the middle tier) as the assertion with requested_token_use=on_behalf_of, gets delegated scopes only, must not send tokens issued to it anywhere else, works only for user principals, needs consent up front, and returns Conditional Access errors to the client as a 401 claims challenge."
+        }
+      ]
+    },
+    {
+      "id": "c021-q04",
+      "lesson": null,
+      "concept": "c021-hybrid-search-rrf",
+      "type": "multiple_choice",
+      "prompt": "In a hybrid query, document A is 1st in the vector results and 30th in the keyword results; document B is 5th in both. Using Reciprocal Rank Fusion with k = 60, which ranks higher?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A, because a first place in the vector list outweighs any keyword rank"
+        },
+        {
+          "id": "b",
+          "text": "Neither: RRF keeps the vector order and only appends new keyword hits"
+        },
+        {
+          "id": "c",
+          "text": "It depends on the raw BM25 scores, which RRF uses to settle such ties"
+        },
+        {
+          "id": "d",
+          "text": "B, because ranking well in both lists beats one top rank and one low"
+        }
+      ],
+      "answer": "d",
+      "explanation": "RRF gives each document 1/(rank + k) per list and sums them. A gets 1/61 + 1/90, about 0.0275; B gets 1/65 + 1/65, about 0.0308. With k = 60 the gap between rank 1 and rank 5 is small, so agreement across lists wins. RRF works on rank positions, not raw scores, which is why it can merge BM25 and vector results whose scores have different ranges.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/search/hybrid-search-ranking",
+          "title": "Hybrid Search Scoring (RRF) - Azure AI Search",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "RRF assigns each document 1/(rank + k) in each ranked list, sums these, and sorts by the sum, giving higher importance to items ranked high in several lists; k is a small constant such as 60."
+        }
+      ]
+    },
+    {
+      "id": "c021-q05",
+      "lesson": null,
+      "concept": "c021-on-behalf-of-flow",
+      "type": "multiple_choice",
+      "prompt": "A daemon calls your middle-tier API with an app-only token from the client credentials flow. Your API then tries the on-behalf-of flow with that token to call a downstream API. What do Microsoft's docs say?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It works, and the downstream token then represents the daemon's service principal"
+        },
+        {
+          "id": "b",
+          "text": "OBO works only for user principals; get the API's own app-only token instead"
+        },
+        {
+          "id": "c",
+          "text": "It works only if the daemon also sends its ID token along with the access token"
+        },
+        {
+          "id": "d",
+          "text": "It works once the daemon is added to `knownClientApplications` in the manifest"
+        }
+      ],
+      "answer": "b",
+      "explanation": "The OBO flow only works for user principals. Exchanging an app-only token would produce a token that doesn't represent the original service principal, so the middle tier should use the client credentials flow to get its own app-only token for the downstream API. `knownClientApplications` is about combined consent, not about making OBO accept app-only tokens.",
+      "materials": [
+        "entra-identity-platform"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-on-behalf-of-flow",
+          "title": "Microsoft identity platform and OAuth2.0 On-Behalf-Of flow",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "OBO only works for user principals; if a service principal sends an app-only token, the API must use the client credentials flow instead; knownClientApplications is used for combined consent."
+        }
+      ]
+    },
+    {
+      "id": "c021-q06",
+      "lesson": null,
+      "concept": "c021-prompt-shields",
+      "type": "multiple_choice",
+      "prompt": "In Microsoft Foundry you add a document attack control from Prompt Shields to your agent. Which content does that shield inspect?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Only the system prompt you wrote, to catch rules that conflict there"
+        },
+        {
+          "id": "b",
+          "text": "Third-party content, such as tool responses and grounding documents"
+        },
+        {
+          "id": "c",
+          "text": "Only the model's final answer, to catch harmful text before display"
+        },
+        {
+          "id": "d",
+          "text": "Only the user's typed messages, since documents can't hold commands"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Document attacks are instructions hidden in content that the user and developer didn't write, such as documents, emails and web pages. In Foundry the system scans for them at the user input and tool response intervention points. User prompt attacks (jailbreaks) are the other shield; neither one scans only the model's output or your system prompt.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/ai-services/content-safety/concepts/jailbreak-detection",
+          "title": "Prompt Shields in Azure AI Content Safety",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "Document attacks are hidden instructions in third-party content such as documents, emails and web pages; in Foundry Prompt Shields scans for them at the user input and tool response intervention points."
+        }
+      ]
+    }
+  ]
+}

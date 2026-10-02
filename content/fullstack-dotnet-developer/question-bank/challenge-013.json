@@ -1,0 +1,235 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c013-memorycache-size-limit",
+      "name": "IMemoryCache size limits and shared caches"
+    },
+    {
+      "id": "c013-xunit-parallel-collections",
+      "name": "xUnit parallel execution by test collection"
+    },
+    {
+      "id": "c013-grpc-deadline-propagation",
+      "name": "gRPC deadlines, server cancellation and deadline propagation"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c013-q01",
+      "lesson": null,
+      "concept": "c013-memorycache-size-limit",
+      "type": "multiple_choice",
+      "prompt": "To cap memory, you set `SizeLimit = 1024` on the app's shared `IMemoryCache` from `AddMemoryCache`. Why do the ASP.NET Core docs warn against this?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The limit is counted in bytes, and 1 KB is far too small for a real cache"
+        },
+        {
+          "id": "b",
+          "text": "The runtime already trims that cache under memory pressure, so it's redundant"
+        },
+        {
+          "id": "c",
+          "text": "A size limit turns off expiration, so entries stay until the cache is full"
+        },
+        {
+          "id": "d",
+          "text": "Every entry must then set a size, and other libraries using it may not"
+        }
+      ],
+      "answer": "d",
+      "explanation": "Once a cache has a size limit, every entry added to it must specify a size, and other frameworks and libraries sharing the DI cache don't know that, so the app can fail. The limit has no unit (you choose it, often 1 per entry), and the runtime does not trim the cache under memory pressure, which is why you limit it yourself in a separate `MemoryCache` instance.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/performance/caching/memory",
+          "title": "Cache in-memory in ASP.NET Core",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "Using a shared memory cache from DI with SetSize, Size or SizeLimit can make the app fail, because when a size limit is set all entries must specify a size; the limit has no unit, the runtime doesn't limit the cache by memory pressure, and a separate cache singleton should be created for size-limited caching."
+        }
+      ]
+    },
+    {
+      "id": "c013-q02",
+      "lesson": null,
+      "concept": "c013-xunit-parallel-collections",
+      "type": "multiple_choice",
+      "prompt": "Two xUnit test classes, `OrderTests` and `InvoiceTests`, both reset the same database table, and with default settings they fail now and then. Why, and what is the targeted fix?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Each class is its own collection, so they run in parallel; put both in one `[Collection]`"
+        },
+        {
+          "id": "b",
+          "text": "xUnit runs the tests within each class in parallel; make every test method in them `async`"
+        },
+        {
+          "id": "c",
+          "text": "Collections run one after another; turn on `parallelizeTestCollections` to isolate the two"
+        },
+        {
+          "id": "d",
+          "text": "Both classes share one test-class instance; give each class its own private constructor"
+        }
+      ],
+      "answer": "a",
+      "explanation": "By default every test class is its own test collection, and different collections run in parallel, while tests inside one collection never run against each other. So the two classes reset the table at the same time. Putting both in the same `[Collection(\"...\")]` makes them run one after the other without turning off parallelism for the whole assembly.",
+      "materials": [
+        "xunit"
+      ],
+      "sources": [
+        {
+          "url": "https://xunit.net/docs/running-tests-in-parallel",
+          "title": "Running Tests in Parallel",
+          "publisher": "xUnit.net",
+          "accessed": "2026-10-02",
+          "claim": "By default there is a test collection per test class; tests within a single collection don't run in parallel against each other, tests in different collections do, and classes marked with the same [Collection] name share a collection."
+        }
+      ]
+    },
+    {
+      "id": "c013-q03",
+      "lesson": null,
+      "concept": "c013-grpc-deadline-propagation",
+      "type": "written",
+      "prompt": "A frontend gRPC service calls `UserService` and `OrderService` for every request. Calls sometimes hang, and the backends keep working long after clients have given up. What do you change?",
+      "model_answer": {
+        "summary": "Give every call a deadline, pass the server's cancellation token into all async work, and propagate the deadline and cancellation to child calls, for example with `EnableCallContextPropagation`.",
+        "key_points": [
+          "Set a deadline on each call with `CallOptions.Deadline`; there is no default, so gRPC calls aren't time-limited otherwise",
+          "When a deadline passes the client throws `DeadlineExceeded`, but the server method keeps running unless it passes `ServerCallContext.CancellationToken` to its database and HTTP calls",
+          "Propagate the deadline and cancellation to child calls, by hand with `context.Deadline` or automatically with `EnableCallContextPropagation` on the gRPC client factory, where the smallest deadline wins",
+          "With retries configured, the deadline covers all attempts, and remaining retries are skipped once it passes"
+        ]
+      },
+      "explanation": "Deadlines put an upper limit on how long a call can run and stop misbehaving services from exhausting resources. The tempting answer is to set a client-side timeout only, but the server then keeps working on calls nobody is waiting for, and nested calls don't know the original caller's budget unless it is propagated.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/grpc/deadlines-cancellation",
+          "title": "Reliable gRPC services with deadlines and cancellation",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "gRPC calls have no default deadline; when one is exceeded the client throws DeadlineExceeded and the server raises ServerCallContext.CancellationToken, but the call keeps running until the method completes unless the token is passed to async methods; deadlines should be propagated with context.Deadline or EnableCallContextPropagation, which uses the smallest deadline, and a deadline spans all retries."
+        }
+      ]
+    },
+    {
+      "id": "c013-q04",
+      "lesson": null,
+      "concept": "c013-memorycache-size-limit",
+      "type": "multiple_choice",
+      "prompt": "A `MemoryCache` with `SizeLimit = 100` holds entries whose sizes add up to 100. You call `Set` for one more entry with `Size = 1`. What happens to that entry?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`Set` throws an exception, because the cache is already full"
+        },
+        {
+          "id": "b",
+          "text": "The oldest entry is removed at once to make room for the new one"
+        },
+        {
+          "id": "c",
+          "text": "It isn't added, since the total would go over `SizeLimit`"
+        },
+        {
+          "id": "d",
+          "text": "It's added, and the cache grows past the limit until the next GC"
+        }
+      ],
+      "answer": "c",
+      "explanation": "A size-limited cache doesn't make room for an entry that would push the total over the limit: the entry simply isn't cached. That is one reason code must never depend on a value being in the cache. Removing entries is the job of expiration and `Compact`, not of `Set`.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/performance/caching/memory",
+          "title": "Cache in-memory in ASP.NET Core",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "An entry isn't cached if the sum of the cached entry sizes exceeds the value specified by SizeLimit; code should always have a fallback and not depend on a cached value being available."
+        }
+      ]
+    },
+    {
+      "id": "c013-q05",
+      "lesson": null,
+      "concept": "c013-xunit-parallel-collections",
+      "type": "multiple_choice",
+      "prompt": "In xUnit with default settings, which tests can run at the same time?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Any two tests, since each test method gets a thread of its own"
+        },
+        {
+          "id": "b",
+          "text": "Tests in different classes, but never two from the same class"
+        },
+        {
+          "id": "c",
+          "text": "No tests at all: one assembly's tests always run one at a time"
+        },
+        {
+          "id": "d",
+          "text": "Tests in one class, while separate classes run one after another"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Each test class is a test collection by default. Collections run in parallel with each other (up to the number of CPU threads by default), and the tests inside one collection run one at a time.",
+      "materials": [
+        "xunit"
+      ],
+      "sources": [
+        {
+          "url": "https://xunit.net/docs/running-tests-in-parallel",
+          "title": "Running Tests in Parallel",
+          "publisher": "xUnit.net",
+          "accessed": "2026-10-02",
+          "claim": "By default there is a test collection per test class; tests in different collections run in parallel, tests within one collection don't, and the default maximum number of parallel threads is the number of CPU threads."
+        }
+      ]
+    },
+    {
+      "id": "c013-q06",
+      "lesson": null,
+      "concept": "c013-grpc-deadline-propagation",
+      "type": "multiple_choice",
+      "prompt": "A client calls a gRPC method with a 5-second deadline. The server method runs a 30-second database query without passing `context.CancellationToken`. What happens at 5 seconds?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The server stops the method's thread at once, so the query ends with it"
+        },
+        {
+          "id": "b",
+          "text": "Nothing yet, as the deadline is checked only when the response is sent"
+        },
+        {
+          "id": "c",
+          "text": "The client waits all 30 seconds, as only the server tracks the deadline"
+        },
+        {
+          "id": "d",
+          "text": "The client gets `DeadlineExceeded`, but the query runs on at the server"
+        }
+      ],
+      "answer": "d",
+      "explanation": "The deadline travels with the call and both sides track it. At 5 seconds the client aborts the HTTP request and throws `DeadlineExceeded`, and the server raises `ServerCallContext.CancellationToken`, but the method keeps running until it completes. Because the query wasn't given the token, it runs its full 30 seconds and wastes server resources.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/grpc/deadlines-cancellation",
+          "title": "Reliable gRPC services with deadlines and cancellation",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "The deadline is sent with the call and tracked independently by client and service; when exceeded the client aborts the request and throws DeadlineExceeded, while on the server ServerCallContext.CancellationToken is raised but the call continues to run until the method completes unless the token is passed to async methods."
+        }
+      ]
+    }
+  ]
+}

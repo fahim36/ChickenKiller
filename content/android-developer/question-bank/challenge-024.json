@@ -1,0 +1,257 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c024-nested-same-direction-scrolling",
+      "name": "Nesting lazy lists inside same-direction scrolling"
+    },
+    {
+      "id": "c024-excessive-wake-locks-vital",
+      "name": "Excessive partial wake locks as a core vital"
+    },
+    {
+      "id": "c024-splash-screen-api-migration",
+      "name": "SplashScreen API and migrating off splash Activities"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c024-q01",
+      "lesson": null,
+      "concept": "c024-nested-same-direction-scrolling",
+      "type": "multiple_choice",
+      "prompt": "A product screen puts a header, a `LazyColumn` of reviews with no fixed height, and a footer inside `Column(Modifier.verticalScroll(state))`. It crashes. What is the fix the Compose docs recommend?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Wrap the `LazyColumn` in a `Box`, which gives it a bounded height to measure"
+        },
+        {
+          "id": "b",
+          "text": "Use one `LazyColumn`, with the header and footer as `item {}` entries in it"
+        },
+        {
+          "id": "c",
+          "text": "Switch the parent `Column` to `horizontalScroll`, keeping the reviews nested"
+        },
+        {
+          "id": "d",
+          "text": "Replace the `LazyColumn` with a `for` loop of rows, so no lazy layout is used"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Nesting a same-direction scrollable child without a fixed size, such as a `LazyColumn` inside a vertically scrolling `Column`, throws an `IllegalStateException`. The recommended fix is one parent `LazyColumn` whose DSL emits the header and footer as single `item`s and the reviews with `items`, which keeps the reviews lazy. A `Box` doesn't bound the height, and a `for` loop composes every review at once.",
+      "materials": [
+        "compose-performance"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/lists",
+          "title": "Lists and grids (Compose)",
+          "publisher": "Android Developers",
+          "accessed": "2026-10-02",
+          "claim": "Nesting a child `LazyColumn` without a fixed height inside a vertically scrollable `Column` throws `IllegalStateException`; instead wrap all composables in one parent `LazyColumn` using `item` and `items`; different-direction nesting, or a fixed height on the child, is allowed."
+        }
+      ]
+    },
+    {
+      "id": "c024-q02",
+      "lesson": null,
+      "concept": "c024-excessive-wake-locks-vital",
+      "type": "multiple_choice",
+      "prompt": "Android vitals flags excessive partial wake locks for your podcast app. When does a session count as excessive, and when can it affect your app's visibility on Play?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Over 1 hour of screen-on wake locks per day, in over 8% of sessions on a phone model"
+        },
+        {
+          "id": "b",
+          "text": "2+ hours of background wake locks in 24 hours, in over 5% of sessions over 28 days"
+        },
+        {
+          "id": "c",
+          "text": "Any wake lock held past 10 minutes, in over 1.09% of the daily active users per day"
+        },
+        {
+          "id": "d",
+          "text": "2+ hours of wake locks with audio playback, in over 0.47% of sessions over 28 days"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Android vitals counts a session as excessive when all partial wake locks held while the app is in the background or running a foreground service add up to 2 or more hours in 24 hours. Excessive partial wake locks are a core vital: above 5% of sessions across all devices over 28 days, they can affect visibility on Play. Wake locks from user-initiated audio, location and JobScheduler APIs are exempt, so playback itself doesn't count.",
+      "materials": [
+        "android-vitals"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/google/play/vitals/excessive-wakelock",
+          "title": "Excessive partial wake locks (Android vitals)",
+          "publisher": "Android Developers",
+          "accessed": "2026-10-02",
+          "claim": "Partial wake locks are excessive when, added together, they run for 2 or more hours in a 24-hour period while the app is in the background or running a foreground service; above 5% of app sessions across all devices in a 28-day period can affect visibility on Play; audio, location and JobScheduler user-initiated APIs are exempt."
+        },
+        {
+          "url": "https://developer.android.com/topic/performance/vitals",
+          "title": "Android vitals",
+          "publisher": "Android Developers",
+          "accessed": "2026-10-02",
+          "claim": "The core vitals, which affect visibility on Google Play, include user-perceived crash rate (1.09% overall) and ANR rate (0.47% overall), excessive partial wake locks (5% overall), memory usage and bitmap memory usage."
+        }
+      ]
+    },
+    {
+      "id": "c024-q03",
+      "lesson": null,
+      "concept": "c024-splash-screen-api-migration",
+      "type": "written",
+      "prompt": "An app has a `SplashActivity` that shows a logo for 2 seconds, loads remote config, then routes to login or home. Users on Android 12+ report seeing two splash screens. Explain why, and how you would migrate.",
+      "model_answer": {
+        "summary": "On Android 12+ the system splash screen shows on every cold and warm start, so a dedicated splash Activity appears after it; move to the `SplashScreen` API, keep the splash only until the first screen is ready, and keep any routing Activity invisible.",
+        "key_points": [
+          "On Android 12+ the system shows its own splash screen on cold and warm starts, so a separate splash Activity is displayed after it, giving duplicate splash screens and extra startup latency",
+          "Remove the splash Activity and use the `SplashScreen` API (the `core-splashscreen` library backports it to API 23), calling `installSplashScreen()` before `super.onCreate()` in the launcher Activity",
+          "Drop the fixed 2-second delay: keep the splash with `setKeepOnScreenCondition` only until the UI is ready, and for slow network loads dismiss it and show placeholders or cached content instead of using it as a loading screen",
+          "If a routing Activity is still needed, call `setKeepOnScreenCondition { true }` in it, start the next Activity and `finish()`, so the splash carries over to the next screen"
+        ]
+      },
+      "explanation": "The `SplashScreen` API replaces dedicated splash Activities, which on Android 12+ both duplicate the system splash and add startup latency. The tempting fix is to keep the old Activity and restyle it, but the docs recommend against that: brand the system splash instead, and keep it up only as long as the first screen needs to become stable.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/views/launch/splash-screen/migrate",
+          "title": "Migrate your splash screen implementation to Android 12 and later",
+          "publisher": "Android Developers",
+          "accessed": "2026-10-02",
+          "claim": "Keeping a dedicated splash Activity on Android 12+ results in duplicate splash screens (the system splash, then the activity); the SplashScreen API reduces the startup latency a splash activity adds; prefer removing the activity, using lazy loading, placeholders or cached content, or keep a routing activity with `setKeepOnScreenCondition { true }` that starts the next activity and finishes."
+        },
+        {
+          "url": "https://developer.android.com/develop/ui/views/launch/splash-screen",
+          "title": "Splash screens",
+          "publisher": "Android Developers",
+          "accessed": "2026-10-02",
+          "claim": "The system splash screen shows on cold and warm starts but not hot starts; the `SplashScreen` API is on Android 12+ with a compat library back to API 23; call `installSplashScreen()` before `super.onCreate()`; `setKeepOnScreenCondition` keeps the splash on screen, checked before each frame; keep it only while necessary and don't use it as a loading screen."
+        }
+      ]
+    },
+    {
+      "id": "c024-q04",
+      "lesson": null,
+      "concept": "c024-nested-same-direction-scrolling",
+      "type": "multiple_choice",
+      "prompt": "Which of these layouts can show a `LazyColumn` without hitting the nested-scrolling crash?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A `LazyColumn` with no size in `Column(Modifier.verticalScroll(state))`"
+        },
+        {
+          "id": "b",
+          "text": "A `LazyColumn` with no size in another `LazyColumn`'s single `item {}`"
+        },
+        {
+          "id": "c",
+          "text": "A `LazyColumn` with no size in a `Box(Modifier.verticalScroll(state))`"
+        },
+        {
+          "id": "d",
+          "text": "A `LazyColumn` with no size in `Row(Modifier.horizontalScroll(state))`"
+        }
+      ],
+      "answer": "d",
+      "explanation": "The crash comes from nesting a scrollable child without a fixed size inside a parent that scrolls in the same direction, because the child gets unbounded height. A vertical `LazyColumn` inside a horizontally scrolling `Row` is a different direction, so it is allowed; so is giving the nested child a fixed height. The other three all scroll vertically around an unsized vertical list.",
+      "materials": [
+        "compose-performance"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/lists",
+          "title": "Lists and grids (Compose)",
+          "publisher": "Android Developers",
+          "accessed": "2026-10-02",
+          "claim": "The rule applies to nesting scrollable children without a predefined size inside a same-direction scrollable parent; nesting different directions, such as a `LazyColumn` inside a horizontally scrolling `Row`, is allowed, as is giving the nested child a fixed height."
+        }
+      ]
+    },
+    {
+      "id": "c024-q05",
+      "lesson": null,
+      "concept": "c024-excessive-wake-locks-vital",
+      "type": "written",
+      "prompt": "Play Console warns that your app's excessive partial wake locks exceed the bad-behavior threshold. Explain what the metric measures, why it matters to the business, and how you would bring it down.",
+      "model_answer": {
+        "summary": "It counts sessions where background or foreground-service partial wake locks total 2+ hours in 24 hours; above 5% over 28 days it is a core-vital failure that can hurt Play visibility, so find the long-held locks and release or replace them.",
+        "key_points": [
+          "A session is excessive when the app's partial wake locks, held in the background or while running a foreground service, add up to 2 or more hours in 24 hours",
+          "It is a core vital: above 5% of sessions across devices over 28 days, it can reduce the app's visibility on Play",
+          "Wake locks from user-initiated audio, location and JobScheduler APIs are exempt, so the culprits are usually the app's own or a library's manual wake locks",
+          "Fix it by preferring APIs that don't need a manual wake lock, releasing every lock quickly on all paths, and finding long holds with local wake lock debugging"
+        ]
+      },
+      "explanation": "Partial wake locks keep the CPU running after the screen turns off, which drains the battery, so Play treats heavy use as bad behavior next to crashes and ANRs. Because some APIs are exempt, the work is to find the specific locks that are held too long, often a forgotten release on an error path.",
+      "materials": [
+        "android-vitals"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/google/play/vitals/excessive-wakelock",
+          "title": "Excessive partial wake locks (Android vitals)",
+          "publisher": "Android Developers",
+          "accessed": "2026-10-02",
+          "claim": "Partial wake locks are excessive when, added together, they run for 2 or more hours in a 24-hour period in the background or a foreground service; above 5% of sessions over 28 days can affect Play visibility; audio, location and JobScheduler user-initiated APIs are exempt."
+        },
+        {
+          "url": "https://developer.android.com/topic/performance/vitals/wakelock",
+          "title": "Fix excessive partial wake locks",
+          "publisher": "Android Developers",
+          "accessed": "2026-10-02",
+          "claim": "Excessive partial wake locks drain the battery by keeping the CPU running after the display turns off; use alternatives to wake locks where possible, release locks quickly, make sure every acquired lock is released, and debug wake locks locally."
+        }
+      ]
+    },
+    {
+      "id": "c024-q06",
+      "lesson": null,
+      "concept": "c024-splash-screen-api-migration",
+      "type": "multiple_choice",
+      "prompt": "Your launcher Activity calls `installSplashScreen()` and `setKeepOnScreenCondition { !viewModel.isReady }`, and `isReady` waits for a network fetch that can take 4 seconds on slow networks. What does the splash screen guidance recommend?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Dismiss it once the UI can draw, and show placeholders or cached content"
+        },
+        {
+          "id": "b",
+          "text": "Keep it, since the condition is meant to cover all of a screen's loading"
+        },
+        {
+          "id": "c",
+          "text": "Keep it, but add a progress spinner to the splash so users see it working"
+        },
+        {
+          "id": "d",
+          "text": "Move the fetch into a splash Activity that is shown after the system one"
+        }
+      ],
+      "answer": "a",
+      "explanation": "The splash screen should stay up only as long as needed for the app to be visually stable, and not act as a loading screen. For network-based loads, the guidance is to dismiss the splash and show placeholder UI, or cached content from an earlier launch. A separate splash Activity on Android 12+ would show after the system splash, giving duplicate splash screens.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/views/launch/splash-screen",
+          "title": "Splash screens",
+          "publisher": "Android Developers",
+          "accessed": "2026-10-02",
+          "claim": "`setKeepOnScreenCondition` keeps the splash screen on screen; keep it only while necessary and don't use it as a loading screen with spinners."
+        },
+        {
+          "url": "https://developer.android.com/develop/ui/views/launch/splash-screen/migrate",
+          "title": "Migrate your splash screen implementation to Android 12 and later",
+          "publisher": "Android Developers",
+          "accessed": "2026-10-02",
+          "claim": "For network-based loads, dismiss the splash screen and show UI placeholders, or show cached content while fetching fresh data; a dedicated splash Activity on Android 12+ shows after the system splash screen, duplicating it."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,239 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c018-android17-local-network-permission",
+      "name": "Android 17's local network permission"
+    },
+    {
+      "id": "c018-user-initiated-data-transfer-jobs",
+      "name": "User-initiated data transfer jobs"
+    },
+    {
+      "id": "c018-instrumented-test-sharding",
+      "name": "Sharding instrumented test suites"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c018-q01",
+      "lesson": null,
+      "concept": "c018-android17-local-network-permission",
+      "type": "multiple_choice",
+      "prompt": "Your smart-home app finds devices with `NsdManager` and connects to them over TCP on the home Wi-Fi. After targeting API 37 (Android 17), discovery and connections fail. What changed?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Android 17 blocks cleartext HTTP to LAN devices; add a Network Security Config rule"
+        },
+        {
+          "id": "b",
+          "text": "`NsdManager` was removed in Android 17, so switch to a third-party mDNS library"
+        },
+        {
+          "id": "c",
+          "text": "LAN traffic now needs the `ACCESS_LOCAL_NETWORK` runtime permission (or a picker)"
+        },
+        {
+          "id": "d",
+          "text": "Only background LAN traffic is blocked; it works again while the app is visible"
+        }
+      ],
+      "answer": "c",
+      "explanation": "For apps targeting API 37, local network access is blocked by default: TCP and UDP to LAN addresses, mDNS and `NsdManager` all need the `ACCESS_LOCAL_NETWORK` runtime permission, in the Nearby devices group. System pickers, such as `NsdManager` discovery with `FLAG_SHOW_PICKER`, let the user choose a device without it. A third-party library wouldn't help, since the rule covers every networking API.",
+      "materials": [
+        "android-17-behavior-changes"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/privacy-and-security/local-network-permission",
+          "title": "Local network permission | Privacy | Android Developers",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "Apps targeting SDK 37+ are blocked from local network access by default and need ACCESS_LOCAL_NETWORK (NEARBY_DEVICES group) for TCP, UDP, mDNS and NsdManager across all networking APIs; system-mediated pickers such as NsdManager with FLAG_SHOW_PICKER need no permission."
+        },
+        {
+          "url": "https://developer.android.com/about/versions/17/behavior-changes-17",
+          "title": "Behavior changes: Apps targeting Android 17 or higher | Android Developers",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "Android 17 requires the new ACCESS_LOCAL_NETWORK runtime permission for discovering and connecting to devices on the local network, making mandatory what was opt-in in Android 16."
+        }
+      ]
+    },
+    {
+      "id": "c018-q02",
+      "lesson": null,
+      "concept": "c018-user-initiated-data-transfer-jobs",
+      "type": "multiple_choice",
+      "prompt": "On Android 14+, a user taps \"Download season\" and you run the download as a user-initiated data transfer (UIDT) job. Which statement is true?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It can be scheduled at any time from the background, such as from a periodic Worker"
+        },
+        {
+          "id": "b",
+          "text": "It needs `RUN_USER_INITIATED_JOBS`, a network constraint and a running notification"
+        },
+        {
+          "id": "c",
+          "text": "It counts against App Standby bucket quotas, just like any regular JobScheduler job"
+        },
+        {
+          "id": "d",
+          "text": "It is a WorkManager request type, built with `setUserInitiated(true)` on its Builder"
+        }
+      ],
+      "answer": "b",
+      "explanation": "UIDT jobs are `JobScheduler` jobs (`JobInfo.Builder.setUserInitiated(true)`) for long, user-started transfers. They need the `RUN_USER_INITIATED_JOBS` permission and a network constraint, must call `setNotification()` while running, and must be scheduled while the app is visible or under an allowed exemption. Unlike regular jobs, they are not subject to App Standby bucket quotas.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/background-work/background-tasks/uidt",
+          "title": "User-initiated data transfer | Background work | Android Developers",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "UIDT jobs (Android 14+) are JobScheduler jobs built with setUserInitiated(true); they need RUN_USER_INITIATED_JOBS, a network constraint and setNotification(), must be scheduled while the app is visible or in an allowed condition (otherwise RESULT_FAILURE), and are unaffected by App Standby Buckets quotas."
+        }
+      ]
+    },
+    {
+      "id": "c018-q03",
+      "lesson": null,
+      "concept": "c018-instrumented-test-sharding",
+      "type": "written",
+      "prompt": "Your instrumented test suite takes 40 minutes on one emulator in CI. Explain how you would shard it, with and without Gradle Managed Devices, and what sharding costs.",
+      "model_answer": {
+        "summary": "Split the suite into shards that run in parallel on several identical devices, using the runner's `numShards`/`shardIndex` or GMD's `numManagedDeviceShards`, trading more compute for less time.",
+        "key_points": [
+          "`AndroidJUnitRunner` splits a suite into shards: `-e numShards N` sets how many, `-e shardIndex i` picks the one a device runs, so N devices run in parallel",
+          "With Gradle Managed Devices, set `android.experimental.androidTest.numManagedDeviceShards` in `gradle.properties`, and Gradle provisions that many identical devices per device profile",
+          "Shards multiply with device groups (3 devices with 2 shards is 6 emulators): it cuts time at the cost of compute, and too many can fail to provision and time out",
+          "Results arrive per shard (GMD writes a `.proto` file for each), so collect them all for the report"
+        ]
+      },
+      "explanation": "Sharding is the standard answer to a slow device suite, but a senior answer also names its price: more machines, provisioning failures if you ask for too many, and per-shard results to gather.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://developer.android.com/training/testing/instrumented-tests/androidx-test-libraries/runner",
+          "title": "AndroidJUnitRunner | Test your app on Android | Android Developers",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "AndroidJUnitRunner can split a suite into shards: -e numShards sets the number of shards and -e shardIndex which one to run, e.g. adb shell am instrument -w -e numShards 10 -e shardIndex 2."
+        },
+        {
+          "url": "https://developer.android.com/studio/test/managed-devices",
+          "title": "Scale your tests with build-managed devices | Android Studio | Android Developers",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "Set android.experimental.androidTest.numManagedDeviceShards to split tests across identical virtual devices per device profile (a group of three with two shards provisions six); it costs compute, too many devices can cause a provisioning timeout, and results come as a .proto file per shard."
+        }
+      ]
+    },
+    {
+      "id": "c018-q04",
+      "lesson": null,
+      "concept": "c018-android17-local-network-permission",
+      "type": "written",
+      "prompt": "You own a casting and smart-home feature that talks to devices on the user's Wi-Fi. Describe how you would keep it working on Android 17 under local network protection, asking for as little as possible.",
+      "model_answer": {
+        "summary": "Targeting API 37 blocks LAN traffic without `ACCESS_LOCAL_NETWORK`, so prefer system pickers that need no permission, request the permission only for broad access, and test early with the Android 16 compat flag.",
+        "key_points": [
+          "Apps targeting API 37 can't use the local network (TCP, UDP, mDNS, `NsdManager`, any library such as OkHttp) unless they hold `ACCESS_LOCAL_NETWORK`",
+          "Prefer system-mediated pickers: the Output Switcher for casting, or `NsdManager` discovery with `FLAG_SHOW_PICKER`; the service the user picks is reachable without the permission",
+          "When broad access is really needed (home automation), declare and request `ACCESS_LOCAL_NETWORK` at runtime and handle denial or revocation",
+          "Test early on Android 16 with `adb shell am compat enable RESTRICT_LOCAL_NETWORK <package>`"
+        ]
+      },
+      "explanation": "Asking for the permission is the obvious fix, but the guidance prefers pickers, which give the user a choice of one device and need no permission at all.",
+      "materials": [
+        "android-17-behavior-changes"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/privacy-and-security/local-network-permission",
+          "title": "Local network permission | Privacy | Android Developers",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "ACCESS_LOCAL_NETWORK is enforced for apps targeting SDK 37+ across all networking APIs; system pickers (Output Switcher, NsdManager FLAG_SHOW_PICKER) need no permission; broad use cases declare and request it and handle denial; on Android 16 test with adb shell am compat enable RESTRICT_LOCAL_NETWORK."
+        }
+      ]
+    },
+    {
+      "id": "c018-q05",
+      "lesson": null,
+      "concept": "c018-user-initiated-data-transfer-jobs",
+      "type": "multiple_choice",
+      "prompt": "Your app schedules a UIDT job while it is not visible to the user and has no exemption to start activities from the background. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Scheduling fails and returns `RESULT_FAILURE`"
+        },
+        {
+          "id": "b",
+          "text": "It's queued and runs when the user next opens the app"
+        },
+        {
+          "id": "c",
+          "text": "It runs, but as a regular job under standby quotas"
+        },
+        {
+          "id": "d",
+          "text": "It's promoted to a `dataSync` foreground service"
+        }
+      ],
+      "answer": "a",
+      "explanation": "User-initiated jobs must be scheduled while the app is visible to the user, or in an allowed condition such as being able to start activities from the background. Otherwise scheduling fails with `RESULT_FAILURE`; the system doesn't queue or downgrade the job.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/background-work/background-tasks/uidt",
+          "title": "User-initiated data transfer | Background work | Android Developers",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "User-initiated jobs must be scheduled while the app is visible to the user or in an allowed condition (an app that can launch activities from the background can also schedule them); otherwise scheduling fails and returns RESULT_FAILURE."
+        }
+      ]
+    },
+    {
+      "id": "c018-q06",
+      "lesson": null,
+      "concept": "c018-instrumented-test-sharding",
+      "type": "multiple_choice",
+      "prompt": "With Gradle Managed Devices you run a device group of three device profiles and set `numManagedDeviceShards=2`. How many virtual devices does Gradle provision?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Two, one per shard, and each runs half of the group's device profiles"
+        },
+        {
+          "id": "b",
+          "text": "Three, one per profile, each running half of the suite one after another"
+        },
+        {
+          "id": "c",
+          "text": "Six: two shards for each of the three device profiles in the group"
+        },
+        {
+          "id": "d",
+          "text": "Five: the three base devices, plus one extra emulator for each shard"
+        }
+      ],
+      "answer": "c",
+      "explanation": "Gradle provisions the number of shards you set for each device profile in the run, so three profiles with two shards each is six virtual devices. That is the speed-up and also the cost: if Gradle can't provision that many, the run can fail with a timeout.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://developer.android.com/studio/test/managed-devices",
+          "title": "Scale your tests with build-managed devices | Android Studio | Android Developers",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "Build-managed devices provision the number of shards you specify for each device profile; a device group of three devices with numManagedDeviceShards set to two provisions six virtual devices."
+        }
+      ]
+    }
+  ]
+}

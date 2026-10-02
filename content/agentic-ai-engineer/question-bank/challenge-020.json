@@ -1,0 +1,247 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c020-hash-randomization",
+      "name": "Hash randomization and set iteration order"
+    },
+    {
+      "id": "c020-dco-signoff",
+      "name": "Signing off commits for the DCO"
+    },
+    {
+      "id": "c020-cache-stampede",
+      "name": "Cache stampedes and how to prevent them"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c020-q01",
+      "lesson": null,
+      "concept": "c020-hash-randomization",
+      "type": "multiple_choice",
+      "prompt": "A test asserts `list(set(tags)) == [\"ai\", \"ml\", \"llm\"]` for a set of strings. It passes on your machine but fails on some CI runs. Why?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Set order follows `str` hashes, which are salted per Python process"
+        },
+        {
+          "id": "b",
+          "text": "Sets keep insertion order, but CI uses a different Python version"
+        },
+        {
+          "id": "c",
+          "text": "CI runs tests in parallel threads, which reorder the set's contents"
+        },
+        {
+          "id": "d",
+          "text": "Sets sort strings by locale, and the CI machines use another locale"
+        }
+      ],
+      "answer": "a",
+      "explanation": "By default, `str` and `bytes` hashes are salted with a random value that is fixed within one process but differs between runs, and changing hashes changes set iteration order. Python has never guaranteed set order (dicts keep insertion order; sets don't). Compare sets, or `sorted()` lists, instead of relying on the order.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/using/cmdline.html",
+          "title": "Command line and environment",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-10-02",
+          "claim": "Hash randomization is on by default: `str` and `bytes` hashes are salted with an unpredictable random value that is constant within a process but not predictable between runs; `PYTHONHASHSEED` set to an integer fixes the seed for repeatable hashing, and `0` disables hash randomization."
+        },
+        {
+          "url": "https://docs.python.org/3/reference/datamodel.html",
+          "title": "Data model",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-10-02",
+          "claim": "Changing hash values affects the iteration order of sets, and Python has never made guarantees about that ordering."
+        }
+      ]
+    },
+    {
+      "id": "c020-q02",
+      "lesson": null,
+      "concept": "c020-dco-signoff",
+      "type": "multiple_choice",
+      "prompt": "A project's DCO check blocks your pull request because a commit isn't signed off. What does the check want, and how do you add it to a new commit?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A `Signed-off-by` trailer in the commit, added with `git commit -s`"
+        },
+        {
+          "id": "b",
+          "text": "A GPG signature on the commit, added with `git commit -S` and your own key"
+        },
+        {
+          "id": "c",
+          "text": "A CLA signed on the project's website, since a DCO can't live in a commit"
+        },
+        {
+          "id": "d",
+          "text": "A `Co-authored-by` trailer that names the maintainer who reviewed the code"
+        }
+      ],
+      "answer": "a",
+      "explanation": "`git commit -s` (`--signoff`) adds a `Signed-off-by` trailer; under a Developer Certificate of Origin it certifies you have the right to submit the work under the project's license. `-S` (capital) is different: it GPG-signs the commit, which proves who made it but isn't a sign-off. A DCO is the trailer-based alternative to a separate CLA. For commits you already made, `git rebase --signoff` adds the trailer to each.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://git-scm.com/docs/git-commit",
+          "title": "git-commit Documentation",
+          "publisher": "Git",
+          "accessed": "2026-10-02",
+          "claim": "`-s`/`--signoff` adds a `Signed-off-by` trailer by the committer, whose meaning depends on the project (for example agreeing to a Developer Certificate of Origin), while `-S`/`--gpg-sign` GPG-signs the commit; `--amend` replaces the tip commit with a new one."
+        },
+        {
+          "url": "https://developercertificate.org/",
+          "title": "Developer Certificate of Origin",
+          "publisher": "The Linux Foundation",
+          "accessed": "2026-10-02",
+          "claim": "By signing off, a contributor certifies that they wrote the contribution or otherwise have the right to submit it under the project's open source license, and that a public record of the contribution, including the sign-off, is kept indefinitely."
+        }
+      ]
+    },
+    {
+      "id": "c020-q03",
+      "lesson": null,
+      "concept": "c020-cache-stampede",
+      "type": "written",
+      "prompt": "A popular cached answer in your LLM app expires, and dozens of concurrent requests all miss and call the model at once. What is this failure called, why does it snowball, and how can you prevent it?",
+      "model_answer": {
+        "summary": "It is a cache stampede: many requests regenerate the same expired item at once, which slows the backend and pulls in still more requests; prevent it with a lock so one request regenerates, a background refresher, or probabilistic early expiration.",
+        "key_points": [
+          "A cache stampede (dog-piling): when a popular item expires, every request that arrives during the recompute misses and regenerates it, roughly request rate × recompute time",
+          "It snowballs because the concurrent recomputations slow the backend, so each takes longer and more requests join, a cascading failure",
+          "Locking: only the request that gets a lock regenerates; the others wait or are served a stale value",
+          "A background process that refreshes the item before it expires, or probabilistic early expiration, where requests refresh early with a probability that rises as expiry nears"
+        ]
+      },
+      "explanation": "Plain cache-aside regenerates on every miss, so it has no defence when a hot key expires. Each fix has a cost: a lock needs its own TTL and fails badly if the holder dies, a background refresher is one more process to run, and early expiration recomputes slightly before it strictly has to.",
+      "materials": [
+        "redis-documentation"
+      ],
+      "sources": [
+        {
+          "url": "https://www.vldb.org/pvldb/vol8/p886-vattani.pdf",
+          "title": "Optimal Probabilistic Cache Stampede Prevention",
+          "publisher": "Proceedings of the VLDB Endowment",
+          "accessed": "2026-10-02",
+          "claim": "A cache stampede is when a popular item expires and many requests miss and regenerate it at once; the number of recomputations depends on request rate and recompute time (10 requests a second and a 3-second recompute gives 30), concurrent recomputations slow each other into a cascading failure, and the mitigations are external recomputation, locking (one request regenerates) and probabilistic early expiration, whose probability rises as expiry nears."
+        }
+      ]
+    },
+    {
+      "id": "c020-q04",
+      "lesson": null,
+      "concept": "c020-hash-randomization",
+      "type": "written",
+      "prompt": "A teammate says: \"Our pipeline gives different results on each run, but nothing is random: we only loop over a set of strings.\" Explain the cause and two ways to fix it.",
+      "model_answer": {
+        "summary": "String hashes are salted randomly per process, so set iteration order changes between runs; sort before iterating (or use an ordered structure), or fix `PYTHONHASHSEED` for repeatable runs.",
+        "key_points": [
+          "`str` and `bytes` hashes are salted with a random value that stays the same within a process but changes between runs",
+          "Set iteration order depends on those hashes, and Python never guarantees it, so the loop order changes from run to run",
+          "Fix it in code by iterating over `sorted(the_set)` or keeping the items in a list or dict, which keep insertion order",
+          "Or set `PYTHONHASHSEED` to a fixed integer (`0` disables randomization) for repeatable runs, though code shouldn't depend on it"
+        ]
+      },
+      "explanation": "Hash randomization is on by default to protect dicts from denial-of-service inputs that force collisions. The robust fix is not to depend on set order at all; `PYTHONHASHSEED` is meant for reproducing runs and for processes that must share hash values.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/using/cmdline.html",
+          "title": "Command line and environment",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-10-02",
+          "claim": "Hash randomization is on by default: `str` and `bytes` hashes are salted with an unpredictable random value that is constant within a process but not predictable between runs; `PYTHONHASHSEED` set to an integer fixes the seed for repeatable hashing, and `0` disables hash randomization."
+        },
+        {
+          "url": "https://docs.python.org/3/reference/datamodel.html",
+          "title": "Data model",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-10-02",
+          "claim": "Changing hash values affects the iteration order of sets, and Python has never made guarantees about that ordering."
+        }
+      ]
+    },
+    {
+      "id": "c020-q05",
+      "lesson": null,
+      "concept": "c020-dco-signoff",
+      "type": "written",
+      "prompt": "Your open-source pull request has five commits, none signed off, and the DCO check fails. How do you fix the branch, and what are you certifying when you sign off?",
+      "model_answer": {
+        "summary": "Rewrite the commits with `git rebase --signoff` (or `git commit --amend -s` for just the last one) and force-push; the trailer certifies, under the project's DCO, that you have the right to submit the work under its license.",
+        "key_points": [
+          "Add the trailer to existing commits with `git rebase --signoff` onto the base branch, or `git commit --amend -s` for only the latest commit, then force-push the branch",
+          "Signing off adds a `Signed-off-by` trailer; it is not the same as `-S`, which GPG-signs commits",
+          "Under the DCO you certify that you wrote the work or otherwise have the right to submit it under the project's open source license, and that the record of it is public and kept indefinitely"
+        ]
+      },
+      "explanation": "Rebasing rewrites the commits, so the force-push is expected on your own PR branch. The meaning of a sign-off is set by the project, so read its contributing guide; most that run a DCO bot use the Developer Certificate of Origin.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://git-scm.com/docs/git-rebase",
+          "title": "git-rebase Documentation",
+          "publisher": "Git",
+          "accessed": "2026-10-02",
+          "claim": "`git rebase --signoff` adds a `Signed-off-by` trailer to all the rebased commits."
+        },
+        {
+          "url": "https://git-scm.com/docs/git-commit",
+          "title": "git-commit Documentation",
+          "publisher": "Git",
+          "accessed": "2026-10-02",
+          "claim": "`-s`/`--signoff` adds a `Signed-off-by` trailer by the committer, whose meaning depends on the project (for example agreeing to a Developer Certificate of Origin), while `-S`/`--gpg-sign` GPG-signs the commit; `--amend` replaces the tip commit with a new one."
+        },
+        {
+          "url": "https://developercertificate.org/",
+          "title": "Developer Certificate of Origin",
+          "publisher": "The Linux Foundation",
+          "accessed": "2026-10-02",
+          "claim": "By signing off, a contributor certifies that they wrote the contribution or otherwise have the right to submit it under the project's open source license, and that a public record of the contribution, including the sign-off, is kept indefinitely."
+        }
+      ]
+    },
+    {
+      "id": "c020-q06",
+      "lesson": null,
+      "concept": "c020-cache-stampede",
+      "type": "multiple_choice",
+      "prompt": "A cached item gets 10 requests a second and takes 3 seconds to regenerate. With plain cache-aside and no stampede protection, about how many requests regenerate it when it expires?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "One, since the first miss writes the new value for every request"
+        },
+        {
+          "id": "b",
+          "text": "About 30, since each request in the 3-second recompute misses"
+        },
+        {
+          "id": "c",
+          "text": "About 10, since only requests in the first second after expiry miss"
+        },
+        {
+          "id": "d",
+          "text": "None, since the cache keeps serving the old value until it's replaced"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Every request that arrives before the new value is written sees a miss and starts its own recompute: 10 a second for 3 seconds is about 30. The first miss doesn't write anything until its 3-second recompute ends, and plain cache-aside has nothing to serve once the key has expired. The stampede paper uses exactly this example.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.vldb.org/pvldb/vol8/p886-vattani.pdf",
+          "title": "Optimal Probabilistic Cache Stampede Prevention",
+          "publisher": "Proceedings of the VLDB Endowment",
+          "accessed": "2026-10-02",
+          "claim": "A cache stampede is when a popular item expires and many requests miss and regenerate it at once; the number of recomputations depends on request rate and recompute time (10 requests a second and a 3-second recompute gives 30), concurrent recomputations slow each other into a cascading failure, and the mitigations are external recomputation, locking (one request regenerates) and probabilistic early expiration, whose probability rises as expiry nears."
+        }
+      ]
+    }
+  ]
+}

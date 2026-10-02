@@ -1,0 +1,229 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c034-ecs-circuit-breaker",
+      "name": "ECS deployment circuit breaker and rollback"
+    },
+    {
+      "id": "c034-langgraph-durability-modes",
+      "name": "LangGraph durability modes"
+    },
+    {
+      "id": "c034-agentcore-runtime-sessions",
+      "name": "AgentCore Runtime session isolation and lifecycle"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c034-q01",
+      "lesson": null,
+      "concept": "c034-ecs-circuit-breaker",
+      "type": "multiple_choice",
+      "prompt": "Your ECS service uses rolling updates with the deployment circuit breaker and rollback turned on. A new image crashes on start, so its tasks never reach `RUNNING`. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "ECS keeps replacing the failing tasks until you cancel the deployment by hand"
+        },
+        {
+          "id": "b",
+          "text": "At the failure threshold, ECS rolls back to the last COMPLETED deployment"
+        },
+        {
+          "id": "c",
+          "text": "ECS rolls back after the very first failed task, before counting any others"
+        },
+        {
+          "id": "d",
+          "text": "ECS stops every task, old ones too, and waits for you to push a fixed image"
+        }
+      ],
+      "answer": "b",
+      "explanation": "The circuit breaker counts tasks that fail to reach `RUNNING` (and, later, failed health checks). When the count reaches the threshold, the deployment is marked FAILED, and with rollback on ECS goes back to the most recent deployment in the COMPLETED state. The threshold is never below 3 by default, so one failed task doesn't trip it; without the circuit breaker, ECS would keep retrying.",
+      "materials": [
+        "aws-fargate-for-amazon-ecs"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-circuit-breaker.html",
+          "title": "How the Amazon ECS deployment circuit breaker detects failures",
+          "publisher": "Amazon Web Services",
+          "accessed": "2026-10-02",
+          "claim": "With the circuit breaker on, tasks that fail to reach RUNNING or fail ELB, Cloud Map or container health checks add to a failure count; at the threshold the deployment is FAILED, and with rollback on ECS rolls back to the most recent COMPLETED deployment. The default threshold is BOUNDED_PERCENT with value 50 of the desired count, clamped to a minimum of 3 and a maximum of 200."
+        }
+      ]
+    },
+    {
+      "id": "c034-q02",
+      "lesson": null,
+      "concept": "c034-langgraph-durability-modes",
+      "type": "multiple_choice",
+      "prompt": "A LangGraph agent runs long, costly steps, and if the worker process crashes mid-run you must resume from the last finished step. Which `durability` mode fits?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`\"exit\"`, which saves checkpoints only when the run ends or hits an interrupt"
+        },
+        {
+          "id": "b",
+          "text": "`\"async\"`, which writes each checkpoint before the next step may start"
+        },
+        {
+          "id": "c",
+          "text": "`\"sync\"`, which writes every checkpoint before the next step starts"
+        },
+        {
+          "id": "d",
+          "text": "None: no mode saves checkpoints during a run, only once it has ended"
+        }
+      ],
+      "answer": "c",
+      "explanation": "`\"sync\"` writes each checkpoint before the next step starts, so a crash loses at most the step in progress, at some cost in speed. `\"async\"` writes while the next step is already running, so a crash can lose a checkpoint; the wrong choice describes it with sync's guarantee. `\"exit\"` only persists when the run ends, so it can't recover from a mid-run crash.",
+      "materials": [
+        "langgraph-documentation"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.langchain.com/oss/python/langgraph/checkpointers",
+          "title": "Checkpointers",
+          "publisher": "LangChain",
+          "accessed": "2026-10-02",
+          "claim": "Durability \"exit\" persists only when execution exits (success, error or interrupt) with no mid-run recovery; \"async\" persists while the next step runs, with a small risk of lost checkpoints if the process crashes; \"sync\" writes every checkpoint before the next step starts, at some performance cost. It is set per run, as in `graph.stream(..., durability=\"sync\")`."
+        }
+      ]
+    },
+    {
+      "id": "c034-q03",
+      "lesson": null,
+      "concept": "c034-agentcore-runtime-sessions",
+      "type": "written",
+      "prompt": "You deploy a multi-turn agent on Amazon Bedrock AgentCore Runtime. Explain how its sessions are isolated, how long one lives, and where you'd keep data that must outlast it.",
+      "model_answer": {
+        "summary": "Each session gets its own microVM, kept alive across calls with the same session ID until it idles out or hits its maximum lifetime; its memory and disk are ephemeral, so lasting data goes to session storage or AgentCore Memory.",
+        "key_points": [
+          "Each session gets a dedicated microVM with its own compute, memory and filesystem, which is terminated and sanitised when the session ends",
+          "Related calls reuse the same `runtimeSessionId`, and your backend maps users to sessions, since AgentCore doesn't enforce that mapping",
+          "A session's compute stops after 15 minutes idle by default, or at its maximum lifetime (8 hours by default); the next call gets fresh compute",
+          "Memory and disk are ephemeral: use session storage for files that must survive a stop, and AgentCore Memory for data beyond the session"
+        ]
+      },
+      "explanation": "AgentCore Runtime is built for stateful agents: unlike a function that ends after each request, a session keeps context across calls, and one session can never read another's data. But that state lives only as long as the microVM, so anything durable must be written somewhere else.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-sessions.html",
+          "title": "Use isolated sessions for agents",
+          "publisher": "Amazon Web Services",
+          "accessed": "2026-10-02",
+          "claim": "Each AgentCore Runtime session gets its own microVM with isolated compute, memory and filesystem, terminated and sanitised after the session; sessions stop after 15 minutes idle by default or at the maximum lifetime (8 hours by default on microVMs); in-memory and on-disk data is ephemeral unless you use session storage, and AgentCore Memory is for data kept beyond a session. AgentCore does not enforce session-to-user mappings; the same runtimeSessionId routes to the same microVM."
+        }
+      ]
+    },
+    {
+      "id": "c034-q04",
+      "lesson": null,
+      "concept": "c034-ecs-circuit-breaker",
+      "type": "multiple_choice",
+      "prompt": "Your ECS service has a desired count of 1 and uses the deployment circuit breaker with its default threshold (`BOUNDED_PERCENT`, value 50). How many failed tasks mark a deployment FAILED?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "1: half of one task, rounded up to the next whole task"
+        },
+        {
+          "id": "b",
+          "text": "3: the calculated value is raised to the minimum of 3"
+        },
+        {
+          "id": "c",
+          "text": "200: services below 3 tasks always use the upper bound"
+        },
+        {
+          "id": "d",
+          "text": "50: the value is used as a fixed count of failed tasks"
+        }
+      ],
+      "answer": "b",
+      "explanation": "With `BOUNDED_PERCENT`, ECS multiplies the value by the desired count (0.5 × 1 = 0.5) and clamps the result to between 3 and 200, so the threshold is 3. A fixed count is the `COUNT` type, and the 200 cap only matters for large services.",
+      "materials": [
+        "aws-fargate-for-amazon-ecs"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-circuit-breaker.html",
+          "title": "How the Amazon ECS deployment circuit breaker detects failures",
+          "publisher": "Amazon Web Services",
+          "accessed": "2026-10-02",
+          "claim": "With the circuit breaker on, tasks that fail to reach RUNNING or fail ELB, Cloud Map or container health checks add to a failure count; at the threshold the deployment is FAILED, and with rollback on ECS rolls back to the most recent COMPLETED deployment. The default threshold is BOUNDED_PERCENT with value 50 of the desired count, clamped to a minimum of 3 and a maximum of 200."
+        }
+      ]
+    },
+    {
+      "id": "c034-q05",
+      "lesson": null,
+      "concept": "c034-langgraph-durability-modes",
+      "type": "written",
+      "prompt": "Compare LangGraph's three durability modes, `\"exit\"`, `\"async\"` and `\"sync\"`: when is each checkpoint written, and what do you trade by choosing each?",
+      "model_answer": {
+        "summary": "The modes trade speed for safety: `exit` persists only when the run ends, `async` persists in the background while the next step runs, and `sync` persists before each next step.",
+        "key_points": [
+          "`\"exit\"` persists only when the run exits (finished, errored or interrupted): fastest, but no recovery from a crash mid-run",
+          "`\"async\"` writes checkpoints while the next step runs: a good balance, with a small risk of losing a checkpoint if the process crashes",
+          "`\"sync\"` writes every checkpoint before the next step starts: the most durable, at some performance cost",
+          "The mode is chosen per run, for example `graph.stream(inputs, durability=\"sync\")`"
+        ]
+      },
+      "explanation": "Durability matters most for long or expensive runs: if a crash means re-running ten LLM calls, `sync` pays for itself. For short runs where a restart is cheap, `exit` avoids the write overhead.",
+      "materials": [
+        "langgraph-documentation"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.langchain.com/oss/python/langgraph/checkpointers",
+          "title": "Checkpointers",
+          "publisher": "LangChain",
+          "accessed": "2026-10-02",
+          "claim": "Durability \"exit\" persists only when execution exits (success, error or interrupt) with no mid-run recovery; \"async\" persists while the next step runs, with a small risk of lost checkpoints if the process crashes; \"sync\" writes every checkpoint before the next step starts, at some performance cost. It is set per run, as in `graph.stream(..., durability=\"sync\")`."
+        }
+      ]
+    },
+    {
+      "id": "c034-q06",
+      "lesson": null,
+      "concept": "c034-agentcore-runtime-sessions",
+      "type": "multiple_choice",
+      "prompt": "Two different users call your AgentCore Runtime agent with the same `runtimeSessionId`. What does AgentCore Runtime do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Rejects the second user, because each session is bound to one user"
+        },
+        {
+          "id": "b",
+          "text": "Starts a second microVM, since isolation is per user identity"
+        },
+        {
+          "id": "c",
+          "text": "Routes both to the same microVM, since it doesn't map users"
+        },
+        {
+          "id": "d",
+          "text": "Merges the two only when both users share the same IAM role"
+        }
+      ],
+      "answer": "c",
+      "explanation": "AgentCore routes requests with the same session ID to the same microVM, and it does not enforce session-to-user mappings: your backend must keep each user's session IDs separate. So reusing a session ID across users would break the isolation the microVM gives you.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-sessions.html",
+          "title": "Use isolated sessions for agents",
+          "publisher": "Amazon Web Services",
+          "accessed": "2026-10-02",
+          "claim": "Each AgentCore Runtime session gets its own microVM with isolated compute, memory and filesystem, terminated and sanitised after the session; sessions stop after 15 minutes idle by default or at the maximum lifetime (8 hours by default on microVMs); in-memory and on-disk data is ephemeral unless you use session storage, and AgentCore Memory is for data kept beyond a session. AgentCore does not enforce session-to-user mappings; the same runtimeSessionId routes to the same microVM."
+        }
+      ]
+    }
+  ]
+}

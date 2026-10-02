@@ -1,0 +1,232 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c028-fcm-collapsible-messages",
+      "name": "FCM collapsible and non-collapsible messages"
+    },
+    {
+      "id": "c028-semantics-live-region",
+      "name": "Live regions for announcing changes"
+    },
+    {
+      "id": "c028-review-pushback",
+      "name": "Handling pushback in code review"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c028-q01",
+      "lesson": null,
+      "concept": "c028-fcm-collapsible-messages",
+      "type": "multiple_choice",
+      "prompt": "Your chat server sends each new message as an FCM data message with the same `collapse_key`, `\"new_msg\"`. A phone is offline while five messages are sent. What can it receive on reconnecting?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "All five, since FCM never collapses messages that carry data"
+        },
+        {
+          "id": "b",
+          "text": "Possibly only the latest, as newer ones replace undelivered ones"
+        },
+        {
+          "id": "c",
+          "text": "All five in order, as `collapse_key` only groups the notifications"
+        },
+        {
+          "id": "d",
+          "text": "None, since FCM drops collapsible messages for offline devices"
+        }
+      ],
+      "answer": "b",
+      "explanation": "With a `collapse_key`, a message may be replaced by a newer one with the same key if it hasn't been delivered yet, which suits \"sync now\" or score updates. Chat messages must each arrive, so they should be non-collapsible. Notification messages are always collapsible and ignore `collapse_key`; it is data messages that the key makes collapsible.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://firebase.google.com/docs/cloud-messaging/customize-messages/collapsible-message-types",
+          "title": "Non-collapsible and collapsible messages",
+          "publisher": "Google (Firebase)",
+          "accessed": "2026-10-02",
+          "claim": "A collapsible message may be replaced by a new message if it has yet to be delivered; on Android set `collapse_key`; non-collapsible messages are for cases like chat where every message must be delivered; notification messages are always collapsible and ignore collapse_key."
+        }
+      ]
+    },
+    {
+      "id": "c028-q02",
+      "lesson": null,
+      "concept": "c028-semantics-live-region",
+      "type": "multiple_choice",
+      "prompt": "A `Text` shows a one-time-code countdown that changes every second. A teammate adds `liveRegion = LiveRegionMode.Assertive` so TalkBack users hear it. What does the Compose guidance say?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Keep it: Assertive is meant for any text whose content changes"
+        },
+        {
+          "id": "b",
+          "text": "Switch to `LiveRegionMode.Polite`, which suits per-second updates"
+        },
+        {
+          "id": "c",
+          "text": "Don't use a live region on content that updates this often"
+        },
+        {
+          "id": "d",
+          "text": "Keep it, but also merge it into its parent's semantics node"
+        }
+      ],
+      "answer": "c",
+      "explanation": "Live regions make accessibility services announce changes to a node automatically. The guidance says not to use them on content that updates frequently, such as countdown timers, because constant announcements overwhelm the user. Polite is the usual mode and Assertive is for rare, time-critical content, but neither suits a per-second timer.",
+      "materials": [
+        "compose-semantics"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/accessibility/semantics",
+          "title": "Semantics",
+          "publisher": "Android Developers (Google)",
+          "accessed": "2026-10-02",
+          "claim": "Mark alert-like components with `liveRegion` so changes are announced; use Polite in most cases and Assertive sparingly for crucial time-sensitive content; live regions shouldn't be used on frequently updating content such as countdown timers."
+        }
+      ]
+    },
+    {
+      "id": "c028-q03",
+      "lesson": null,
+      "concept": "c028-review-pushback",
+      "type": "written",
+      "prompt": "You asked for a cleanup in a pull request, and the author replies: \"Let's merge now and I'll clean it up in a follow-up.\" Nothing is urgent. How do you handle this as the reviewer?",
+      "model_answer": {
+        "summary": "First check whether the author is right; if the cleanup really improves code health, explain why, courteously, and ask for it before merging, because later cleanups rarely happen; if it must wait, have the author file a bug for it.",
+        "key_points": [
+          "Consider first whether the author's pushback is valid, since they may know the code better",
+          "If the change improves code health, keep advocating for it, explaining your reasoning and acknowledging theirs politely",
+          "\"Clean it up later\" usually doesn't happen, so ask for the cleanup before submission unless it is an emergency",
+          "If it truly has to be deferred, the author files a bug for the cleanup and assigns it to themselves"
+        ]
+      },
+      "explanation": "Google's code review guide says cleanups become less likely the longer it has been since the change was written. The tempting move is to approve to keep the peace; the guide notes that upset is usually brief and is caused more by how comments are written than by insisting on quality.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://google.github.io/eng-practices/review/reviewer/pushback.html",
+          "title": "Handling pushback in code reviews",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "Reviewers should consider whether pushback is valid, and if their suggestion improves code health keep advocating with courteous explanation; clean-up later rarely happens, so insist on it before submission unless it is an emergency, and have developers file a bug assigned to themselves when it must wait."
+        }
+      ]
+    },
+    {
+      "id": "c028-q04",
+      "lesson": null,
+      "concept": "c028-fcm-collapsible-messages",
+      "type": "written",
+      "prompt": "In a chat app, which FCM messages would you send collapsible and which non-collapsible, and what limits shape that choice?",
+      "model_answer": {
+        "summary": "Send each chat message non-collapsible so every one is delivered, and use collapsible messages with a `collapse_key` for updates where only the latest matters, within FCM's limits of four collapse keys and 100 stored non-collapsible messages per device.",
+        "key_points": [
+          "Non-collapsible messages are each delivered, so use them for chat messages that must all arrive",
+          "Collapsible messages, set with `collapse_key`, may be replaced by a newer undelivered one, so use them for sync triggers or status updates where only the latest matters",
+          "FCM keeps at most four different collapse keys per device at once, with no guarantee which are kept",
+          "Android stores up to 100 non-collapsible messages; beyond that all are discarded and the app must do a full sync"
+        ]
+      },
+      "explanation": "Choosing per message type is the point: making everything collapsible loses chat messages, while making everything non-collapsible wastes delivery on stale updates and hits the 100-message limit sooner.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://firebase.google.com/docs/cloud-messaging/customize-messages/collapsible-message-types",
+          "title": "Non-collapsible and collapsible messages",
+          "publisher": "Google (Firebase)",
+          "accessed": "2026-10-02",
+          "claim": "Non-collapsible messages are each delivered (e.g. chat); collapsible messages set with collapse_key can be replaced before delivery; FCM keeps four collapse keys per device; Android stores up to 100 non-collapsible messages, beyond which all are discarded and the app should do a full sync."
+        },
+        {
+          "url": "https://firebase.google.com/docs/cloud-messaging/android/receive-messages",
+          "title": "Receive messages in an Android app",
+          "publisher": "Google (Firebase)",
+          "accessed": "2026-10-02",
+          "claim": "onDeletedMessages() is called when FCM can't deliver more than 100 pending messages or the app hasn't connected for over 30 days, and the app should then perform a full sync with its server."
+        }
+      ]
+    },
+    {
+      "id": "c028-q05",
+      "lesson": null,
+      "concept": "c028-semantics-live-region",
+      "type": "multiple_choice",
+      "prompt": "A form shows a brief \"Draft saved\" message after autosave. You want TalkBack to announce it without the user moving focus there. Which semantics fits best?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`liveRegion = LiveRegionMode.Assertive`, to interrupt current speech"
+        },
+        {
+          "id": "b",
+          "text": "A `contentDescription`, which TalkBack reads again whenever it changes"
+        },
+        {
+          "id": "c",
+          "text": "`isTraversalGroup = true`, so focus jumps straight to the message"
+        },
+        {
+          "id": "d",
+          "text": "`liveRegion = LiveRegionMode.Polite` on the message's composable"
+        }
+      ],
+      "answer": "d",
+      "explanation": "A live region makes accessibility services announce a node's changes without focus moving to it. Polite is the right mode in most cases, when attention should only briefly be drawn to a change; Assertive is for rare, crucial, time-sensitive content, and a save confirmation isn't that.",
+      "materials": [
+        "compose-semantics"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/accessibility/semantics",
+          "title": "Semantics",
+          "publisher": "Android Developers (Google)",
+          "accessed": "2026-10-02",
+          "claim": "The `liveRegion` property lets accessibility services automatically notify the user of changes; use Polite in most cases and Assertive sparingly for crucial time-sensitive content."
+        }
+      ]
+    },
+    {
+      "id": "c028-q06",
+      "lesson": null,
+      "concept": "c028-review-pushback",
+      "type": "multiple_choice",
+      "prompt": "An author says the refactor you requested can wait for a later pull request, and nothing is urgent. What does Google's code review guide recommend?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Approve now, since when to clean up is always the author's call"
+        },
+        {
+          "id": "b",
+          "text": "Ask for it in this change, since later cleanups rarely happen"
+        },
+        {
+          "id": "c",
+          "text": "Approve, and do the cleanup yourself in your own follow-up PR"
+        },
+        {
+          "id": "d",
+          "text": "Approve, since insisting on it would only upset the author"
+        }
+      ],
+      "answer": "b",
+      "explanation": "The guide warns that the longer it has been since a change was written, the less likely its cleanup is to happen, so reviewers should insist on cleanup before submission unless there is an emergency. It also says an author's upset is usually temporary, and is more often caused by how comments are written.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://google.github.io/eng-practices/review/reviewer/pushback.html",
+          "title": "Handling pushback in code reviews",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "Clean-up later rarely happens, so reviewers should insist on cleanup before submission unless it's an emergency; developer upset is usually temporary and often due to how comments are written."
+        }
+      ]
+    }
+  ]
+}

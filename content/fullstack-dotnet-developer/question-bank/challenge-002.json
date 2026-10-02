@@ -1,0 +1,257 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c002-null-conditional-assignment",
+      "name": "C# 14 null-conditional assignment"
+    },
+    {
+      "id": "c002-hedging-strategy",
+      "name": "Hedging for tail latency, and its side-effect risk"
+    },
+    {
+      "id": "c002-async-request-reply",
+      "name": "The Asynchronous Request-Reply pattern (202, status endpoint, 303)"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c002-q01",
+      "lesson": null,
+      "concept": "c002-null-conditional-assignment",
+      "type": "multiple_choice",
+      "prompt": "With C# 14:\n\n```csharp\nOrder? order = null;\norder?.Total = ComputeTotal();\n```\n\nWhat happens when this runs?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Nothing: `ComputeTotal` isn't called at all"
+        },
+        {
+          "id": "b",
+          "text": "`ComputeTotal` runs, then the assignment is skipped"
+        },
+        {
+          "id": "c",
+          "text": "It throws `NullReferenceException` on the assignment"
+        },
+        {
+          "id": "d",
+          "text": "It doesn't compile: `?.` can't be on the left of `=`"
+        }
+      ],
+      "answer": "a",
+      "explanation": "C# 14 allows `?.` and `?[]` on the left of an assignment. The right-hand side is evaluated only when the left side is non-null, so the line is equivalent to `if (order is not null) order.Total = ComputeTotal();` and `ComputeTotal` never runs here. Before C# 14 the line didn't compile, which is why the last choice is tempting.",
+      "materials": [
+        "csharp-14-whats-new"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/csharp/whats-new/csharp-14",
+          "title": "What's new in C# 14",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "In C# 14 the null-conditional operators ?. and ?[] can be used on the left of an assignment or compound assignment; the right side is evaluated only when the left side isn't null, so `customer?.Order = GetCurrentOrder();` doesn't call GetCurrentOrder when customer is null."
+        }
+      ]
+    },
+    {
+      "id": "c002-q02",
+      "lesson": null,
+      "concept": "c002-hedging-strategy",
+      "type": "multiple_choice",
+      "prompt": "Calls to a read-only catalog API usually return in 50 ms, but some hang for seconds on one bad replica. Which resilience strategy is built to cut this tail by starting a parallel attempt when the first one is slow?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Hedging: after a delay it starts another try and uses the first good result"
+        },
+        {
+          "id": "b",
+          "text": "Retry with jitter: it sends a new attempt the moment the first one gets slow"
+        },
+        {
+          "id": "c",
+          "text": "A circuit breaker: it sends each call to a healthy replica at the same time"
+        },
+        {
+          "id": "d",
+          "text": "A total timeout: it re-sends the request whenever an attempt runs too long"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Hedging (Polly's latency mode, or `AddStandardHedgingHandler` in .NET) starts an extra attempt once the first has taken longer than a delay (2 seconds by default), returns the first acceptable result and cancels the others. Retry waits for an attempt to fail before trying again, a circuit breaker stops calls to a failing dependency, and a timeout only cuts an attempt off.",
+      "materials": [
+        "dotnet-resilience"
+      ],
+      "sources": [
+        {
+          "url": "https://www.pollydocs.org/strategies/hedging.html",
+          "title": "Hedging resilience strategy",
+          "publisher": "Polly (App vNext)",
+          "accessed": "2026-10-02",
+          "claim": "In latency mode, hedging triggers additional executions when the initial ones take too long (Delay defaults to 2 seconds), and when an acceptable result arrives it cancels the pending actions before returning it."
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/resilience/http-resilience",
+          "title": "Build resilient HTTP apps: Key development patterns",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "The standard hedging handler retries slow requests in parallel; its pipeline is a total timeout, hedging, then per-endpoint rate limiter, circuit breaker and attempt timeout."
+        }
+      ]
+    },
+    {
+      "id": "c002-q03",
+      "lesson": null,
+      "concept": "c002-async-request-reply",
+      "type": "written",
+      "prompt": "`POST /reports` starts a report that takes 2 to 5 minutes, and clients time out waiting for the response. Design the HTTP contract using the Asynchronous Request-Reply pattern.",
+      "model_answer": {
+        "summary": "Accept the work at once with `202 Accepted` and a `Location` pointing at a status endpoint, let clients poll it, and redirect them to the result when the work is done; make the POST safe to retry.",
+        "key_points": [
+          "Validate the request, queue the work and return `202 Accepted` immediately, with a `Location` header for a status endpoint and a `Retry-After` hint for how often to poll",
+          "While the work runs, the status endpoint returns `200 OK` with a status body (pending, running, failed); when it completes it returns `303 See Other` to the result resource, or the result itself",
+          "Accept an `Idempotency-Key` so a retried POST returns the existing operation instead of starting a second report",
+          "Where clients can take pushes (webhooks, SignalR or Server-Sent Events) those can replace polling; give status resources a retention period"
+        ]
+      },
+      "explanation": "The pattern decouples a long job from the HTTP request that starts it: the client gets a fast acknowledgement and a URL to check, instead of holding a connection open for minutes. A `303` makes the client GET the result rather than replay the POST, which `302` doesn't guarantee. The idempotency key matters because a client can't tell a lost `202` from a request that never arrived.",
+      "materials": [
+        "azure-cloud-design-patterns"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/asynchronous-request-reply",
+          "title": "Asynchronous Request-Reply pattern",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "The API validates the request and returns HTTP 202 with Location and Retry-After headers; the status endpoint returns 200 with the current state while work runs and 303 See Other to the result when done; clients can supply an Idempotency-Key; the pattern may not suit cases where WebSockets/SignalR, Server-Sent Events or callbacks are available, and status resources need a retention policy."
+        }
+      ]
+    },
+    {
+      "id": "c002-q04",
+      "lesson": null,
+      "concept": "c002-null-conditional-assignment",
+      "type": "multiple_choice",
+      "prompt": "In C# 14, `cart` may be null. Which of these lines does **not** compile?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`cart?.Count += 1;`"
+        },
+        {
+          "id": "b",
+          "text": "`cart?.Owner = customer;`"
+        },
+        {
+          "id": "c",
+          "text": "`cart?.Discount -= 5m;`"
+        },
+        {
+          "id": "d",
+          "text": "`cart?.Count++;`"
+        }
+      ],
+      "answer": "d",
+      "explanation": "Null-conditional assignment allows plain assignment and every compound assignment (`+=`, `-=` and so on), each evaluated only when `cart` isn't null. Increment and decrement (`++`, `--`) are not allowed on a null-conditional expression, so write `cart?.Count += 1;` instead.",
+      "materials": [
+        "csharp-14-whats-new"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/operators/member-access-operators",
+          "title": "Member access and null-conditional operators and expressions - C# reference",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "Beginning in C# 14, assignment is permissible with a null-conditional access expression; any form of compound assignment such as += or -= is allowed, but increment (++) and decrement (--) aren't."
+        }
+      ]
+    },
+    {
+      "id": "c002-q05",
+      "lesson": null,
+      "concept": "c002-hedging-strategy",
+      "type": "multiple_choice",
+      "prompt": "A teammate adds `AddStandardHedgingHandler()` to the `HttpClient` that sends `POST /payments` to a payment provider. What is the main risk?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Hedging only supports GET, so the POST calls fail at startup"
+        },
+        {
+          "id": "b",
+          "text": "Parallel attempts may each reach the provider and charge twice"
+        },
+        {
+          "id": "c",
+          "text": "It has no circuit breaker, so a failing provider gets no relief"
+        },
+        {
+          "id": "d",
+          "text": "It has no total timeout, so a payment call can hang forever"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Hedging sends extra attempts in parallel while the first is still running. Cancelling the slower ones doesn't undo work the server already did, so a non-idempotent POST can be processed twice; Polly warns that hedged actions can run several times in parallel. The standard hedging handler does include a 30-second total timeout and a circuit breaker per endpoint, and nothing restricts it to GET.",
+      "materials": [
+        "dotnet-resilience"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/resilience/http-resilience",
+          "title": "Build resilient HTTP apps: Key development patterns",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "Hedging retries slow requests in parallel; the standard hedging handler chains a 30-second total request timeout, hedging, and per-endpoint rate limiter, circuit breaker and attempt timeout."
+        },
+        {
+          "url": "https://www.pollydocs.org/strategies/hedging.html",
+          "title": "Hedging resilience strategy",
+          "publisher": "Polly (App vNext)",
+          "accessed": "2026-10-02",
+          "claim": "The hedging strategy can spawn multiple parallel executions of the same action, so the action may run more than once."
+        }
+      ]
+    },
+    {
+      "id": "c002-q06",
+      "lesson": null,
+      "concept": "c002-async-request-reply",
+      "type": "multiple_choice",
+      "prompt": "In the Asynchronous Request-Reply pattern, the status endpoint finds that the job is finished and its result is at `/reports/42`. What should it return?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`302 Found` and `Location: /reports/42`, the usual redirect"
+        },
+        {
+          "id": "b",
+          "text": "`202 Accepted` again, with the finished report in the body"
+        },
+        {
+          "id": "c",
+          "text": "`303 See Other` and `Location: /reports/42` for a GET"
+        },
+        {
+          "id": "d",
+          "text": "`404 Not Found` on the status URL, so polling stops"
+        }
+      ],
+      "answer": "c",
+      "explanation": "`303 See Other` tells the client to fetch the redirect URL with GET whatever the original method was, which is right because the client is retrieving a separate result. `302 Found` doesn't guarantee the method change, and some clients replay the original request, which can cause duplicate POSTs. `202` means the work was only accepted, and a `404` is ambiguous with an invalid request ID.",
+      "materials": [
+        "azure-cloud-design-patterns"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/asynchronous-request-reply",
+          "title": "Asynchronous Request-Reply pattern",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "If the status endpoint redirects after completion, use HTTP 303 See Other, which makes the client GET the redirect URL; 302 doesn't guarantee a method change and some clients replay the original method; polling the resource for 404 is unclear because invalid IDs also return 404."
+        }
+      ]
+    }
+  ]
+}

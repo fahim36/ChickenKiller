@@ -1,0 +1,231 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c021-slicing-copies",
+      "name": "Slicing copies: O(k) per slice"
+    },
+    {
+      "id": "c021-maintainer-edits",
+      "name": "Allowing edits from maintainers on a fork's pull request"
+    },
+    {
+      "id": "c021-consistent-hashing",
+      "name": "Consistent hashing and virtual nodes"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c021-q01",
+      "lesson": null,
+      "concept": "c021-slicing-copies",
+      "type": "multiple_choice",
+      "prompt": "```python\ndef is_pal(a):\n    if len(a) < 2:\n        return True\n    return a[0] == a[-1] and is_pal(a[1:-1])\n```\nFor a palindromic list of length n, what is this function's time complexity?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "O(n), since each call does a constant amount of comparison work"
+        },
+        {
+          "id": "b",
+          "text": "O(n log n), since the list halves in length with every recursive call"
+        },
+        {
+          "id": "c",
+          "text": "O(1) per call, since a slice is a view that shares the list's memory"
+        },
+        {
+          "id": "d",
+          "text": "O(n²), since each `a[1:-1]` copies nearly the whole list again"
+        }
+      ],
+      "answer": "d",
+      "explanation": "A list slice is a new list, and getting a slice of k items costs O(k). The calls copy about n − 2, n − 4, ... items, which adds up to about n²/4: O(n²). The list shrinks by two items per call, not by half, and slices of a `list` are copies, not views. A two-pointer loop does the same check in O(n) time and O(1) extra space.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://wiki.python.org/moin/TimeComplexity",
+          "title": "TimeComplexity",
+          "publisher": "Python Software Foundation (Python Wiki)",
+          "accessed": "2026-10-02",
+          "claim": "For a CPython `list`, Get Slice is O(k), where k is the number of elements in the slice, and Copy is O(n)."
+        }
+      ]
+    },
+    {
+      "id": "c021-q02",
+      "lesson": null,
+      "concept": "c021-maintainer-edits",
+      "type": "multiple_choice",
+      "prompt": "You open a pull request to an open-source project from a fork in your personal account, and a maintainer wants to push a small fix to it. What does \"Allow edits from maintainers\" do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Lets anyone with push access upstream commit to your PR's branch"
+        },
+        {
+          "id": "b",
+          "text": "Lets maintainers merge your PR without review, despite protection"
+        },
+        {
+          "id": "c",
+          "text": "Gives maintainers admin rights over your whole fork and its settings"
+        },
+        {
+          "id": "d",
+          "text": "Copies your branch upstream, so maintainers edit their own copy of it"
+        }
+      ],
+      "answer": "a",
+      "explanation": "On a user-owned fork, the PR author can tick \"Allow edits from maintainers\", and then anyone with push access to the upstream repository can commit to the PR's compare branch. It doesn't change review or merge rules, and it isn't admin access to your fork. It saves a round trip of review comments for small fixes.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/allowing-changes-to-a-pull-request-branch-created-from-a-fork",
+          "title": "Allowing changes to a pull request branch created from a fork",
+          "publisher": "GitHub",
+          "accessed": "2026-10-02",
+          "claim": "On user-owned forks, the PR author can select Allow edits from maintainers so anyone with push access to the upstream repository can commit to the PR's compare branch; on a fork branch with GitHub Actions workflows this also lets maintainers edit the fork's workflows, which can reveal secrets and grant access to other branches."
+        }
+      ]
+    },
+    {
+      "id": "c021-q03",
+      "lesson": null,
+      "concept": "c021-consistent-hashing",
+      "type": "written",
+      "prompt": "You shard a response cache across Redis nodes with `hash(key) % N`. Why does adding a node hurt, and how do consistent hashing and virtual nodes help?",
+      "model_answer": {
+        "summary": "With `% N`, changing N moves most keys to a different node, so most of the cache misses at once; consistent hashing moves only the keys next to the new node on a ring, and virtual nodes spread that load evenly and by capacity.",
+        "key_points": [
+          "With `hash(key) % N`, going from N to N + 1 nodes changes the node for most keys, so most of the cache misses at once",
+          "Consistent hashing puts nodes and keys on a ring; a key belongs to the first node clockwise, so adding or removing a node only affects its immediate neighbours",
+          "Single random ring positions give uneven load and ignore differences in node capacity",
+          "Virtual nodes give each server many ring positions, so a failed node's load spreads evenly, a new node takes a little from every node, and bigger servers can own more positions"
+        ]
+      },
+      "explanation": "A key keeps its node under `% N` only when `h % N == h % (N + 1)`, which for N = 4 is just 4 hash values in every 20, so about 80% of the keys move. On a ring, a new node only takes the keys between it and its predecessor. This is the scheme Amazon's Dynamo paper describes.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.allthingsdistributed.com/files/amazon-dynamo-sosp2007.pdf",
+          "title": "Dynamo: Amazon's Highly Available Key-value Store",
+          "publisher": "Amazon (SOSP 2007)",
+          "accessed": "2026-10-02",
+          "claim": "With consistent hashing, keys and nodes hash onto a ring, a key goes to the first node clockwise, each node owns the region between it and its predecessor, and adding or removing a node only affects its immediate neighbours; random single positions give uneven load and ignore node capacity, so each node gets many virtual nodes, which spread a failed node's load evenly over the rest, let a new node take roughly equal load from each other node, and can be sized to capacity."
+        }
+      ]
+    },
+    {
+      "id": "c021-q04",
+      "lesson": null,
+      "concept": "c021-slicing-copies",
+      "type": "multiple_choice",
+      "prompt": "In a sliding-window loop over a list `nums` of length n, you compute `sum(nums[i:i + k])` for every `i`. How does that compare with a running sum that adds the new item and subtracts the old one?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Both are O(n), since list slicing is O(1) and only the loop counts"
+        },
+        {
+          "id": "b",
+          "text": "The slice version is O(nk), since each slice copies k items to sum"
+        },
+        {
+          "id": "c",
+          "text": "The slice version is O(n log k), since Python reuses overlapping slices"
+        },
+        {
+          "id": "d",
+          "text": "Both are O(nk), since a running sum still re-adds the whole window"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Getting a slice of k items from a list is O(k), and `sum` then reads all k, so doing it for about n windows is O(nk). A running sum updates in O(1) per step, so the whole loop is O(n). Python doesn't share or cache overlapping slices: each one is a fresh list.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://wiki.python.org/moin/TimeComplexity",
+          "title": "TimeComplexity",
+          "publisher": "Python Software Foundation (Python Wiki)",
+          "accessed": "2026-10-02",
+          "claim": "For a CPython `list`, Get Slice is O(k), where k is the number of elements in the slice, and Copy is O(n)."
+        }
+      ]
+    },
+    {
+      "id": "c021-q05",
+      "lesson": null,
+      "concept": "c021-maintainer-edits",
+      "type": "multiple_choice",
+      "prompt": "GitHub adds a warning when you allow maintainer edits on a fork's branch that contains GitHub Actions workflows. What is the risk it warns about?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The fork's workflows stop running until the pull request is merged"
+        },
+        {
+          "id": "b",
+          "text": "Maintainers could edit the fork's workflows and so reveal secrets"
+        },
+        {
+          "id": "c",
+          "text": "Maintainers can delete your fork, along with every branch it holds"
+        },
+        {
+          "id": "d",
+          "text": "The upstream repo's secrets get copied into your fork's settings"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Allowing edits on a fork branch that has workflows also lets maintainers edit those workflows, and GitHub warns this can reveal the values of secrets and grant access to other branches. So don't keep secrets you care about in a fork you open PRs from with this setting on. None of the other effects is part of the setting.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/allowing-changes-to-a-pull-request-branch-created-from-a-fork",
+          "title": "Allowing changes to a pull request branch created from a fork",
+          "publisher": "GitHub",
+          "accessed": "2026-10-02",
+          "claim": "On user-owned forks, the PR author can select Allow edits from maintainers so anyone with push access to the upstream repository can commit to the PR's compare branch; on a fork branch with GitHub Actions workflows this also lets maintainers edit the fork's workflows, which can reveal secrets and grant access to other branches."
+        }
+      ]
+    },
+    {
+      "id": "c021-q06",
+      "lesson": null,
+      "concept": "c021-consistent-hashing",
+      "type": "multiple_choice",
+      "prompt": "In Dynamo's consistent hashing with virtual nodes, one physical node fails. Where does the load it was handling go?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "All of it to the next node clockwise from that node's one position"
+        },
+        {
+          "id": "b",
+          "text": "Nowhere, until every key is rehashed with `% N` over the survivors"
+        },
+        {
+          "id": "c",
+          "text": "To one standby replica, which takes over all of that node's tokens"
+        },
+        {
+          "id": "d",
+          "text": "Spread about evenly across the nodes that are still available"
+        }
+      ],
+      "answer": "d",
+      "explanation": "With virtual nodes, each physical node owns many small ranges scattered round the ring, so when it fails, each range passes to a different neighbour and the load spreads about evenly. Option a describes basic consistent hashing with one position per node, which is the uneven case virtual nodes fix. Nothing is rehashed with `% N`.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.allthingsdistributed.com/files/amazon-dynamo-sosp2007.pdf",
+          "title": "Dynamo: Amazon's Highly Available Key-value Store",
+          "publisher": "Amazon (SOSP 2007)",
+          "accessed": "2026-10-02",
+          "claim": "With consistent hashing, keys and nodes hash onto a ring, a key goes to the first node clockwise, each node owns the region between it and its predecessor, and adding or removing a node only affects its immediate neighbours; random single positions give uneven load and ignore node capacity, so each node gets many virtual nodes, which spread a failed node's load evenly over the rest, let a new node take roughly equal load from each other node, and can be sized to capacity."
+        }
+      ]
+    }
+  ]
+}

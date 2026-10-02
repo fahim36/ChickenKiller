@@ -1,0 +1,246 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c015-periodic-background-work",
+      "name": "Timed background work without overlapping runs (PeriodicTimer vs Timer)"
+    },
+    {
+      "id": "c015-otel-baggage",
+      "name": "OpenTelemetry Baggage: propagation, attributes and risks"
+    },
+    {
+      "id": "c015-api-versioning-breaking-changes",
+      "name": "Breaking changes and choosing an API versioning scheme"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c015-q01",
+      "lesson": null,
+      "concept": "c015-periodic-background-work",
+      "type": "multiple_choice",
+      "prompt": "A `BackgroundService` must run `SyncAsync()` every 30 seconds, but one run can take 45 seconds, and runs must never overlap. Which approach fits?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A `System.Threading.Timer` whose callback starts `SyncAsync()` on each 30-second tick"
+        },
+        {
+          "id": "b",
+          "text": "A `PeriodicTimer` loop that starts each tick's `SyncAsync()` with `Task.Run`, unawaited"
+        },
+        {
+          "id": "c",
+          "text": "A `PeriodicTimer` loop: `while (await timer.WaitForNextTickAsync(ct)) await SyncAsync();`"
+        },
+        {
+          "id": "d",
+          "text": "A `Timer` callback that calls `SyncAsync()` and counts active runs with `Interlocked.Increment`"
+        }
+      ],
+      "answer": "c",
+      "explanation": "A `Timer` doesn't wait for the previous callback to finish, so a 45-second run overlaps the next tick; counting runs with `Interlocked` doesn't stop that. Awaiting the work inside a `PeriodicTimer` loop means the next wait only starts after the run ends, and ticks missed meanwhile are coalesced into one, so runs never overlap. Firing the work off with `Task.Run` brings the overlap back.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/host/hosted-services",
+          "title": "Background tasks with hosted services in ASP.NET Core",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "System.Threading.Timer doesn't wait for previous executions of DoWork to finish; the asynchronous timed background task example awaits DoWork inside a while (await timer.WaitForNextTickAsync(stoppingToken)) loop with a PeriodicTimer."
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/api/system.threading.periodictimer.waitfornexttickasync",
+          "title": "PeriodicTimer.WaitForNextTickAsync(CancellationToken) Method",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "PeriodicTimer behaves like an auto-reset event: multiple ticks are coalesced into one if they occur between calls to WaitForNextTickAsync, which may only be used by one consumer at a time."
+        }
+      ]
+    },
+    {
+      "id": "c015-q02",
+      "lesson": null,
+      "concept": "c015-otel-baggage",
+      "type": "multiple_choice",
+      "prompt": "Service A puts `customer.id` into OpenTelemetry Baggage, then calls Service B over HTTP. Service B wants that value on its own spans. What must B do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Nothing, since Baggage entries become attributes on every span by default"
+        },
+        {
+          "id": "b",
+          "text": "Read the value from Baggage and add it to its spans as an attribute"
+        },
+        {
+          "id": "c",
+          "text": "Nothing, since Service A's span attributes are copied onto Service B's span"
+        },
+        {
+          "id": "d",
+          "text": "Look up Service A's trace in the backend and join it on the shared trace ID"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Baggage is a key-value store that propagates with the context (in HTTP headers), but it is separate from span, metric and log attributes: nothing copies it onto telemetry unless your code reads it and adds it. Span attributes don't propagate between services at all.",
+      "materials": [
+        "opentelemetry-dotnet"
+      ],
+      "sources": [
+        {
+          "url": "https://opentelemetry.io/docs/concepts/signals/baggage/",
+          "title": "Baggage",
+          "publisher": "OpenTelemetry",
+          "accessed": "2026-10-02",
+          "claim": "Baggage is a separate key-value store propagated alongside context in HTTP headers, and it is not associated with attributes on spans, metrics or logs unless you explicitly read it and add it."
+        }
+      ]
+    },
+    {
+      "id": "c015-q03",
+      "lesson": null,
+      "concept": "c015-api-versioning-breaking-changes",
+      "type": "written",
+      "prompt": "Your public REST API must change `address` from a string into an object, and partner apps you don't control depend on it. How do you ship the change, and how do you choose where the version goes?",
+      "model_answer": {
+        "summary": "Restructuring a field breaks existing clients, so ship it as a new version and keep the old one working. Choose URI, query string, header or media type versioning by their trade-offs, such as caching and simplicity.",
+        "key_points": [
+          "Adding a field that clients can ignore usually isn't breaking, but restructuring, renaming or removing a field like `address` is",
+          "Expose the new shape as a new version, and keep the existing version returning the original schema for current clients",
+          "URI (`/v2/...`) and query string versioning are simple and cache-friendly; header and media type versioning keep one URI per resource but need more request logic and can duplicate data in caches",
+          "Default to a meaningful version, such as 1, when a client doesn't send one"
+        ]
+      },
+      "explanation": "Versioning lets you change the API without breaking clients you don't control. The tempting answer is to change the field in place and tell partners, but anyone who parses `address` as a string breaks the moment you deploy. Each placement of the version has costs, so the choice is a trade-off rather than one right answer.",
+      "materials": [
+        "aspnetcore-apis"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/best-practices/api-design",
+          "title": "Web API Design Best Practices - Azure Architecture Center",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "Adding fields clients can ignore might not be breaking, but removing or renaming fields or restructuring resources can be; URI, query string, header and media type versioning keep existing versions working, URI and query string versioning are cache-friendly, header and media type versioning need more logic and can duplicate cached data, and an omitted version should default to a meaningful value like 1."
+        }
+      ]
+    },
+    {
+      "id": "c015-q04",
+      "lesson": null,
+      "concept": "c015-periodic-background-work",
+      "type": "multiple_choice",
+      "prompt": "A loop awaits `WaitForNextTickAsync` on a 30-second `PeriodicTimer`, and one run of the work takes 100 seconds. What happens when that run ends?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The next wait completes at once, for one tick; the missed ticks coalesce"
+        },
+        {
+          "id": "b",
+          "text": "Three queued ticks complete one after another, so the work runs three times"
+        },
+        {
+          "id": "c",
+          "text": "The timer has stopped, because ticks fired while no wait was in flight"
+        },
+        {
+          "id": "d",
+          "text": "It waits a full 30 seconds from the end of the run before the next tick"
+        }
+      ],
+      "answer": "a",
+      "explanation": "`PeriodicTimer` behaves like an auto-reset event: ticks that fire between calls to `WaitForNextTickAsync` are coalesced into one. So the three ticks missed during the 100-second run become a single pending tick, the next wait returns immediately, and the loop then follows the timer's schedule again. The timer keeps running until it is disposed.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/api/system.threading.periodictimer.waitfornexttickasync",
+          "title": "PeriodicTimer.WaitForNextTickAsync(CancellationToken) Method",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "PeriodicTimer behaves like an auto-reset event, in that multiple ticks are coalesced into a single tick if they occur between calls to WaitForNextTickAsync; it returns false when the timer is disposed."
+        }
+      ]
+    },
+    {
+      "id": "c015-q05",
+      "lesson": null,
+      "concept": "c015-otel-baggage",
+      "type": "multiple_choice",
+      "prompt": "Why shouldn't you put a user's email address into OpenTelemetry Baggage?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Baggage can only hold numeric values, so strings such as email addresses are dropped"
+        },
+        {
+          "id": "b",
+          "text": "Baggage is saved with every span in the backend, so it fills trace storage quickly"
+        },
+        {
+          "id": "c",
+          "text": "Baggage is encrypted with a key per service, so downstream services can't read it"
+        },
+        {
+          "id": "d",
+          "text": "It travels in HTTP headers and can reach unintended services, like third-party APIs"
+        }
+      ],
+      "answer": "d",
+      "explanation": "Baggage is propagated in HTTP headers, and automatic instrumentation sends it on outgoing requests, so it can reach services you didn't mean to share it with, including third-party APIs. There are also no built-in integrity checks. It isn't stored on spans unless you add it, and it isn't encrypted.",
+      "materials": [
+        "opentelemetry-dotnet"
+      ],
+      "sources": [
+        {
+          "url": "https://opentelemetry.io/docs/concepts/signals/baggage/",
+          "title": "Baggage",
+          "publisher": "OpenTelemetry",
+          "accessed": "2026-10-02",
+          "claim": "Baggage and trace context are sent in HTTP headers, baggage items can be shared with unintended resources such as third-party APIs because instrumentation includes them in network requests, and there are no built-in integrity checks."
+        }
+      ]
+    },
+    {
+      "id": "c015-q06",
+      "lesson": null,
+      "concept": "c015-api-versioning-breaking-changes",
+      "type": "multiple_choice",
+      "prompt": "Which change to a JSON response can existing clients usually absorb without a new API version?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Adding a `dateCreated` field that older clients can just ignore"
+        },
+        {
+          "id": "b",
+          "text": "Renaming the `name` field to `displayName` to match the new UI"
+        },
+        {
+          "id": "c",
+          "text": "Turning `address` from a string into an object with a `city` key"
+        },
+        {
+          "id": "d",
+          "text": "Removing the `fax` field, since analytics show nobody reads it"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Clients that ignore fields they don't recognise keep working when a field is added. Renaming, restructuring or removing a field can break any client that reads it, and usage analytics can't prove that no client depends on it, so those changes call for a new version.",
+      "materials": [
+        "aspnetcore-apis"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/best-practices/api-design",
+          "title": "Web API Design Best Practices - Azure Architecture Center",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "Adding content to existing resources might not be a breaking change because clients that don't expect it ignore it, while field removals, renaming or restructuring can constitute breaking changes that need a versioning approach."
+        }
+      ]
+    }
+  ]
+}

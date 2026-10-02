@@ -1,0 +1,232 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c030-component-defaults-object",
+      "name": "ComponentDefaults objects for overridable defaults"
+    },
+    {
+      "id": "c030-fcm-notification-vs-data",
+      "name": "FCM notification vs data messages in the background"
+    },
+    {
+      "id": "c030-toggleable-row-semantics",
+      "name": "Accessible rows with toggleable and a Role"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c030-q01",
+      "lesson": null,
+      "concept": "c030-component-defaults-object",
+      "type": "multiple_choice",
+      "prompt": "Your design system's `AppButton` has default colors and elevation. Where do the Compose component API guidelines say those defaults should live?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "In private constants in its file, so callers can't depend on them"
+        },
+        {
+          "id": "b",
+          "text": "In a public top-level `AppButtonDefaults` object, for reuse"
+        },
+        {
+          "id": "c",
+          "text": "As `null` parameter defaults, resolved inside the component"
+        },
+        {
+          "id": "d",
+          "text": "In a `CompositionLocal`, so screens can override them implicitly"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Default expressions are either inline or in a public top-level object named `ComponentDefaults` (like `ButtonDefaults`), so callers who wrap or extend the component can reuse the same values. Private constants hide them from wrappers, and the guidelines say to avoid `null` as a marker for \"use the default\".",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://android.googlesource.com/platform/frameworks/support/+/androidx-main/compose/docs/compose-component-api-guidelines.md",
+          "title": "API Guidelines for Components in Jetpack Compose",
+          "publisher": "Android Open Source Project",
+          "accessed": "2026-10-02",
+          "claim": "All component default expressions should be inline or in a top-level object called `ComponentDefaults` (such as ButtonDefaults) so users can access them when wrapping the component; avoid using null as a marker to use the default internally."
+        }
+      ]
+    },
+    {
+      "id": "c030-q02",
+      "lesson": null,
+      "concept": "c030-fcm-notification-vs-data",
+      "type": "multiple_choice",
+      "prompt": "Your chat server sends FCM notification messages. While the app is in the background, `onMessageReceived` never runs, so the local database isn't updated. Why?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Doze blocks `onMessageReceived` for every message type in the background"
+        },
+        {
+          "id": "b",
+          "text": "`onMessageReceived` runs only once the user taps the notification"
+        },
+        {
+          "id": "c",
+          "text": "In the background, notification messages go to the system tray"
+        },
+        {
+          "id": "d",
+          "text": "Backgrounded notification messages go to `onDeletedMessages`"
+        }
+      ],
+      "answer": "c",
+      "explanation": "With the app in the background, a notification message is shown in the system tray by FCM and `onMessageReceived` isn't called; a data message is still delivered to `onMessageReceived`. With both payloads, the notification goes to the tray and the data arrives in the extras of the launcher Activity's intent when the user taps it. `onDeletedMessages` is for dropped messages.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://firebase.google.com/docs/cloud-messaging/android/receive-messages",
+          "title": "Receive messages in an Android app",
+          "publisher": "Google (Firebase)",
+          "accessed": "2026-10-02",
+          "claim": "In the background, notification messages go to the system tray, data messages to onMessageReceived, and messages with both put the notification in the tray and the data in the intent extras; in the foreground all go to onMessageReceived; onDeletedMessages signals dropped messages."
+        }
+      ]
+    },
+    {
+      "id": "c030-q03",
+      "lesson": null,
+      "concept": "c030-toggleable-row-semantics",
+      "type": "written",
+      "prompt": "A settings screen has rows of a `Text` label and a `Switch` that toggle only when the switch itself is tapped. TalkBack users get two focus stops per row. How would you fix it in Compose?",
+      "model_answer": {
+        "summary": "Lift the toggle to the row with `Modifier.toggleable` and a `Role`, set the `Switch`'s `onCheckedChange` to `null`, so the row is one merged, larger, accessible control.",
+        "key_points": [
+          "Put `Modifier.toggleable(value = checked, role = Role.Switch, onValueChange = ...)` on the whole row",
+          "Set the inner `Switch`'s `onCheckedChange = null`, so it isn't a second clickable element",
+          "`toggleable` merges the row's descendants, so TalkBack reads the label, role and state as one focus stop",
+          "The whole row becomes the touch target, much larger than the switch alone"
+        ]
+      },
+      "explanation": "The Compose docs recommend lifting the click behaviour of selection controls (Switch, Checkbox, RadioButton) to the parent. Adding a `contentDescription` to the switch is the tempting half-fix: it labels the switch but leaves two focus stops and a small target.",
+      "materials": [
+        "compose-semantics"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/accessibility/api-defaults",
+          "title": "API defaults",
+          "publisher": "Android Developers (Google)",
+          "accessed": "2026-10-02",
+          "claim": "For selection controls such as Switch or Checkbox with a label, lift the clickable behaviour to the parent Row with Modifier.toggleable and a Role and set the control's onCheckedChange to null, giving one focus stop, merged semantics and a larger touch target."
+        },
+        {
+          "url": "https://developer.android.com/develop/ui/compose/accessibility/semantics",
+          "title": "Semantics",
+          "publisher": "Android Developers (Google)",
+          "accessed": "2026-10-02",
+          "claim": "The `toggleable` modifier automatically merges its descendants' semantics, and `Role` indicates the type of element."
+        }
+      ]
+    },
+    {
+      "id": "c030-q04",
+      "lesson": null,
+      "concept": "c030-component-defaults-object",
+      "type": "multiple_choice",
+      "prompt": "A design-system `Tag` declares `color: Color? = null` and uses the theme color when it's `null`. What do the Compose component guidelines suggest?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Keep `null`, as it's the idiomatic marker for \"use the default\""
+        },
+        {
+          "id": "b",
+          "text": "Make `color` required, so every caller passes a color explicitly"
+        },
+        {
+          "id": "c",
+          "text": "Use a meaningful default from a public `TagDefaults` object"
+        },
+        {
+          "id": "d",
+          "text": "Drop the parameter and read the color from a `CompositionLocal`"
+        }
+      ],
+      "answer": "c",
+      "explanation": "The guidelines say to avoid `null` as a marker for using the default internally, and to give parameters meaningful defaults, either inline or in a public `ComponentDefaults` object. That way callers can see, and reuse, the real default value.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://android.googlesource.com/platform/frameworks/support/+/androidx-main/compose/docs/compose-component-api-guidelines.md",
+          "title": "API Guidelines for Components in Jetpack Compose",
+          "publisher": "Android Open Source Project",
+          "accessed": "2026-10-02",
+          "claim": "Avoid using null as a marker to use the default value internally; provide meaningful defaults inline or in a top-level `ComponentDefaults` object that users can access."
+        }
+      ]
+    },
+    {
+      "id": "c030-q05",
+      "lesson": null,
+      "concept": "c030-fcm-notification-vs-data",
+      "type": "written",
+      "prompt": "Your chat app must save every incoming message to its local database, even when the app is in the background. Which FCM message type do you send, and how should the app handle it?",
+      "model_answer": {
+        "summary": "Send data messages, which reach `onMessageReceived` in the foreground and background; keep that callback short by handing longer work to WorkManager, and do a full sync in `onDeletedMessages`.",
+        "key_points": [
+          "Send data messages: they are delivered to `onMessageReceived` whether the app is in the foreground or background",
+          "Notification messages in the background go to the system tray without calling `onMessageReceived`, and with both payloads the data only arrives in the tapped notification's intent",
+          "`onMessageReceived` has only a short time to run, so hand work longer than about 10 seconds to WorkManager",
+          "Implement `onDeletedMessages` and do a full sync, since FCM drops messages when over 100 are pending or the app hasn't connected for 30 days"
+        ]
+      },
+      "explanation": "The tempting design sends notification messages and reads them in `onMessageReceived`, which works in testing with the app open and then misses messages in the background. Data messages put the app in control of storing the message and showing its own notification.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://firebase.google.com/docs/cloud-messaging/android/receive-messages",
+          "title": "Receive messages in an Android app",
+          "publisher": "Google (Firebase)",
+          "accessed": "2026-10-02",
+          "claim": "Data messages go to onMessageReceived in both foreground and background, while background notification messages go to the system tray; offload processing over about 10 seconds to WorkManager; onDeletedMessages is called after more than 100 pending messages or 30 days without connecting, and the app should do a full sync."
+        }
+      ]
+    },
+    {
+      "id": "c030-q06",
+      "lesson": null,
+      "concept": "c030-toggleable-row-semantics",
+      "type": "multiple_choice",
+      "prompt": "A row holds a label and a `Checkbox`, and the row has `Modifier.toggleable(role = Role.Checkbox, ...)`. What should the `Checkbox`'s `onCheckedChange` be?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The same lambda as the row's, so that both of them toggle the state"
+        },
+        {
+          "id": "b",
+          "text": "An empty lambda `{}`, so the box can still take accessibility focus"
+        },
+        {
+          "id": "c",
+          "text": "`null`, so the row is the only clickable element in the semantics"
+        },
+        {
+          "id": "d",
+          "text": "Any lambda at all, since `toggleable` removes the box's own clicks"
+        }
+      ],
+      "answer": "c",
+      "explanation": "The documented pattern sets `onCheckedChange = null` on the inner `Checkbox`, so the parent row is the single clickable, merged element with one focus stop. Any lambda, even an empty one, makes the box a second clickable and a second focus stop.",
+      "materials": [
+        "compose-semantics"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/accessibility/api-defaults",
+          "title": "API defaults",
+          "publisher": "Android Developers (Google)",
+          "accessed": "2026-10-02",
+          "claim": "In the CheckableRow example the Row uses Modifier.toggleable with role = Role.Checkbox and the inner Checkbox has onCheckedChange = null so there is a single clickable element and one focus stop."
+        }
+      ]
+    }
+  ]
+}

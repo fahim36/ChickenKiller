@@ -1,0 +1,243 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c005-resilience-strategy-order",
+      "name": "Order of strategies in a resilience pipeline"
+    },
+    {
+      "id": "c005-generic-static-per-closed-type",
+      "name": "Static fields in generic types are per closed constructed type"
+    },
+    {
+      "id": "c005-sidecar-pattern",
+      "name": "The sidecar pattern for cross-cutting concerns"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c005-q01",
+      "lesson": null,
+      "concept": "c005-resilience-strategy-order",
+      "type": "multiple_choice",
+      "prompt": "```csharp\nvar pipeline = new ResiliencePipelineBuilder()\n    .AddTimeout(TimeSpan.FromSeconds(10))\n    .AddRetry(new() { MaxRetryAttempts = 3 })\n    .Build();\n```\n\nThe downstream call now hangs every time. Roughly how long until the caller gets an error?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "About 40 seconds, since each of the 4 attempts gets 10 seconds"
+        },
+        {
+          "id": "b",
+          "text": "About 10 seconds: the outer timeout spans every retry attempt"
+        },
+        {
+          "id": "c",
+          "text": "Never, since each retry restarts the timeout's 10-second clock"
+        },
+        {
+          "id": "d",
+          "text": "At once, since the retry sees a hang as a failure and gives up"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Strategies wrap each other in the order they are added: the first is outermost. Here the timeout wraps the retry, so it is one 10-second budget for the whole call, retries included, and the first hung attempt uses it all. To limit each attempt instead, add the retry first and the timeout after it (and let the retry handle `TimeoutRejectedException`), as in Polly's 'timeout inside retry' example.",
+      "materials": [
+        "dotnet-resilience"
+      ],
+      "sources": [
+        {
+          "url": "https://www.pollydocs.org/pipelines/",
+          "title": "Resilience pipelines",
+          "publisher": "Polly (App vNext)",
+          "accessed": "2026-10-02",
+          "claim": "A pipeline built with AddTimeout then AddRetry has the timeout as the outer strategy overarching all retry attempts; built with AddRetry then AddTimeout, the timeout is inner and applies per attempt, and a timeout-aware retry retries after TimeoutRejectedException."
+        }
+      ]
+    },
+    {
+      "id": "c005-q02",
+      "lesson": null,
+      "concept": "c005-generic-static-per-closed-type",
+      "type": "multiple_choice",
+      "prompt": "```csharp\nclass Cache<T> { public static int Hits; }\n\nCache<int>.Hits++;\nCache<int>.Hits++;\nCache<string>.Hits++;\nConsole.WriteLine($\"{Cache<int>.Hits} {Cache<string>.Hits}\");\n```\n\nWhat is printed?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`3 3`, because every `Cache<T>` shares one static `Hits` field"
+        },
+        {
+          "id": "b",
+          "text": "`3 1`, because the open type `Cache<T>` counts every closed type"
+        },
+        {
+          "id": "c",
+          "text": "Nothing: it doesn't compile, as generic types can't have statics"
+        },
+        {
+          "id": "d",
+          "text": "`2 1`, because each closed type has its own `Hits` field"
+        }
+      ],
+      "answer": "d",
+      "explanation": "Each closed constructed type, such as `Cache<int>` or `Cache<string>`, has its own set of static fields, so they count separately: 2 and 1. This is handy for per-type caches, but it surprises people who expect one shared counter; put shared state in a non-generic class if you need it.",
+      "materials": [
+        "csharp-docs"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/language-specification/classes",
+          "title": "Classes - C# language specification",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "A static field in a non-generic class has exactly one storage location; each distinct closed constructed type of a generic class has its own set of static fields, regardless of the number of instances (§15.5.2)."
+        }
+      ]
+    },
+    {
+      "id": "c005-q03",
+      "lesson": null,
+      "concept": "c005-sidecar-pattern",
+      "type": "written",
+      "prompt": "Five teams run services in C#, Go and Node.js, and each team re-implements mTLS, retries and telemetry export in its own library. When would you move these concerns into a sidecar instead, and what does it cost?",
+      "model_answer": {
+        "summary": "A sidecar runs those concerns once, language-independently, in a separate process or container beside each instance; it suits polyglot estates and separately owned components, at the cost of an extra hop of latency and per-instance resources.",
+        "key_points": [
+          "A sidecar is a separate process or container deployed with each service instance and sharing its life cycle, so one implementation serves every language (for example a service mesh proxy, Dapr or an OpenTelemetry Collector)",
+          "It fits polyglot services, components owned by another team, and concerns you want to update or resource-limit separately from the app",
+          "Costs: inter-process latency on every call, and the resources of one sidecar per instance, which can outweigh the benefit for small apps or chatty communication",
+          "Prefer a library when deep integration and low overhead matter or the platform already provides the feature; use a separate service when the component must scale independently"
+        ]
+      },
+      "explanation": "The sidecar trades in-process efficiency for isolation and language independence. A good answer names when that trade pays off (many languages, separate ownership, independent updates) and when it doesn't (latency-sensitive chatty calls, small apps, features the platform already has, components that need their own scaling).",
+      "materials": [
+        "azure-cloud-design-patterns"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/sidecar",
+          "title": "Sidecar pattern",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "A sidecar is deployed alongside each application instance in a separate process or container and shares its life cycle, giving language independence (examples: Dapr, service mesh proxies such as Istio, the OpenTelemetry Collector); use it for diverse languages, components owned by another team, or independent updates and resource limits; it may not suit apps needing optimized inter-process communication, small apps, components that must scale independently, or platforms that already provide the feature, and a library gives deeper integration and less overhead."
+        }
+      ]
+    },
+    {
+      "id": "c005-q04",
+      "lesson": null,
+      "concept": "c005-resilience-strategy-order",
+      "type": "multiple_choice",
+      "prompt": "`AddStandardResilienceHandler()` orders its strategies, outermost first: rate limiter, total timeout, retry, circuit breaker, attempt timeout. Why is the attempt timeout innermost and the total timeout outside the retry?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "So the total timeout's clock restarts at the start of each retry"
+        },
+        {
+          "id": "b",
+          "text": "So the circuit breaker never sees timeouts, only HTTP 5xx errors"
+        },
+        {
+          "id": "c",
+          "text": "So a slow attempt is cut off and retried within one budget"
+        },
+        {
+          "id": "d",
+          "text": "So the rate limiter can queue the retries until the timeout ends"
+        }
+      ],
+      "answer": "c",
+      "explanation": "The attempt timeout (10 s) sits inside the retry, so a hung attempt is cut off and the retry can try again; the total timeout (30 s) sits outside the retry, so all attempts together can't exceed it. Timeouts reach the circuit breaker as `TimeoutRejectedException`, which it counts, and the rate limiter's default queue is 0, so it doesn't hold retries.",
+      "materials": [
+        "dotnet-resilience"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/resilience/http-resilience",
+          "title": "Build resilient HTTP apps: Key development patterns",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "The standard resilience handler chains, from outermost to innermost, a rate limiter (queue 0), a total timeout (30 s) covering all retry attempts, retry, a circuit breaker that also counts timeouts, and an attempt timeout (10 s) per attempt; retry and circuit breaker handle TimeoutRejectedException."
+        }
+      ]
+    },
+    {
+      "id": "c005-q05",
+      "lesson": null,
+      "concept": "c005-generic-static-per-closed-type",
+      "type": "multiple_choice",
+      "prompt": "`Repository<T>` has `private static readonly ConcurrentDictionary<string, object> _cache = new();`. The app creates many `Repository<Order>` and `Repository<Customer>` instances. How many `_cache` dictionaries exist?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "One, shared by every `Repository<T>` whatever its argument"
+        },
+        {
+          "id": "b",
+          "text": "Two: one per closed type, and they never see each other's keys"
+        },
+        {
+          "id": "c",
+          "text": "One per `Repository<T>` instance, since the field is `readonly`"
+        },
+        {
+          "id": "d",
+          "text": "One per reference type, as all classes share generic code"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Static fields belong to each closed constructed type, so `Repository<Order>` and `Repository<Customer>` each have one dictionary, however many instances exist. `readonly` only stops the field being reassigned, and the runtime sharing compiled code between reference-type arguments doesn't share their static fields.",
+      "materials": [
+        "csharp-docs"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/language-specification/classes",
+          "title": "Classes - C# language specification",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "Each distinct closed constructed type has its own set of static fields, regardless of the number of instances of the closed constructed type (§15.5.2)."
+        }
+      ]
+    },
+    {
+      "id": "c005-q06",
+      "lesson": null,
+      "concept": "c005-sidecar-pattern",
+      "type": "multiple_choice",
+      "prompt": "A team plans to run a PDF-rendering component as a sidecar next to its API. Rendering load spikes independently of API traffic and needs far more instances at peak. What does the Azure Architecture Center advise?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Keep the sidecar: it scales with the API's own instance count"
+        },
+        {
+          "id": "b",
+          "text": "Keep the sidecar, but give it a much larger memory limit than the API"
+        },
+        {
+          "id": "c",
+          "text": "Make it a separate service, as it must scale on its own"
+        },
+        {
+          "id": "d",
+          "text": "Move it into the API process, so the API scales it as well"
+        }
+      ],
+      "answer": "c",
+      "explanation": "A sidecar shares its parent's life cycle: one per application instance, so it scales exactly with the API. When a component must scale differently, the guidance is to deploy it as a separate service. A bigger resource limit per sidecar doesn't add instances, and moving it in-process still ties its scale to the API.",
+      "materials": [
+        "azure-cloud-design-patterns"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/sidecar",
+          "title": "Sidecar pattern",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "Each application instance gets its own sidecar instance that shares its life cycle; the pattern might not be suitable when you need to scale the component independently, in which case deploy it as a separate service."
+        }
+      ]
+    }
+  ]
+}

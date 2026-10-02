@@ -1,0 +1,264 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c003-static-abstract-generic-math",
+      "name": "Generic math with static abstract interface members"
+    },
+    {
+      "id": "c003-ref-struct-restrictions",
+      "name": "What the compiler forbids for ref struct types"
+    },
+    {
+      "id": "c003-outbox-relay-polling-vs-log-tailing",
+      "name": "Outbox relay: polling the table vs reading the change log"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c003-q01",
+      "lesson": null,
+      "concept": "c003-static-abstract-generic-math",
+      "type": "multiple_choice",
+      "prompt": "```csharp\nstatic T Sum<T>(IEnumerable<T> values) where T : /* ? */\n{\n    T total = T.Zero;\n    foreach (var v in values) total += v;\n    return total;\n}\n```\n\nWhich constraint lets this compile and work for `int`, `double` and `decimal` (.NET 7+)?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`where T : struct`, as all three of them are value types"
+        },
+        {
+          "id": "b",
+          "text": "`where T : INumber<T>`, which brings static `Zero` and `+`"
+        },
+        {
+          "id": "c",
+          "text": "`where T : IComparable<T>`, which every number implements"
+        },
+        {
+          "id": "d",
+          "text": "None: C# can't apply `+` to a type parameter; use `dynamic`"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Since C# 11 and .NET 7, interfaces can declare `static abstract` members, including operators. `INumber<T>` brings `T.Zero` and the `+` operator, and all built-in numeric types implement it, so one generic method replaces an overload per type. `struct` and `IComparable<T>` say nothing about arithmetic, and `dynamic` was the old workaround with run-time binding.",
+      "materials": [
+        "csharp-docs"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/standard/generics/math",
+          "title": "Generic math",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "C# 11 static virtual interface members let operators be declared in interfaces; a method constrained `where T : INumber<T>` can use `+` (from IAdditionOperators) and `T.Zero` (from INumberBase), and all .NET built-in numeric types implement INumber<TSelf> since .NET 7."
+        }
+      ]
+    },
+    {
+      "id": "c003-q02",
+      "lesson": null,
+      "concept": "c003-ref-struct-restrictions",
+      "type": "multiple_choice",
+      "prompt": "You write `ref struct TokenReader`, which holds a `ReadOnlySpan<char>`. With C# 13 or later, which use does the compiler accept?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Keeping a `TokenReader` in a field of the `FileParser` class"
+        },
+        {
+          "id": "b",
+          "text": "Using one in a synchronous method that returns `Task<int>`"
+        },
+        {
+          "id": "c",
+          "text": "Capturing a `TokenReader` local in a lambda passed to `Select`"
+        },
+        {
+          "id": "d",
+          "text": "Adding `TokenReader` values to a `List<TokenReader>` for later"
+        }
+      ],
+      "answer": "b",
+      "explanation": "A `ref struct` must never reach the managed heap, so it can't be a field of a class, can't be captured by a lambda or local function, and can't be a type argument unless the type parameter says `allows ref struct` (which `List<T>` doesn't). A method that returns `Task<int>` but has no `await` runs synchronously, so a `ref struct` local in it is fine.",
+      "materials": [
+        "csharp-docs"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/builtin-types/ref-struct",
+          "title": "ref struct types - C# reference",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "A ref struct can't be an array element type, a field of a class or non-ref struct, boxed, or captured in a lambda or local function; it can be used in synchronous methods that return Task or Task<TResult>; from C# 13 it can be a type argument only when the type parameter specifies `allows ref struct`."
+        }
+      ]
+    },
+    {
+      "id": "c003-q03",
+      "lesson": null,
+      "concept": "c003-outbox-relay-polling-vs-log-tailing",
+      "type": "written",
+      "prompt": "Your services write events to an outbox in the same transaction as their data. Compare relaying those events to the broker by polling the outbox table with reading the database's change log (CDC such as Debezium, or the Cosmos DB change feed).",
+      "model_answer": {
+        "summary": "Polling is simple but adds query load and delay and needs a processed marker; log-based CDC has low delay and no polling load but needs CDC infrastructure. Both are at-least-once, so messages need stable IDs and consumers must be idempotent.",
+        "key_points": [
+          "Polling: a worker periodically queries the outbox for unhandled rows, publishes them and marks them processed; it is easy to build but adds query load and a delay set by the polling interval",
+          "Log-based CDC reads committed changes from the transaction log or change feed with very low delay and no polling load, and the reader tracks its own position, but it is extra infrastructure to run",
+          "Both deliver at least once: after a crash the relay resends from its last recorded position, so give messages a stable ID (for broker duplicate detection) and make consumers idempotent",
+          "Keep per-aggregate order, for example by using the aggregate ID as the message key or session"
+        ]
+      },
+      "explanation": "The outbox fixes the dual write, but something still has to move the events. A strong answer weighs simplicity against latency and database load, and doesn't claim exactly-once: whichever relay you choose can resend after a failure, which is why the consumer side still needs idempotency.",
+      "materials": [
+        "azure-cloud-design-patterns"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/databases/guide/transactional-outbox-cosmos",
+          "title": "Implement the Transactional Outbox pattern by using Azure Cosmos DB",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "A typical relay periodically queries the outbox table for unhandled entries, publishes them and marks them processed; the Cosmos DB sample instead reads the change feed, tracks progress in a leases container so no Processed flag is needed, restarts from the last processed position after an error (which can resend messages), and uses Service Bus duplicate detection and sessions for ordering."
+        },
+        {
+          "url": "https://debezium.io/documentation/reference/stable/features.html",
+          "title": "Debezium Features",
+          "publisher": "Debezium (Red Hat)",
+          "accessed": "2026-10-02",
+          "claim": "Log-based change data capture ensures all data changes are captured, produces change events with very low delay while avoiding the CPU cost of frequent polling, and needs no change to the data model such as a 'Last Updated' column."
+        },
+        {
+          "url": "https://debezium.io/documentation/faq/",
+          "title": "Frequently Asked Questions (Debezium)",
+          "publisher": "Debezium (Red Hat)",
+          "accessed": "2026-10-02",
+          "claim": "When things go wrong, consuming applications can see Debezium events at least once: after a crash a connector restarts from its last recorded position and some events may be duplicated."
+        },
+        {
+          "url": "https://debezium.io/documentation/reference/stable/transformations/outbox-event-router.html",
+          "title": "Outbox Event Router",
+          "publisher": "Debezium (Red Hat)",
+          "accessed": "2026-10-02",
+          "claim": "The outbox event router uses the aggregateid column as the message key, which is important for keeping correct order in Kafka partitions."
+        }
+      ]
+    },
+    {
+      "id": "c003-q04",
+      "lesson": null,
+      "concept": "c003-static-abstract-generic-math",
+      "type": "multiple_choice",
+      "prompt": "`INumber<T>` declares its operators and `Zero` as `static abstract` members. Inside `Sum<T>(...) where T : INumber<T>`, how is the call `T.Zero` resolved?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Through the object's virtual method table at run time"
+        },
+        {
+          "id": "b",
+          "text": "By reflection on the first call, then cached per type"
+        },
+        {
+          "id": "c",
+          "text": "From the type argument, so `T = int` uses `int.Zero`"
+        },
+        {
+          "id": "d",
+          "text": "By boxing `T` to `INumber<T>` and calling through it"
+        }
+      ],
+      "answer": "c",
+      "explanation": "Static abstract and static virtual interface members have no run-time dispatch like instance virtual methods. The compiler resolves the call from the type argument, so for `T = int` the static members declared on `int` are used, and for `double` those on `double`. No reflection or boxing is involved, which is why generic math is fast.",
+      "materials": [
+        "csharp-docs"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/keywords/interface",
+          "title": "interface keyword - C# reference",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "Calls to static virtual and static abstract interface members are resolved at compile time with no runtime dispatch mechanism like virtual methods; the compiler uses the type argument, so when T is int the static members declared on int are invoked."
+        }
+      ]
+    },
+    {
+      "id": "c003-q05",
+      "lesson": null,
+      "concept": "c003-ref-struct-restrictions",
+      "type": "multiple_choice",
+      "prompt": "Since C# 13, `ref struct Reader` can implement `IDisposable` and an interface `ITokenSource`. Which of these still fails to compile?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Calling its public `Next()` method on a local `Reader`"
+        },
+        {
+          "id": "b",
+          "text": "Passing a `Reader` to a method taking `ITokenSource`"
+        },
+        {
+          "id": "c",
+          "text": "Writing `using var r = new Reader(text);` in a method"
+        },
+        {
+          "id": "d",
+          "text": "Passing it to `M<T>(T t) where T : allows ref struct`"
+        }
+      ],
+      "answer": "b",
+      "explanation": "A `ref struct` may implement interfaces, but converting it to the interface type is a boxing conversion, which would put it on the heap, so it is refused, including implicitly when the parameter type is the interface. Use a generic method whose type parameter `allows ref struct` instead. Calling its own methods and `using` with a `Dispose` method are fine.",
+      "materials": [
+        "csharp-docs"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/builtin-types/ref-struct",
+          "title": "ref struct types - C# reference",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "From C# 13 a ref struct can implement interfaces but can't be converted to an interface it implements, including when passed as an argument whose parameter is an interface type, because that is a boxing conversion; a disposable ref struct works with using, and generic methods whose type parameter allows ref struct can take it."
+        }
+      ]
+    },
+    {
+      "id": "c003-q06",
+      "lesson": null,
+      "concept": "c003-outbox-relay-polling-vs-log-tailing",
+      "type": "multiple_choice",
+      "prompt": "In Microsoft's Cosmos DB outbox sample, a change feed processor relays event documents to Service Bus. Why don't the events need a `Processed` flag?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Service Bus deletes each event document once it is delivered"
+        },
+        {
+          "id": "b",
+          "text": "Events are sent inside the same transactional batch as data"
+        },
+        {
+          "id": "c",
+          "text": "The relay deletes each event document right after sending it"
+        },
+        {
+          "id": "d",
+          "text": "The processor records its position in a leases container"
+        }
+      ],
+      "answer": "d",
+      "explanation": "The change feed is a log of changes, and the change feed processor keeps its own position in a `Leases` container, so the relay knows what it has handled without updating each event. Old event documents are removed later by a TTL, not by the relay or by Service Bus, and sending to the broker can't be part of the Cosmos DB transactional batch.",
+      "materials": [
+        "azure-cloud-design-patterns"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/databases/guide/transactional-outbox-cosmos",
+          "title": "Implement the Transactional Outbox pattern by using Azure Cosmos DB",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-02",
+          "claim": "A typical outbox sets a Processed property after publishing, but here Azure Cosmos DB tracks processed events through the change feed and the Leases container; old event documents are deleted automatically by TTL."
+        }
+      ]
+    }
+  ]
+}

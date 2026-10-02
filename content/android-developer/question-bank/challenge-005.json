@@ -1,0 +1,264 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c005-kotlin-context-parameters",
+      "name": "Context parameters (Kotlin 2.2+)"
+    },
+    {
+      "id": "c005-layer-dependency-direction",
+      "name": "Dependency direction between Android's layers"
+    },
+    {
+      "id": "c005-hilt-test-binding-replacement",
+      "name": "Replacing bindings in Hilt tests"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c005-q01",
+      "lesson": null,
+      "concept": "c005-kotlin-context-parameters",
+      "type": "multiple_choice",
+      "prompt": "With Kotlin's context parameters (introduced in Kotlin 2.2), you declare `context(logger: Logger) fun sync() { ... }`. How is `sync()` called, and how does its body use the logger?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The caller passes it as `sync(logger)`, and the body calls `log()` bare"
+        },
+        {
+          "id": "b",
+          "text": "The caller needs a `Logger` in context; the body calls `logger.log()`"
+        },
+        {
+          "id": "c",
+          "text": "Any caller works, since Kotlin injects a `Logger` from the DI graph"
+        },
+        {
+          "id": "d",
+          "text": "The caller needs a `Logger` in context; the body calls `log()` bare"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Context parameters are resolved implicitly at the call site from a matching value in the caller's context, for example inside `context(logger) { sync() }` or another function with a `Logger` context. Unlike the older context receivers, they are not receivers in the body, so you use their name: `logger.log(...)`. Nothing comes from a DI framework, and they aren't passed like ordinary arguments.",
+      "materials": [
+        "kotlin-docs"
+      ],
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/context-parameters.html",
+          "title": "Context parameters",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-02",
+          "claim": "Context parameters are declared with `context(name: Type)` and resolved implicitly from a matching value in the caller's scope, with an ambiguity error if several match; constructors can't declare them, and properties with them can't have backing fields, initializers or delegation."
+        },
+        {
+          "url": "https://kotlinlang.org/docs/whatsnew22.html",
+          "title": "What's new in Kotlin 2.2.0",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-02",
+          "claim": "Kotlin 2.2.0 introduces context parameters, which replace context receivers; they are not receivers in the function body, so you access their members by the parameter's name."
+        }
+      ]
+    },
+    {
+      "id": "c005-q02",
+      "lesson": null,
+      "concept": "c005-layer-dependency-direction",
+      "type": "multiple_choice",
+      "prompt": "Following the layering in Android's guide to app architecture, which of these dependencies points the wrong way?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A use case that depends on `NewsRepository` and `AuthorsRepository`"
+        },
+        {
+          "id": "b",
+          "text": "A ViewModel that uses `NewsRepository` directly, with no use case"
+        },
+        {
+          "id": "c",
+          "text": "A repository that calls `FormatDateUseCase` from the domain layer"
+        },
+        {
+          "id": "d",
+          "text": "A use case that depends on another use case, `FormatDateUseCase`"
+        }
+      ],
+      "answer": "c",
+      "explanation": "In the guide, the UI layer depends on the optional domain layer, and the domain layer depends on the data layer: use cases usually depend on repositories, and may depend on other use cases. The data layer depends on neither, so a repository calling a use case reverses the arrow. A ViewModel may still use a repository directly: the guide adds use cases only when they are needed.",
+      "materials": [
+        "android-app-architecture"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/architecture",
+          "title": "Guide to app architecture",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "The arrows in the guide's diagrams represent dependencies between classes; the domain layer depends on data layer classes and, when included, provides dependencies to the UI layer."
+        },
+        {
+          "url": "https://developer.android.com/topic/architecture/domain-layer",
+          "title": "Domain layer",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "Use case classes usually depend on repository classes and can depend on other use cases, and the UI layer may still access repositories directly; use cases are added only when required."
+        }
+      ]
+    },
+    {
+      "id": "c005-q03",
+      "lesson": null,
+      "concept": "c005-hilt-test-binding-replacement",
+      "type": "written",
+      "prompt": "Your Hilt instrumented tests must use `FakeAnalyticsService` instead of the real binding in `AnalyticsModule`. Compare `@TestInstallIn`, `@UninstallModules` and `@BindValue`, and say which you would use by default.",
+      "model_answer": {
+        "summary": "Default to a `@TestInstallIn` module that replaces `AnalyticsModule` for every test in the folder; use `@UninstallModules`, with a nested module or a `@BindValue` field, only for a single test class that needs something different, because it creates new components and slows builds.",
+        "key_points": [
+          "`@TestInstallIn(components = [...], replaces = [AnalyticsModule::class])` on a module in the test or androidTest folder replaces the binding for all tests in that folder, and is the recommended option whenever possible",
+          "`@UninstallModules(AnalyticsModule::class)` with a nested `@InstallIn` module replaces the binding for one test class only, and Hilt creates new components for such tests, which can significantly increase build times",
+          "`@BindValue` on a test field binds it into the graph under its type and qualifiers, so a test can replace and reference the fake (or a mock) in one place",
+          "`@UninstallModules` can only remove `@InstallIn` modules, not `@TestInstallIn` ones or modules without `@InstallIn`"
+        ]
+      },
+      "explanation": "The options trade scope against cost: a shared `@TestInstallIn` replacement keeps one set of components for all tests, while per-class replacement is flexible but makes Hilt generate more. Plain unit tests usually don't need Hilt at all: construct the class with fakes.",
+      "materials": [
+        "android-hilt"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/training/dependency-injection/hilt-testing",
+          "title": "Hilt testing guide",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "A `@TestInstallIn` module in the test or androidTest folder replaces a binding for all tests in that folder and is recommended whenever possible; `@UninstallModules` replaces it for one test class, can only uninstall `@InstallIn` modules, and makes Hilt create new components that can significantly impact build times; `@BindValue` binds a test field under its type and qualifiers."
+        }
+      ]
+    },
+    {
+      "id": "c005-q04",
+      "lesson": null,
+      "concept": "c005-kotlin-context-parameters",
+      "type": "multiple_choice",
+      "prompt": "Which of these declarations with a Kotlin context parameter `context(u: Users)` is allowed?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A property with an initializer, such as `val cache = u.loadAll()`"
+        },
+        {
+          "id": "b",
+          "text": "A property delegated with `by lazy` that reads the parameter `u`"
+        },
+        {
+          "id": "c",
+          "text": "A getter-only property, such as `val first get() = u.first()`"
+        },
+        {
+          "id": "d",
+          "text": "A class's primary constructor that declares `context(u: Users)`"
+        }
+      ],
+      "answer": "c",
+      "explanation": "Properties with context parameters can't have backing fields, initializers or delegation, so only a getter-only property works: the getter reads `u` each time it is called. Constructors can't declare context parameters at all.",
+      "materials": [
+        "kotlin-docs"
+      ],
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/context-parameters.html",
+          "title": "Context parameters",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-02",
+          "claim": "Constructors can't declare context parameters, and properties with context parameters can't have backing fields, initializers or delegation; a context property is written with a getter, such as `context(users: UserService) val firstUser: String get() = users.findUserById(1)`."
+        }
+      ]
+    },
+    {
+      "id": "c005-q05",
+      "lesson": null,
+      "concept": "c005-layer-dependency-direction",
+      "type": "multiple_choice",
+      "prompt": "A `GetPaymentsUseCase` in the domain layer needs payment data from the server and the local cache. What should it depend on?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`PaymentsRepository`, the data layer's entry point for payment data"
+        },
+        {
+          "id": "b",
+          "text": "`PaymentsApi`, the Retrofit data source, to skip one extra layer"
+        },
+        {
+          "id": "c",
+          "text": "`PaymentsViewModel`, since it already holds the screen's loaded data"
+        },
+        {
+          "id": "d",
+          "text": "`PaymentsDao` and `PaymentsApi`, merged together in the use case"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Use cases depend on repositories, and repositories are always the entry points to the data layer: use cases and state holders should never take a data source such as a Retrofit API or a DAO as a direct dependency. Depending on a ViewModel would point from the domain layer back up to the UI layer.",
+      "materials": [
+        "android-app-architecture"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/architecture/data-layer",
+          "title": "Data layer",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "Other layers should never access data sources directly; the entry points to the data layer are always the repository classes, and state holders or use cases should never have a data source as a direct dependency."
+        },
+        {
+          "url": "https://developer.android.com/topic/architecture/domain-layer",
+          "title": "Domain layer",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "Use case classes usually depend on repository classes from the data layer."
+        }
+      ]
+    },
+    {
+      "id": "c005-q06",
+      "lesson": null,
+      "concept": "c005-hilt-test-binding-replacement",
+      "type": "multiple_choice",
+      "prompt": "Which statement about Hilt's `@UninstallModules` is true, according to the Hilt testing guide?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It can uninstall a `@TestInstallIn` module for one single test class"
+        },
+        {
+          "id": "b",
+          "text": "It applies to all tests in the folder, the same way `@TestInstallIn` does"
+        },
+        {
+          "id": "c",
+          "text": "Hilt builds new components for its tests, which can slow test builds"
+        },
+        {
+          "id": "d",
+          "text": "It can remove any Dagger module, including ones without `@InstallIn`"
+        }
+      ],
+      "answer": "c",
+      "explanation": "Hilt creates new components for tests that use `@UninstallModules`, which can significantly impact build times, so the guide prefers `@TestInstallIn` when a binding must be replaced in all test classes. `@UninstallModules` affects only the annotated test class, and it can uninstall only `@InstallIn` modules: naming a `@TestInstallIn` module or one without `@InstallIn` is a compile error.",
+      "materials": [
+        "android-hilt"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/training/dependency-injection/hilt-testing",
+          "title": "Hilt testing guide",
+          "publisher": "Google",
+          "accessed": "2026-10-02",
+          "claim": "`@UninstallModules` replaces a binding for a single test class, can only uninstall `@InstallIn` modules (not `@TestInstallIn` ones, and not modules without `@InstallIn`, which is a compilation error), and because Hilt creates new components for those tests it can significantly impact build times."
+        }
+      ]
+    }
+  ]
+}

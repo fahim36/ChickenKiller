@@ -1,0 +1,225 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c029-androidfragment-composable",
+      "name": "Embedding Fragments in Compose with AndroidFragment"
+    },
+    {
+      "id": "c029-resumable-download-range",
+      "name": "Resuming downloads with Range and If-Range"
+    },
+    {
+      "id": "c029-supporting-pane-layout",
+      "name": "The supporting pane canonical layout"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c029-q01",
+      "lesson": null,
+      "concept": "c029-androidfragment-composable",
+      "type": "multiple_choice",
+      "prompt": "During a Views-to-Compose migration, a new Compose screen must show a legacy `ReceiptFragment`. What is the recommended way to embed it?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`AndroidViewBinding` around a layout with a `FragmentContainerView`"
+        },
+        {
+          "id": "b",
+          "text": "`AndroidView { ReceiptFragment().requireView() }` in its factory"
+        },
+        {
+          "id": "c",
+          "text": "A `ComposeView` that hosts the Fragment inside its `setContent`"
+        },
+        {
+          "id": "d",
+          "text": "`AndroidFragment<ReceiptFragment>()`, from `fragment-compose`"
+        }
+      ],
+      "answer": "d",
+      "explanation": "`AndroidFragment` from `androidx.fragment:fragment-compose` adds the Fragment to the composition, removes it when it leaves the composition, and saves and restores its state. `AndroidViewBinding` with a `FragmentContainerView` is the older approach and no longer recommended. Either way it's a migration step: a Compose-only app shouldn't use Fragments.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/migrate/interoperability-apis/views-in-compose",
+          "title": "Using Views in Compose",
+          "publisher": "Android Developers (Google)",
+          "accessed": "2026-10-02",
+          "claim": "The `AndroidFragment` composable (androidx.fragment:fragment-compose) adds a Fragment to the composition, removes it when the composable leaves the composition and saves its state; the AndroidViewBinding plus FragmentContainerView approach is no longer recommended; use AndroidFragment only during incremental migration."
+        }
+      ]
+    },
+    {
+      "id": "c029-q02",
+      "lesson": null,
+      "concept": "c029-resumable-download-range",
+      "type": "multiple_choice",
+      "prompt": "Your downloader resumes a half-done file with `Range: bytes=5000000-` and `If-Range: \"v7\"`, the ETag it saw before. The server answers `200 OK`. What should the client do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Append the body to the partial file, starting at byte 5,000,000"
+        },
+        {
+          "id": "b",
+          "text": "Retry without `If-Range`, so the server must return a 206 instead"
+        },
+        {
+          "id": "c",
+          "text": "Discard the partial file and save this body as the entire file"
+        },
+        {
+          "id": "d",
+          "text": "Fail the download, as a range request must get a 206 or a 416"
+        }
+      ],
+      "answer": "c",
+      "explanation": "A `200` to a range request means the server is sending the entire representation: either the `If-Range` validator no longer matches (the file changed) or the server ignored `Range`, which it may do. Appending would corrupt the file, and dropping `If-Range` risks stitching bytes of two different versions together.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc9110.html",
+          "title": "RFC 9110: HTTP Semantics",
+          "publisher": "IETF",
+          "accessed": "2026-10-02",
+          "claim": "A server MAY ignore the Range header field; If-Range means \"if the representation is unchanged, send me the parts in Range; otherwise send me the entire representation\", and a recipient MUST ignore Range when the If-Range condition is false; 206 indicates parts of the representation are being transferred."
+        }
+      ]
+    },
+    {
+      "id": "c029-q03",
+      "lesson": null,
+      "concept": "c029-supporting-pane-layout",
+      "type": "written",
+      "prompt": "A video app shows a player with a list of related videos. Which canonical adaptive layout fits, how does it behave from compact to expanded widths, and why not list-detail?",
+      "model_answer": {
+        "summary": "The supporting pane layout: the player is the main content and related videos a supporting pane beside it on wide windows, moved below it or into a sheet on compact widths; list-detail is for picking an item from a list to see its detail.",
+        "key_points": [
+          "Supporting pane splits the window into primary content, taking most of the space, and a secondary pane that supports it, such as related videos",
+          "On expanded widths the two panes sit side by side; on compact widths the supporting content goes below the main content or into a bottom or side sheet",
+          "List-detail is for browsing a list and showing the selected item's detail, one pane at a time on smaller widths, which doesn't match a player with suggestions",
+          "In Compose it is built with `SupportingPaneScaffold` from Material 3 adaptive, driven by a navigator's scaffold directive and value"
+        ]
+      },
+      "explanation": "The three canonical layouts answer different needs: list-detail for selecting items, supporting pane for main content with helpers, feed for a grid of equal items. Picking list-detail because the screen has a list is the tempting mistake.",
+      "materials": [
+        "compose-adaptive"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/layouts/adaptive/canonical-layouts",
+          "title": "Canonical layouts",
+          "publisher": "Android Developers (Google)",
+          "accessed": "2026-10-02",
+          "claim": "The supporting pane layout organises content into a primary area and a secondary pane that supports it (e.g. a video with related videos); on expanded widths they are side by side, on compact widths the supporting content goes below the main content or in a bottom or side sheet; it's built with SupportingPaneScaffold. List-detail shows a list and a selected item's detail, one at a time on smaller widths."
+        }
+      ]
+    },
+    {
+      "id": "c029-q04",
+      "lesson": null,
+      "concept": "c029-androidfragment-composable",
+      "type": "multiple_choice",
+      "prompt": "A `HorizontalPager` shows one `AndroidFragment` per page. With Fragment 1.9.0+, how do you keep pages other than the settled one from being resumed?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Call `onPause()` on those Fragments from a `LaunchedEffect`"
+        },
+        {
+          "id": "b",
+          "text": "Pass `maxLifecycle`: RESUMED only on the settled page, else STARTED"
+        },
+        {
+          "id": "c",
+          "text": "Use the `onUpdate` callback to detach them as the pages scroll"
+        },
+        {
+          "id": "d",
+          "text": "Wrap each page in `key(page)`, so its Fragment restarts on every swipe"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Since Fragment 1.9.0, `AndroidFragment` takes a `maxLifecycle` that caps the Fragment's lifecycle state, and the docs show exactly this pager pattern: `RESUMED` for `pagerState.settledPage` and `STARTED` otherwise. Calling lifecycle methods yourself bypasses the `FragmentManager`.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/migrate/interoperability-apis/views-in-compose",
+          "title": "Using Views in Compose",
+          "publisher": "Android Developers (Google)",
+          "accessed": "2026-10-02",
+          "claim": "In Fragment 1.9.0+, AndroidFragment's `maxLifecycle` parameter caps the lifecycle state, which is useful in lazy layouts like HorizontalPager: RESUMED for the settled page and STARTED otherwise."
+        }
+      ]
+    },
+    {
+      "id": "c029-q05",
+      "lesson": null,
+      "concept": "c029-resumable-download-range",
+      "type": "written",
+      "prompt": "Design resume support for large file downloads in your app's downloader. What does the client store and send, and how does it handle each response?",
+      "model_answer": {
+        "summary": "Store the bytes written and the file's strong ETag, resume with `Range` plus `If-Range`, append on 206 and start over on 200, since the server may have ignored the range or the file changed.",
+        "key_points": [
+          "Persist how many bytes are on disk and a strong validator for the file, preferably its ETag (a weak ETag must not be used in `If-Range`)",
+          "Resume with `Range: bytes=<offset>-` and `If-Range: <etag>`, so the server sends only the rest if the file is unchanged",
+          "On `206 Partial Content`, append the body at the offset given by `Content-Range`",
+          "On `200 OK`, the server sent the whole file, because it changed or the server ignored `Range`: replace the partial file instead of appending"
+        ]
+      },
+      "explanation": "`If-Range` turns two round trips into one: \"the rest if unchanged, else everything\". A downloader that sends only `Range` and appends blindly can join the start of one version to the end of another.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc9110.html",
+          "title": "RFC 9110: HTTP Semantics",
+          "publisher": "IETF",
+          "accessed": "2026-10-02",
+          "claim": "A server MAY ignore Range; If-Range sends the requested parts if the representation is unchanged and the entire representation otherwise; a client MUST NOT send a weak entity tag in If-Range; 206 Partial Content transfers one or more parts of the selected representation."
+        }
+      ]
+    },
+    {
+      "id": "c029-q06",
+      "lesson": null,
+      "concept": "c029-supporting-pane-layout",
+      "type": "multiple_choice",
+      "prompt": "Which screen best fits the supporting pane canonical layout, rather than list-detail or feed?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "An inbox where picking a message shows its whole text beside it"
+        },
+        {
+          "id": "b",
+          "text": "A news app with a grid of equally weighted article cards on it"
+        },
+        {
+          "id": "c",
+          "text": "A document editor with a pane of reviewer comments next to it"
+        },
+        {
+          "id": "d",
+          "text": "A contacts app where tapping a name opens that person's profile"
+        }
+      ],
+      "answer": "c",
+      "explanation": "Supporting pane is for main content plus secondary content that supports it, such as a document with reviewer comments. An inbox or contacts app is list-detail (pick an item, see its detail), and a grid of equivalent cards is the feed layout.",
+      "materials": [
+        "compose-adaptive"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/layouts/adaptive/canonical-layouts",
+          "title": "Canonical layouts",
+          "publisher": "Android Developers (Google)",
+          "accessed": "2026-10-02",
+          "claim": "List-detail suits messaging and contact managers; supporting pane suits a document with reviewer comments or a video with related videos; feed arranges equivalent content in a grid."
+        }
+      ]
+    }
+  ]
+}

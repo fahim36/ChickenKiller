@@ -1,0 +1,313 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c008-waitasync-vs-cancellation",
+      "name": "Task.WaitAsync timeouts vs cooperative cancellation"
+    },
+    {
+      "id": "c008-tiered-compilation-pgo",
+      "name": "Tiered compilation, ReadyToRun and dynamic PGO"
+    },
+    {
+      "id": "c008-github-oidc-azure",
+      "name": "GitHub Actions OIDC federation to Azure"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c008-q01",
+      "lesson": null,
+      "concept": "c008-waitasync-vs-cancellation",
+      "type": "multiple_choice",
+      "prompt": "`var report = await BuildReportAsync().WaitAsync(TimeSpan.FromSeconds(5));` Here `BuildReportAsync` takes no `CancellationToken` and runs for 30 seconds. What happens after 5 seconds?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The await throws `TimeoutException`, and the report work carries on in the background"
+        },
+        {
+          "id": "b",
+          "text": "The await throws `TimeoutException`, and the runtime aborts the thread doing the report"
+        },
+        {
+          "id": "c",
+          "text": "The await throws `OperationCanceledException`, and the report task moves to `Canceled`"
+        },
+        {
+          "id": "d",
+          "text": "Nothing happens until 30 seconds, as `WaitAsync` only checks once the work has finished"
+        }
+      ],
+      "answer": "a",
+      "explanation": "`WaitAsync` returns a new task that represents the wait: it faults with `TimeoutException` when the timeout passes, but it can't stop the original operation. Cancellation in .NET is cooperative, so the report keeps running, using resources, until it ends. To actually stop work, pass a `CancellationToken` (for example from a `CancellationTokenSource` with `CancelAfter`) that the operation observes.",
+      "materials": [
+        "aspnetcore-diagnostic-scenarios"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/api/system.threading.tasks.task.waitasync",
+          "title": "Task.WaitAsync Method (System.Threading.Tasks)",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "WaitAsync(TimeSpan) returns a Task representing the asynchronous wait, which completes when the original task completes or faults with a TimeoutException when the timeout expires."
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/standard/threading/cancellation-in-managed-threads",
+          "title": "Cancellation in Managed Threads - .NET",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "Cancellation is cooperative and not forced on the listener; each listener must notice the request; a linked token source joins several tokens, and CancellationTokenSource objects, including linked ones, should be disposed."
+        },
+        {
+          "url": "https://github.com/davidfowl/AspNetCoreDiagnosticScenarios/blob/master/AsyncGuidance.md",
+          "title": "AspNetCoreDiagnosticScenarios: AsyncGuidance.md",
+          "publisher": "David Fowler (Microsoft), GitHub",
+          "accessed": "2026-10-02",
+          "claim": "For operations that can't be cancelled, prefer Task.WaitAsync on .NET 6+ to stop waiting; CancellationTokenSource objects used for timeouts (CancelAfter) should be disposed so they don't put pressure on the timer queue."
+        }
+      ]
+    },
+    {
+      "id": "c008-q02",
+      "lesson": null,
+      "concept": "c008-tiered-compilation-pgo",
+      "type": "multiple_choice",
+      "prompt": "After each deploy, the first minute of requests to a .NET 8 API is slower than steady state, although it is published with `PublishReadyToRun=true`. Which explanation fits how the runtime compiles code?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "ReadyToRun turns the JIT off, so the slow minute is spent loading bigger DLLs"
+        },
+        {
+          "id": "b",
+          "text": "ReadyToRun code is less optimized, and tiering re-JITs hot methods over time"
+        },
+        {
+          "id": "c",
+          "text": "Dynamic PGO is off by default, so hot methods stay at tier 0 until enabled"
+        },
+        {
+          "id": "d",
+          "text": "Tiering is disabled with ReadyToRun, so methods are fully compiled on first call"
+        }
+      ],
+      "answer": "b",
+      "explanation": "ReadyToRun cuts startup JIT work, but its precompiled code isn't as optimized as JIT output, so tiered compilation replaces commonly used methods with optimized JIT code, guided by dynamic PGO, which is on by default since .NET 8. Until hot methods reach that tier, the app runs slower than steady state. The JIT also still runs for code ReadyToRun can't precompile.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/deploying/ready-to-run",
+          "title": "ReadyToRun deployment overview - .NET",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "ReadyToRun reduces JIT work at startup but its code is not as highly optimized as JIT-produced code, so tiered compilation replaces commonly used ReadyToRun methods with JIT-generated ones; some code still needs the JIT."
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/runtime-config/compilation",
+          "title": "Compilation config settings - .NET",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "Tiered compilation's first tier uses quick JIT or loads ReadyToRun code and the second tier generates optimized code in the background; dynamic PGO works with tiered compilation using instrumentation put in place during tier 0."
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/whats-new/dotnet-8/runtime",
+          "title": "What's new in .NET 8 runtime",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "In .NET 8 dynamic profile-guided optimization is enabled by default and no longer needs a runtime configuration option."
+        }
+      ]
+    },
+    {
+      "id": "c008-q03",
+      "lesson": null,
+      "concept": "c008-github-oidc-azure",
+      "type": "written",
+      "prompt": "Your GitHub Actions workflow deploys to Azure with a client secret stored in repository secrets. How would you replace it with OpenID Connect, and how do you limit which workflows can use the Azure identity?",
+      "model_answer": {
+        "summary": "Trust GitHub's OIDC tokens through a federated credential on an Entra identity, let the job request a token and exchange it at login, and scope the trust with the subject claim.",
+        "key_points": [
+          "Add a federated credential to an Entra app registration or user-assigned managed identity that trusts GitHub's OIDC issuer, and give that identity only the roles the deploy needs",
+          "Grant the job `permissions: id-token: write` and give `azure/login` the client ID, tenant ID and subscription ID, with no client secret",
+          "At login the job exchanges a short-lived GitHub token for an Entra access token, so nothing long-lived is stored",
+          "Scope the trust with the subject claim, such as `repo:org/repo:environment:production`, which must match exactly along with issuer and audience"
+        ]
+      },
+      "explanation": "OIDC removes the stored secret and its rotation. The subject claim is the access control: trusting a specific repository and environment means a workflow in another repository, or a job without that environment, can't get an Azure token.",
+      "materials": [
+        "github-actions"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.github.com/en/actions/reference/security/oidc",
+          "title": "OpenID Connect reference",
+          "publisher": "GitHub",
+          "accessed": "2026-10-02",
+          "claim": "The job must grant id-token: write to get an OIDC token; the subject claim is repo:ORG/REPO:environment:NAME when the job references an environment, and repo:ORG/REPO:ref:refs/heads/BRANCH only when it doesn't and the trigger isn't a pull request."
+        },
+        {
+          "url": "https://docs.github.com/en/actions/how-tos/secure-your-work/security-harden-deployments/oidc-in-azure",
+          "title": "Configuring OpenID Connect in Azure",
+          "publisher": "GitHub",
+          "accessed": "2026-10-02",
+          "claim": "Add a federated credential to the Entra ID application, grant id-token: write, and give azure/login the client ID, tenant ID and subscription ID, so no Azure credentials are stored as long-lived GitHub secrets."
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/entra/workload-id/workload-identity-federation",
+          "title": "Workload Identity Federation - Microsoft Entra Workload ID",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "A federated identity credential on a user-assigned managed identity or app registration trusts an external IdP such as GitHub; the workload exchanges the external token for a Microsoft identity platform access token; issuer, subject and audience must match case-sensitively."
+        }
+      ]
+    },
+    {
+      "id": "c008-q04",
+      "lesson": null,
+      "concept": "c008-waitasync-vs-cancellation",
+      "type": "written",
+      "prompt": "An endpoint must give up on a slow downstream call after 2 seconds, and also stop if the request itself is aborted. How would you build this with cancellation tokens, and why isn't `WaitAsync` alone enough?",
+      "model_answer": {
+        "summary": "Link the request's token with a timeout token, pass the linked token to the downstream call, and dispose the source; `WaitAsync` only stops the wait, not the work.",
+        "key_points": [
+          "Create a linked `CancellationTokenSource` from the request's token and call `CancelAfter(2 seconds)` on it",
+          "Pass the linked token to the downstream call, so the operation itself notices cancellation and stops",
+          "Dispose the `CancellationTokenSource` when done (with `using`), since timer-based sources hold timer resources",
+          "`WaitAsync` only stops waiting: cancellation is cooperative, so work that never sees a token keeps running"
+        ]
+      },
+      "explanation": "A timeout that doesn't reach the operation leaves work running after the caller has given up, which under load piles up. A linked token gives the call one token that fires on either condition.",
+      "materials": [
+        "aspnetcore-diagnostic-scenarios"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/api/system.threading.tasks.task.waitasync",
+          "title": "Task.WaitAsync Method (System.Threading.Tasks)",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "WaitAsync(TimeSpan) returns a Task representing the asynchronous wait, which completes when the original task completes or faults with a TimeoutException when the timeout expires."
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/standard/threading/cancellation-in-managed-threads",
+          "title": "Cancellation in Managed Threads - .NET",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "Cancellation is cooperative and not forced on the listener; each listener must notice the request; a linked token source joins several tokens, and CancellationTokenSource objects, including linked ones, should be disposed."
+        },
+        {
+          "url": "https://github.com/davidfowl/AspNetCoreDiagnosticScenarios/blob/master/AsyncGuidance.md",
+          "title": "AspNetCoreDiagnosticScenarios: AsyncGuidance.md",
+          "publisher": "David Fowler (Microsoft), GitHub",
+          "accessed": "2026-10-02",
+          "claim": "For operations that can't be cancelled, prefer Task.WaitAsync on .NET 6+ to stop waiting; CancellationTokenSource objects used for timeouts (CancelAfter) should be disposed so they don't put pressure on the timer queue."
+        }
+      ]
+    },
+    {
+      "id": "c008-q05",
+      "lesson": null,
+      "concept": "c008-tiered-compilation-pgo",
+      "type": "multiple_choice",
+      "prompt": "What does dynamic profile-guided optimization (PGO) do in .NET 8 and later?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Needs a training run at build time and stores the profile inside the binaries"
+        },
+        {
+          "id": "b",
+          "text": "Replaces tiered compilation, so each method is compiled once, fully optimized"
+        },
+        {
+          "id": "c",
+          "text": "Uses data from tier-0 instrumentation to optimize hot code when it is re-JITed"
+        },
+        {
+          "id": "d",
+          "text": "Is opt-in through `DOTNET_TieredPGO=1`, and only affects ReadyToRun framework code"
+        }
+      ],
+      "answer": "c",
+      "explanation": "Dynamic PGO works with tiered compilation: instrumentation added at tier 0 records which types and paths are actually used, and the JIT uses it when it recompiles hot methods. It needs no training run, and since .NET 8 it is on by default (`DOTNET_TieredPGO=0` turns it off).",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/deploying/ready-to-run",
+          "title": "ReadyToRun deployment overview - .NET",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "ReadyToRun reduces JIT work at startup but its code is not as highly optimized as JIT-produced code, so tiered compilation replaces commonly used ReadyToRun methods with JIT-generated ones; some code still needs the JIT."
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/runtime-config/compilation",
+          "title": "Compilation config settings - .NET",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "Tiered compilation's first tier uses quick JIT or loads ReadyToRun code and the second tier generates optimized code in the background; dynamic PGO works with tiered compilation using instrumentation put in place during tier 0."
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/whats-new/dotnet-8/runtime",
+          "title": "What's new in .NET 8 runtime",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "In .NET 8 dynamic profile-guided optimization is enabled by default and no longer needs a runtime configuration option."
+        }
+      ]
+    },
+    {
+      "id": "c008-q06",
+      "lesson": null,
+      "concept": "c008-github-oidc-azure",
+      "type": "multiple_choice",
+      "prompt": "A federated credential trusts subject `repo:contoso/api:ref:refs/heads/main`. You add `environment: production` to the deploy job on `main`, and `azure/login` starts failing. Why?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Jobs with an environment can't get OIDC tokens, so a secret is needed"
+        },
+        {
+          "id": "b",
+          "text": "Environment protection rules remove `id-token: write` from the job"
+        },
+        {
+          "id": "c",
+          "text": "The token's audience becomes the environment name, so `aud` fails"
+        },
+        {
+          "id": "d",
+          "text": "The token's subject is now `repo:contoso/api:environment:production`"
+        }
+      ],
+      "answer": "d",
+      "explanation": "When a job references an environment, GitHub puts the environment in the subject claim instead of the branch. Entra requires issuer, subject and audience to match the federated credential exactly, so the old `ref:refs/heads/main` credential no longer matches. Add a federated credential for the environment subject; it is also the tighter scope.",
+      "materials": [
+        "github-actions"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.github.com/en/actions/reference/security/oidc",
+          "title": "OpenID Connect reference",
+          "publisher": "GitHub",
+          "accessed": "2026-10-02",
+          "claim": "The job must grant id-token: write to get an OIDC token; the subject claim is repo:ORG/REPO:environment:NAME when the job references an environment, and repo:ORG/REPO:ref:refs/heads/BRANCH only when it doesn't and the trigger isn't a pull request."
+        },
+        {
+          "url": "https://docs.github.com/en/actions/how-tos/secure-your-work/security-harden-deployments/oidc-in-azure",
+          "title": "Configuring OpenID Connect in Azure",
+          "publisher": "GitHub",
+          "accessed": "2026-10-02",
+          "claim": "Add a federated credential to the Entra ID application, grant id-token: write, and give azure/login the client ID, tenant ID and subscription ID, so no Azure credentials are stored as long-lived GitHub secrets."
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/entra/workload-id/workload-identity-federation",
+          "title": "Workload Identity Federation - Microsoft Entra Workload ID",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-02",
+          "claim": "A federated identity credential on a user-assigned managed identity or app registration trusts an external IdP such as GitHub; the workload exchanges the external token for a Microsoft identity platform access token; issuer, subject and audience must match case-sensitively."
+        }
+      ]
+    }
+  ]
+}

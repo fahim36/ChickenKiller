@@ -1,0 +1,267 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c010-cancel-vs-cancel-and-join",
+      "name": "cancel() vs cancelAndJoin() and the cancelling state"
+    },
+    {
+      "id": "c010-retrofit-suspend-http-errors",
+      "name": "Retrofit suspend functions: HTTP errors and cancellation"
+    },
+    {
+      "id": "c010-datastore-migrations",
+      "name": "Migrating SharedPreferences to DataStore with DataMigration"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c010-q01",
+      "lesson": null,
+      "concept": "c010-cancel-vs-cancel-and-join",
+      "type": "multiple_choice",
+      "prompt": "```kotlin\nscope.launch {\n  uploadJob.cancel()\n  startUpload() // must not overlap the old job's finally { releaseFile() }\n}\n```\nWhat is wrong, and what fixes it?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Nothing: `cancel()` suspends until the old job's `finally` has finished"
+        },
+        {
+          "id": "b",
+          "text": "`cancel()` returns at once; `cancelAndJoin()` waits for the job to end"
+        },
+        {
+          "id": "c",
+          "text": "`cancel()` also cancels the caller, so `startUpload()` is never reached"
+        },
+        {
+          "id": "d",
+          "text": "`cancel()` skips `finally` blocks, so `releaseFile()` never runs at all"
+        }
+      ],
+      "answer": "b",
+      "explanation": "`cancel()` is not a suspending function: it moves the job to the cancelling state and returns immediately, while the job may still be running its `finally` block. `cancelAndJoin()` (cancel, then `join`) suspends until the job is complete. Cancelling a job is a normal cancellation and doesn't cancel the caller, and `finally` blocks do run.",
+      "materials": [
+        "kotlin-coroutines-guide"
+      ],
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/-job/",
+          "title": "Job",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-02",
+          "claim": "`cancel` moves a job to the cancelling state immediately (isActive false, isCompleted false, isCancelled true), and it becomes cancelled only when it finishes its work and its children complete; `cancel` is a normal cancellation that doesn't cancel the parent."
+        },
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/cancel-and-join.html",
+          "title": "cancelAndJoin",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-02",
+          "claim": "`cancelAndJoin` cancels the job and suspends the invoking coroutine until the cancelled job is complete; it is a shortcut for `cancel` followed by `join`."
+        }
+      ]
+    },
+    {
+      "id": "c010-q02",
+      "lesson": null,
+      "concept": "c010-retrofit-suspend-http-errors",
+      "type": "multiple_choice",
+      "prompt": "A Retrofit service declares `@GET(\"users/{id}\") suspend fun user(@Path(\"id\") id: Long): User`, and the server answers `404`. What does the call do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It returns `null`, because the response has no body to convert into a `User`"
+        },
+        {
+          "id": "b",
+          "text": "It returns a `User` whose fields hold the default values from the class"
+        },
+        {
+          "id": "c",
+          "text": "It throws `HttpException`; a `Response<User>` return type would not"
+        },
+        {
+          "id": "d",
+          "text": "It throws `IOException`, the same as when the server can't be reached"
+        }
+      ],
+      "answer": "c",
+      "explanation": "For a suspend function returning the body type, Retrofit resumes with the body only for a successful response and throws `HttpException(response)` otherwise. Declaring `Response<User>` returns the response whatever its status, so you can read `code()` and `errorBody()`. `IOException` is for failures to talk to the server, not HTTP error statuses.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://raw.githubusercontent.com/square/retrofit/trunk/retrofit/src/main/java/retrofit2/KotlinExtensions.kt",
+          "title": "retrofit2/KotlinExtensions.kt (Retrofit source)",
+          "publisher": "Square",
+          "accessed": "2026-10-02",
+          "claim": "`Call.await()` resumes with the body for a successful response, resumes with `HttpException(response)` for an unsuccessful one, and registers `invokeOnCancellation { cancel() }` so cancelling the coroutine cancels the Call; `awaitResponse()` resumes with the Response whatever its status."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/square/retrofit/trunk/CHANGELOG.md",
+          "title": "Retrofit change log",
+          "publisher": "Square",
+          "accessed": "2026-10-02",
+          "claim": "Retrofit 2.6.0 added `suspend` service functions, which behave like `Call<User>` invoked with `enqueue`; you can also return `Response<User>` for access to the response metadata."
+        }
+      ]
+    },
+    {
+      "id": "c010-q03",
+      "lesson": null,
+      "concept": "c010-datastore-migrations",
+      "type": "written",
+      "prompt": "A released app keeps its settings in SharedPreferences and is moving them to Preferences DataStore. How do you migrate existing users' values safely?",
+      "model_answer": {
+        "summary": "Give the DataStore a `SharedPreferencesMigration` through `produceMigrations`, which runs before any data is returned; keep migrations idempotent, never read the DataStore from inside one, and keep a single DataStore instance per file.",
+        "key_points": [
+          "Pass a `SharedPreferencesMigration` (with the keys to migrate, all by default) through `produceMigrations`; DataStore returns no data until all migrations have completed",
+          "Migration methods can run more than once, so they must be idempotent; if `migrate` fails nothing is committed, `cleanUp` isn't called and the migration is retried on the next access",
+          "Don't read the DataStore inside `shouldMigrate` or `migrate`: it deadlocks, since DataStore waits for migrations to finish",
+          "Create one DataStore instance per file in the process (for example a top-level `preferencesDataStore` delegate); two instances for one file make reads and writes throw `IllegalStateException`"
+        ]
+      },
+      "explanation": "DataStore's migrations are designed for exactly this move: they run on first access, before any reader sees data, and they are retried until they succeed. The risks are your own code: a non-idempotent migration that runs twice, a migration that reads the store it is migrating, or two instances fighting over one file.",
+      "materials": [
+        "android-datastore"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/reference/kotlin/androidx/datastore/migrations/SharedPreferencesMigration",
+          "title": "SharedPreferencesMigration",
+          "publisher": "Google (Android Developers)",
+          "accessed": "2026-10-02",
+          "claim": "SharedPreferencesMigration is a DataMigration from SharedPreferences to DataStore that takes the SharedPreferences and a set of keys to migrate (all keys by default), and is passed to the DataStore builder through produceMigrations."
+        },
+        {
+          "url": "https://developer.android.com/reference/kotlin/androidx/datastore/core/DataMigration",
+          "title": "DataMigration",
+          "publisher": "Google (Android Developers)",
+          "accessed": "2026-10-02",
+          "claim": "shouldMigrate, migrate and cleanUp may be called multiple times so must be idempotent; if migrate fails nothing is committed, cleanUp isn't called and migration is retried on the next DataStore call; reading DataStore inside these functions deadlocks because DataStore doesn't return data until all migrations complete."
+        },
+        {
+          "url": "https://developer.android.com/topic/libraries/architecture/datastore",
+          "title": "DataStore",
+          "publisher": "Google (Android Developers)",
+          "accessed": "2026-10-02",
+          "claim": "Never create more than one DataStore instance for a given file in the same process, or DataStore throws IllegalStateException when reading or updating; updateData is transactional; consider migrating from SharedPreferences to DataStore."
+        }
+      ]
+    },
+    {
+      "id": "c010-q04",
+      "lesson": null,
+      "concept": "c010-cancel-vs-cancel-and-join",
+      "type": "multiple_choice",
+      "prompt": "Right after `job.cancel()`, while the coroutine is still running its `finally` block, what do `isActive`, `isCompleted` and `isCancelled` return?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`false`, `false`, `true`: the job is in the cancelling state"
+        },
+        {
+          "id": "b",
+          "text": "`false`, `true`, `true`: the job is cancelled once `cancel()` returns"
+        },
+        {
+          "id": "c",
+          "text": "`true`, `false`, `false`: the job stays active until `finally` ends"
+        },
+        {
+          "id": "d",
+          "text": "`false`, `true`, `false`: it counts as completed but not cancelled"
+        }
+      ],
+      "answer": "a",
+      "explanation": "`cancel()` moves the job to the transient cancelling state at once: not active, not yet completed, but `isCancelled` is true. It becomes cancelled, with `isCompleted` true, only when its work (including `finally`) and its children have finished, which is what `join()` waits for.",
+      "materials": [
+        "kotlin-coroutines-guide"
+      ],
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/-job/",
+          "title": "Job",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-02",
+          "claim": "`cancel` moves a job to the cancelling state immediately (isActive false, isCompleted false, isCancelled true), and it becomes cancelled only when it finishes its work and its children complete; `cancel` is a normal cancellation that doesn't cancel the parent."
+        }
+      ]
+    },
+    {
+      "id": "c010-q05",
+      "lesson": null,
+      "concept": "c010-retrofit-suspend-http-errors",
+      "type": "multiple_choice",
+      "prompt": "`viewModelScope` is cancelled while a Retrofit `suspend fun feed(): Feed` call is in flight. What happens to the HTTP request?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It keeps running, and its result is dropped when it eventually returns"
+        },
+        {
+          "id": "b",
+          "text": "It finishes first, because a suspend call can't be cancelled mid-request"
+        },
+        {
+          "id": "c",
+          "text": "Retrofit cancels the underlying OkHttp `Call` as the coroutine cancels"
+        },
+        {
+          "id": "d",
+          "text": "Retrofit retries it on the next `viewModelScope` that becomes active"
+        }
+      ],
+      "answer": "c",
+      "explanation": "Retrofit's suspend support wraps the `Call` in `suspendCancellableCoroutine` and registers `invokeOnCancellation { cancel() }`. When the coroutine is cancelled, the OkHttp call is cancelled too, so leaving the screen stops the network work instead of letting it run to completion.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://raw.githubusercontent.com/square/retrofit/trunk/retrofit/src/main/java/retrofit2/KotlinExtensions.kt",
+          "title": "retrofit2/KotlinExtensions.kt (Retrofit source)",
+          "publisher": "Square",
+          "accessed": "2026-10-02",
+          "claim": "`Call.await()` resumes with the body for a successful response, resumes with `HttpException(response)` for an unsuccessful one, and registers `invokeOnCancellation { cancel() }` so cancelling the coroutine cancels the Call; `awaitResponse()` resumes with the Response whatever its status."
+        }
+      ]
+    },
+    {
+      "id": "c010-q06",
+      "lesson": null,
+      "concept": "c010-datastore-migrations",
+      "type": "multiple_choice",
+      "prompt": "In a custom `DataMigration`, `migrate()` calls `dataStore.data.first()` to read the current settings. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It deadlocks: DataStore returns no data until migrations finish"
+        },
+        {
+          "id": "b",
+          "text": "It reads the values stored before this migration was started"
+        },
+        {
+          "id": "c",
+          "text": "It throws `IllegalStateException`, since it made a second DataStore"
+        },
+        {
+          "id": "d",
+          "text": "It reads empty preferences, because migrations run on a blank file"
+        }
+      ],
+      "answer": "a",
+      "explanation": "DataStore doesn't return data until all its migrations have completed, so reading it from inside `migrate` (or `shouldMigrate`) waits forever. Use the `currentData` parameter that `migrate` receives instead. Reading the same instance doesn't create a second DataStore.",
+      "materials": [
+        "android-datastore"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/reference/kotlin/androidx/datastore/core/DataMigration",
+          "title": "DataMigration",
+          "publisher": "Google (Android Developers)",
+          "accessed": "2026-10-02",
+          "claim": "shouldMigrate, migrate and cleanUp may be called multiple times so must be idempotent; if migrate fails nothing is committed, cleanUp isn't called and migration is retried on the next DataStore call; reading DataStore inside these functions deadlocks because DataStore doesn't return data until all migrations complete."
+        }
+      ]
+    }
+  ]
+}

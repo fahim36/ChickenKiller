@@ -1,0 +1,248 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c025-force-with-lease",
+      "name": "`--force-with-lease` vs `--force`"
+    },
+    {
+      "id": "c025-skip-locked-queue",
+      "name": "Job queues with `FOR UPDATE SKIP LOCKED`"
+    },
+    {
+      "id": "c025-metric-label-cardinality",
+      "name": "Metric label cardinality"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c025-q01",
+      "lesson": null,
+      "concept": "c025-force-with-lease",
+      "type": "multiple_choice",
+      "prompt": "You rebased the shared `feature` branch and must force-push it. A teammate may have pushed to it since you last fetched. Which push refuses to overwrite their commits?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`git push --force`, which only rewrites commits you authored yourself"
+        },
+        {
+          "id": "b",
+          "text": "`git push`, since Git merges their new commits in during the push"
+        },
+        {
+          "id": "c",
+          "text": "`git push --force-with-lease`, which checks the remote is unchanged"
+        },
+        {
+          "id": "d",
+          "text": "`git push --no-verify`, which skips only the local pre-push hooks"
+        }
+      ],
+      "answer": "c",
+      "explanation": "`--force-with-lease` only overwrites the remote branch if it still points where your remote-tracking branch says it did, so a teammate's newer commit makes the push fail instead of vanishing. `--force` disables that check and can lose commits on the remote. A plain push after a rebase is rejected as non-fast-forward; Git never merges during a push.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://git-scm.com/docs/git-push",
+          "title": "git-push Documentation",
+          "publisher": "Git project",
+          "accessed": "2026-10-02",
+          "claim": "--force-with-lease protects remote refs by requiring their current value to be the same as the remote-tracking branch we have for them, and fails otherwise; --force disables this check and can cause the remote repository to lose commits."
+        }
+      ]
+    },
+    {
+      "id": "c025-q02",
+      "lesson": null,
+      "concept": "c025-skip-locked-queue",
+      "type": "multiple_choice",
+      "prompt": "Ten workers pull agent jobs with `SELECT id FROM jobs WHERE status = 'pending' ORDER BY id LIMIT 1 FOR UPDATE`. They mostly wait on each other. What lets each worker take a different job without waiting?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Add `SKIP LOCKED`, so rows another worker has locked are passed over"
+        },
+        {
+          "id": "b",
+          "text": "Add `NOWAIT`, so each worker waits its turn for the next unlocked row"
+        },
+        {
+          "id": "c",
+          "text": "Use `FOR SHARE`, so several workers can lock the same row at a time"
+        },
+        {
+          "id": "d",
+          "text": "Drop `FOR UPDATE`, so the workers can read pending rows with no lock"
+        }
+      ],
+      "answer": "a",
+      "explanation": "`FOR UPDATE` locks the chosen row, and every other worker's `FOR UPDATE` on that same first row blocks until the transaction ends. `SKIP LOCKED` skips rows that can't be locked at once, so each worker gets the next free job; PostgreSQL describes it as a way to avoid lock contention with many consumers of a queue-like table. `NOWAIT` raises an error instead of waiting, and `FOR SHARE` or no lock would let two workers take the same job.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/sql-select.html",
+          "title": "SELECT",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-02",
+          "claim": "With SKIP LOCKED, selected rows that cannot be immediately locked are skipped, giving an inconsistent view suited to multiple consumers of a queue-like table; with NOWAIT the statement reports an error rather than waiting."
+        },
+        {
+          "url": "https://www.postgresql.org/docs/current/explicit-locking.html",
+          "title": "13.3. Explicit Locking",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-02",
+          "claim": "FOR UPDATE blocks other transactions from locking, modifying or deleting the rows until the current transaction ends; FOR SHARE takes a shared lock that does not prevent other transactions from taking FOR SHARE on the same rows."
+        }
+      ]
+    },
+    {
+      "id": "c025-q03",
+      "lesson": null,
+      "concept": "c025-metric-label-cardinality",
+      "type": "written",
+      "prompt": "A teammate proposes a Prometheus counter `llm_tokens_total` with labels `model`, `tenant_id`, `user_id` and `conversation_id`, to answer cost questions. What is the problem, and how would you design it instead?",
+      "model_answer": {
+        "summary": "Every label combination is its own time series, so unbounded IDs explode the series count; keep metrics to a few bounded labels and answer per-user or per-conversation questions from logs or traces.",
+        "key_points": [
+          "Every unique combination of label values is a separate time series, so unbounded labels such as user or conversation IDs multiply the data stored",
+          "Prometheus advises not using labels for high-cardinality values such as user IDs, and keeping most metrics' cardinality low (below about 10)",
+          "Keep bounded labels such as `model` (and tenant only if there are few tenants), and move per-user or per-conversation analysis to logs, traces or a general-purpose data system"
+        ]
+      },
+      "explanation": "Metrics are cheap because they aggregate; a label per user or conversation undoes that and can create millions of series. The tempting answer, that more labels just mean more detail, ignores that each new value creates new series forever. Detailed, per-request questions belong in traces or logs, which can carry those IDs as attributes.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://prometheus.io/docs/practices/naming/",
+          "title": "Metric and label naming",
+          "publisher": "Prometheus",
+          "accessed": "2026-10-02",
+          "claim": "Every unique combination of key-value label pairs represents a new time series; do not use labels for high-cardinality dimensions such as user IDs, email addresses or other unbounded sets of values."
+        },
+        {
+          "url": "https://prometheus.io/docs/practices/instrumentation/",
+          "title": "Instrumentation",
+          "publisher": "Prometheus",
+          "accessed": "2026-10-02",
+          "claim": "Try to keep metric cardinality below 10; for metrics over 100 or able to grow that large, reduce dimensions or move the analysis away from monitoring to a general-purpose processing system."
+        }
+      ]
+    },
+    {
+      "id": "c025-q04",
+      "lesson": null,
+      "concept": "c025-force-with-lease",
+      "type": "multiple_choice",
+      "prompt": "You use `git push --force-with-lease` with no expected value, but your IDE runs `git fetch origin` every few minutes. What is the risk?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The push always fails, since a fetch invalidates every existing lease"
+        },
+        {
+          "id": "b",
+          "text": "The lease checks refs the fetch just updated, so it can clobber work"
+        },
+        {
+          "id": "c",
+          "text": "The fetch merges your teammate's new commits into your branch for you"
+        },
+        {
+          "id": "d",
+          "text": "None, because the lease compares against the server's own reflog"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Without an expected value, the lease compares the remote with your remote-tracking branch. A background fetch moves that tracking branch to include a teammate's new commit you never looked at, so the lease passes and the force-push erases it. The Git docs call this out and suggest an explicit expected value or adding `--force-if-includes`.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://git-scm.com/docs/git-push",
+          "title": "git-push Documentation",
+          "publisher": "Git project",
+          "accessed": "2026-10-02",
+          "claim": "--force-with-lease without an expected value interacts badly with anything that runs git fetch in the background, which trivially defeats its protection; --force-if-includes verifies that implicitly updated remote-tracking refs are integrated locally before a forced update."
+        }
+      ]
+    },
+    {
+      "id": "c025-q05",
+      "lesson": null,
+      "concept": "c025-skip-locked-queue",
+      "type": "written",
+      "prompt": "Describe how several workers can share a Postgres-backed queue of agent jobs using `FOR UPDATE SKIP LOCKED`. What does `SKIP LOCKED` give up, and how does it differ from `NOWAIT`?",
+      "model_answer": {
+        "summary": "Each worker claims a pending row with `FOR UPDATE SKIP LOCKED` inside a transaction, so workers never wait on or double-claim the same job; the price is an inconsistent view, fine for queues only.",
+        "key_points": [
+          "In a transaction, each worker selects pending jobs with `ORDER BY ... LIMIT n FOR UPDATE SKIP LOCKED`, marks or processes them, and commits",
+          "`FOR UPDATE` keeps other transactions from locking or changing the claimed rows until the transaction ends, so two workers can't claim the same job",
+          "`SKIP LOCKED` skips rows already locked instead of waiting, while `NOWAIT` raises an error if a row can't be locked at once",
+          "Skipping locked rows gives an inconsistent view of the table, so it suits queue-like tables, not general queries"
+        ]
+      },
+      "explanation": "This pattern gives you a simple, transactional job queue without a separate broker. The tempting design, reading pending rows without a lock, lets two workers start the same job. `NOWAIT` fails fast instead of finding other work, which is the wrong behaviour for a queue consumer.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/sql-select.html",
+          "title": "SELECT",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-02",
+          "claim": "SKIP LOCKED skips rows that cannot be immediately locked and gives an inconsistent view, not suitable for general purpose work but usable to avoid lock contention with multiple consumers of a queue-like table; NOWAIT reports an error rather than waiting."
+        },
+        {
+          "url": "https://www.postgresql.org/docs/current/explicit-locking.html",
+          "title": "13.3. Explicit Locking",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-02",
+          "claim": "FOR UPDATE prevents the rows from being locked, modified or deleted by other transactions until the current transaction ends."
+        }
+      ]
+    },
+    {
+      "id": "c025-q06",
+      "lesson": null,
+      "concept": "c025-metric-label-cardinality",
+      "type": "multiple_choice",
+      "prompt": "Which label is safe to add to a Prometheus counter of agent API requests?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`user_email`, to see each user's request count"
+        },
+        {
+          "id": "b",
+          "text": "`request_id`, so each request can be looked up"
+        },
+        {
+          "id": "c",
+          "text": "`prompt_hash`, so identical prompts are grouped"
+        },
+        {
+          "id": "d",
+          "text": "`status_code`, such as `200`, `429` or `500`"
+        }
+      ],
+      "answer": "d",
+      "explanation": "Each distinct label value creates its own time series. HTTP status codes are a small, bounded set, the kind of dimension labels are for. Emails, request IDs and prompt hashes are unbounded and would create a new series for every user, request or prompt; Prometheus warns against exactly that.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://prometheus.io/docs/practices/naming/",
+          "title": "Metric and label naming",
+          "publisher": "Prometheus",
+          "accessed": "2026-10-02",
+          "claim": "Every unique combination of label pairs is a new time series; labels must not store high-cardinality dimensions such as user IDs, email addresses or other unbounded sets of values."
+        },
+        {
+          "url": "https://prometheus.io/docs/practices/instrumentation/",
+          "title": "Instrumentation",
+          "publisher": "Prometheus",
+          "accessed": "2026-10-02",
+          "claim": "Prefer one metric such as http_responses_total with a code label, and keep metric cardinality low."
+        }
+      ]
+    }
+  ]
+}

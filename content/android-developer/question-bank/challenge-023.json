@@ -1,0 +1,232 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c023-non-observable-mutable-state",
+      "name": "Mutable collections inside Compose state are not observed"
+    },
+    {
+      "id": "c023-strictmode-accidental-main-thread-io",
+      "name": "StrictMode for catching accidental main-thread disk and network access"
+    },
+    {
+      "id": "c023-keystore-user-auth-bound-keys",
+      "name": "Keystore keys bound to user authentication"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c023-q01",
+      "lesson": null,
+      "concept": "c023-non-observable-mutable-state",
+      "type": "multiple_choice",
+      "prompt": "A screen holds `val tags = remember { mutableStateOf(mutableListOf<String>()) }`, and a button runs `tags.value.add(\"new\")`. The list on screen never updates. Why?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`remember` caches the UI built in the first composition, so it can't change"
+        },
+        {
+          "id": "b",
+          "text": "Writes from a click are only applied after the activity is recreated again"
+        },
+        {
+          "id": "c",
+          "text": "`add()` changes the list but never writes the `State` Compose watches"
+        },
+        {
+          "id": "d",
+          "text": "`mutableStateOf` only tracks primitive values, so it ignores a list entirely"
+        }
+      ],
+      "answer": "c",
+      "explanation": "Compose observes writes to the `State` object, not changes inside the object it holds. A `mutableListOf()` is not observable, so mutating it in place triggers no recomposition and users see stale data. Hold an immutable list and assign a new one (`tags.value = tags.value + \"new\"`), as the docs recommend with `State<List<T>>` and `listOf()`.",
+      "materials": [
+        "compose-state"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/state",
+          "title": "State and Jetpack Compose",
+          "publisher": "Android Developers",
+          "accessed": "2026-10-02",
+          "claim": "Using mutable objects such as `ArrayList<T>` or `mutableListOf()` as state causes stale data, because non-observable mutable objects don't trigger recomposition when they change; use an observable holder such as `State<List<T>>` with the immutable `listOf()`."
+        }
+      ]
+    },
+    {
+      "id": "c023-q02",
+      "lesson": null,
+      "concept": "c023-strictmode-accidental-main-thread-io",
+      "type": "multiple_choice",
+      "prompt": "Your debug build enables `StrictMode` with `detectAll()` and `penaltyLog()`, and logcat shows no violations. A teammate says the app therefore has no main-thread disk or network access. What is the flaw?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "StrictMode only checks the main thread while a debugger is attached to it"
+        },
+        {
+          "id": "b",
+          "text": "StrictMode is best effort and can miss access, such as from JNI calls"
+        },
+        {
+          "id": "c",
+          "text": "`detectAll()` only turns on the network checks, and leaves disk reads off"
+        },
+        {
+          "id": "d",
+          "text": "`penaltyLog()` logs a violation only once the app has crashed from it"
+        }
+      ],
+      "answer": "b",
+      "explanation": "StrictMode is a developer tool for finding accidental disk and network access on the main thread, but its reference says it is not a security mechanism and is not guaranteed to find all of it: it is best effort, and disk or network access from JNI calls won't necessarily trigger it. `penaltyLog()` writes each violation to logcat as it happens. A clean StrictMode log is a good sign, not proof; traces still matter.",
+      "materials": [
+        "android-anr"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/reference/android/os/StrictMode",
+          "title": "StrictMode (API reference)",
+          "publisher": "Android Developers",
+          "accessed": "2026-10-02",
+          "claim": "StrictMode is a developer tool most commonly used to catch accidental disk or network access on the main thread; `penaltyLog` shows violations in logcat as they happen; it is not a security mechanism, is not guaranteed to find all disk or network accesses, and access from JNI calls won't necessarily trigger it."
+        }
+      ]
+    },
+    {
+      "id": "c023-q03",
+      "lesson": null,
+      "concept": "c023-keystore-user-auth-bound-keys",
+      "type": "written",
+      "prompt": "A banking app wants its Keystore key for signing payment requests usable only right after the user proves who they are. How do you configure the key, and what trade-offs and failure cases must the app handle?",
+      "model_answer": {
+        "summary": "Generate the key with user authentication required, choosing per-operation authorization through `BiometricPrompt` or a time window after authentication, pick which credentials can unlock it, and handle a biometric-only key being invalidated when new biometrics are enrolled.",
+        "key_points": [
+          "Mark the key as requiring user authentication when generating it, so the Keystore refuses to use it until the user authenticates with their lock-screen credential or biometric",
+          "Choose per-operation authorization (each signature unlocked through `BiometricPrompt.authenticate()` with a `CryptoObject`) for the strongest binding, or a time window after authentication for convenience",
+          "Choose strong biometrics, the device credential, or both, and check with `BiometricManager.canAuthenticate()` that the user has set them up",
+          "A key that only accepts biometrics is invalidated by default when new biometrics are enrolled, so the app must detect that and re-enroll the key (or opt out with `setInvalidatedByBiometricEnrollment(false)`)"
+        ]
+      },
+      "explanation": "Authentication-bound keys mean that even a compromised app process can't use the key without the user authenticating, which is the point for payments. Per-operation binding is stronger than a time window, which lets any code use the key until the window closes. Forgetting key invalidation is the classic failure: a user adds a fingerprint and the key stops working.",
+      "materials": [
+        "android-keystore"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/privacy-and-security/keystore",
+          "title": "Android Keystore system",
+          "publisher": "Android Developers",
+          "accessed": "2026-10-02",
+          "claim": "A key can be authorized only after the user authenticates with a subset of their secure lock-screen credentials, either for a duration of time or for each cryptographic operation via `BiometricPrompt.authenticate()`; each key can accept strong biometrics, the lock-screen credential or both (check with `canAuthenticate()`); a biometric-only key is invalidated by default when new biometrics are enrolled unless `setInvalidatedByBiometricEnrollment(false)` is passed."
+        }
+      ]
+    },
+    {
+      "id": "c023-q04",
+      "lesson": null,
+      "concept": "c023-non-observable-mutable-state",
+      "type": "written",
+      "prompt": "A teammate stores a `MutableList` of cart items in `mutableStateOf` and mutates it in place, and the cart screen sometimes shows stale items. Explain why, and how you would model the state instead.",
+      "model_answer": {
+        "summary": "Compose only reacts to writes to the `State` itself, and a plain mutable list isn't observable, so in-place changes don't recompose; hold an immutable list in observable state and replace it on each change.",
+        "key_points": [
+          "Compose recomposes when an observable `State` is written; mutating a non-observable object such as a `MutableList` or a mutable data class inside it is not a write",
+          "So in-place changes trigger no recomposition, and users see stale data until something else causes a recomposition",
+          "Instead, hold an immutable list (`listOf()`, a `State<List<T>>`) and replace it with a new list on every change, or use an observable collection"
+        ]
+      },
+      "explanation": "The bug is intermittent because the screen does update whenever any other state change recomposes it, so the stale list only shows sometimes. Immutable values in observable state make every change a write that Compose sees.",
+      "materials": [
+        "compose-state"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/state",
+          "title": "State and Jetpack Compose",
+          "publisher": "Android Developers",
+          "accessed": "2026-10-02",
+          "claim": "Mutable objects that are not observable, such as `ArrayList<T>` or a mutable data class, are not observable by Compose and don't trigger recomposition when they change; use an observable data holder such as `State<List<T>>` and the immutable `listOf()`."
+        }
+      ]
+    },
+    {
+      "id": "c023-q05",
+      "lesson": null,
+      "concept": "c023-strictmode-accidental-main-thread-io",
+      "type": "multiple_choice",
+      "prompt": "StrictMode flags a small `SharedPreferences` disk read in `Activity.onCreate` that takes 2 ms on your test phone. Per the StrictMode reference, how should you treat it?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Ignore it, since disk on flash memory is always fast enough for the main thread"
+        },
+        {
+          "id": "b",
+          "text": "Treat it as a crash risk equal to a network call on the UI thread and block release"
+        },
+        {
+          "id": "c",
+          "text": "Silence StrictMode for the whole app, since lifecycle disk access is never flagged"
+        },
+        {
+          "id": "d",
+          "text": "Judge it: lifecycle disk access is often needed, but disk can be slow"
+        }
+      ],
+      "answer": "d",
+      "explanation": "The reference says not to feel compelled to fix everything StrictMode finds, since disk access is often needed during the normal lifecycle, while network requests on the UI thread are almost always a problem. It also warns that disk access is usually fast but can be dramatically slower when other processes are doing I/O, so you shouldn't assume it is fast. Weigh each disk violation; fix the ones on hot paths.",
+      "materials": [
+        "android-anr"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/reference/android/os/StrictMode",
+          "title": "StrictMode (API reference)",
+          "publisher": "Android Developers",
+          "accessed": "2026-10-02",
+          "claim": "Don't feel compelled to fix everything StrictMode finds, since many disk accesses are necessary during the normal activity lifecycle, but network requests on the UI thread are almost always a problem; disk access is often fast but may be dramatically slower when other processes do I/O, so it's best to assume it is not fast."
+        }
+      ]
+    },
+    {
+      "id": "c023-q06",
+      "lesson": null,
+      "concept": "c023-keystore-user-auth-bound-keys",
+      "type": "multiple_choice",
+      "prompt": "Your app's Keystore key accepts only biometric authentication, with default settings. A user enrolls a new fingerprint. What happens to the key?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It stays valid, and the new fingerprint can unlock it from then on"
+        },
+        {
+          "id": "b",
+          "text": "It is invalidated, so the app must handle that and create a new key"
+        },
+        {
+          "id": "c",
+          "text": "It stays valid, but only for the fingerprints that existed before"
+        },
+        {
+          "id": "d",
+          "text": "It is exported to the new enrollment, after the user enters the PIN"
+        }
+      ],
+      "answer": "b",
+      "explanation": "By default, a key that only supports biometric credentials is invalidated whenever new biometric enrollments are added, so someone who adds their own fingerprint can't use it. The app must catch that failure and set the key up again after the user re-authenticates, or opt out with `setInvalidatedByBiometricEnrollment(false)`. Keystore keys are never exported.",
+      "materials": [
+        "android-keystore"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/privacy-and-security/keystore",
+          "title": "Android Keystore system",
+          "publisher": "Android Developers",
+          "accessed": "2026-10-02",
+          "claim": "If a key only supports biometric credentials, it is invalidated by default whenever new biometric enrollments are added; passing `false` to `setInvalidatedByBiometricEnrollment()` keeps it valid."
+        }
+      ]
+    }
+  ]
+}
