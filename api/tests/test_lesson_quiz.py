@@ -104,7 +104,11 @@ def test_the_quiz_draws_four_multiple_choice_then_two_written_questions(
     assert [q["type"] for q in questions] == ["multiple_choice"] * 4 + ["written"] * 2
     assert {q["id"] for q in questions[:4]} < MULTIPLE_CHOICE
     assert sorted(q["id"] for q in questions[4:]) == WRITTEN
-    assert questions[0]["choices"] == [{"id": "a", "text": "Right"}, {"id": "b", "text": "Wrong"}]
+    # The API shuffles a Question's choices, so compare them in bank order.
+    assert sorted(questions[0]["choices"], key=lambda c: c["id"]) == [
+        {"id": "a", "text": "Right"},
+        {"id": "b", "text": "Wrong"},
+    ]
     written = next(q for q in questions if q["id"] == "w01-l01-q07")
     assert written == {
         "id": "w01-l01-q07",

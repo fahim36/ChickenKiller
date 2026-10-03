@@ -46,6 +46,11 @@ def question_number(n: int) -> str:
     return f"w01-l01-q{n:02}"
 
 
+def in_bank_order(question: dict[str, Any]) -> dict[str, Any]:
+    """A served Question with its choices back in bank order: the API shuffles them."""
+    return {**question, "choices": sorted(question["choices"], key=lambda c: c["id"])}
+
+
 def mc(n: int, concept: str) -> dict[str, Any]:
     return {
         "id": question_number(n),
@@ -158,7 +163,7 @@ def test_the_results_show_each_missed_question_with_its_answers_explanation_sour
 
     result = submit(learner, quiz, answers).json()
 
-    assert result["missed"] == [
+    assert [in_bank_order(m) for m in result["missed"]] == [
         {
             "id": qid,
             "type": "multiple_choice",
@@ -220,7 +225,7 @@ def test_passing_with_a_miss_leaves_a_retake_on_a_sibling_and_the_lesson_not_com
     assert retake["missed_question_id"] == missed
     # Concept a has exactly two Questions here, q01 and q02, so the Retake is the other one.
     [sibling] = {question_number(1), question_number(2)} - {missed}
-    assert retake["question"] == {
+    assert in_bank_order(retake["question"]) == {
         "id": sibling,
         "type": "multiple_choice",
         "prompt": retake["question"]["prompt"],
