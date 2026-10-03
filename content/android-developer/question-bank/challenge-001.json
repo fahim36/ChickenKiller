@@ -120,7 +120,12 @@
           "accessed": "2026-10-02",
           "claim": "Business logic implements product requirements for app data and is held by the ViewModel, which is retained through Activity recreation; UI logic is about how to display state (for example navigation or showing a bottom bar) and fits a plain class state holder that references UI-scoped sources, has the UI's lifecycle, is created with `remember`, and doesn't survive Activity recreation."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c001-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c001-q04",
@@ -149,7 +154,12 @@
           "accessed": "2026-10-02",
           "claim": "Kotlin supports declaring a generic type parameter as definitely non-nullable with `T & Any` to make interoperability with generic Java classes easier; it must have a nullable upper bound, and when working only with Kotlin you are unlikely to need it because inference takes care of it."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c001-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c001-q05",
@@ -226,6 +236,100 @@
           "publisher": "Google",
           "accessed": "2026-10-02",
           "claim": "Plain class state holders are recommended for reusable pieces of UI like search bars or chip groups; ViewModels shouldn't be used there because they are best used for navigation destinations and access to business logic, and ViewModel instances shouldn't be passed down to other composables."
+        }
+      ]
+    },
+    {
+      "id": "c001-q07",
+      "lesson": null,
+      "concept": "c001-business-vs-ui-logic-holders",
+      "type": "multiple_select",
+      "prompt": "A search screen's ViewModel saves recent searches through a repository, holds the `NavController`, and decides from the window size class whether to show a bottom bar or a navigation rail. Which statements match Android's state-holder guide? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Saving recent searches is business logic, so it stays in the ViewModel"
+        },
+        {
+          "id": "b",
+          "text": "A plain state holder survives Activity recreation, just like a ViewModel"
+        },
+        {
+          "id": "c",
+          "text": "Picking a bottom bar or a rail is UI logic, fit for a plain state holder"
+        },
+        {
+          "id": "d",
+          "text": "A plain state holder created with `remember` can hold the `NavController`"
+        },
+        {
+          "id": "e",
+          "text": "Saving searches belongs in the plain state holder, as it is UI logic too"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "d"
+      ],
+      "explanation": "Saving recent searches implements a product requirement for app data, so it is business logic and stays in the ViewModel, which reaches the data layer and is retained through Activity recreation. Choosing a bottom bar or a rail is about how to display state, so it is UI logic; a plain state holder created with `remember` (like Now in Android's `NiaAppState`) can hold UI-scoped references such as the `NavController` and window size class. A plain holder does not survive Activity recreation (it is recreated with the UI), and saving searches is not UI logic, so it shouldn't move into the plain holder.",
+      "materials": [
+        "android-app-architecture"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/architecture/ui-layer/stateholders",
+          "title": "State holders and UI state",
+          "publisher": "Google",
+          "accessed": "2026-10-03",
+          "claim": "Business logic implements product requirements for app data and is held by the ViewModel, which is retained through Activity recreation; UI logic (for example navigation, or showing a bottom bar or a navigation rail by screen size as `NiaAppState` does) fits a plain class state holder that is created with `remember`, references UI-scoped sources like the `NavController`, and does not survive Activity recreation."
+        }
+      ]
+    },
+    {
+      "id": "c001-q08",
+      "lesson": null,
+      "concept": "c001-definitely-non-nullable-types",
+      "type": "multiple_select",
+      "prompt": "Which statements about Kotlin's definitely non-nullable type `T & Any` are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It makes a type parameter non-null even though `T` itself may be nullable"
+        },
+        {
+          "id": "b",
+          "text": "Pure Kotlin code needs it often, because type inference cannot work it out"
+        },
+        {
+          "id": "c",
+          "text": "Its main use is overriding Java methods with `@NotNull T` in the signature"
+        },
+        {
+          "id": "d",
+          "text": "It requires `T` to have a nullable upper bound, such as the default `Any?`"
+        },
+        {
+          "id": "e",
+          "text": "It is spelled `T!!`, with the same operator as a not-null assertion"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "d"
+      ],
+      "explanation": "`T & Any` declares a generic type `T` as definitely non-nullable, and it only applies when `T` has a nullable upper bound. Its most common use is Java interop: overriding a Java method whose parameters or return are `@NotNull T`. In pure Kotlin you rarely write it, because type inference takes care of it, and `T!!` is not type syntax at all: `!!` is an expression operator.",
+      "materials": [
+        "kotlin-docs"
+      ],
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/generics.html",
+          "title": "Generics: in, out, where",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-03",
+          "claim": "A generic type `T` is declared definitely non-nullable with `T & Any`, which must have a nullable upper bound; its most common use is overriding a Java method with `@NotNull` arguments, and when working only with Kotlin you are unlikely to need it because type inference takes care of it."
         }
       ]
     }

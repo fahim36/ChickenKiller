@@ -141,7 +141,12 @@
           "accessed": "2026-10-02",
           "claim": "The outbox event router uses the aggregateid column as the message key, which is important for keeping correct order in Kafka partitions."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c003-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c003-q04",
@@ -257,6 +262,67 @@
           "publisher": "Microsoft",
           "accessed": "2026-10-02",
           "claim": "A typical outbox sets a Processed property after publishing, but here Azure Cosmos DB tracks processed events through the change feed and the Leases container; old event documents are deleted automatically by TTL."
+        }
+      ]
+    },
+    {
+      "id": "c003-q07",
+      "lesson": null,
+      "concept": "c003-outbox-relay-polling-vs-log-tailing",
+      "type": "multiple_select",
+      "prompt": "Your services write events to an outbox in the same transaction as their data. A relay can either poll the outbox table or read the database's change log with CDC (such as Debezium). Which statements are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Polling adds query load, and a delay set by the polling interval"
+        },
+        {
+          "id": "b",
+          "text": "Log-based CDC sees committed changes with very low delay and no polling load"
+        },
+        {
+          "id": "c",
+          "text": "Either relay can resend events after a crash, so consumers must be idempotent"
+        },
+        {
+          "id": "d",
+          "text": "Log-based CDC delivers every event exactly once, even after a connector crash"
+        },
+        {
+          "id": "e",
+          "text": "Log-based CDC needs a 'Last Updated' column on the outbox table to find new rows"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "c"
+      ],
+      "explanation": "A polling relay periodically queries the outbox for unhandled rows, so it costs queries and adds up to one polling interval of delay. Log-based CDC reads the transaction log, giving very low delay without the CPU cost of polling, and it needs no change to the data model, so no 'Last Updated' column. Both are at-least-once: after a crash a relay restarts from its last recorded position and can resend events (Debezium is exactly once only when nothing fails), so give messages stable IDs and make consumers idempotent.",
+      "materials": [
+        "azure-cloud-design-patterns"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/databases/guide/transactional-outbox-cosmos",
+          "title": "Implement the Transactional Outbox pattern by using Azure Cosmos DB",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-03",
+          "claim": "A typical relay periodically queries the outbox table for new entries, publishes them and marks them processed; a change feed relay restarts from its last successfully processed position after an error, which can resend messages, so duplicate detection is needed."
+        },
+        {
+          "url": "https://debezium.io/documentation/reference/stable/features.html",
+          "title": "Debezium Features",
+          "publisher": "Debezium (Red Hat)",
+          "accessed": "2026-10-03",
+          "claim": "Log-based CDC captures all data changes with very low delay while avoiding the CPU cost of frequent polling, and requires no change to the data model such as a 'Last Updated' column."
+        },
+        {
+          "url": "https://debezium.io/documentation/faq/",
+          "title": "Frequently Asked Questions (Debezium)",
+          "publisher": "Debezium (Red Hat)",
+          "accessed": "2026-10-03",
+          "claim": "Consumers see each event exactly once only when everything runs normally; after a crash a connector restarts from its last recorded position, so events can be seen at least once."
         }
       ]
     }

@@ -119,7 +119,12 @@
           "accessed": "2026-10-02",
           "claim": "A framework-dependent app uses the latest installed patch of its requested version, or rolls forward to a higher minor version (the default Minor policy) but not to a lower or higher major; RollForward can be set in the project, runtimeconfig.json, DOTNET_ROLL_FORWARD or --roll-forward to values such as Major or LatestMajor; self-contained deployments include the runtime selected at publish time."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c001-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c001-q04",
@@ -242,6 +247,53 @@
           "publisher": "Microsoft",
           "accessed": "2026-10-02",
           "claim": "The host chooses the latest patch version installed for the requested version (the default Minor policy uses LatestPatch when the requested minor is present); major roll-forward needs Major or LatestMajor, and Disable binds only to the specified version."
+        }
+      ]
+    },
+    {
+      "id": "c001-q07",
+      "lesson": null,
+      "concept": "c001-runtime-roll-forward",
+      "type": "multiple_select",
+      "prompt": "Ops plans to install only the .NET 10 runtime on new servers and deploy your framework-dependent `net8.0` services there unchanged, with default settings. Which statements are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The services won't start: by default the host never rolls forward to a higher major"
+        },
+        {
+          "id": "b",
+          "text": "Setting `RollForward` to `Major` or `LatestMajor` lets them run on .NET 10"
+        },
+        {
+          "id": "c",
+          "text": "Publishing them self-contained removes the need for any runtime on the server"
+        },
+        {
+          "id": "d",
+          "text": "They start on .NET 10, because by default the host rolls forward to the newest runtime"
+        },
+        {
+          "id": "e",
+          "text": "Setting `RollForward` to `LatestPatch` lets them run on .NET 10"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "c"
+      ],
+      "explanation": "The default `Minor` policy rolls a framework-dependent app forward to a newer patch or minor of its own major, never to a new major, so a `net8.0` app won't start where only .NET 10 is installed. `Major` (when the requested major is missing) or `LatestMajor` opts in to running on .NET 10, after testing. A self-contained deployment carries the runtime picked at publish time, so it doesn't depend on what is installed. The host doesn't jump to the newest runtime by default, and `LatestPatch` is narrower than the default: it even disables minor roll-forward.",
+      "materials": [
+        "dotnet-porting"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/versions/selection",
+          "title": "Select which .NET version to use",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-03",
+          "claim": "The default Minor policy rolls a framework-dependent app forward to a higher minor (never a higher major); Major and LatestMajor roll forward to a higher major; LatestPatch disables minor roll-forward; self-contained deployments bundle the runtime selected at publish time and don't depend on installed runtimes."
         }
       ]
     }

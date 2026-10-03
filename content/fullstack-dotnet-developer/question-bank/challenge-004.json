@@ -127,7 +127,12 @@
           "accessed": "2026-10-02",
           "claim": "SDK commands use the latest installed SDK by default unless global.json specifies one; target framework monikers define build-time APIs and framework-dependent apps roll forward at run time; consider a tool such as Dependabot to update a pinned SDK version."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c004-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c004-q04",
@@ -243,6 +248,53 @@
           "publisher": "Microsoft",
           "accessed": "2026-10-02",
           "claim": "If global.json specifies an SDK version and no rollForward, patch is the default policy: use the specified version, and if it isn't found roll forward to the latest patch level, else fail; SDK versions are x.y.znn where z is the feature band; disable requires an exact match."
+        }
+      ]
+    },
+    {
+      "id": "c004-q07",
+      "lesson": null,
+      "concept": "c004-global-json-sdk-pinning",
+      "type": "multiple_select",
+      "prompt": "During a .NET 8 to .NET 10 upgrade, builds pass on developer laptops but fail on a CI agent with a different set of SDKs installed. Which statements about committing a `global.json` are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Without one, each machine builds with the highest SDK it has installed"
+        },
+        {
+          "id": "b",
+          "text": "With `sdk.version` set and no `rollForward`, the default policy is `patch`"
+        },
+        {
+          "id": "c",
+          "text": "`latestFeature` accepts any later feature band or patch of that major.minor"
+        },
+        {
+          "id": "d",
+          "text": "It also picks which runtime the deployed app runs on in production servers"
+        },
+        {
+          "id": "e",
+          "text": "`sdk.version` can be a wildcard such as `10.0.x` to match any patch"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "c"
+      ],
+      "explanation": "With no `global.json` the CLI uses the highest installed SDK, so laptops and CI agents can build with different SDKs. Pinning a full version such as `10.0.100` makes them agree; with no `rollForward` the default is `patch`, and `latestFeature` widens the range to any later feature band or patch of 10.0. `global.json` selects the SDK only: the runtime comes from the target framework and the runtime roll-forward rules. `sdk.version` needs a full version number, with no wildcards or ranges.",
+      "materials": [
+        "dotnet-porting"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/tools/global-json",
+          "title": "global.json overview",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-03",
+          "claim": "global.json selects the SDK version independently of the runtime a project targets; without it the highest installed SDK is used; sdk.version needs a full version with no wildcards or ranges; latestFeature uses the highest installed feature band and patch of the requested major and minor; with a version and no rollForward the default policy is patch."
         }
       ]
     }

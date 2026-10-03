@@ -127,7 +127,12 @@
           "accessed": "2026-10-02",
           "claim": "The API validates the request and returns HTTP 202 with Location and Retry-After headers; the status endpoint returns 200 with the current state while work runs and 303 See Other to the result when done; clients can supply an Idempotency-Key; the pattern may not suit cases where WebSockets/SignalR, Server-Sent Events or callbacks are available, and status resources need a retention policy."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c002-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c002-q04",
@@ -250,6 +255,53 @@
           "publisher": "Microsoft",
           "accessed": "2026-10-02",
           "claim": "If the status endpoint redirects after completion, use HTTP 303 See Other, which makes the client GET the redirect URL; 302 doesn't guarantee a method change and some clients replay the original method; polling the resource for 404 is unclear because invalid IDs also return 404."
+        }
+      ]
+    },
+    {
+      "id": "c002-q07",
+      "lesson": null,
+      "concept": "c002-async-request-reply",
+      "type": "multiple_select",
+      "prompt": "`POST /reports` starts a report that takes 2 to 5 minutes, and clients time out waiting. You adopt the Asynchronous Request-Reply pattern: which belong in the HTTP contract? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Return `202 Accepted` at once, with a `Location` header for a status endpoint"
+        },
+        {
+          "id": "b",
+          "text": "When the report is done, the status endpoint answers `303 See Other` to the result"
+        },
+        {
+          "id": "c",
+          "text": "Accept an `Idempotency-Key`, so a retried POST returns the existing operation"
+        },
+        {
+          "id": "d",
+          "text": "Hold the POST open until the report is ready, then return `201 Created`"
+        },
+        {
+          "id": "e",
+          "text": "When done, the status endpoint answers `302 Found`, which forces clients to GET"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "c"
+      ],
+      "explanation": "The pattern acknowledges the work at once with `202 Accepted` and a `Location` (plus `Retry-After`) for a status endpoint the client polls. When the work completes, `303 See Other` sends the client to the result with a GET, whatever the original method was. An `Idempotency-Key` matters because a client can't tell a lost `202` from a request that never arrived, so a retry must not start a second report. Holding the POST open is the timeout problem the pattern removes, and `302 Found` doesn't guarantee a method change: some clients replay the POST.",
+      "materials": [
+        "azure-cloud-design-patterns"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/asynchronous-request-reply",
+          "title": "Asynchronous Request-Reply pattern",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-03",
+          "claim": "The API returns HTTP 202 with Location and Retry-After headers; when the work completes the status endpoint returns 303 See Other, which makes the client GET the result, while 302 Found doesn't guarantee a method change; clients can supply an Idempotency-Key so a duplicate POST returns the existing status resource."
         }
       ]
     }
