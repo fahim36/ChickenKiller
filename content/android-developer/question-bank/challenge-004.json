@@ -120,7 +120,12 @@
           "accessed": "2026-10-02",
           "claim": "Read-only collection interfaces provide access operations only and mutable ones extend them with write operations; a mutable collection assigned to a `val` can still be changed because `val` protects only the reference; read-only collection types are covariant and the default `MutableList` implementation is `ArrayList`."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c004-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c004-q04",
@@ -188,7 +193,12 @@
           "accessed": "2026-10-02",
           "claim": "Don't pass ViewModel instances down to other composables, because it couples them to the ViewModel type and makes them less reusable and harder to test and preview; pass down the necessary state and propagate events up; ViewModels are unique to their UI, best used for navigation destinations and business logic, and plain class state holders suit reusable UI."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c004-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c004-q06",
@@ -226,6 +236,100 @@
           "publisher": "JetBrains",
           "accessed": "2026-10-02",
           "claim": "A mutable collection assigned to a `val` still allows write operations, because `val` protects only the reference; read-only collection interfaces only restrict which operations you can call through them."
+        }
+      ]
+    },
+    {
+      "id": "c004-q07",
+      "lesson": null,
+      "concept": "c004-read-only-vs-immutable-collections",
+      "type": "multiple_select",
+      "prompt": "A class exposes `val items: List<Item>`. Which statements about Kotlin's read-only collections are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`List` is read-only: it offers access operations, with no add or remove"
+        },
+        {
+          "id": "b",
+          "text": "`val items: List<Item>` guarantees that the contents never change"
+        },
+        {
+          "id": "c",
+          "text": "`val` only stops the reference being reassigned, not the contents changing"
+        },
+        {
+          "id": "d",
+          "text": "`items` may point to a `MutableList` that other code still changes"
+        },
+        {
+          "id": "e",
+          "text": "`List` is invariant, so a `List<Rectangle>` can't be used as a `List<Shape>`"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "d"
+      ],
+      "explanation": "`List` is a read-only interface with access operations only; `MutableList` extends it with write operations. `val` protects the reference, not the contents, and a `List` reference can point to a mutable collection (such as the `ArrayList` from `mutableListOf`) that its owner keeps changing, so read-only does not mean immutable and nothing guarantees the contents stay the same. Read-only collection types are covariant, so a `List<Rectangle>` can be used where a `List<Shape>` is required.",
+      "materials": [
+        "kotlin-docs"
+      ],
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/collections-overview.html",
+          "title": "Collections overview",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-03",
+          "claim": "Read-only collection interfaces provide access operations only and mutable ones extend them with write operations; a mutable collection assigned to a `val` can still be changed because `val` protects only the reference; read-only collection types are covariant."
+        }
+      ]
+    },
+    {
+      "id": "c004-q08",
+      "lesson": null,
+      "concept": "c004-viewmodels-not-passed-down",
+      "type": "multiple_select",
+      "prompt": "In a code review, a reusable `CommentRow` composable takes the screen's `ThreadViewModel` as a parameter. Which points match Android's state-holder guide? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It couples `CommentRow` to one ViewModel type, so it's harder to reuse"
+        },
+        {
+          "id": "b",
+          "text": "Give `CommentRow` its own ViewModel, so each row is reusable on any screen"
+        },
+        {
+          "id": "c",
+          "text": "It makes `CommentRow` harder to test and to show in a Compose preview"
+        },
+        {
+          "id": "d",
+          "text": "Passing it down is fine, since the ViewModel stays the single source of truth"
+        },
+        {
+          "id": "e",
+          "text": "Pass `CommentRow` just the state it needs, and send its events up as lambdas"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "Passing a ViewModel down couples the composable to that ViewModel type, making it less reusable and harder to test and preview. It also blurs the single source of truth, because many composables can then call the ViewModel and change its state. Instead pass down only the state the row needs and send its events up until they reach the screen-level composable that owns the ViewModel. A per-row ViewModel is wrong too: ViewModels are best for navigation destinations and business logic, and reusable UI uses plain state holders.",
+      "materials": [
+        "android-app-architecture"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/architecture/ui-layer/stateholders",
+          "title": "State holders and UI state",
+          "publisher": "Google",
+          "accessed": "2026-10-03",
+          "claim": "Don't pass ViewModel instances down to other composables: it couples them to the ViewModel type, makes them less reusable and harder to test and preview, and leaves no clear single source of truth; pass down just the necessary state and propagate events up, and use plain state holders, not ViewModels, for reusable pieces of UI."
         }
       ]
     }

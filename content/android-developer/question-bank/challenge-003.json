@@ -127,7 +127,12 @@
           "accessed": "2026-10-02",
           "claim": "`@Binds` methods must be abstract with a single parameter assignable to the return type, may be scoped, and are a drop-in replacement for `@Provides` methods that simply return an injected parameter; prefer `@Binds` because the generated implementation is likely more efficient."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c003-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c003-q04",
@@ -195,7 +200,12 @@
           "accessed": "2026-10-02",
           "claim": "`internal` declarations become `public` in Java; the Kotlin compiler mangles the names of `internal` members to prevent accidental overrides across modules, and the names of public members of `internal` classes aren't mangled and remain callable from Java."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c003-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c003-q06",
@@ -233,6 +243,107 @@
           "publisher": "Dagger (Google)",
           "accessed": "2026-10-02",
           "claim": "`@Binds` methods are a drop-in replacement for `@Provides` methods that simply return an injected parameter; prefer `@Binds` because the generated implementation is likely more efficient, and `@Binds` methods may be scoped."
+        }
+      ]
+    },
+    {
+      "id": "c003-q07",
+      "lesson": null,
+      "concept": "c003-binds-vs-provides",
+      "type": "multiple_select",
+      "prompt": "Your Hilt graph must supply `AuthRepository` (an interface implemented by `AuthRepositoryImpl`, which has an `@Inject` constructor) and a `Retrofit` instance. Which statements are right? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Bind `AuthRepository` with an abstract `@Binds` function in an abstract module"
+        },
+        {
+          "id": "b",
+          "text": "A `@Binds` function's body calls `AuthRepositoryImpl()` to build the instance"
+        },
+        {
+          "id": "c",
+          "text": "Create `Retrofit` in a `@Provides` function that uses its builder"
+        },
+        {
+          "id": "d",
+          "text": "Hilt runs an unscoped `@Provides` body only once and then reuses its result"
+        },
+        {
+          "id": "e",
+          "text": "Prefer `@Binds` to a `@Provides` that just returns its parameter"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "`@Binds` goes on an abstract function in an abstract module: its return type is the interface and its single parameter the injectable implementation, so it has no body to call a constructor in. `@Provides` suits types you don't own or that need a builder, like Retrofit. Dagger recommends `@Binds` over a `@Provides` that only returns an injected parameter, because its generated code is likely more efficient. Hilt runs an unscoped `@Provides` body every time it needs an instance, which is why Retrofit is usually scoped, for example with `@Singleton`.",
+      "materials": [
+        "android-hilt"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/training/dependency-injection/hilt-android",
+          "title": "Dependency injection with Hilt",
+          "publisher": "Google",
+          "accessed": "2026-10-03",
+          "claim": "`@Binds` is an abstract function in an abstract module whose return type is the interface and whose parameter is the implementation; `@Provides` supplies types you don't own or that need a builder (Retrofit, OkHttpClient, Room), and Hilt executes its body every time it needs an instance."
+        },
+        {
+          "url": "https://dagger.dev/api/latest/dagger/Binds.html",
+          "title": "Binds (Dagger API)",
+          "publisher": "Dagger (Google)",
+          "accessed": "2026-10-03",
+          "claim": "`@Binds` methods must be abstract with a single parameter assignable to the return type, and are a drop-in replacement for `@Provides` methods that simply return an injected parameter; prefer `@Binds` because the generated implementation is likely more efficient."
+        }
+      ]
+    },
+    {
+      "id": "c003-q08",
+      "lesson": null,
+      "concept": "c003-internal-visibility-from-java",
+      "type": "multiple_select",
+      "prompt": "A Kotlin SDK marks its implementation classes and helper functions `internal`, and a Java app uses the SDK. Which statements are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`internal` declarations compile to `public` in the Java bytecode"
+        },
+        {
+          "id": "b",
+          "text": "`internal` declarations compile to package-private, hiding them from Java"
+        },
+        {
+          "id": "c",
+          "text": "The compiler mangles the names of `internal` members in the bytecode"
+        },
+        {
+          "id": "d",
+          "text": "Java callers can't reach `internal` code, since the JVM enforces modules"
+        },
+        {
+          "id": "e",
+          "text": "Public members of an `internal` class keep their names, callable from Java"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "`internal` has no Java equivalent, so `internal` declarations become `public` in Java, not package-private. The compiler mangles the names of `internal` members, which prevents accidental overrides across modules (such as a Java subclass) and makes accidental calls unlikely, but public members of an `internal` class aren't mangled and stay callable from Java. So Java code can still reach `internal` code: only the Kotlin compiler enforces the module boundary.",
+      "materials": [
+        "kotlin-docs"
+      ],
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/java-to-kotlin-interop.html",
+          "title": "Calling Kotlin from Java",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-03",
+          "claim": "`internal` declarations become `public` in Java; the Kotlin compiler mangles the names of `internal` members in bytecode to prevent accidental overrides across modules, and the names of public members of `internal` classes aren't mangled and remain callable from Java."
         }
       ]
     }

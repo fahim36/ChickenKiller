@@ -127,7 +127,12 @@
           "accessed": "2026-10-02",
           "claim": "UI-oriented operations are cancelled when the user leaves the screen and follow the caller's lifecycle, app-oriented operations last while the app is open and follow the Application or data layer's lifecycle, and business-oriented operations must survive process death and should use WorkManager; for app-oriented work a repository takes an external `CoroutineScope` as a constructor parameter instead of creating its own."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c002-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c002-q04",
@@ -163,7 +168,12 @@
           "accessed": "2026-10-02",
           "claim": "Guard conditions in `when` with a subject are Stable in Kotlin 2.2.0, after being in preview in 2.1.0."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c002-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c002-q05",
@@ -240,6 +250,107 @@
           "publisher": "Google",
           "accessed": "2026-10-02",
           "claim": "Fetching the latest news is an app-oriented operation; `NewsRepository` should receive a `CoroutineScope` as a constructor parameter instead of creating its own, while business-oriented operations that must survive process death should use WorkManager."
+        }
+      ]
+    },
+    {
+      "id": "c002-q07",
+      "lesson": null,
+      "concept": "c002-data-operation-lifetimes",
+      "type": "multiple_select",
+      "prompt": "A social app shows a profile from the database, refreshes and caches the feed even if the user leaves mid-refresh, and must finish uploading a photo the user posted. Which statements match Android's data layer guide? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Showing the profile follows the caller's lifecycle, such as `viewModelScope`"
+        },
+        {
+          "id": "b",
+          "text": "The repository should create its own scope for the feed in its constructor"
+        },
+        {
+          "id": "c",
+          "text": "The feed refresh runs in an external scope passed into the repository"
+        },
+        {
+          "id": "d",
+          "text": "The feed refresh must survive process death, so it also needs WorkManager"
+        },
+        {
+          "id": "e",
+          "text": "Finishing the photo upload is business-oriented work, run with WorkManager"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "Showing the profile is UI-oriented: it is cancelled when the user leaves and follows the caller's lifecycle, such as the ViewModel's. Refreshing and caching the feed is app-oriented: it should finish while the app is open, so the repository receives an external `CoroutineScope` in its constructor (rather than creating its own) and runs the work there with `async`, so cancelling the caller cancels only the `await`. App-oriented work may stop if the process dies, so the feed doesn't need WorkManager; the photo upload is business-oriented, must survive process death, and goes to WorkManager.",
+      "materials": [
+        "android-app-architecture"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/topic/architecture/data-layer",
+          "title": "Data layer",
+          "publisher": "Google",
+          "accessed": "2026-10-03",
+          "claim": "UI-oriented operations follow the caller's lifecycle and are cancelled when the user leaves the screen, app-oriented operations last while the app is open but not past process death, and business-oriented operations (such as finishing a photo upload) must survive process death and should use WorkManager; for app-oriented work a repository receives an external `CoroutineScope` as a constructor parameter instead of creating its own."
+        }
+      ]
+    },
+    {
+      "id": "c002-q08",
+      "lesson": null,
+      "concept": "c002-when-guard-conditions",
+      "type": "multiple_select",
+      "prompt": "Which statements about guard conditions in Kotlin `when` (Stable since Kotlin 2.2.0) are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A guarded branch runs only when its primary condition and guard are both true"
+        },
+        {
+          "id": "b",
+          "text": "Guards can be used only in a `when` that has a subject"
+        },
+        {
+          "id": "c",
+          "text": "A guard can follow a branch of comma-separated conditions like `0, 1`"
+        },
+        {
+          "id": "d",
+          "text": "A `when` expression with guarded branches must still be exhaustive"
+        },
+        {
+          "id": "e",
+          "text": "A guard is written with `&&` after the condition, as in `is Cat && hungry`"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "d"
+      ],
+      "explanation": "A guard (`is Animal.Cat if !animal.mouseHunter ->`) is written after the primary condition with `if`, not `&&`, and the branch runs only when both are true. Guards work only in a `when` with a subject, and not in a branch with several comma-separated conditions. A `when` used as an expression must still cover every case, so guarded branches usually need an `else` or plain branches for the rest. Guards were a preview in Kotlin 2.1.0 and became Stable in 2.2.0.",
+      "materials": [
+        "kotlin-docs"
+      ],
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/control-flow.html",
+          "title": "Conditions and loops",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-03",
+          "claim": "A guard condition is placed after the primary condition, separated by `if`, and the branch runs only if both are true; guards can be used only in `when` with a subject and not with multiple comma-separated conditions, and `when` expressions with guards must still be exhaustive."
+        },
+        {
+          "url": "https://kotlinlang.org/docs/whatsnew22.html",
+          "title": "What's new in Kotlin 2.2.0",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-03",
+          "claim": "Guard conditions in `when` with a subject, previewed in Kotlin 2.1.0, are Stable in Kotlin 2.2.0."
         }
       ]
     }
