@@ -125,7 +125,12 @@
           "accessed": "2026-09-26",
           "claim": "ReAct generates reasoning traces and task-specific actions in an interleaved manner: reasoning helps induce, track and update action plans and handle exceptions, while actions gather information from external sources; on HotpotQA and Fever, using a simple Wikipedia API overcomes the hallucination and error propagation of chain-of-thought, and trajectories are more interpretable."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c001-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c001-q04",
@@ -198,7 +203,12 @@
           "accessed": "2026-09-26",
           "claim": "Checkpointers persist graph state snapshots within a single thread; stores persist application-defined key-value data across threads."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c001-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c001-q06",
@@ -236,6 +246,105 @@
           "publisher": "arXiv (Yao et al.)",
           "accessed": "2026-09-26",
           "claim": "On HotpotQA and Fever, ReAct overcomes the hallucination and error propagation prevalent in chain-of-thought reasoning by interacting with a simple Wikipedia API; it interleaves reasoning traces with actions and is a prompting method, using only one or two in-context examples on ALFWorld and WebShop."
+        }
+      ]
+    },
+    {
+      "id": "c001-q07",
+      "lesson": null,
+      "concept": "c001-react-reason-act",
+      "type": "multiple_select",
+      "prompt": "An interviewer asks why ReAct, which interleaves reasoning with tool actions, beats reasoning only (chain-of-thought) or acting only. Which statements match the ReAct paper? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Reasoning traces help the model make, track and update its plan, and handle exceptions"
+        },
+        {
+          "id": "b",
+          "text": "Actions fetch outside information, which cuts chain-of-thought's hallucinations"
+        },
+        {
+          "id": "c",
+          "text": "ReAct hides its reasoning at answer time, so its steps can't be inspected afterwards"
+        },
+        {
+          "id": "d",
+          "text": "The thought-action-observation trajectory is easier for people to inspect and trust"
+        },
+        {
+          "id": "e",
+          "text": "Acting-only agents already track plans well, so the whole gain comes from the actions"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "d"
+      ],
+      "explanation": "ReAct has the model produce reasoning traces and actions in turn. The reasoning helps it induce, track and update a plan and handle exceptions, which acting-only agents lack. The actions, such as Wikipedia API searches, bring in outside information, which overcomes the hallucination and error propagation that chain-of-thought alone shows on HotpotQA and Fever. And the interleaved trajectory is visible, making it more interpretable and trustworthy than methods without reasoning.",
+      "materials": [
+        "react-paper"
+      ],
+      "sources": [
+        {
+          "url": "https://arxiv.org/abs/2210.03629",
+          "title": "ReAct: Synergizing Reasoning and Acting in Language Models",
+          "publisher": "arXiv (Yao et al.)",
+          "accessed": "2026-10-03",
+          "claim": "ReAct generates reasoning traces and task-specific actions in an interleaved manner: reasoning traces help the model induce, track and update action plans and handle exceptions, while actions let it gather information from external sources; on HotpotQA and Fever, a simple Wikipedia API overcomes the hallucination and error propagation of chain-of-thought, and trajectories are more interpretable and trustworthy than baselines without reasoning traces."
+        }
+      ]
+    },
+    {
+      "id": "c001-q08",
+      "lesson": null,
+      "concept": "c001-langgraph-thread-id",
+      "type": "multiple_select",
+      "prompt": "Your LangGraph agent is compiled with a checkpointer. Which statements about the `thread_id` in `config[\"configurable\"]` are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A new `thread_id` on every request still loads that user's earlier turns"
+        },
+        {
+          "id": "b",
+          "text": "A checkpoint is saved only once, when the whole graph run has finished"
+        },
+        {
+          "id": "c",
+          "text": "Without a `thread_id`, the checkpointer can't save state or resume"
+        },
+        {
+          "id": "d",
+          "text": "The checkpointer stores and looks up checkpoints by their `thread_id`"
+        },
+        {
+          "id": "e",
+          "text": "Data meant to be shared across threads belongs in a store instead"
+        }
+      ],
+      "answers": [
+        "c",
+        "d",
+        "e"
+      ],
+      "explanation": "When you invoke a graph that has a checkpointer you must give a `thread_id` in the `configurable` part of the config; without it the checkpointer can't save state or resume after an interrupt. The `thread_id` is the key the checkpointer stores checkpoints under, and a checkpoint is written at every super-step, not only at the end. A new `thread_id` starts a separate thread, so the earlier conversation isn't there; data that should cross threads belongs in a store.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://docs.langchain.com/oss/python/langgraph/checkpointers",
+          "title": "Checkpointers",
+          "publisher": "LangChain",
+          "accessed": "2026-10-03",
+          "claim": "When invoking a graph with a checkpointer you must specify a `thread_id` in the `configurable` portion of the config, or the checkpointer cannot save state or resume after an interrupt; the checkpointer uses `thread_id` as the primary key for storing and retrieving checkpoints, and a checkpoint is created at each super-step boundary."
+        },
+        {
+          "url": "https://docs.langchain.com/oss/python/langgraph/persistence",
+          "title": "Persistence",
+          "publisher": "LangChain",
+          "accessed": "2026-10-03",
+          "claim": "Checkpointers persist graph state snapshots within a single thread; stores persist application-defined key-value data across threads."
         }
       ]
     }

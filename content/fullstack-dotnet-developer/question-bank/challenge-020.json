@@ -118,7 +118,12 @@
           "accessed": "2026-10-02",
           "claim": "Always review scaffolded migrations: renaming a property scaffolds DropColumn plus AddColumn, which loses the data, so replace it with RenameColumn; to replace columns, add the new one as nullable, populate it with Sql, make it required, then drop the old ones; implement Down only if reversible, and don't remove migrations already applied to shared or production databases."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c020-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c020-q04",
@@ -147,7 +152,12 @@
           "accessed": "2026-10-02",
           "claim": "Values that can be calculated from props or state should be calculated during rendering, not kept in state and updated in an Effect, which renders once with a stale value and then re-renders; use useMemo only for expensive calculations; event-specific logic belongs in event handlers, not Effects."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c020-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c020-q05",
@@ -220,6 +230,100 @@
           "publisher": "Microsoft Learn",
           "accessed": "2026-10-02",
           "claim": "Always review scaffolded migrations: renaming a property scaffolds DropColumn plus AddColumn, which loses the data, so replace it with RenameColumn; to replace columns, add the new one as nullable, populate it with Sql, make it required, then drop the old ones; implement Down only if reversible, and don't remove migrations already applied to shared or production databases."
+        }
+      ]
+    },
+    {
+      "id": "c020-q07",
+      "lesson": null,
+      "concept": "c020-migration-scaffold-review",
+      "type": "multiple_select",
+      "prompt": "A teammate replaces the `FirstName` and `LastName` properties with one `FullName` property, runs `dotnet ef migrations add`, and wants to ship the scaffolded migration unchanged. Which statements are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "As scaffolded, it drops both columns and adds an empty one, losing every name"
+        },
+        {
+          "id": "b",
+          "text": "Add `FullName` as nullable, fill it with `migrationBuilder.Sql`, then drop the old columns"
+        },
+        {
+          "id": "c",
+          "text": "If names can't be split back reliably, `Down` should fail and rely on a backup"
+        },
+        {
+          "id": "d",
+          "text": "EF detects that it is a replacement and copies the existing data across automatically"
+        },
+        {
+          "id": "e",
+          "text": "Once applied to a shared database, fix a mistake by removing the migration"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "c"
+      ],
+      "explanation": "EF can't tell a replacement from a drop plus an add, so the scaffolded migration drops `FirstName` and `LastName` and adds an empty `FullName`; it warns about possible data loss, and the migration must be reviewed. Rewrite it to add `FullName` as nullable, fill it with `migrationBuilder.Sql(\"UPDATE ...\")` (branching on `ActiveProvider`), make it required, then drop the old columns. Implement `Down` only if the old values can be rebuilt; otherwise fail explicitly and restore from a backup. A migration applied to a shared database is never removed: add a corrective one.",
+      "materials": [
+        "efcore-concurrency"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/ef/core/managing-schemas/migrations/managing",
+          "title": "Managing Migrations - EF Core",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-03",
+          "claim": "Always review scaffolded migrations, since EF can't tell a rename from a drop and add and warns about data loss; when replacing columns, add the destination as nullable, populate it with Sql (branching on ActiveProvider), make it required and drop the sources; implement Down only when the values can be rebuilt, otherwise fail and restore from backup; don't remove a migration applied to a shared database."
+        }
+      ]
+    },
+    {
+      "id": "c020-q08",
+      "lesson": null,
+      "concept": "c020-derived-state-without-effects",
+      "type": "multiple_select",
+      "prompt": "A React product page has one Effect that shows an \"Added to cart!\" toast when `product.isInCart` is true, and another that resets `selection` to `null` whenever the `items` prop changes. Which statements are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The toast belongs in the buy handler, not in an Effect watching `isInCart`"
+        },
+        {
+          "id": "b",
+          "text": "The `isInCart` Effect shows the toast again after a refresh if it's in the cart"
+        },
+        {
+          "id": "c",
+          "text": "Keep `selectedId` in state and compute `selection` from `items` during render"
+        },
+        {
+          "id": "d",
+          "text": "Setting state in an Effect costs nothing: React applies it in the same render"
+        },
+        {
+          "id": "e",
+          "text": "Effects are the right place for logic caused by a particular user interaction"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "c"
+      ],
+      "explanation": "Logic caused by a particular interaction belongs in the event handler: a shared `buyProduct` function can add to the cart and show the toast. The `isInCart` Effect fires whenever the page shows an item already in the cart, so the toast reappears after a refresh. Rather than resetting `selection` in an Effect, store `selectedId` and compute the selected item from `items` during render. Updating state in an Effect isn't free: React renders again with the new state, after first rendering with stale values.",
+      "materials": [
+        "react-learn"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/learn/you-might-not-need-an-effect",
+          "title": "You Might Not Need an Effect",
+          "publisher": "Meta (React)",
+          "accessed": "2026-10-03",
+          "claim": "Event-specific logic such as an added-to-cart notification belongs in the event handler, since an Effect on isInCart shows it again on refresh; instead of resetting selection in an Effect, store the selected ID and compute the item during render; updating state in an Effect causes an extra render pass."
         }
       ]
     }

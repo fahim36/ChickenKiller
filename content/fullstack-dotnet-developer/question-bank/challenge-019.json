@@ -127,7 +127,12 @@
           "accessed": "2026-10-02",
           "claim": "useFormStatus returns pending, data, method and action for a parent <form> only; called in the same component that renders the <form>, `pending` is never true, so call it from a component rendered inside the form."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c019-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c019-q04",
@@ -156,7 +161,12 @@
           "accessed": "2026-10-02",
           "claim": "Up to EF 7 parameterized collections were inlined as constants (plan cache bloat); EF 8 sent one JSON array parameter unpacked with OPENJSON (planner loses the cardinality); EF 10 by default sends one scalar parameter per value, padded (8 values become 10 parameters); UseParameterizedCollectionMode(ParameterTranslationMode.Constant) or EF.Constant(ids) choose another mode."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c019-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c019-q05",
@@ -240,6 +250,107 @@
           "publisher": "Meta (React)",
           "accessed": "2026-10-02",
           "claim": "useFormStatus returns pending, data, method and action for a parent <form> only; called in the same component that renders the <form>, `pending` is never true, so call it from a component rendered inside the form."
+        }
+      ]
+    },
+    {
+      "id": "c019-q07",
+      "lesson": null,
+      "concept": "c019-react-form-actions",
+      "type": "multiple_select",
+      "prompt": "You are moving a React 19 \"Add to cart\" form from `onSubmit` with `useState` flags to Actions, with `useActionState` and `useFormStatus`. Which statements are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`useActionState` returns `[state, dispatchAction, isPending]`"
+        },
+        {
+          "id": "b",
+          "text": "The action receives the previous state and the form's `FormData`"
+        },
+        {
+          "id": "c",
+          "text": "`useFormStatus` must be called in a component rendered inside the `<form>`"
+        },
+        {
+          "id": "d",
+          "text": "Calling `useFormStatus` in the component that renders the `<form>` tracks that form"
+        },
+        {
+          "id": "e",
+          "text": "Several quick submits run their actions in parallel, each with the initial state"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "c"
+      ],
+      "explanation": "`useActionState(action, initialState)` returns the state, a dispatch function you pass to `<form action>`, and `isPending`; with a form, the action receives the previous state and the `FormData` and returns the next state. Several dispatches are queued and run one after another, each receiving the previous result. `useFormStatus` reports only on a parent `<form>`, so call it in a child such as a `SubmitButton`: called in the component that renders the form itself, `pending` is always false.",
+      "materials": [
+        "react-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/reference/react/useActionState",
+          "title": "useActionState",
+          "publisher": "Meta (React)",
+          "accessed": "2026-10-03",
+          "claim": "useActionState returns [state, dispatchAction, isPending]; the action receives the previous state and, with a form, the FormData; React queues multiple dispatchAction calls and runs them sequentially, each receiving the previous result."
+        },
+        {
+          "url": "https://react.dev/reference/react-dom/hooks/useFormStatus",
+          "title": "useFormStatus",
+          "publisher": "Meta (React)",
+          "accessed": "2026-10-03",
+          "claim": "useFormStatus returns status only for a parent form and must be called from a component rendered inside it; it won't track a form rendered in the same component, where pending is always false."
+        }
+      ]
+    },
+    {
+      "id": "c019-q08",
+      "lesson": null,
+      "concept": "c019-ef-parameterized-collections",
+      "type": "multiple_select",
+      "prompt": "After upgrading from EF Core 8 to EF Core 10, a query using `ids.Contains(x.Id)` sends different SQL. Which statements about translating parameterized collections are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Inlining the values as constants makes new SQL per list, bloating the plan cache"
+        },
+        {
+          "id": "b",
+          "text": "EF 8's single JSON array parameter hides the list's cardinality from the planner"
+        },
+        {
+          "id": "c",
+          "text": "EF 10 sends one parameter per value and pads the count, such as 8 values to 10"
+        },
+        {
+          "id": "d",
+          "text": "EF 10's default gives every list one SQL text and one cached plan, whatever its size"
+        },
+        {
+          "id": "e",
+          "text": "The mode is fixed per provider, with no way to choose it for a single query"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "c"
+      ],
+      "explanation": "Inlined constants (EF 7 and earlier) produce different SQL for each list, causing plan cache misses and bloat. EF 8's single JSON array parameter keeps one SQL text and plan but deprives the planner of the list's length, so the plan may suit only small or only large lists. EF 10 sends one scalar parameter per value, padding the count (8 values become 10 parameters) so there are few SQL shapes while the planner still sees the cardinality. You choose the mode globally with `UseParameterizedCollectionMode` or per query with `EF.Constant` and similar.",
+      "materials": [
+        "efcore-10-whats-new"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/ef/core/what-is-new/ef-core-10.0/whatsnew",
+          "title": "What's New in EF Core 10",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-03",
+          "claim": "Inlined constants caused plan cache misses and bloat; EF 8's JSON array parameter keeps one plan but hides cardinality from the planner; EF 10 by default translates each value into its own parameter and pads the list (8 values become 10 parameters); the mode can be set with UseParameterizedCollectionMode or per query with EF.Constant."
         }
       ]
     }

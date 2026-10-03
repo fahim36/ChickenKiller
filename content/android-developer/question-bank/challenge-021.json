@@ -134,7 +134,12 @@
           "accessed": "2026-10-02",
           "claim": "Broadcast timeouts are 10 seconds (foreground) and 60 seconds (background) on Android 13 and lower and 10-20 or 60-120 seconds on Android 14+; with `goAsync()` a timeout means `PendingResult.finish()` was not called in time, and forgetting `finish()` on a code path is a common cause."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c021-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c021-q04",
@@ -250,6 +255,60 @@
           "publisher": "Android Developers",
           "accessed": "2026-10-02",
           "claim": "For async receivers that call `goAsync()`, a broadcast ANR means `PendingResult.finish()` wasn't called in time; 'Forgot to call PendingResult.finish' is a listed cause, and `finish()` is subject to the same timeout as synchronous receivers."
+        }
+      ]
+    },
+    {
+      "id": "c021-q07",
+      "lesson": null,
+      "concept": "c021-broadcast-receiver-goasync-timeouts",
+      "type": "multiple_select",
+      "prompt": "A manifest-declared `BroadcastReceiver` uploads a log file in `onReceive()` and causes broadcast ANRs; moving the upload to a new thread makes some uploads never finish. Which statements are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`onReceive()` runs on the main thread, so a slow upload there can cause an ANR"
+        },
+        {
+          "id": "b",
+          "text": "`goAsync()` lifts the broadcast timeout, so the upload may take as long as needed"
+        },
+        {
+          "id": "c",
+          "text": "Once `onReceive()` returns, the system may kill the process, ending the thread"
+        },
+        {
+          "id": "d",
+          "text": "A plain thread started in `onReceive()` keeps the process alive until it ends"
+        },
+        {
+          "id": "e",
+          "text": "With `goAsync()`, `PendingResult.finish()` must be called on every code path"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "`onReceive()` runs on the main thread and must finish within the broadcast timeout, so a slow upload there causes an ANR. Once it returns, the system may kill a process that only hosts a manifest-declared receiver, and a bare thread doesn't keep it alive. `goAsync()` moves the work off the main thread, but the timeout still runs until `PendingResult.finish()` is called, so call it on every path and keep the work short (about 10 seconds). Schedule long work such as an upload as a job instead.",
+      "materials": [
+        "android-anr"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/background-work/background-tasks/broadcasts",
+          "title": "Broadcasts overview",
+          "publisher": "Google",
+          "accessed": "2026-10-03",
+          "claim": "`onReceive()` runs on the main thread; the system may kill the process right after `onReceive()` returns for a manifest-declared receiver, so don't start long-running threads there; `goAsync()` suits work under about 10 seconds and needs `PendingResult.finish()`, and longer work should be scheduled with JobScheduler."
+        },
+        {
+          "url": "https://developer.android.com/topic/performance/anrs/diagnose-and-fix-anrs",
+          "title": "Diagnose and fix ANRs",
+          "publisher": "Google",
+          "accessed": "2026-10-03",
+          "claim": "Broadcast timeouts are 10 seconds (foreground) and 60 seconds (background) on Android 13 and lower, and 10-20 or 60-120 seconds on Android 14+; for a `goAsync()` receiver the timeout runs until `PendingResult.finish()` is called, so always call `finish()` on all code paths."
         }
       ]
     }

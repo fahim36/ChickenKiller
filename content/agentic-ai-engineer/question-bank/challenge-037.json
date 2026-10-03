@@ -127,7 +127,12 @@
           "accessed": "2026-10-02",
           "claim": "The task IAM role's permissions are vended to the containers so application code can call AWS services such as S3; they aren't used by the ECS container and Fargate agents. On Fargate, EC2 instance profiles aren't available to containers."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c037-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c037-q04",
@@ -250,6 +255,60 @@
           "publisher": "Amazon Web Services",
           "accessed": "2026-10-02",
           "claim": "The task IAM role's permissions are vended to the containers so application code can call AWS services such as S3; they aren't used by the ECS container and Fargate agents. On Fargate, EC2 instance profiles aren't available to containers."
+        }
+      ]
+    },
+    {
+      "id": "c037-q07",
+      "lesson": null,
+      "concept": "c037-ecs-task-vs-execution-role",
+      "type": "multiple_select",
+      "prompt": "Your `agent-api` task on ECS Fargate pulls its image from private ECR, logs with `awslogs`, injects a Secrets Manager key through the task definition, and reads S3 at runtime. Which permissions belong on the task execution role? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Pulling the image from the private ECR repository"
+        },
+        {
+          "id": "b",
+          "text": "`s3:GetObject` for the documents the app reads"
+        },
+        {
+          "id": "c",
+          "text": "Writing container logs to CloudWatch with `awslogs`"
+        },
+        {
+          "id": "d",
+          "text": "`secretsmanager:GetSecretValue` for the injected key"
+        },
+        {
+          "id": "e",
+          "text": "Every AWS call the app's code makes, as a fallback"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "d"
+      ],
+      "explanation": "The task execution role is used by the ECS container and Fargate agents to start the task: pulling private ECR images (a), sending logs with `awslogs` (c) and fetching Secrets Manager values referenced in the task definition (d). Its credentials aren't available to your containers, so it can't be a fallback for the app (e). The application's own calls, like reading S3 (b), go on the task role, whose credentials are vended to the containers.",
+      "materials": [
+        "aws-iam-user-guide"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_execution_IAM_role.html",
+          "title": "Amazon ECS task execution IAM role",
+          "publisher": "Amazon Web Services",
+          "claim": "The task execution role lets the ECS container and Fargate agents make AWS calls such as pulling private ECR images, sending logs with `awslogs` and retrieving Secrets Manager secrets referenced in the task definition; its credentials aren't directly accessible by the containers.",
+          "accessed": "2026-10-03"
+        },
+        {
+          "url": "https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-iam-roles.html",
+          "title": "Amazon ECS task IAM role",
+          "publisher": "Amazon Web Services",
+          "claim": "The task IAM role's permissions are vended to the containers so application code can use services such as Amazon S3; they aren't used by the ECS container and Fargate agents.",
+          "accessed": "2026-10-03"
         }
       ]
     }

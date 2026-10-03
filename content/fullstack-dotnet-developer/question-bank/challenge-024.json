@@ -125,7 +125,12 @@
           "accessed": "2026-10-02",
           "claim": "Binding directly to an entity allows overposting: a hacker can post a value for a property the page doesn't show, such as Secret; TryUpdateModelAsync with listed properties, or a view model with only the page's fields copied with SetValues, prevents it."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c024-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c024-q04",
@@ -198,7 +203,12 @@
           "accessed": "2026-10-02",
           "claim": "SummarizingChatReducer is constructed with an IChatClient, a target count and an optional threshold; it summarizes older messages when the conversation exceeds a length, maintains system messages, excludes function call and result messages from summarization, and is experimental (MEAI001)."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c024-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c024-q06",
@@ -236,6 +246,107 @@
           "publisher": "Microsoft",
           "accessed": "2026-10-02",
           "claim": "Even without a Secret field on the page, a hacker can post a Secret value; a view model with only the page's properties, copied to the entity with SetValues, prevents overposting."
+        }
+      ]
+    },
+    {
+      "id": "c024-q07",
+      "lesson": null,
+      "concept": "c024-overposting-input-models",
+      "type": "multiple_select",
+      "prompt": "An MVC `Edit` action binds the posted form straight to your EF Core `User` entity and saves it. The form shows only name and email, but the entity also has an `IsAdmin` property. Which statements are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Anyone can add `IsAdmin=true` to the post, and model binding will set it"
+        },
+        {
+          "id": "b",
+          "text": "Bind an input model with only name and email, then copy it with `SetValues`"
+        },
+        {
+          "id": "c",
+          "text": "Or load the entity and call `TryUpdateModelAsync` listing only allowed properties"
+        },
+        {
+          "id": "d",
+          "text": "Leaving `IsAdmin` out of the form's markup means a request can't set its value"
+        },
+        {
+          "id": "e",
+          "text": "A `[Required]` attribute on the edited fields is enough to block the extra field"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "c"
+      ],
+      "explanation": "This is overposting: binding straight to the entity doesn't limit which properties the model binder sets, and Microsoft's tutorial shows a `Secret` property the page never displays being set with Fiddler, so the form's markup is no protection. The fixes are allowlists: a view or input model that holds only the page's fields, copied onto the entity with `SetValues`, or `TryUpdateModelAsync` with an explicit list of the properties that may change. Validation attributes don't help, because the extra field is still bound.",
+      "materials": [
+        "owasp-cheat-sheets"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/data/ef-rp/crud",
+          "title": "Part 2: Razor Pages - EF Core in ASP.NET, CRUD",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-03",
+          "claim": "Without limiting the bound fields, a hacker can use a tool such as Fiddler or JavaScript to post a value for a property the page doesn't show, such as Secret, and it is saved; TryUpdateModelAsync updates only the listed properties, and a view model with only the page's properties copied with SetValues also prevents overposting."
+        }
+      ]
+    },
+    {
+      "id": "c024-q08",
+      "lesson": null,
+      "concept": "c024-chat-history-reduction",
+      "type": "multiple_select",
+      "prompt": "You must keep a long Microsoft.Extensions.AI conversation inside the model's context window, using `MessageCountingChatReducer` or `SummarizingChatReducer`. Which statements are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The counting reducer keeps the first system message and the newest N other messages"
+        },
+        {
+          "id": "b",
+          "text": "The summarizing reducer needs an `IChatClient`, so it costs an extra model call"
+        },
+        {
+          "id": "c",
+          "text": "Both are experimental, so using them raises the MEAI001 diagnostic"
+        },
+        {
+          "id": "d",
+          "text": "The counting reducer summarises the dropped messages so their facts are kept"
+        },
+        {
+          "id": "e",
+          "text": "The summarizing reducer folds function call and result messages into its summary"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "c"
+      ],
+      "explanation": "`MessageCountingChatReducer` keeps the first system message and up to N of the most recent non-system messages; older turns are simply dropped, with no summary. `SummarizingChatReducer` is constructed with an `IChatClient`, a target count and an optional threshold, and summarises older messages once the conversation passes the length, keeping system messages, so it spends a model call and the summary can lose detail. Both exclude function call and function result messages (from the output and from the summary respectively), and both are marked `[Experimental(\"MEAI001\")]`.",
+      "materials": [
+        "microsoft-extensions-ai"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/api/microsoft.extensions.ai.messagecountingchatreducer",
+          "title": "MessageCountingChatReducer Class (Microsoft.Extensions.AI)",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-03",
+          "claim": "MessageCountingChatReducer includes the first system message and retains up to the specified number of most recent non-system messages; messages with function call or result content are excluded; it is marked Experimental(\"MEAI001\")."
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/api/microsoft.extensions.ai.summarizingchatreducer",
+          "title": "SummarizingChatReducer Class (Microsoft.Extensions.AI)",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-03",
+          "claim": "SummarizingChatReducer is constructed with an IChatClient, a target count and an optional threshold; it summarizes older messages when the conversation exceeds a length, maintains system messages, excludes function call and result messages from summarization, and is marked Experimental(\"MEAI001\")."
         }
       ]
     }

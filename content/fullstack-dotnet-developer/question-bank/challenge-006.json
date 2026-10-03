@@ -125,7 +125,12 @@
           "accessed": "2026-10-02",
           "claim": "A concurrency group has at most one running and, by default, one pending job or run; a newly queued run cancels the existing pending one and takes its place; cancel-in-progress: true cancels the running one; queue: max allows up to 100 pending; group names must be unique across workflows to avoid cancelling other workflows' runs."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c006-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c006-q04",
@@ -161,7 +166,12 @@
           "accessed": "2026-10-02",
           "claim": "RunContinuationsAsynchronously forces continuations added to the task to run asynchronously; LongRunning is only a scheduling hint that oversubscription may be warranted; the options can be passed to the TaskCompletionSource<TResult> constructor."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c006-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c006-q05",
@@ -236,6 +246,107 @@
           "publisher": "GitHub",
           "accessed": "2026-10-02",
           "claim": "A concurrency group has at most one running and, by default, one pending job or run; a newly queued run cancels the existing pending one and takes its place; cancel-in-progress: true cancels the running one; queue: max allows up to 100 pending; group names must be unique across workflows to avoid cancelling other workflows' runs."
+        }
+      ]
+    },
+    {
+      "id": "c006-q07",
+      "lesson": null,
+      "concept": "c006-gha-deploy-concurrency",
+      "type": "multiple_select",
+      "prompt": "Two merges to `main` a minute apart both start your GitHub Actions production deploy, and the deploys overlap. You put the deploy in a `concurrency` group. Which statements are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Only one run in the group runs at a time; a later one waits as pending"
+        },
+        {
+          "id": "b",
+          "text": "By default a newly queued run cancels the older pending run and takes its place"
+        },
+        {
+          "id": "c",
+          "text": "`cancel-in-progress: true` would cancel the deploy that is already running"
+        },
+        {
+          "id": "d",
+          "text": "By default every queued run waits its turn, so each commit deploys in order"
+        },
+        {
+          "id": "e",
+          "text": "Group names are scoped to one workflow, so other workflows can reuse the name"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "c"
+      ],
+      "explanation": "A concurrency group allows at most one running job or run; one queued while another is in progress waits as pending. By default only one can be pending, so a newer run cancels the older pending one and intermediate commits are skipped (`queue: max` lets up to 100 wait instead). `cancel-in-progress: true` cancels the running one, which risks a half-done production deploy. Group names are shared across the repository's workflows, so make them unique to avoid cancelling another workflow's runs.",
+      "materials": [
+        "github-actions"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency",
+          "title": "Control the concurrency of workflows and jobs",
+          "publisher": "GitHub",
+          "accessed": "2026-10-03",
+          "claim": "A concurrency group has at most one running and, by default, one pending job or run; a newly queued run cancels the existing pending one and takes its place; cancel-in-progress: true cancels the running one; queue: max allows up to 100 pending; group names must be unique across workflows to avoid cancelling other workflows' runs."
+        }
+      ]
+    },
+    {
+      "id": "c006-q08",
+      "lesson": null,
+      "concept": "c006-tcs-inline-continuations",
+      "type": "multiple_select",
+      "prompt": "A socket-reader loop completes a `TaskCompletionSource<T>` that was created without `TaskCreationOptions.RunContinuationsAsynchronously`. Which statements are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Code awaiting the task can resume inline on the thread that calls `SetResult`"
+        },
+        {
+          "id": "b",
+          "text": "The reader loop can stall behind callers' code, risking deadlocks or starvation"
+        },
+        {
+          "id": "c",
+          "text": "With the flag, the continuations are dispatched to the thread pool instead"
+        },
+        {
+          "id": "d",
+          "text": "Without the flag, `SetResult` throws if a continuation is already attached"
+        },
+        {
+          "id": "e",
+          "text": "`LongRunning` is the flag that stops continuations from running inline"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "c"
+      ],
+      "explanation": "By default a task's continuations can run synchronously on the thread that completes it, so awaiting code resumes on the reader's thread and `SetResult` doesn't return until that code yields. The reader stalls, and if it holds a lock or is a scarce thread this can deadlock or starve the thread pool. `RunContinuationsAsynchronously` forces the continuations to run asynchronously, on the thread pool. `SetResult` doesn't throw because of attached continuations, and `LongRunning` is only a scheduling hint that oversubscription may be warranted.",
+      "materials": [
+        "aspnetcore-diagnostic-scenarios"
+      ],
+      "sources": [
+        {
+          "url": "https://github.com/davidfowl/AspNetCoreDiagnosticScenarios/blob/master/AsyncGuidance.md",
+          "title": "AspNetCoreDiagnosticScenarios: AsyncGuidance.md",
+          "publisher": "David Fowler (Microsoft), GitHub",
+          "accessed": "2026-10-03",
+          "claim": "Always create TaskCompletionSource<T> with RunContinuationsAsynchronously: by default continuations run inline on the thread that calls SetResult, SetException or SetCanceled, risking deadlocks and thread-pool starvation; the flag dispatches them to the thread pool."
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/api/system.threading.tasks.taskcreationoptions",
+          "title": "TaskCreationOptions Enum (System.Threading.Tasks)",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-03",
+          "claim": "RunContinuationsAsynchronously forces continuations added to the task to be executed asynchronously; LongRunning is a hint to the scheduler that oversubscription may be warranted; the options can be passed to the TaskCompletionSource<TResult> constructor."
         }
       ]
     }

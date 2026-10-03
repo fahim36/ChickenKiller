@@ -114,7 +114,12 @@
           "accessed": "2026-10-02",
           "claim": "For public clients the authorization server MUST use sender-constrained refresh tokens or refresh token rotation; with rotation a new refresh token is issued on every refresh, the previous one is invalidated, and when an invalidated token is presented the server, unable to tell which party sent it, revokes the active refresh token, forcing the legitimate client to obtain a fresh grant."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c023-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c023-q04",
@@ -141,7 +146,12 @@
           "accessed": "2026-10-02",
           "claim": "If-Match prevents accidental overwrites of updates made since the client's last read; if the condition is false the server MUST NOT apply the method and MUST respond 412; If-Match uses strong comparison, so weak entity tags never match."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c023-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c023-q05",
@@ -214,6 +224,96 @@
           "publisher": "IETF",
           "accessed": "2026-10-02",
           "claim": "Authorization servers MUST use one of two methods to detect refresh token replay for public clients: sender-constrained refresh tokens (for example RFC 8705 or RFC 9449) or refresh token rotation; refresh token expiration time is at the authorization server's discretion."
+        }
+      ]
+    },
+    {
+      "id": "c023-q07",
+      "lesson": null,
+      "concept": "c023-refresh-token-rotation",
+      "type": "multiple_select",
+      "prompt": "Your browser app is a public OAuth client, and the authorization server uses refresh token rotation. Which of these are true under RFC 9700? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Each refresh returns a new refresh token and invalidates the old one"
+        },
+        {
+          "id": "b",
+          "text": "Rotation lets the server tell whether the attacker or the client reused it"
+        },
+        {
+          "id": "c",
+          "text": "If an invalidated token is presented, the active refresh token is revoked"
+        },
+        {
+          "id": "d",
+          "text": "After a detected reuse, the real client must get a fresh authorization grant"
+        },
+        {
+          "id": "e",
+          "text": "A public client may use refresh tokens with neither rotation nor binding"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "d"
+      ],
+      "explanation": "With rotation, every refresh response carries a new refresh token and the previous one is invalidated (a). If a stolen token is used by both parties, one presents an invalidated token; the server can't tell which party sent it (b), so it revokes the active refresh token (c), which stops the attack but forces the legitimate client to obtain a fresh grant (d). For public clients RFC 9700 says refresh tokens MUST be sender-constrained or rotated (e).",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc9700.html",
+          "title": "RFC 9700: Best Current Practice for OAuth 2.0 Security",
+          "publisher": "IETF",
+          "claim": "Refresh tokens for public clients MUST be sender-constrained or use rotation; with rotation a new refresh token is issued on every refresh and the previous one invalidated; when an invalidated token is presented the server cannot determine which party submitted it but revokes the active refresh token, forcing the legitimate client to obtain a fresh authorization grant.",
+          "accessed": "2026-10-03"
+        }
+      ]
+    },
+    {
+      "id": "c023-q08",
+      "lesson": null,
+      "concept": "c023-if-match-lost-updates",
+      "type": "multiple_select",
+      "prompt": "Two clients edit the same resource, and each sends the ETag it read in an `If-Match` header on its `PUT`. Which of these are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "If the resource changed since the read, the server answers `412`"
+        },
+        {
+          "id": "b",
+          "text": "On a `412` the server merges both edits and applies the result"
+        },
+        {
+          "id": "c",
+          "text": "On a `412` the client re-reads, reapplies its edit and retries"
+        },
+        {
+          "id": "d",
+          "text": "A weak ETag such as `W/\"v1\"` still matches under `If-Match`"
+        },
+        {
+          "id": "e",
+          "text": "This stops the second write from silently overwriting the first"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "`If-Match` makes the request conditional on the current ETag matching; if it doesn't, the server must not apply the method and responds `412 Precondition Failed` (a), which prevents a lost update (e). The server doesn't merge anything (b): the client fetches the new version, reapplies its change and retries with the new ETag (c). `If-Match` uses strong comparison, so a weak ETag never matches (d).",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc9110.html",
+          "title": "RFC 9110: HTTP Semantics",
+          "publisher": "IETF",
+          "claim": "If-Match prevents accidental overwrites when multiple user agents act in parallel on the same resource; it uses strong comparison, so weak entity tags never match; if the condition is false the origin server MUST NOT perform the method and MUST respond 412 (Precondition Failed).",
+          "accessed": "2026-10-03"
         }
       ]
     }

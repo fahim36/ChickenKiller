@@ -120,7 +120,12 @@
           "accessed": "2026-10-02",
           "claim": "To mock authentication, a TestAuthHandler derived from AuthenticationHandler<AuthenticationSchemeOptions> returns AuthenticateResult.Success with a ticket for test claims; it is registered in ConfigureTestServices with AddAuthentication setting DefaultAuthenticateScheme and DefaultChallengeScheme to \"TestScheme\" and AddScheme, and the client sends an Authorization header for that scheme."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c012-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c012-q04",
@@ -236,6 +241,53 @@
           "publisher": "Microsoft",
           "accessed": "2026-10-02",
           "claim": "The mock authentication setup registers TestAuthHandler with AddScheme(\"TestScheme\") inside AddAuthentication whose options set DefaultAuthenticateScheme and DefaultChallengeScheme to \"TestScheme\"; the client sets its Authorization header to that scheme."
+        }
+      ]
+    },
+    {
+      "id": "c012-q07",
+      "lesson": null,
+      "concept": "c012-integration-test-auth-handler",
+      "type": "multiple_select",
+      "prompt": "Your `WebApplicationFactory` tests call endpoints protected by Entra ID JWT bearer tokens, and you want authenticated requests without calling Entra ID. Which statements are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A test `AuthenticationHandler` can return `AuthenticateResult.Success` with test claims"
+        },
+        {
+          "id": "b",
+          "text": "Register it in `ConfigureTestServices` and make it the default authenticate scheme"
+        },
+        {
+          "id": "c",
+          "text": "The endpoints' authorization still runs, against the test claims"
+        },
+        {
+          "id": "d",
+          "text": "Real JWT validation against Entra ID is still exercised by these tests"
+        },
+        {
+          "id": "e",
+          "text": "The test handler works only if the client also sends a real Entra ID token"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "c"
+      ],
+      "explanation": "A handler deriving from `AuthenticationHandler<AuthenticationSchemeOptions>` returns `AuthenticateResult.Success` with a ticket holding test claims. Registered with `AddScheme` in `ConfigureTestServices` and set as the default authenticate (and challenge) scheme, it authenticates each request locally, and the client sends an `Authorization` header for that test scheme, not a real token. The secured endpoints and their authorization then run against the test user, but real token validation isn't tested at all.",
+      "materials": [
+        "aspnetcore-integration-tests"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/test/integration-tests",
+          "title": "Integration tests in ASP.NET Core",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-03",
+          "claim": "A TestAuthHandler deriving from AuthenticationHandler<AuthenticationSchemeOptions> returns AuthenticateResult.Success with test claims; it is registered in ConfigureTestServices with AddScheme and set as DefaultAuthenticateScheme, and the client sends an Authorization header for the test scheme, so secured endpoints can be tested without real credentials."
         }
       ]
     }

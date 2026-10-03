@@ -116,7 +116,12 @@
           "accessed": "2026-10-02",
           "claim": "A swap first applies the target slot's slot-specific settings to the source slot's instances, restarts and warms them up, and only then switches routing, so the target stays online; app settings and connection strings swap unless marked as deployment slot settings, while custom domains, scale settings and managed identities stay; swapping the same slots again rolls back."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c007-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c007-q04",
@@ -182,7 +187,12 @@
           "accessed": "2026-10-02",
           "claim": "The scheduler uses requests to choose a node; a CPU limit is a hard limit enforced by kernel throttling; a container over its memory limit may be terminated by the kernel when it detects memory pressure, so memory limits are enforced reactively; a limit with no request is copied as the request."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c007-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c007-q06",
@@ -218,6 +228,98 @@
           "publisher": "Microsoft Learn",
           "accessed": "2026-10-02",
           "claim": "A swap first applies the target slot's slot-specific settings to the source slot's instances, restarts and warms them up, and only then switches routing, so the target stays online; app settings and connection strings swap unless marked as deployment slot settings, while custom domains, scale settings and managed identities stay; swapping the same slots again rolls back."
+        }
+      ]
+    },
+    {
+      "id": "c007-q07",
+      "lesson": null,
+      "concept": "c007-app-service-slot-swap",
+      "type": "multiple_select",
+      "prompt": "You deploy a .NET API to an App Service staging slot and swap it into production. Which statements about the swap are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Staging gets production's slot settings and warms up before routing switches"
+        },
+        {
+          "id": "b",
+          "text": "An unmarked connection string in staging moves into production with the app"
+        },
+        {
+          "id": "c",
+          "text": "To roll back, you swap the same two slots again"
+        },
+        {
+          "id": "d",
+          "text": "Custom domain names and scale settings move with the app to the other slot"
+        },
+        {
+          "id": "e",
+          "text": "Production goes offline briefly while the routing rules are switched over"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "c"
+      ],
+      "explanation": "A swap first applies the target slot's slot-specific settings to every source instance, restarts and warms them up, and only then switches routing, so production stays online and no requests are dropped. App settings and connection strings swap with the app unless marked as deployment slot settings, so an unmarked staging connection string follows the app into production. Custom domains and scale settings aren't swapped: they stay with the slot. Swapping the same slots again brings back the last known good app.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/app-service/deploy-staging-slots",
+          "title": "Set Up Staging Environments - Azure App Service",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-03",
+          "claim": "A swap applies the target slot's slot-specific settings to the source slot's instances, restarts and warms them up, then switches routing, so the target stays online; app settings and connection strings swap unless marked as slot settings, while custom domain names and scale settings aren't swapped; swapping the same two slots again rolls back."
+        }
+      ]
+    },
+    {
+      "id": "c007-q08",
+      "lesson": null,
+      "concept": "c007-k8s-requests-limits",
+      "type": "multiple_select",
+      "prompt": "You set CPU and memory requests and limits on the container of a latency-sensitive .NET API in Kubernetes. Which statements are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The scheduler uses the requests to pick a node with enough capacity"
+        },
+        {
+          "id": "b",
+          "text": "At its CPU limit the container is throttled, which shows up as latency"
+        },
+        {
+          "id": "c",
+          "text": "Going over the memory limit can get the container OOM-killed"
+        },
+        {
+          "id": "d",
+          "text": "At its CPU limit the container is killed and restarted by the kernel"
+        },
+        {
+          "id": "e",
+          "text": "A container never uses more memory than its request, even on an idle node"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "c"
+      ],
+      "explanation": "The scheduler places a pod using its requests. A CPU limit is a hard limit enforced by throttling: the app keeps running but slows, which a latency-sensitive API feels as tail latency. A memory limit is enforced reactively: a container over it may be OOM-killed when the kernel sees memory pressure. CPU over the limit is throttled, not killed, and a container may use more than its request when the node has spare capacity, up to its limit.",
+      "materials": [
+        "kubernetes-concepts"
+      ],
+      "sources": [
+        {
+          "url": "https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/",
+          "title": "Resource Management for Pods and Containers",
+          "publisher": "The Kubernetes Authors",
+          "accessed": "2026-10-03",
+          "claim": "The scheduler uses requests to choose a node; a CPU limit is a hard limit enforced by kernel throttling; a container over its memory limit may be terminated by the kernel when it detects memory pressure; a container may use more than its request when the node has the resource available."
         }
       ]
     }

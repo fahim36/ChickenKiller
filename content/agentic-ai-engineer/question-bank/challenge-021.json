@@ -114,7 +114,12 @@
           "accessed": "2026-10-02",
           "claim": "With consistent hashing, keys and nodes hash onto a ring, a key goes to the first node clockwise, each node owns the region between it and its predecessor, and adding or removing a node only affects its immediate neighbours; random single positions give uneven load and ignore node capacity, so each node gets many virtual nodes, which spread a failed node's load evenly over the rest, let a new node take roughly equal load from each other node, and can be sized to capacity."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c021-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c021-q04",
@@ -224,6 +229,51 @@
           "publisher": "Amazon (SOSP 2007)",
           "accessed": "2026-10-02",
           "claim": "With consistent hashing, keys and nodes hash onto a ring, a key goes to the first node clockwise, each node owns the region between it and its predecessor, and adding or removing a node only affects its immediate neighbours; random single positions give uneven load and ignore node capacity, so each node gets many virtual nodes, which spread a failed node's load evenly over the rest, let a new node take roughly equal load from each other node, and can be sized to capacity."
+        }
+      ]
+    },
+    {
+      "id": "c021-q07",
+      "lesson": null,
+      "concept": "c021-consistent-hashing",
+      "type": "multiple_select",
+      "prompt": "You shard a response cache across Redis nodes and are choosing between `hash(key) % N` and consistent hashing with virtual nodes. Which of these are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "With `% N`, adding a node changes the node for most keys at once"
+        },
+        {
+          "id": "b",
+          "text": "With a ring, adding a node only moves keys from its ring neighbours"
+        },
+        {
+          "id": "c",
+          "text": "One random ring position per node gives a perfectly even load"
+        },
+        {
+          "id": "d",
+          "text": "Virtual nodes let a bigger server own more positions on the ring"
+        },
+        {
+          "id": "e",
+          "text": "Virtual nodes send a failed node's whole load to its next neighbour"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "d"
+      ],
+      "explanation": "Going from N to N + 1 with `% N` remaps most keys, so most of the cache misses at once (a). On a consistent-hashing ring a node's arrival or departure only affects its immediate neighbours (b). A single random position per node gives non-uniform load and ignores capacity (c), which is why each node gets many virtual nodes: their number can follow its capacity (d), and a failed node's load spreads evenly over the remaining nodes rather than landing on one neighbour (e).",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.allthingsdistributed.com/files/amazon-dynamo-sosp2007.pdf",
+          "title": "Dynamo: Amazon's Highly Available Key-value Store",
+          "publisher": "Amazon (SOSP 2007)",
+          "claim": "With consistent hashing a node's departure or arrival only affects its immediate neighbours; random single positions give non-uniform load and ignore node heterogeneity, so each node gets multiple virtual nodes, which disperse an unavailable node's load evenly across the remaining nodes and whose number can follow a node's capacity.",
+          "accessed": "2026-10-03"
         }
       ]
     }

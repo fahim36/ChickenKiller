@@ -141,7 +141,12 @@
           "accessed": "2026-10-02",
           "claim": "`Call.await()` resumes with the body for a successful response, resumes with `HttpException(response)` for an unsuccessful one, and registers `invokeOnCancellation { cancel() }` so cancelling the coroutine cancels the Call; `awaitResponse()` resumes with the Response whatever its status."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c006-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c006-q04",
@@ -257,6 +262,53 @@
           "publisher": "JetBrains",
           "accessed": "2026-10-02",
           "claim": "suspendCancellableCoroutine gives a CancellableContinuation and throws CancellationException if the Job is cancelled while suspended; `invokeOnCancellation` unregisters callbacks; with the prompt cancellation guarantee the caller does not resume successfully if its Job was cancelled, even if `resume` was already invoked."
+        }
+      ]
+    },
+    {
+      "id": "c006-q07",
+      "lesson": null,
+      "concept": "c006-suspend-cancellable-callback",
+      "type": "multiple_select",
+      "prompt": "You wrap a location SDK (`requestLocation(callback): Request`, with `onResult`, `onError` and `request.cancel()`) as `suspend fun currentLocation(): Location`. A cancelled caller must not leave the request running. Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Build it with `suspendCancellableCoroutine`, not plain `suspendCoroutine`"
+        },
+        {
+          "id": "b",
+          "text": "A late `resume(location)` still hands the value to a caller already cancelled"
+        },
+        {
+          "id": "c",
+          "text": "Call `resumeWithException(e)` from `onError` so the caller gets the error"
+        },
+        {
+          "id": "d",
+          "text": "`invokeOnCancellation` runs each time the SDK calls `onResult` successfully"
+        },
+        {
+          "id": "e",
+          "text": "Register `invokeOnCancellation { request.cancel() }` to stop the request"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "`suspendCancellableCoroutine` gives a `CancellableContinuation`, so the caller throws `CancellationException` if its Job is cancelled while suspended. Resume with the location from `onResult` and with the exception from `onError`. `invokeOnCancellation` installs a handler that runs when the suspended coroutine is cancelled (not on success), which is where you cancel the SDK request. Its prompt cancellation guarantee means a cancelled caller does not resume successfully, even if `resume` was already called, so a late location is dropped.",
+      "materials": [
+        "kotlin-coroutines-guide"
+      ],
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/suspend-cancellable-coroutine.html",
+          "title": "suspendCancellableCoroutine",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-03",
+          "claim": "`suspendCancellableCoroutine` gives a `CancellableContinuation` that can be resumed with a value or an exception and throws `CancellationException` if the Job is cancelled while suspended; `invokeOnCancellation` installs a handler called when the suspended coroutine is cancelled; with the prompt cancellation guarantee the coroutine does not resume successfully if its Job was cancelled, even if `resume` was already invoked."
         }
       ]
     }

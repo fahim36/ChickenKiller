@@ -120,7 +120,12 @@
           "accessed": "2026-10-02",
           "claim": "A key can be authorized only after the user authenticates with a subset of their secure lock-screen credentials, either for a duration of time or for each cryptographic operation via `BiometricPrompt.authenticate()`; each key can accept strong biometrics, the lock-screen credential or both (check with `canAuthenticate()`); a biometric-only key is invalidated by default when new biometrics are enrolled unless `setInvalidatedByBiometricEnrollment(false)` is passed."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c023-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c023-q04",
@@ -148,7 +153,12 @@
           "accessed": "2026-10-02",
           "claim": "Mutable objects that are not observable, such as `ArrayList<T>` or a mutable data class, are not observable by Compose and don't trigger recomposition when they change; use an observable data holder such as `State<List<T>>` and the immutable `listOf()`."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c023-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c023-q05",
@@ -225,6 +235,99 @@
           "publisher": "Android Developers",
           "accessed": "2026-10-02",
           "claim": "If a key only supports biometric credentials, it is invalidated by default whenever new biometric enrollments are added; passing `false` to `setInvalidatedByBiometricEnrollment()` keeps it valid."
+        }
+      ]
+    },
+    {
+      "id": "c023-q07",
+      "lesson": null,
+      "concept": "c023-keystore-user-auth-bound-keys",
+      "type": "multiple_select",
+      "prompt": "A banking app wants its Keystore key for signing payments usable only right after the user proves who they are. Which statements about configuring the key are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Each signature can be authorized via `BiometricPrompt` with a `CryptoObject`"
+        },
+        {
+          "id": "b",
+          "text": "A key requiring authentication must be unlocked by biometrics, never a PIN"
+        },
+        {
+          "id": "c",
+          "text": "The key can instead be authorized for a duration after authentication"
+        },
+        {
+          "id": "d",
+          "text": "`setInvalidatedByBiometricEnrollment(true)` keeps the key valid after enrollment"
+        },
+        {
+          "id": "e",
+          "text": "A biometric-only key is invalidated by default when new biometrics are enrolled"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "A key can require user authentication either for each cryptographic operation, authorized through `BiometricPrompt.authenticate()` with a `CryptoObject`, or for a duration of time after the user authenticates. Each key can accept strong biometrics, the lock-screen credential (PIN, pattern or password) or both; check with `BiometricManager.canAuthenticate()` that they are set up. A key that accepts only biometrics is invalidated by default when new biometrics are enrolled; passing `false` to `setInvalidatedByBiometricEnrollment()` opts out.",
+      "materials": [
+        "android-keystore"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/privacy-and-security/keystore",
+          "title": "Android Keystore system",
+          "publisher": "Google",
+          "accessed": "2026-10-03",
+          "claim": "A key can require user authentication for a duration of time or for each cryptographic operation via `BiometricPrompt.authenticate()` with a `CryptoObject`; each key can accept strong biometrics, the lock-screen credential or both; a biometric-only key is invalidated by default when new biometrics are enrolled unless `false` is passed to `setInvalidatedByBiometricEnrollment()`."
+        }
+      ]
+    },
+    {
+      "id": "c023-q08",
+      "lesson": null,
+      "concept": "c023-non-observable-mutable-state",
+      "type": "multiple_select",
+      "prompt": "A teammate stores a `MutableList` of cart items in `mutableStateOf` and mutates it in place, and the cart screen sometimes shows stale items. Which statements are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A plain `MutableList` isn't observable, so changing it triggers no recomposition"
+        },
+        {
+          "id": "b",
+          "text": "`mutableStateOf` deeply observes the list, so `add()` recomposes the cart"
+        },
+        {
+          "id": "c",
+          "text": "Calling `add()` on the list counts as a write to the `State` object that holds it"
+        },
+        {
+          "id": "d",
+          "text": "Hold an immutable `listOf()` in state and replace it with a new list on change"
+        },
+        {
+          "id": "e",
+          "text": "Stale items appear because Compose recomposes too often, not too rarely"
+        }
+      ],
+      "answers": [
+        "a",
+        "d"
+      ],
+      "explanation": "Compose recomposes when an observable `State` is written. Mutable objects that aren't observable, such as an `ArrayList` from `mutableListOf()` or a mutable data class, don't trigger recomposition when they change, and an in-place `add()` isn't a write to the `State` holding them, so users see stale data until something else recomposes. Hold an immutable `listOf()` in an observable `State<List<T>>` and replace it with a new list on every change.",
+      "materials": [
+        "compose-state"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/state",
+          "title": "State and Jetpack Compose",
+          "publisher": "Google",
+          "accessed": "2026-10-03",
+          "claim": "Mutable objects that are not observable, such as `ArrayList<T>` or a mutable data class, are not observable by Compose and don't trigger recomposition when they change, so users see stale data; use an observable data holder such as `State<List<T>>` and the immutable `listOf()`."
         }
       ]
     }

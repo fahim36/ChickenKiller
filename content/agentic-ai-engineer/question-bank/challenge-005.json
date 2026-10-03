@@ -118,7 +118,12 @@
           "accessed": "2026-09-26",
           "claim": "Context is a finite attention budget that each token depletes; recall decreases as tokens increase (context rot); the goal is the smallest set of high-signal tokens; techniques include just-in-time retrieval via tools, compaction, structured note-taking and sub-agent architectures."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c005-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c005-q04",
@@ -144,7 +149,12 @@
           "accessed": "2026-09-26",
           "claim": "pass^k is the chance all k i.i.d. trials succeed (a reliability measure), in contrast to pass@k (at least one succeeds); it drops sharply with k, e.g. gpt-4o retail about 61% pass^1 vs under 25% pass^8."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c005-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c005-q05",
@@ -221,6 +231,98 @@
           "publisher": "Anthropic",
           "accessed": "2026-09-26",
           "claim": "In sub-agent architectures, each sub-agent may use many tokens exploring but returns only a condensed, distilled summary of its work (often 1,000-2,000 tokens) to the lead agent."
+        }
+      ]
+    },
+    {
+      "id": "c005-q07",
+      "lesson": null,
+      "concept": "c005-context-attention-budget",
+      "type": "multiple_select",
+      "prompt": "Your long-running coding agent makes worse decisions as a session goes on, although its context window is far from full. Which statements match Anthropic's context-engineering advice? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Every token spends a finite attention budget, and recall worsens as context grows"
+        },
+        {
+          "id": "b",
+          "text": "Quality only drops near the window limit, so a bigger window is the real fix"
+        },
+        {
+          "id": "c",
+          "text": "Keep light references such as file paths, and load data with tools when needed"
+        },
+        {
+          "id": "d",
+          "text": "List every edge case in the system prompt, so the agent never has to look anything up"
+        },
+        {
+          "id": "e",
+          "text": "Compaction summarises a long history, and the agent carries on from the summary"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "Context is a finite attention budget that every token draws on, and recall falls as the context grows (context rot), even well below the limit, so windows of any size suffer from pollution. Aim for the smallest set of high-signal tokens: keep lightweight identifiers (file paths, queries, links) and load data just in time with tools, and compact a long history into a summary to continue from. Anthropic advises against stuffing a laundry list of edge cases into the prompt; use a few canonical examples instead.",
+      "materials": [
+        "anthropic-effective-context-engineering-for-ai"
+      ],
+      "sources": [
+        {
+          "url": "https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents",
+          "title": "Effective context engineering for AI agents",
+          "publisher": "Anthropic",
+          "accessed": "2026-10-03",
+          "claim": "Context is a finite resource with an attention budget that each token depletes, and context windows of all sizes are subject to context pollution; aim for the smallest set of high-signal tokens; techniques include just-in-time retrieval of lightweight identifiers such as file paths via tools, compaction, structured note-taking and sub-agents; stuffing a laundry list of edge cases into a prompt is not recommended."
+        }
+      ]
+    },
+    {
+      "id": "c005-q08",
+      "lesson": null,
+      "concept": "c005-pass-hat-k-reliability",
+      "type": "multiple_select",
+      "prompt": "A vendor says their support agent scores 60% at pass^1 on τ-bench and even higher at pass@8. Which statements about these metrics are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "pass@k is the chance at least one of k trials succeeds, so it rises with k"
+        },
+        {
+          "id": "b",
+          "text": "pass^k is the chance all k trials succeed, so it measures reliability"
+        },
+        {
+          "id": "c",
+          "text": "pass^k also rises with k, since more trials give more chances to pass"
+        },
+        {
+          "id": "d",
+          "text": "In τ-retail, gpt-4o fell from about 61% at pass^1 to under 25% at pass^8"
+        },
+        {
+          "id": "e",
+          "text": "A high pass@8 shows the agent solves a given task on almost every try"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "d"
+      ],
+      "explanation": "pass@k counts a task as solved if any of k trials succeeds, so it climbs with k and hides inconsistency. pass^k, introduced with τ-bench, requires all k independent trials to succeed, averaged over tasks, so it measures how reliably the agent behaves and falls as k grows: gpt-4o's function-calling agent on τ-retail went from 61.2% at pass^1 to under 25% at pass^8. For shipping a support agent, pass^k is the number that matters.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://arxiv.org/html/2406.12045",
+          "title": "τ-bench: A Benchmark for Tool-Agent-User Interaction in Real-World Domains",
+          "publisher": "arXiv (Yao, Shinn, Razavi, Narasimhan)",
+          "accessed": "2026-10-03",
+          "claim": "pass^k is the chance that all k i.i.d. task trials succeed, averaged across tasks, in contrast to pass@k, the chance that at least one of k trials succeeds; pass^k drops as k grows, e.g. the gpt-4o function-calling agent on τ-retail goes from 61.2% at pass^1 to under 25% at pass^8."
         }
       ]
     }

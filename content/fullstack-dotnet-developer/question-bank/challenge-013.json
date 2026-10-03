@@ -116,7 +116,12 @@
           "accessed": "2026-10-02",
           "claim": "gRPC calls have no default deadline; when one is exceeded the client throws DeadlineExceeded and the server raises ServerCallContext.CancellationToken, but the call keeps running until the method completes unless the token is passed to async methods; deadlines should be propagated with context.Deadline or EnableCallContextPropagation, which uses the smallest deadline, and a deadline spans all retries."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c013-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c013-q04",
@@ -228,6 +233,51 @@
           "publisher": "Microsoft",
           "accessed": "2026-10-02",
           "claim": "The deadline is sent with the call and tracked independently by client and service; when exceeded the client aborts the request and throws DeadlineExceeded, while on the server ServerCallContext.CancellationToken is raised but the call continues to run until the method completes unless the token is passed to async methods."
+        }
+      ]
+    },
+    {
+      "id": "c013-q07",
+      "lesson": null,
+      "concept": "c013-grpc-deadline-propagation",
+      "type": "multiple_select",
+      "prompt": "A frontend gRPC service calls `UserService` and `OrderService` for every request. Calls sometimes hang, and the backends keep working long after clients have given up. Which statements are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "gRPC calls have no default deadline, so set one with `CallOptions.Deadline`"
+        },
+        {
+          "id": "b",
+          "text": "A server method keeps running after the deadline unless it passes on its token"
+        },
+        {
+          "id": "c",
+          "text": "`EnableCallContextPropagation` passes the deadline and cancellation to child calls"
+        },
+        {
+          "id": "d",
+          "text": "A propagated deadline always overrides a smaller deadline set on the child call"
+        },
+        {
+          "id": "e",
+          "text": "With retries configured, each attempt gets its own full deadline"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "c"
+      ],
+      "explanation": "gRPC calls aren't time-limited unless you set `CallOptions.Deadline`. When a deadline passes the client throws `DeadlineExceeded` and the server raises `ServerCallContext.CancellationToken`, but the server method runs to completion unless it passes that token to its database and HTTP calls. `EnableCallContextPropagation` on the gRPC client factory passes the deadline and cancellation to child calls, and when several deadlines apply the smallest wins. With retries, one deadline covers all attempts, and remaining retries are skipped once it passes.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/grpc/deadlines-cancellation",
+          "title": "Reliable gRPC services with deadlines and cancellation",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-03",
+          "claim": "There is no default deadline; on expiry the server's ServerCallContext.CancellationToken is raised but the method keeps running unless the token is passed to async calls; EnableCallContextPropagation propagates deadline and cancellation, using the smallest deadline; with retries the deadline tracks time across all attempts."
         }
       ]
     }

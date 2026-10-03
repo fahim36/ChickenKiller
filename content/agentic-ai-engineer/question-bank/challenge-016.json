@@ -120,7 +120,12 @@
           "accessed": "2026-10-02",
           "claim": "Sessions retrieve the conversation history and prepend it before each run, store all new items after it, keep separate histories per session ID, offer in-memory or file-backed SQLiteSession, and cannot be combined in the same run with conversation_id, previous_response_id or auto_previous_response_id."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c016-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c016-q04",
@@ -188,7 +193,12 @@
           "accessed": "2026-10-02",
           "claim": "`resources/list` lists resources with pagination, `resources/templates/list` lists RFC 6570 URI templates, `resources/read` returns text or blob contents for a URI, and a non-existent resource MUST get error -32602, with -32002 accepted for older versions, never an empty contents array."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c016-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c016-q06",
@@ -226,6 +236,100 @@
           "publisher": "OpenAI",
           "accessed": "2026-10-02",
           "claim": "`SQLiteSession(\"user_123\")` is in memory and lost when the process ends, while `SQLiteSession(\"user_123\", \"conversations.db\")` persists to a file."
+        }
+      ]
+    },
+    {
+      "id": "c016-q07",
+      "lesson": null,
+      "concept": "c016-agents-sdk-sessions",
+      "type": "multiple_select",
+      "prompt": "Your OpenAI Agents SDK chatbot must remember each user's earlier turns across separate `Runner.run` calls. Which statements about Sessions are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Before each run, the session's history is fetched and prepended to the new input"
+        },
+        {
+          "id": "b",
+          "text": "You still call `.to_input_list()` after each run and pass that in yourself"
+        },
+        {
+          "id": "c",
+          "text": "After each run, its new items (input, replies, tool calls) are stored"
+        },
+        {
+          "id": "d",
+          "text": "Use one session ID per user or conversation: each ID keeps its own history"
+        },
+        {
+          "id": "e",
+          "text": "A session works best combined with `previous_response_id` in the same run"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "d"
+      ],
+      "explanation": "With a session, the runner retrieves the stored history before each run and prepends it to the input, then stores every new item (user input, assistant responses, tool calls) after the run, so you no longer call `.to_input_list()` yourself. Each session ID keeps a separate history, so give each user or conversation its own. Sessions are client-side memory and can't be combined in one run with `conversation_id`, `previous_response_id` or `auto_previous_response_id`.",
+      "materials": [
+        "openai-agents-sdk"
+      ],
+      "sources": [
+        {
+          "url": "https://openai.github.io/openai-agents-python/sessions/",
+          "title": "Sessions",
+          "publisher": "OpenAI",
+          "accessed": "2026-10-03",
+          "claim": "Before each run the session's conversation history is retrieved and prepended to the input; after each run all new items (user input, assistant responses, tool calls) are stored; each session ID keeps a separate history; there is no need to call `.to_input_list()` manually; sessions cannot be combined in the same run with `conversation_id`, `previous_response_id` or `auto_previous_response_id`."
+        }
+      ]
+    },
+    {
+      "id": "c016-q08",
+      "lesson": null,
+      "concept": "c016-mcp-resource-templates",
+      "type": "multiple_select",
+      "prompt": "An MCP server exposes project files as resources. Which statements about `resources/list`, `resources/templates/list` and `resources/read` are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`resources/templates/list` returns RFC 6570 `uriTemplate`s with completable arguments"
+        },
+        {
+          "id": "b",
+          "text": "`resources/read` takes a URI and returns its contents as `text` or a base64 `blob`"
+        },
+        {
+          "id": "c",
+          "text": "Reading a resource that doesn't exist returns an empty `contents` array, not an error"
+        },
+        {
+          "id": "d",
+          "text": "`resources/list` returns every resource in one response, since it has no pagination"
+        },
+        {
+          "id": "e",
+          "text": "A missing resource gets error `-32602`, and clients also accept the older `-32002`"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "e"
+      ],
+      "explanation": "`resources/list` lists concrete resources and supports pagination. `resources/templates/list` lists parameterized resources as RFC 6570 URI templates, whose arguments can be auto-completed. `resources/read` returns a resource's contents as text or base64 `blob`. For a resource that doesn't exist, the server MUST return JSON-RPC error `-32602`, and clients SHOULD also accept the older `-32002`; an empty `contents` array is forbidden because it is ambiguous.",
+      "materials": [
+        "mcp-specification"
+      ],
+      "sources": [
+        {
+          "url": "https://modelcontextprotocol.io/specification/latest/server/resources",
+          "title": "Resources",
+          "publisher": "Model Context Protocol",
+          "accessed": "2026-10-03",
+          "claim": "`resources/list` supports pagination; `resources/templates/list` exposes parameterized resources as RFC 6570 URI templates whose arguments may be auto-completed; `resources/read` returns text or base64 blob contents for a URI; for a non-existent resource servers MUST return error -32602, clients SHOULD also accept -32002 from earlier versions, and servers MUST NOT return an empty contents array."
         }
       ]
     }

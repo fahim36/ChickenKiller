@@ -115,7 +115,12 @@
           "accessed": "2026-10-02",
           "claim": "mockkObject turns an object into a mock (reverted with unmockkObject); module-wide extension functions are mocked with mockkStatic(\"pkg.FileKt\"), which mocks the whole pkg.FileKt class, not just one function; unmockkAll unmocks object, static and constructor mocks, clearAllMocks clears all mocks, and MockKExtension calls both in an @AfterAll callback so the environment is clean after each test class."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c019-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c019-q04",
@@ -141,7 +146,12 @@
           "accessed": "2026-10-02",
           "claim": "The Binder transaction buffer is currently 1MB and shared by all transactions in progress for the process; exceeding it throws TransactionTooLargeException (runtime exception on Android 7.0+); limit Intent data to a few KB, keep saved state under 50KB, and store identifiers while persisting data elsewhere."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c019-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c019-q05",
@@ -216,6 +226,98 @@
           "publisher": "MockK",
           "accessed": "2026-10-02",
           "claim": "To mock module-wide extension functions, build mockkStatic with the module's class name, such as pkg.FileKt; this mocks the whole pkg.FileKt class, not just the extension function; unmockkAll unmocks object, static and constructor mocks."
+        }
+      ]
+    },
+    {
+      "id": "c019-q07",
+      "lesson": null,
+      "concept": "c019-mockk-object-static-mocks",
+      "type": "multiple_select",
+      "prompt": "Code under test calls a Kotlin `object AnalyticsTracker` and a top-level extension `fun String.toSlug()` in `StringUtils.kt`. Which statements about mocking them with MockK are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`mockkObject(AnalyticsTracker)` turns the object into a mock to stub with `every`"
+        },
+        {
+          "id": "b",
+          "text": "`mockk<String>()` alone is enough to stub the top-level `toSlug()` extension"
+        },
+        {
+          "id": "c",
+          "text": "`mockkStatic(\"pkg.StringUtilsKt\")` mocks the whole file class, not just `toSlug()`"
+        },
+        {
+          "id": "d",
+          "text": "Object and static mocks are always undone automatically after each test"
+        },
+        {
+          "id": "e",
+          "text": "`unmockkAll()` reverts object, static and constructor mocks"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "`mockkObject` turns a Kotlin object into a mock you stub with `every`. A module-wide extension function needs `mockkStatic` with the file's generated class, such as `\"pkg.StringUtilsKt\"`, and that mocks the whole class, not just one function; a plain `mockk<String>()` doesn't touch a top-level function. These mocks stay until you undo them: `unmockkAll()` reverts object, static and constructor mocks and `clearAllMocks()` clears them, or JUnit 5's `MockKExtension` calls both in `@AfterAll`, per test class rather than per test.",
+      "materials": [
+        "mockk"
+      ],
+      "sources": [
+        {
+          "url": "https://mockk.io/",
+          "title": "MockK",
+          "publisher": "MockK",
+          "accessed": "2026-10-03",
+          "claim": "`mockkObject` turns an object into a mock (reverted with `unmockkObject` or `unmockkAll`); module-wide extension functions are mocked with `mockkStatic(\"pkg.FileKt\")`, which mocks the whole `pkg.FileKt` class; `unmockkAll` reverts object, static and constructor mocks, and `MockKExtension` calls `unmockkAll` and `clearAllMocks` in an `@AfterAll` callback."
+        }
+      ]
+    },
+    {
+      "id": "c019-q08",
+      "lesson": null,
+      "concept": "c019-binder-transaction-size-limit",
+      "type": "multiple_select",
+      "prompt": "Screen A passes a list of 300 Parcelable products to screen B in an Intent extra, and some users crash on navigation. Which statements are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Intent extras go through a Binder buffer of 1 MB shared by the whole process"
+        },
+        {
+          "id": "b",
+          "text": "Each Intent gets its own 1 MB buffer, so only this one transaction counts"
+        },
+        {
+          "id": "c",
+          "text": "Going over it throws `TransactionTooLargeException`, a runtime exception"
+        },
+        {
+          "id": "d",
+          "text": "Keeping the list in `rememberSaveable` on screen B avoids the Binder limit"
+        },
+        {
+          "id": "e",
+          "text": "Pass the product IDs and let screen B load the products from a repository"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "Intent data travels through the Binder transaction buffer, a fixed 1 MB shared by all transactions in progress for the process, not one per Intent. Exceeding it throws `TransactionTooLargeException`, a runtime exception from Android 7.0. `rememberSaveable` uses saved instance state, which goes through Binder too (keep it under 50 KB). Keep Intent data to a few KB: pass identifiers and load the products on screen B.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://developer.android.com/guide/components/activities/parcelables-and-bundles",
+          "title": "Parcelables and Bundles",
+          "publisher": "Google",
+          "accessed": "2026-10-03",
+          "claim": "The Binder transaction buffer has a fixed size of 1 MB shared by all transactions in progress for the process, including `startActivity()` and `rememberSaveable()`; exceeding it throws `TransactionTooLargeException`, a runtime exception from Android 7.0; limit Intent data to a few KB, keep saved state under 50 KB, and store identifiers instead."
         }
       ]
     }

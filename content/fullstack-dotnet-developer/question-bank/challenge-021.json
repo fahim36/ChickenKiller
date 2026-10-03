@@ -123,7 +123,12 @@
           "accessed": "2026-10-02",
           "claim": "The OBO flow lets a web API call another API with the user's identity: the middle tier posts the incoming token (whose aud must be the middle tier) as the assertion with requested_token_use=on_behalf_of, gets delegated scopes only, must not send tokens issued to it anywhere else, works only for user principals, needs consent up front, and returns Conditional Access errors to the client as a 401 claims challenge."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c021-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c021-q04",
@@ -235,6 +240,53 @@
           "publisher": "Microsoft",
           "accessed": "2026-10-02",
           "claim": "Document attacks are hidden instructions in third-party content such as documents, emails and web pages; in Foundry Prompt Shields scans for them at the user input and tool response intervention points."
+        }
+      ]
+    },
+    {
+      "id": "c021-q07",
+      "lesson": null,
+      "concept": "c021-on-behalf-of-flow",
+      "type": "multiple_select",
+      "prompt": "Your ASP.NET Core API receives a user's Entra ID access token from a React SPA and must call a downstream Orders API as that user. A teammate proposes forwarding the incoming token unchanged. Which statements are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The incoming token's audience is your API, so it must not be sent on to Orders"
+        },
+        {
+          "id": "b",
+          "text": "Your API redeems it with `requested_token_use=on_behalf_of` for an Orders token"
+        },
+        {
+          "id": "c",
+          "text": "The new token carries the user's delegated scopes, not application roles"
+        },
+        {
+          "id": "d",
+          "text": "On-behalf-of also works when the caller sent an app-only service principal token"
+        },
+        {
+          "id": "e",
+          "text": "The SPA itself should run the on-behalf-of exchange to avoid a confidential client"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "c"
+      ],
+      "explanation": "Tokens issued to the middle tier are meant only for it: the incoming token's `aud` is your API, and Microsoft warns never to send it anywhere else. Instead your API, as a confidential client with a secret or certificate, posts it as the `assertion` with `requested_token_use=on_behalf_of` and Orders' scopes, and gets a token for Orders. That token carries only delegated scopes; roles stay with the user. OBO works only for user principals, so an app-only caller needs the client credentials flow, and an SPA must pass its token to a middle-tier confidential client rather than run OBO itself.",
+      "materials": [
+        "entra-identity-platform"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-on-behalf-of-flow",
+          "title": "Microsoft identity platform and OAuth2.0 On-Behalf-Of flow",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-03",
+          "claim": "The assertion must have an aud claim of the middle tier, and tokens issued to the middle tier must not be sent anywhere except their intended audience; the middle tier posts it with requested_token_use=on_behalf_of; OBO uses delegated scopes, not application roles, and works only for user principals; SPAs pass the token to a middle-tier confidential client to perform OBO."
         }
       ]
     }

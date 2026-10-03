@@ -120,7 +120,12 @@
           "accessed": "2026-10-02",
           "claim": "`LaunchedEffect` launches a coroutine when it enters the Composition, restarts on key change and cancels when it leaves; as a composable it can only be used inside composables, so to launch outside one (for example in `onClick`) use `rememberCoroutineScope`, whose scope is bound to its point in the Composition and cancelled when the call leaves it, and which also fits manual control such as cancelling an animation on a user event."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c022-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c022-q04",
@@ -148,7 +153,12 @@
           "accessed": "2026-10-02",
           "claim": "Compose assumes you never write to state that has already been read; doing so, a backwards write, can cause recomposition on every frame, endlessly; avoid it by never writing to state in composition and writing in response to events in lambdas such as `onClick`."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c022-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c022-q05",
@@ -225,6 +235,100 @@
           "publisher": "Android Developers",
           "accessed": "2026-10-02",
           "claim": "As `LaunchedEffect` is a composable function it can only be used inside other composables; to launch a coroutine outside a composable, scoped so it is cancelled when it leaves the Composition, use `rememberCoroutineScope`, as in the documented `onClick` snackbar example."
+        }
+      ]
+    },
+    {
+      "id": "c022-q07",
+      "lesson": null,
+      "concept": "c022-remembercoroutinescope-vs-launchedeffect",
+      "type": "multiple_select",
+      "prompt": "On a Compose screen, tapping a button must show a snackbar with the suspending `showSnackbar()`, and an animation must start as soon as the screen appears. Which statements are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Start the animation in a `LaunchedEffect`, which runs on entering the Composition"
+        },
+        {
+          "id": "b",
+          "text": "Call `LaunchedEffect` inside `onClick` to show the snackbar on every tap"
+        },
+        {
+          "id": "c",
+          "text": "In `onClick`, launch `showSnackbar()` in a scope from `rememberCoroutineScope()`"
+        },
+        {
+          "id": "d",
+          "text": "A `LaunchedEffect` keeps on running its block even after it leaves the Composition"
+        },
+        {
+          "id": "e",
+          "text": "A `rememberCoroutineScope()` scope is cancelled when its call leaves the Composition"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "`LaunchedEffect` launches its block when it enters the Composition, restarts it when its keys change and cancels it when it leaves, so it fits an animation that starts when the screen appears. It is a composable, so it can't be called from `onClick`; there, launch the suspending `showSnackbar()` in a scope from `rememberCoroutineScope()`. That scope is bound to its point in the Composition and cancelled when the call leaves it, so neither coroutine outlives the screen.",
+      "materials": [
+        "compose-side-effects"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/side-effects",
+          "title": "Side-effects in Compose",
+          "publisher": "Google",
+          "accessed": "2026-10-03",
+          "claim": "`LaunchedEffect` launches a coroutine when it enters the Composition, restarts on key change and is cancelled when it leaves, and can only be used inside composables; to launch outside a composable, such as in `onClick`, use `rememberCoroutineScope`, whose scope is bound to its call site and cancelled when the call leaves the Composition."
+        }
+      ]
+    },
+    {
+      "id": "c022-q08",
+      "lesson": null,
+      "concept": "c022-compose-backwards-writes",
+      "type": "multiple_select",
+      "prompt": "A composable reads a `mutableStateOf` value and then updates that same state further down its body. Which statements about this backwards write are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It writes to state that the composition has already read"
+        },
+        {
+          "id": "b",
+          "text": "The compiler rejects it, so it can never reach a running app"
+        },
+        {
+          "id": "c",
+          "text": "It can make Compose recompose on every frame, endlessly"
+        },
+        {
+          "id": "d",
+          "text": "Compose ignores the write until the next frame, so it's harmless"
+        },
+        {
+          "id": "e",
+          "text": "Write state only in response to events, in lambdas like `onClick`"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "Compose assumes you never write to state that has already been read; doing so is a backwards write. It compiles and runs, but Compose sees a state read that is out of date and schedules another recomposition, which can repeat on every frame, endlessly. Avoid it by never writing to state in composition, and writing in response to events, in lambdas such as `onClick`.",
+      "materials": [
+        "compose-performance"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/performance/bestpractices",
+          "title": "Follow best practices",
+          "publisher": "Google",
+          "accessed": "2026-10-03",
+          "claim": "Compose assumes you never write to state that has already been read; doing so, a backwards write, can cause recomposition on every frame, endlessly, because Compose sees an out-of-date state read and schedules another recomposition; avoid it by never writing to state in composition and writing in response to events in lambdas such as `onClick`."
         }
       ]
     }

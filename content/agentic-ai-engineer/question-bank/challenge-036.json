@@ -120,7 +120,12 @@
           "accessed": "2026-10-02",
           "claim": "With different state schemas, invoke the subgraph inside a node function and transform its input and output; with shared state keys, pass the compiled subgraph to `add_node`. Subgraphs inherit the parent's checkpointer; by default they are per-invocation (each call starts fresh but supports interrupts and durable execution within the call), `checkpointer=True` makes them per-thread so state accumulates across calls, and `checkpointer=False` makes them stateless."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c036-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c036-q04",
@@ -188,7 +193,12 @@
           "accessed": "2026-10-02",
           "claim": "`RetryPolicy` is passed to `add_node`; its defaults are max_attempts 3, initial_interval 0.5 s, backoff_factor 2.0, max_interval 128 s and jitter on; `retry_on` customises it. By default it retries most exceptions except ValueError, TypeError, ArithmeticError, ImportError, LookupError, NameError, SyntaxError, RuntimeError, ReferenceError, StopIteration, StopAsyncIteration and OSError, and HTTP library errors only on 5xx codes."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c036-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c036-q06",
@@ -226,6 +236,100 @@
           "publisher": "LangChain",
           "accessed": "2026-10-02",
           "claim": "With different state schemas, invoke the subgraph inside a node function and transform its input and output; with shared state keys, pass the compiled subgraph to `add_node`. Subgraphs inherit the parent's checkpointer; by default they are per-invocation (each call starts fresh but supports interrupts and durable execution within the call), `checkpointer=True` makes them per-thread so state accumulates across calls, and `checkpointer=False` makes them stateless."
+        }
+      ]
+    },
+    {
+      "id": "c036-q07",
+      "lesson": null,
+      "concept": "c036-langgraph-subgraphs",
+      "type": "multiple_select",
+      "prompt": "You split a LangGraph agent into a parent graph and a research subgraph. Which of these are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "With shared state keys, pass the compiled subgraph straight to `add_node`"
+        },
+        {
+          "id": "b",
+          "text": "A subgraph needs its own checkpointer, separate from the parent's"
+        },
+        {
+          "id": "c",
+          "text": "With different schemas, call it in a node that maps state in and out"
+        },
+        {
+          "id": "d",
+          "text": "By default a subgraph keeps its state across calls on the same thread"
+        },
+        {
+          "id": "e",
+          "text": "`checkpointer=True` makes it keep state across calls on one thread"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "When parent and subgraph share state keys, you add the compiled subgraph directly with `add_node` (a); with different schemas you invoke it inside a node function that transforms the input and output (c). A subgraph inherits the parent's checkpointer (b). By default it is per-invocation, so each call starts fresh (d); `checkpointer=True` makes it per-thread, so state accumulates across calls (e).",
+      "materials": [
+        "langgraph-documentation"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.langchain.com/oss/python/langgraph/use-subgraphs",
+          "title": "Subgraphs",
+          "publisher": "LangChain",
+          "claim": "With shared state keys, pass the compiled subgraph directly to `add_node`; with different schemas, invoke it inside a node function that transforms state; subgraphs inherit the parent's checkpointer and are per-invocation by default (each call starts fresh), while `checkpointer=True` makes them per-thread so state accumulates across calls and `checkpointer=False` makes them stateless.",
+          "accessed": "2026-10-03"
+        }
+      ]
+    },
+    {
+      "id": "c036-q08",
+      "lesson": null,
+      "concept": "c036-langgraph-retry-policy",
+      "type": "multiple_select",
+      "prompt": "A LangGraph node's LLM call sometimes fails with a provider error, and you add `add_node(..., retry_policy=RetryPolicy())`. Which of these are true of the defaults? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It makes up to 3 attempts, with exponential backoff and jitter"
+        },
+        {
+          "id": "b",
+          "text": "It retries every exception, including `ValueError` and `TypeError`"
+        },
+        {
+          "id": "c",
+          "text": "For `requests` or `httpx` errors it retries only on 5xx status codes"
+        },
+        {
+          "id": "d",
+          "text": "`retry_on` lets you choose which exceptions are retried"
+        },
+        {
+          "id": "e",
+          "text": "It waits a fixed 0.5 s between attempts, with no backoff"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "d"
+      ],
+      "explanation": "The defaults are 3 attempts, a 0.5 s first wait doubling up to 128 s, with jitter (a, so e is wrong). By default it skips exceptions that usually mean a bug, such as `ValueError` and `TypeError` (b), and for popular HTTP libraries like `requests` and `httpx` retries only on 5xx codes (c). `retry_on` takes an exception type or a callable to customise it (d).",
+      "materials": [
+        "langgraph-documentation"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.langchain.com/oss/python/langgraph/fault-tolerance",
+          "title": "Fault tolerance",
+          "publisher": "LangChain",
+          "claim": "`RetryPolicy` is passed to `add_node`; defaults are max_attempts 3, initial_interval 0.5 s, backoff_factor 2.0, max_interval 128 s and jitter on; by default it retries any exception except ValueError, TypeError, ArithmeticError, ImportError, LookupError, NameError, SyntaxError, RuntimeError, ReferenceError, StopIteration, StopAsyncIteration and OSError, and for requests/httpx only on 5xx codes; `retry_on` customises it.",
+          "accessed": "2026-10-03"
         }
       ]
     }

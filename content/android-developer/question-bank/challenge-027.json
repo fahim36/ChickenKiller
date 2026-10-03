@@ -116,7 +116,12 @@
           "accessed": "2026-10-02",
           "claim": "A network with NET_CAPABILITY_NOT_METERED doesn't bill the user for data; hasTransport is a poor proxy for bandwidth or meteredness, so use getLinkDownstreamBandwidthKbps() and hasCapability(NET_CAPABILITY_NOT_METERED); listen for changes with a default NetworkCallback's onCapabilitiesChanged."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c027-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c027-q04",
@@ -145,7 +150,12 @@
           "accessed": "2026-10-02",
           "claim": "ViewModels default to the nearest ViewModelStoreOwner (Activity or Fragment); the `lifecycle-viewmodel-navigation3` decorator `rememberViewModelStoreNavEntryDecorator`, added to entryDecorators after the saveable state holder decorator, scopes `viewModel()` to the NavEntry's key, created when added and cleared when removed."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c027-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c027-q05",
@@ -218,6 +228,98 @@
           "publisher": "Android Developers (Google)",
           "accessed": "2026-10-02",
           "claim": "Querying hasTransport is a poor proxy for the bandwidth or meteredness of the network; apps can't assume Wi-Fi is always unmetered and should use hasCapability with NET_CAPABILITY_NOT_METERED."
+        }
+      ]
+    },
+    {
+      "id": "c027-q07",
+      "lesson": null,
+      "concept": "c027-metered-network-adaptation",
+      "type": "multiple_select",
+      "prompt": "Your news feed prefetches full-resolution images and autoplay video ahead of the scroll, and you want it to adapt to the network. Which statements match Android's guide to reading network state? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Check `NET_CAPABILITY_NOT_METERED` to tell whether data costs the user"
+        },
+        {
+          "id": "b",
+          "text": "Skip the metered check on Wi-Fi, since Wi-Fi networks are never metered"
+        },
+        {
+          "id": "c",
+          "text": "Use `getLinkDownstreamBandwidthKbps()` to estimate the bandwidth"
+        },
+        {
+          "id": "d",
+          "text": "Adapt in a default `NetworkCallback`'s `onCapabilitiesChanged`"
+        },
+        {
+          "id": "e",
+          "text": "Pick image quality from `hasTransport()`, since Wi-Fi beats mobile"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "d"
+      ],
+      "explanation": "`hasCapability(NET_CAPABILITY_NOT_METERED)` says whether the user is sensitive to heavy data use on the network, and `getLinkDownstreamBandwidthKbps()` estimates its bandwidth; listen for changes in a default `NetworkCallback`'s `onCapabilitiesChanged`. The guide warns that `hasTransport()` is a poor proxy for both: an app can't assume Wi-Fi is always unmetered or faster than mobile.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/connectivity/network-ops/reading-network-state",
+          "title": "Read network state",
+          "publisher": "Android Developers (Google)",
+          "accessed": "2026-10-03",
+          "claim": "`hasTransport()` is a poor proxy for bandwidth or meteredness, since Wi-Fi isn't always unmetered or faster than mobile; use `getLinkDownstreamBandwidthKbps()` and `hasCapability(NET_CAPABILITY_NOT_METERED)`, and react in a default `NetworkCallback`'s `onCapabilitiesChanged`."
+        }
+      ]
+    },
+    {
+      "id": "c027-q08",
+      "lesson": null,
+      "concept": "c027-nav3-entry-scoped-viewmodel",
+      "type": "multiple_select",
+      "prompt": "In a Navigation 3 app, you want each screen on the back stack to get its own ViewModel. Which statements match the Navigation 3 docs? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "By default a ViewModel is scoped to the nearest owner, usually the Activity"
+        },
+        {
+          "id": "b",
+          "text": "Add `rememberViewModelStoreNavEntryDecorator()` to `entryDecorators`"
+        },
+        {
+          "id": "c",
+          "text": "The entry's ViewModel is cleared as soon as another entry is pushed on top"
+        },
+        {
+          "id": "d",
+          "text": "It is created when its entry is added to the back stack, cleared when removed"
+        },
+        {
+          "id": "e",
+          "text": "No extra library is needed: `NavDisplay` scopes ViewModels to entries itself"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "d"
+      ],
+      "explanation": "ViewModels default to the nearest `ViewModelStoreOwner`, usually the Activity or Fragment. The `lifecycle-viewmodel-navigation3` add-on provides `rememberViewModelStoreNavEntryDecorator()`, added to `entryDecorators` after the saveable state holder decorator; `viewModel()` inside an entry is then scoped to that entry's key. It is created when the entry is added to the back stack and cleared only when the entry is removed, not when another screen is pushed on top.",
+      "materials": [
+        "navigation-3"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/guide/navigation/navigation-3/save-state",
+          "title": "Save and manage navigation state",
+          "publisher": "Android Developers (Google)",
+          "accessed": "2026-10-03",
+          "claim": "ViewModels default to the nearest ViewModelStoreOwner; the `lifecycle-viewmodel-navigation3` add-on's `rememberViewModelStoreNavEntryDecorator` scopes `viewModel()` to the NavEntry's key, created when the entry is added to the back stack and cleared when it is removed."
         }
       ]
     }

@@ -128,7 +128,12 @@
           "accessed": "2026-10-02",
           "claim": "When using multiple public and private feeds a package can be downloaded from any of them, so to be safe from dependency confusion know which feed each package comes from: use a single feed or a private feed with upstreams, package source mapping, lock files and package ID prefix reservation."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c023-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c023-q04",
@@ -162,7 +167,12 @@
           "accessed": "2026-10-02",
           "claim": "Without a persistent location keys are lost when the process shuts down; containers should use a volume or external provider; overriding the key location disables automatic encryption at rest; keys have a 90-day default lifetime and retired keys still decrypt older data, so keys shouldn't be deleted."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c023-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c023-q05",
@@ -235,6 +245,110 @@
           "publisher": "Microsoft",
           "accessed": "2026-10-02",
           "claim": "When multiple patterns match a package ID the most specific is preferred: exact package ID patterns first, the longest prefix next, and `*` lowest."
+        }
+      ]
+    },
+    {
+      "id": "c023-q07",
+      "lesson": null,
+      "concept": "c023-dependency-confusion-source-mapping",
+      "type": "multiple_select",
+      "prompt": "Your solution restores packages from nuget.org and from a private Azure Artifacts feed that hosts internal `Contoso.*` packages. Which statements about dependency confusion and package source mapping are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Without mapping, an ID on both feeds may come from either, even a public look-alike"
+        },
+        {
+          "id": "b",
+          "text": "Map `Contoso.*` to the private feed and `*` to nuget.org; the most specific wins"
+        },
+        {
+          "id": "c",
+          "text": "Once mapping is on, every package, transitive ones included, must match a pattern"
+        },
+        {
+          "id": "d",
+          "text": "Mapping also stops `dotnet package add` from sending your package IDs to nuget.org"
+        },
+        {
+          "id": "e",
+          "text": "Mappings still apply to packages already present in the global packages folder"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "c"
+      ],
+      "explanation": "By default NuGet searches all configured sources, and when a package exists on several it isn't deterministic which one it comes from, which is what dependency confusion exploits. Package source mapping pins patterns to sources: `Contoso.*` to the private feed, `*` to nuget.org, with the most specific pattern winning, and once it is on every package, transitive ones included, must match. It applies only to restore, install and update, so `dotnet package add` and `dotnet list package` still send IDs to every source. When a package is already in the global packages folder no lookup happens and mappings are ignored, so give the repo its own folder.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/nuget/consume-packages/package-source-mapping",
+          "title": "Package Source Mapping",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-03",
+          "claim": "NuGet searches all configured sources and the source isn't deterministic when a package exists on several; every package, including transitive ones, must match a pattern; the most specific pattern wins; mappings are ignored for packages already in the global packages folder; mapping applies only to restore, install and update, while dotnet package add and dotnet list package send IDs to all sources."
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/nuget/concepts/security-best-practices",
+          "title": "Best practices for a secure software supply chain",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-03",
+          "claim": "With multiple public and private feeds a package can be downloaded from any of them, so to be secure from dependency confusion know which feed each package comes from; use a single feed or a private feed with upstreams, package source mapping, lock files and package ID prefix reservation."
+        }
+      ]
+    },
+    {
+      "id": "c023-q08",
+      "lesson": null,
+      "concept": "c023-data-protection-key-ring",
+      "type": "multiple_select",
+      "prompt": "An ASP.NET Core app runs as several instances in Azure Container Apps, with Data Protection left at its defaults. Which statements are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Keys may live only in process memory, so a restart loses them and old cookies fail"
+        },
+        {
+          "id": "b",
+          "text": "Persist one key ring, for example to Blob Storage, and protect it with Key Vault"
+        },
+        {
+          "id": "c",
+          "text": "Every instance should call `SetApplicationName` with the same value"
+        },
+        {
+          "id": "d",
+          "text": "Pointing the key ring at Blob Storage keeps the automatic encryption of keys at rest"
+        },
+        {
+          "id": "e",
+          "text": "Delete keys once they expire after 90 days, since retired keys can't decrypt anything"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "c"
+      ],
+      "explanation": "If no persistent location is detected, keys aren't persisted outside the process and are lost when it shuts down; containers should use a volume or an external provider, and every instance must read the same key ring or cookies and antiforgery tokens from one instance fail on another. Microsoft's example persists keys with `PersistKeysToAzureBlobStorage`, protects them with `ProtectKeysWithAzureKeyVault`, and sets a matching `SetApplicationName`, because apps are otherwise isolated by content root path. Choosing a key location yourself disables automatic encryption at rest, so you add a `ProtectKeysWith*` call. Keys roll every 90 days, but retired keys still decrypt older data, so don't delete them.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/security/data-protection/configuration/overview",
+          "title": "Configure ASP.NET Core Data Protection",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-03",
+          "claim": "Keys can be persisted with PersistKeysToAzureBlobStorage and protected with ProtectKeysWithAzureKeyVault; SetApplicationName should match across deployments, because by default apps are isolated from one another by their content root paths even when they share a key repository."
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/security/data-protection/configuration/default-settings",
+          "title": "Data Protection key management and lifetime in ASP.NET Core",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-03",
+          "claim": "If no condition matches, keys aren't persisted outside the process and are lost on shutdown; containers should use a volume or an external provider; pointing Data Protection at a specific key repository disables automatic encryption at rest; keys have a 90-day lifetime, retired keys still decrypt data, and deleting keys isn't recommended."
         }
       ]
     }

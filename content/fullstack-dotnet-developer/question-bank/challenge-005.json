@@ -120,7 +120,12 @@
           "accessed": "2026-10-02",
           "claim": "A sidecar is deployed alongside each application instance in a separate process or container and shares its life cycle, giving language independence (examples: Dapr, service mesh proxies such as Istio, the OpenTelemetry Collector); use it for diverse languages, components owned by another team, or independent updates and resource limits; it may not suit apps needing optimized inter-process communication, small apps, components that must scale independently, or platforms that already provide the feature, and a library gives deeper integration and less overhead."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c005-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c005-q04",
@@ -236,6 +241,53 @@
           "publisher": "Microsoft",
           "accessed": "2026-10-02",
           "claim": "Each application instance gets its own sidecar instance that shares its life cycle; the pattern might not be suitable when you need to scale the component independently, in which case deploy it as a separate service."
+        }
+      ]
+    },
+    {
+      "id": "c005-q07",
+      "lesson": null,
+      "concept": "c005-sidecar-pattern",
+      "type": "multiple_select",
+      "prompt": "Five teams run services in C#, Go and Node.js, and each team re-implements mTLS, retries and telemetry export in its own library. Which statements about moving these concerns into a sidecar are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "One sidecar implementation can serve services written in any language"
+        },
+        {
+          "id": "b",
+          "text": "Each instance gets its own sidecar, so you pay its resources per instance"
+        },
+        {
+          "id": "c",
+          "text": "Calls through the sidecar add inter-process latency, which hurts chatty calls"
+        },
+        {
+          "id": "d",
+          "text": "A sidecar scales independently of its app, so it suits components needing their own scaling"
+        },
+        {
+          "id": "e",
+          "text": "A language-specific library gives looser integration and more overhead than a sidecar"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "c"
+      ],
+      "explanation": "A sidecar runs in its own process or container beside each instance and shares its life cycle, so one implementation serves C#, Go and Node.js alike. The costs are a sidecar's resources for every instance, which can outweigh the benefit for a small app, and inter-process latency, which makes it a poor fit for frequent communication. Because it shares the app's life cycle it doesn't scale on its own: a component that must scale differently belongs in a separate service. A library gives deeper integration and less overhead, not looser and more.",
+      "materials": [
+        "azure-cloud-design-patterns"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/sidecar",
+          "title": "Sidecar pattern",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-03",
+          "claim": "Each application instance gets its own sidecar sharing its life cycle, and one sidecar implementation can serve applications in different languages; sidecars add latency overhead unsuitable for frequent communication, may cost too much per instance for a small app, and a component that must scale independently should be a separate service; language-specific libraries give deeper integration and less network overhead."
         }
       ]
     }

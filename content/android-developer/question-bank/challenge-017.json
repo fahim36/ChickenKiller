@@ -124,7 +124,12 @@
           "accessed": "2026-10-02",
           "claim": "The mockable Android library has the framework's public methods with their code removed, so calling one in a local test throws 'Method ... not mocked'; mock the dependency or use Robolectric, and use unitTests.returnDefaultValues only as a last resort, since null/zero values can hide regressions and let failing tests pass."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c017-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c017-q04",
@@ -189,7 +194,12 @@
           "accessed": "2026-10-02",
           "claim": "createComposeRule() is for tests that don't need an activity and uses setContent; createAndroidComposeRule<YourActivity>() is for when you need access to an activity; ui-test-manifest is needed for createComposeRule() but not for createAndroidComposeRule."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c017-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c017-q06",
@@ -227,6 +237,100 @@
           "publisher": "Google",
           "accessed": "2026-10-02",
           "claim": "unitTests.returnDefaultValues makes stubbed methods return null or zero; these values can introduce regressions that are hard to debug and might allow failing tests to pass, so use it only as a last resort."
+        }
+      ]
+    },
+    {
+      "id": "c017-q07",
+      "lesson": null,
+      "concept": "c017-local-test-android-stubs",
+      "type": "multiple_select",
+      "prompt": "A local unit test of a formatter fails with `Method ... not mocked` when the code calls an Android framework class. Which statements are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Local tests run against an Android library whose method code is removed"
+        },
+        {
+          "id": "b",
+          "text": "`returnDefaultValues = true` makes those methods run their real code"
+        },
+        {
+          "id": "c",
+          "text": "`returnDefaultValues = true` is a last resort: it can let failing tests pass"
+        },
+        {
+          "id": "d",
+          "text": "The error means this test can only ever run on a real device or an emulator"
+        },
+        {
+          "id": "e",
+          "text": "A Robolectric shadow of the Android class is a better fix than default values"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "Local tests run on the JVM against a mockable Android library: the framework's public methods with their code removed, so calling one throws `Method ... not mocked`. `unitTests.returnDefaultValues = true` makes those methods return null or zero, not run real code, and the docs call it a last resort because those values can hide regressions and let failing tests pass. Prefer a test double, such as a fake or a Robolectric shadow of the Android class; moving to an instrumented test is one option, not the only one.",
+      "materials": [
+        "android-testing-fundamentals"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/training/testing/local-tests",
+          "title": "Build local unit tests",
+          "publisher": "Google",
+          "accessed": "2026-10-03",
+          "claim": "The mockable Android library throws 'Method ... not mocked' when its methods are called; `unitTests.returnDefaultValues = true` makes them return null or zero instead, which can introduce regressions and let failing tests pass, so use it only as a last resort; prefer test doubles such as fakes or Robolectric shadows."
+        }
+      ]
+    },
+    {
+      "id": "c017-q08",
+      "lesson": null,
+      "concept": "c017-compose-test-rule-choice",
+      "type": "multiple_select",
+      "prompt": "You're writing a Compose UI test. Which statements about `createComposeRule()` and `createAndroidComposeRule<A>()` are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`createComposeRule()` suits tests needing no Activity: you call `setContent`"
+        },
+        {
+          "id": "b",
+          "text": "`createAndroidComposeRule<A>()` also needs the `ui-test-manifest` dependency"
+        },
+        {
+          "id": "c",
+          "text": "`createAndroidComposeRule<A>()` suits tests that need access to an Activity"
+        },
+        {
+          "id": "d",
+          "text": "`createComposeRule()` launches your app's main Activity with its real content"
+        },
+        {
+          "id": "e",
+          "text": "`createComposeRule()` needs `ui-test-manifest` as a `debugImplementation`"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "`createComposeRule()` is for testing Compose content without an Activity of your own: you call `setContent {}` with the composable under test, such as a screen given a fake UI state. `createAndroidComposeRule<A>()` is for when you need access to an Activity. The `androidx.compose.ui:ui-test-manifest` `debugImplementation` dependency is needed for `createComposeRule()`, but not for `createAndroidComposeRule<A>()`.",
+      "materials": [
+        "compose-testing"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/testing",
+          "title": "Test your Compose layout",
+          "publisher": "Google",
+          "accessed": "2026-10-03",
+          "claim": "`createComposeRule()` is used with `setContent` when no activity is needed, and `createAndroidComposeRule<YourActivity>()` when you need access to an activity; `ui-test-manifest` is needed for `createComposeRule()` but not for `createAndroidComposeRule<YourActivity>()`."
         }
       ]
     }

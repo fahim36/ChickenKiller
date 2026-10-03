@@ -119,7 +119,12 @@
           "accessed": "2026-10-02",
           "claim": "The same text translated into different languages can have tokenization lengths up to 15 times different, which makes the cost of commercial services, processing time and latency, and how much content fits in context unequal; even character- and byte-level models show over 4x differences for some language pairs."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c011-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c011-q04",
@@ -192,7 +197,12 @@
           "accessed": "2026-10-02",
           "claim": "The text-embedding-3 models can be shortened with the `dimensions` parameter without losing their concept-representing properties (`text-embedding-3-large` at 256 dimensions still beats `text-embedding-ada-002` at 1,536); if you shorten one manually you must normalize it; OpenAI embeddings are normalized to length 1, so a dot product gives cosine similarity."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c011-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c011-q06",
@@ -230,6 +240,108 @@
           "publisher": "Petrov et al. (NeurIPS 2023, arXiv)",
           "accessed": "2026-10-02",
           "claim": "The same text translated into different languages can have tokenization lengths up to 15 times different, which makes the cost of commercial services, processing time and latency, and how much content fits in context unequal; even character- and byte-level models show over 4x differences for some language pairs."
+        }
+      ]
+    },
+    {
+      "id": "c011-q07",
+      "lesson": null,
+      "concept": "c011-tokenizer-language-cost",
+      "type": "multiple_select",
+      "prompt": "The same help-centre paragraph costs several times more tokens in Bangla than in English. Which statements about this are true for an app that serves both languages? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The same text can tokenize to very different lengths by language, up to about 15x"
+        },
+        {
+          "id": "b",
+          "text": "Byte-level models close the gap, since every language is encoded as raw bytes"
+        },
+        {
+          "id": "c",
+          "text": "Bangla requests cost more and take longer, since both scale with the token count"
+        },
+        {
+          "id": "d",
+          "text": "The gap only affects price: latency and context use are the same in each language"
+        },
+        {
+          "id": "e",
+          "text": "A Bangla user fits less of a long document into the same context window"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "Petrov et al. found that the same text translated into different languages can differ in tokenized length by up to 15 times. Because price, processing time and latency, and how much fits in the context window all depend on the token count, Bangla users pay more, wait longer and fit less, so budget each language separately with your model's own tokenizer. Byte- and character-level models don't fix it: they still show over 4x differences for some language pairs.",
+      "materials": [
+        "tiktokenizer-token-counting-playground",
+        "karpathy-lets-build-the-gpt-tokenizer"
+      ],
+      "sources": [
+        {
+          "url": "https://arxiv.org/abs/2305.15425",
+          "title": "Language Model Tokenizers Introduce Unfairness Between Languages",
+          "publisher": "Petrov et al. (NeurIPS 2023, arXiv)",
+          "accessed": "2026-10-03",
+          "claim": "The same text translated into different languages can have tokenization lengths up to 15 times different, which makes the cost of commercial language services, processing time and latency, and the amount of content that fits in the context unequal; even character-level and byte-level models show over 4 times the difference in encoding length for some language pairs."
+        }
+      ]
+    },
+    {
+      "id": "c011-q08",
+      "lesson": null,
+      "concept": "c011-shortened-embeddings",
+      "type": "multiple_select",
+      "prompt": "To cut vector storage, you want to keep only the first 256 dimensions of your `text-embedding-3-large` embeddings. Which statements are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Any embedding model's vectors can be cut like this with no loss of retrieval quality"
+        },
+        {
+          "id": "b",
+          "text": "Matryoshka-style training makes each prefix of an embedding a usable embedding"
+        },
+        {
+          "id": "c",
+          "text": "At 256 dimensions, `text-embedding-3-large` falls behind `ada-002` at 1,536"
+        },
+        {
+          "id": "d",
+          "text": "The API's `dimensions` parameter is OpenAI's suggested way to get the short vector"
+        },
+        {
+          "id": "e",
+          "text": "If you truncate vectors yourself, normalize them again so dot product = cosine"
+        }
+      ],
+      "answers": [
+        "b",
+        "d",
+        "e"
+      ],
+      "explanation": "Matryoshka Representation Learning trains one embedding so that its leading dimensions hold coarse-to-fine information, so a prefix is a usable embedding; the text-embedding-3 models were trained with such a technique. OpenAI suggests the `dimensions` parameter; if you cut a vector yourself you must re-normalize it, since dot product equals cosine only for unit-length vectors. OpenAI reports `text-embedding-3-large` at 256 dimensions still beats `ada-002` at 1,536. Models not trained this way give no such guarantee, and shortening can still cost some accuracy, so measure on your data.",
+      "materials": [
+        "openai-docs-embeddings"
+      ],
+      "sources": [
+        {
+          "url": "https://arxiv.org/abs/2205.13147",
+          "title": "Matryoshka Representation Learning",
+          "publisher": "Kusupati et al. (NeurIPS 2022, arXiv)",
+          "accessed": "2026-10-03",
+          "claim": "Matryoshka Representation Learning encodes information at different granularities so a single embedding adapts to downstream compute limits, giving up to 14x smaller embeddings at the same ImageNet-1K accuracy and up to 14x faster large-scale retrieval, with no added inference cost."
+        },
+        {
+          "url": "https://developers.openai.com/api/docs/guides/embeddings",
+          "title": "Vector embeddings",
+          "publisher": "OpenAI",
+          "accessed": "2026-10-03",
+          "claim": "The text-embedding-3 models were trained so they can be shortened, via the suggested `dimensions` parameter, without losing their concept-representing properties: `text-embedding-3-large` at 256 dimensions still outperforms unshortened `text-embedding-ada-002` at 1,536; an embedding shortened manually must be normalized, and OpenAI embeddings are normalized to length 1 so a dot product gives cosine similarity."
         }
       ]
     }

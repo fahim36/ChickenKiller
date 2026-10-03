@@ -146,7 +146,12 @@
           "accessed": "2026-10-02",
           "claim": "Never create more than one DataStore instance for a given file in the same process, or DataStore throws IllegalStateException when reading or updating; updateData is transactional; consider migrating from SharedPreferences to DataStore."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c010-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c010-q04",
@@ -260,6 +265,67 @@
           "publisher": "Google (Android Developers)",
           "accessed": "2026-10-02",
           "claim": "shouldMigrate, migrate and cleanUp may be called multiple times so must be idempotent; if migrate fails nothing is committed, cleanUp isn't called and migration is retried on the next DataStore call; reading DataStore inside these functions deadlocks because DataStore doesn't return data until all migrations complete."
+        }
+      ]
+    },
+    {
+      "id": "c010-q07",
+      "lesson": null,
+      "concept": "c010-datastore-migrations",
+      "type": "multiple_select",
+      "prompt": "A released app moves its settings from SharedPreferences to Preferences DataStore with a `SharedPreferencesMigration`. Which statements about DataStore migrations are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Migration methods may run more than once, so they must be idempotent"
+        },
+        {
+          "id": "b",
+          "text": "If `migrate` fails, DataStore commits the values migrated so far and goes on"
+        },
+        {
+          "id": "c",
+          "text": "If `migrate` fails, nothing is committed and it is retried on a later call"
+        },
+        {
+          "id": "d",
+          "text": "Two DataStore instances for one file are safe if both install the migration"
+        },
+        {
+          "id": "e",
+          "text": "Reading the DataStore from inside `migrate` deadlocks the migration"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "`shouldMigrate`, `migrate` and `cleanUp` may be called multiple times, so they must be idempotent. If `migrate` fails, DataStore commits nothing, doesn't call `cleanUp`, and attempts the migrations again on future calls. Reading the DataStore from inside a migration deadlocks, because DataStore returns no data until all migrations complete. And never create more than one DataStore instance for a file in the same process: DataStore then throws `IllegalStateException` when reading or updating.",
+      "materials": [
+        "android-datastore"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/reference/kotlin/androidx/datastore/core/DataMigration",
+          "title": "DataMigration",
+          "publisher": "Google (Android Developers)",
+          "accessed": "2026-10-03",
+          "claim": "`shouldMigrate`, `migrate` and `cleanUp` may be called multiple times so must be idempotent; if `migrate` fails nothing is committed, `cleanUp` isn't called and migrations are attempted again on future DataStore calls; accessing DataStore data from inside these functions deadlocks because DataStore doesn't return data until all migrations complete."
+        },
+        {
+          "url": "https://developer.android.com/reference/kotlin/androidx/datastore/migrations/SharedPreferencesMigration",
+          "title": "SharedPreferencesMigration",
+          "publisher": "Google (Android Developers)",
+          "accessed": "2026-10-03",
+          "claim": "`SharedPreferencesMigration` is a `DataMigration` from SharedPreferences to DataStore, taking the SharedPreferences and the set of keys to migrate."
+        },
+        {
+          "url": "https://developer.android.com/topic/libraries/architecture/datastore",
+          "title": "DataStore",
+          "publisher": "Google (Android Developers)",
+          "accessed": "2026-10-03",
+          "claim": "Never create more than one DataStore instance for a given file in the same process; if several are active, DataStore throws `IllegalStateException` when reading or updating data."
         }
       ]
     }

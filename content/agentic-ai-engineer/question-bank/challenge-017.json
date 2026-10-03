@@ -120,7 +120,12 @@
           "accessed": "2026-10-02",
           "claim": "A function guardrail takes a TaskOutput and returns Tuple[bool, Any]; on failure the error is sent back to the agent, which retries until it passes or guardrail_max_retries (default 3) is reached; string guardrails use LLM-based validation; a `guardrails` list runs sequentially, each receiving the previous one's output."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c017-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c017-q04",
@@ -149,7 +154,12 @@
           "accessed": "2026-10-02",
           "claim": "shield keeps the inner task running when the containing coroutine is cancelled, but the caller still gets CancelledError; cancellation from within also cancels shield; save a reference to tasks passed to shield because the loop keeps only weak references."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c017-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c017-q05",
@@ -226,6 +236,100 @@
           "publisher": "CrewAI",
           "accessed": "2026-10-02",
           "claim": "The `guardrails` parameter accepts a list; multiple guardrails are executed sequentially, with each guardrail receiving the output from the previous one."
+        }
+      ]
+    },
+    {
+      "id": "c017-q07",
+      "lesson": null,
+      "concept": "c017-crewai-task-guardrails",
+      "type": "multiple_select",
+      "prompt": "A CrewAI task must return valid JSON with a summary under 200 words, and you enforce this with task guardrails. Which statements are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A function guardrail takes the task output and returns a `(bool, Any)` tuple"
+        },
+        {
+          "id": "b",
+          "text": "When a check fails, the task stops at once and raises the error to your code"
+        },
+        {
+          "id": "c",
+          "text": "On a failure the error goes back to the agent, which retries up to a limit"
+        },
+        {
+          "id": "d",
+          "text": "A `guardrails` list runs in order, each check getting the previous output"
+        },
+        {
+          "id": "e",
+          "text": "A string guardrail is a regex matched against the output, with no LLM call"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "d"
+      ],
+      "explanation": "A function guardrail receives the task's output and returns a tuple: `(True, result)` to accept it, or `(False, error)` to reject it. On a rejection the error is sent back to the agent, which tries to fix its output until a check passes or `guardrail_max_retries` (default 3) is reached, so the task doesn't just stop. A `guardrails` list runs its checks in order, each receiving the previous one's output, so a JSON check can run before a length check. A string guardrail is a description that the agent's LLM checks the output against, not a regex.",
+      "materials": [
+        "crewai-documentation"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.crewai.com/en/concepts/tasks",
+          "title": "Tasks",
+          "publisher": "CrewAI",
+          "accessed": "2026-10-03",
+          "claim": "A function guardrail takes the task output and returns a `(bool, Any)` tuple; on failure the error is sent back to the agent, which tries to fix the issue until validation passes or `guardrail_max_retries` (default 3) is reached; a string guardrail uses the agent's LLM to validate the output against the description; a `guardrails` list runs sequentially, each receiving the previous guardrail's output."
+        }
+      ]
+    },
+    {
+      "id": "c017-q08",
+      "lesson": null,
+      "concept": "c017-asyncio-shield",
+      "type": "multiple_select",
+      "prompt": "An agent backend wraps a database write in `asyncio.shield(task)`, so the write finishes even if the client disconnects and the request handler is cancelled. Which statements are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Shield also protects the inner task from a cancel that comes from within itself"
+        },
+        {
+          "id": "b",
+          "text": "The handler's `await` still raises `CancelledError` when the handler is cancelled"
+        },
+        {
+          "id": "c",
+          "text": "The shielded task keeps running when the coroutine awaiting it is cancelled"
+        },
+        {
+          "id": "d",
+          "text": "Once a task is shielded, the event loop holds it strongly until it is done"
+        },
+        {
+          "id": "e",
+          "text": "Keep your own reference to the task, as the loop only holds weak references"
+        }
+      ],
+      "answers": [
+        "b",
+        "c",
+        "e"
+      ],
+      "explanation": "If the coroutine awaiting `shield(task)` is cancelled, the inner task is not: from its point of view nothing happened. The caller is still cancelled, though, so its `await` raises `CancelledError` and its own cleanup must handle that. If the inner task is cancelled from within, the shield is cancelled too. The event loop keeps only weak references to tasks, so save a reference to the task you shield, or it may be garbage-collected before it finishes.",
+      "materials": [
+        "python-docs-asyncio"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/library/asyncio-task.html",
+          "title": "Coroutines and Tasks",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-10-03",
+          "claim": "If the coroutine containing `await shield(task)` is cancelled, the task is not cancelled, but the caller is still cancelled and the `await` raises CancelledError; if the inner task is cancelled from within, that also cancels shield(); save a reference to tasks passed to shield, because the event loop only keeps weak references and an unreferenced task may be garbage collected."
         }
       ]
     }

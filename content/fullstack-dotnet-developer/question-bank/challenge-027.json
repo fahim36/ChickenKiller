@@ -116,7 +116,12 @@
           "accessed": "2026-10-02",
           "claim": "A queue buffers requests so the service processes them at its own pace and needs only enough instances for average load; control the consumers' rate, since unbounded autoscaling moves overload downstream; queues are one-way so replies need a mechanism; it's unsuitable for low-latency synchronous responses; monitor queue depth, make consumers idempotent and dead-letter poison messages."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c027-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c027-q04",
@@ -143,7 +148,12 @@
           "accessed": "2026-10-02",
           "claim": "Complex types model value objects with no identity and value semantics and are the recommended choice over owned types; immutable records with `with` avoid accidental sharing while EF updates only changed columns; EF Core 10 adds struct, optional, JSON and collection (JSON-only) support; use an entity type if several entities must observe the same updating value."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c027-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c027-q05",
@@ -218,6 +228,98 @@
           "publisher": "Microsoft Learn",
           "accessed": "2026-10-02",
           "claim": "Autoscaling without bounding consumers' aggregate downstream rate only moves the overload to downstream dependencies; limit scale-out and tune trigger concurrency to protect the data store."
+        }
+      ]
+    },
+    {
+      "id": "c027-q07",
+      "lesson": null,
+      "concept": "c027-queue-based-load-leveling",
+      "type": "multiple_select",
+      "prompt": "Your order API calls a partner's inventory service directly, and the service times out during flash sales. You put a Service Bus queue between them, with workers draining it. Which of these must you now design for? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Callers no longer get the inventory result in the request, so they need another way to learn it"
+        },
+        {
+          "id": "b",
+          "text": "Workers that autoscale without a bound can pass the spike on and overload the partner again"
+        },
+        {
+          "id": "c",
+          "text": "The queue delivers each message exactly once, so the workers need no duplicate handling"
+        },
+        {
+          "id": "d",
+          "text": "Workers must be sized for the flash-sale peak, or the queue drops the messages it can't hold"
+        },
+        {
+          "id": "e",
+          "text": "Queue depth grows whenever producers outpace the workers, so it needs monitoring"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "e"
+      ],
+      "explanation": "A queue is one-way, so a caller that needs the outcome needs a separate way to get it, and the pattern doesn't suit callers that need a low-latency synchronous reply. Autoscaling the workers without bounding their total rate just moves the overload to the partner. If producers outpace consumers the queue grows and latency rises, so monitor its depth. Delivery is at least once, not exactly once, so consumers must be idempotent. And the point of the queue is to buffer the peak: workers need only enough capacity for the average load.",
+      "materials": [
+        "azure-cloud-design-patterns"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/queue-based-load-leveling",
+          "title": "Queue-Based Load Leveling Pattern - Azure Architecture Center",
+          "publisher": "Microsoft Learn",
+          "claim": "The queue buffers requests so you need only enough service instances for average rather than peak load; queues are one-way, so replies need a mechanism; autoscaling without bounding consumers' aggregate rate moves the overload downstream; monitor queue depth because it grows when producers outpace consumers; most queues deliver at least once, so consumers must be idempotent.",
+          "accessed": "2026-10-03"
+        }
+      ]
+    },
+    {
+      "id": "c027-q08",
+      "lesson": null,
+      "concept": "c027-complex-types-value-objects",
+      "type": "multiple_select",
+      "prompt": "You're mapping `Address` and `Money` value objects in an EF Core 10 app as complex types rather than owned entity types. Which statements are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Complex types have no identity and are compared by value, while owned types have a hidden key"
+        },
+        {
+          "id": "b",
+          "text": "Making them immutable records changed with `with` stops one shared instance changing everywhere"
+        },
+        {
+          "id": "c",
+          "text": "Each complex type gets its own table, joined to the owner's table through a hidden key column"
+        },
+        {
+          "id": "d",
+          "text": "A `List<Address>` of complex types can be mapped to plain columns of the owner's table"
+        },
+        {
+          "id": "e",
+          "text": "If several entities must see one shared address and update together, use an entity type"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "e"
+      ],
+      "explanation": "Complex types have no identity and value semantics; owned types are entity types with a hidden key and reference semantics. A reference-type instance shared by several properties would change everywhere if mutated, so make it immutable and use `with`; EF still updates only the columns that changed. A complex type is never stored in its own table: it lives in the owner's table or a JSON column. A collection of complex types must be mapped to JSON. When several entities really should share and update one address, the docs say to model it as an entity type with its own identity.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/ef/core/modeling/complex-types",
+          "title": "Complex Types - EF Core",
+          "publisher": "Microsoft Learn",
+          "claim": "Complex types have no identity and value semantics while owned types have a hidden key and reference semantics; immutable records changed with `with` avoid accidental sharing and EF updates only changed columns; complex types are stored in the container's table or JSON, never their own table; complex collections must be mapped to JSON; if several entities should observe the same updating value, model it as an entity type.",
+          "accessed": "2026-10-03"
         }
       ]
     }

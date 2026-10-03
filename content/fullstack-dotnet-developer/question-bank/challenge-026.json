@@ -125,7 +125,12 @@
           "accessed": "2026-10-02",
           "claim": "Only GET requests are cacheable; static assets suit caching while authenticated API endpoints shouldn't be cached; Front Door honours s-maxage, max-age and Expires, never caches private, no-cache or no-store, defaults to one to three days without Cache-Control, supports query string caching modes and purge, and each edge site keeps its own cache."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c026-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c026-q04",
@@ -154,7 +159,12 @@
           "accessed": "2026-10-02",
           "claim": "Web-Queue-Worker suits simple domains with long-running or batch work on managed services; both parts are stateless and scale independently; challenges are monolithic growth, hidden dependencies through shared schemas or code, and a failure between the database write and the queue message, addressed by the Transactional Outbox pattern."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c026-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c026-q05",
@@ -190,7 +200,12 @@
           "accessed": "2026-10-02",
           "claim": "FetchForWriting loads the stream for appending and provides the optimistic-concurrency guard on its version."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c026-q09",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c026-q06",
@@ -226,6 +241,152 @@
           "publisher": "Microsoft Learn",
           "accessed": "2026-10-02",
           "claim": "If the Cache-Control header isn't present on the origin response, Front Door by default randomly determines a cache duration between one and three days; Front Door supports only Last-Modified as a validator, not etag."
+        }
+      ]
+    },
+    {
+      "id": "c026-q07",
+      "lesson": null,
+      "concept": "c026-cdn-edge-caching",
+      "type": "multiple_select",
+      "prompt": "Your .NET shop serves product images, JavaScript bundles and a public product-list API, plus per-user cart and account APIs, and you're adding Azure Front Door caching. Which statements are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Use separate routes, with caching off for authenticated or per-user APIs"
+        },
+        {
+          "id": "b",
+          "text": "A `Cache-Control: private` or `no-store` response is never cached at the edge"
+        },
+        {
+          "id": "c",
+          "text": "Each edge site keeps its own cache, so some requests still reach the origin"
+        },
+        {
+          "id": "d",
+          "text": "Front Door also caches POST responses whenever the origin sends a `max-age`"
+        },
+        {
+          "id": "e",
+          "text": "Without `Cache-Control`, Front Door never caches the response at all"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "c"
+      ],
+      "explanation": "Static assets suit caching, but authenticated APIs shouldn't be cached, and Microsoft recommends separate routes with caching off for dynamic ones, since a misconfiguration can serve one user's data to another. Front Door honours `s-maxage`, `max-age` and `Expires`, and never caches `private`, `no-cache` or `no-store` responses. Only `GET` requests are cacheable, and with no `Cache-Control` header Front Door picks a duration of one to three days rather than skipping the cache. Each edge site manages its own cache, so the origin still sees some traffic.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/frontdoor/front-door-caching",
+          "title": "Caching - Azure Front Door",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-03",
+          "claim": "Only GET requests are cacheable; static assets are ideal for caching, while authenticated API endpoints shouldn't be cached, using separate routes; private, no-cache and no-store are never cached; without Cache-Control the duration is one to three days; each edge site manages its own cache, so some traffic still reaches the origin."
+        }
+      ]
+    },
+    {
+      "id": "c026-q08",
+      "lesson": null,
+      "concept": "c026-web-queue-worker",
+      "type": "multiple_select",
+      "prompt": "You're weighing the Web-Queue-Worker architecture style for a new .NET product. Which statements are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It fits a relatively simple domain with long-running workflows or batch jobs"
+        },
+        {
+          "id": "b",
+          "text": "The stateless front end and worker can scale independently of each other"
+        },
+        {
+          "id": "c",
+          "text": "The front end can fail after the database write but before queueing the message"
+        },
+        {
+          "id": "d",
+          "text": "The worker is mandatory, even when the app has no long-running operations"
+        },
+        {
+          "id": "e",
+          "text": "Every read and write must go through the queue and worker to reach storage"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "c"
+      ],
+      "explanation": "Microsoft recommends the style for a relatively simple domain with long-running workflows or batch operations, on managed services. The front end and worker are stateless and scale independently. A known challenge is the front end failing after writing to the database but before sending the queue message, which the Transactional Outbox pattern addresses; the others are monolithic growth and hidden dependencies through shared schemas or code. The worker is optional without long-running work, and the front end can handle simple reads and writes directly.",
+      "materials": [
+        "azure-architecture-styles"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/guide/architecture-styles/web-queue-worker",
+          "title": "Web-Queue-Worker Architecture Style - Azure Architecture Center",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-03",
+          "claim": "Consider it for relatively simple domains with long-running workflows or batch operations; the front end and worker are stateless and scale independently; the worker is optional without long-running operations, and the front end can handle simple reads and writes directly; challenges include monolithic growth, hidden dependencies, and a failure between the database write and the queue message, addressed by the Transactional Outbox pattern."
+        }
+      ]
+    },
+    {
+      "id": "c026-q09",
+      "lesson": null,
+      "concept": "c026-event-stream-optimistic-concurrency",
+      "type": "multiple_select",
+      "prompt": "A command handler rehydrates an event-sourced aggregate from its stream and appends new events with optimistic concurrency. Which statements are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The store rejects the append if the stream changed since the handler read it"
+        },
+        {
+          "id": "b",
+          "text": "On rejection, the handler reloads the aggregate, re-runs its rules and retries"
+        },
+        {
+          "id": "c",
+          "text": "It protects one stream, so conflicts spanning entities need reconciliation"
+        },
+        {
+          "id": "d",
+          "text": "Append-only storage alone stops two handlers from both acting on stale state"
+        },
+        {
+          "id": "e",
+          "text": "It also keeps a stock stream and an orders stream consistent with each other"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "c"
+      ],
+      "explanation": "Two handlers that load the same entity at once can both act on the same state, for example both seeing five seats left. Event stores address this with optimistic concurrency: an append is rejected if the stream changed since it was read, and the handler reloads, reevaluates and retries (Marten's `FetchForWriting` provides this guard). It prevents conflicting writes to the same stream only; conflicts across entities, such as stock and orders, must be reconciled by the application, for example with a back order.",
+      "materials": [
+        "azure-cloud-design-patterns"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/event-sourcing",
+          "title": "Event Sourcing Pattern - Azure Architecture Center",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-03",
+          "claim": "Two handlers loading the same entity can act on the same state; event stores use optimistic concurrency and reject an append if the stream changed since it was read, and the handler reloads, reevaluates and retries; this prevents conflicting writes to the same stream, but conflicts spanning multiple entities must be reconciled, for example with a back order."
+        },
+        {
+          "url": "https://martendb.io/events/appending.html",
+          "title": "Appending Events | Marten - .NET Document DB & Event Store",
+          "publisher": "JasperFx (Marten)",
+          "accessed": "2026-10-03",
+          "claim": "FetchForWriting is the strongly recommended way to handle expected versions, providing optimistic-concurrency protection automatically."
         }
       ]
     }

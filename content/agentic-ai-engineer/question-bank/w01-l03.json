@@ -172,7 +172,12 @@
           "accessed": "2026-09-26",
           "claim": "`inspect.signature` follows a callable's `__wrapped__` attribute by default to report the underlying function's signature."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w01-l03-q09",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w01-l03-q05",
@@ -247,7 +252,12 @@
           "accessed": "2026-09-26",
           "claim": "`functools.wraps` is used as a decorator on the wrapper function to copy the wrapped function's metadata onto it."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w01-l03-q10",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w01-l03-q07",
@@ -324,6 +334,115 @@
           "publisher": "Python Software Foundation",
           "accessed": "2026-09-26",
           "claim": "Stacked decorators compose as `f1(f2(func))`, so the top decorator wraps the result of the lower one and runs outermost on each call."
+        }
+      ]
+    },
+    {
+      "id": "w01-l03-q09",
+      "lesson": "w01-l03",
+      "concept": "functools-wraps",
+      "type": "multiple_select",
+      "prompt": "A decorator returns an inner `wrapper(*args, **kwargs)` and you apply it to `def fetch(url): \"\"\"Fetch a page.\"\"\"`. Which of these are true about `functools.wraps`? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Without `wraps` on the wrapper, `fetch.__name__` is `'wrapper'`"
+        },
+        {
+          "id": "b",
+          "text": "Without `wraps`, `fetch.__doc__` is still `\"Fetch a page.\"`"
+        },
+        {
+          "id": "c",
+          "text": "`wraps` adds a `__wrapped__` attribute pointing at the original"
+        },
+        {
+          "id": "d",
+          "text": "With `wraps`, `inspect.signature(fetch)` shows `(url)`"
+        },
+        {
+          "id": "e",
+          "text": "`wraps` copies the original's code, so the wrapper never runs"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "d"
+      ],
+      "explanation": "`wraps` copies `__module__`, `__name__`, `__qualname__`, `__annotations__`, `__type_params__` and `__doc__` onto the wrapper and adds `__wrapped__` (c); without it the name is `'wrapper'` (a) and the original docstring is lost (b). `inspect.signature` follows `__wrapped__` by default, so it reports `(url)` rather than `(*args, **kwargs)` (d). It copies metadata, not code: the wrapper still runs on every call (e).",
+      "materials": [
+        "real-python-primer-on-decorators",
+        "fluent-python-2nd-ed"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/library/functools.html",
+          "title": "functools — Higher-order functions and operations on callable objects",
+          "publisher": "Python Software Foundation",
+          "claim": "`update_wrapper`/`wraps` assign `__module__`, `__name__`, `__qualname__`, `__annotations__`, `__type_params__` and `__doc__`, update `__dict__`, and add `__wrapped__` referring to the wrapped function; without it the example's name would be 'wrapper' and its docstring lost.",
+          "accessed": "2026-10-03"
+        },
+        {
+          "url": "https://docs.python.org/3/library/inspect.html",
+          "title": "inspect — Inspect live objects",
+          "publisher": "Python Software Foundation",
+          "claim": "`inspect.signature` follows `__wrapped__` by default (`follow_wrapped=True`) to unwrap decorated callables.",
+          "accessed": "2026-10-03"
+        }
+      ]
+    },
+    {
+      "id": "w01-l03-q10",
+      "lesson": "w01-l03",
+      "concept": "decorators-with-arguments",
+      "type": "multiple_select",
+      "prompt": "You write a decorator used as `@retry(times=3, exceptions=(TimeoutError,))` above `def call_model(): ...`. Which of these are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It means `call_model = retry(times=3, exceptions=...)(call_model)`"
+        },
+        {
+          "id": "b",
+          "text": "`retry` receives `call_model` along with `times` in a single call"
+        },
+        {
+          "id": "c",
+          "text": "`retry(...)` returns a decorator, which takes the function"
+        },
+        {
+          "id": "d",
+          "text": "The decorator returns a wrapper that runs the retry loop"
+        },
+        {
+          "id": "e",
+          "text": "Without `functools.wraps` the decorator raises a `TypeError`"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "d"
+      ],
+      "explanation": "`@f1(arg)` above `def func` is roughly `func = f1(arg)(func)` (a), so `retry(times=3, ...)` is called first with only the settings (b is wrong) and must return the real decorator (c). That decorator takes `call_model` and returns a wrapper, which calls it up to `times` times, catching only the listed exceptions (d). `functools.wraps` copies metadata onto the wrapper; leaving it out loses the name and docstring but raises nothing (e).",
+      "materials": [
+        "real-python-primer-on-decorators"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/reference/compound_stmts.html",
+          "title": "8. Compound statements",
+          "publisher": "Python Software Foundation",
+          "claim": "`@f1(arg)` `@f2` `def func(): pass` is roughly equivalent to `func = f1(arg)(f2(func))`, so a decorator with arguments is a factory whose result is applied to the function.",
+          "accessed": "2026-10-03"
+        },
+        {
+          "url": "https://docs.python.org/3/library/functools.html",
+          "title": "functools — Higher-order functions and operations on callable objects",
+          "publisher": "Python Software Foundation",
+          "claim": "`functools.wraps` decorates a wrapper function to copy the wrapped function's metadata; without it the wrapper's name would be 'wrapper' and the original docstring lost.",
+          "accessed": "2026-10-03"
         }
       ]
     }

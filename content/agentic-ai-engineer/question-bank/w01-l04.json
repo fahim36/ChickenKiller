@@ -186,7 +186,12 @@
           "accessed": "2026-09-26",
           "claim": "Each `yield` suspends a generator iterator while remembering its execution state, including local variables."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w01-l04-q10",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w01-l04-q05",
@@ -307,7 +312,12 @@
           "accessed": "2026-09-26",
           "claim": "Generator expressions produce their values lazily, on demand, so chained stages hold only the current item."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w01-l04-q11",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w01-l04-q08",
@@ -391,6 +401,115 @@
           "publisher": "Python Software Foundation",
           "accessed": "2026-09-26",
           "claim": "With `yield from`, each value produced by the underlying iterable is passed directly to the caller as a separate item."
+        }
+      ]
+    },
+    {
+      "id": "w01-l04-q10",
+      "lesson": "w01-l04",
+      "concept": "generator-functions",
+      "type": "multiple_select",
+      "prompt": "```python\ndef stream():\n    print(\"start\")\n    yield \"Hel\"\n    yield \"lo\"\n\ng = stream()\n```\nWhich of these are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`g = stream()` prints nothing: the body hasn't started yet"
+        },
+        {
+          "id": "b",
+          "text": "Calling `stream()` runs the whole body and stores both values"
+        },
+        {
+          "id": "c",
+          "text": "The first `next(g)` prints `start` and returns `\"Hel\"`"
+        },
+        {
+          "id": "d",
+          "text": "Each `next(g)` restarts the body, printing `start` again"
+        },
+        {
+          "id": "e",
+          "text": "Between `next` calls the generator keeps its local state"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "Calling a generator function returns a generator iterator without running the body (a, so b is wrong). Each `next()` runs the body until the next `yield`: the first prints `start` and returns `\"Hel\"` (c). At a `yield` the generator suspends, keeping its local variables, and resumes where it left off (e) rather than starting fresh (d). That is why a generator can forward streamed tokens one at a time.",
+      "materials": [
+        "real-python-generators-and-yield",
+        "fluent-python-2nd-ed"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/reference/datamodel.html",
+          "title": "3. Data model",
+          "publisher": "Python Software Foundation",
+          "claim": "A generator function, when called, returns an iterator; calling its `__next__()` method executes the body until it provides a value with a yield expression.",
+          "accessed": "2026-10-03"
+        },
+        {
+          "url": "https://docs.python.org/3/glossary.html",
+          "title": "Glossary",
+          "publisher": "Python Software Foundation",
+          "claim": "Each `yield` temporarily suspends a generator iterator, remembering its execution state including local variables, and on resuming it picks up where it left off, unlike functions, which start fresh on every call.",
+          "accessed": "2026-10-03"
+        }
+      ]
+    },
+    {
+      "id": "w01-l04-q11",
+      "lesson": "w01-l04",
+      "concept": "lazy-evaluation-memory",
+      "type": "multiple_select",
+      "prompt": "```python\nwith open(\"app.jsonl\") as f:\n    records = (json.loads(line) for line in f)\n    errors = (r for r in records if r[\"level\"] == \"error\")\n    n = sum(1 for _ in errors)\n```\nWhich of these are true for a very large log file? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Looping over `f` reads the file one line at a time"
+        },
+        {
+          "id": "b",
+          "text": "`records` parses every line as soon as it is defined"
+        },
+        {
+          "id": "c",
+          "text": "Lines are parsed only as `sum` pulls items through"
+        },
+        {
+          "id": "d",
+          "text": "Using `f.readlines()` instead uses the same memory"
+        },
+        {
+          "id": "e",
+          "text": "Only the current line is held in memory at a time"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "Looping over a file object reads it line by line, which is memory efficient (a). Generator expressions are lazy: apart from the outermost iterable (here just the file object), nothing is evaluated until values are requested, so `records` parses nothing when defined (b) and each line is parsed only as `sum` pulls it through (c). So only the current line is in memory (e). `f.readlines()` builds a list of every line first, so memory grows with the file (d).",
+      "materials": [
+        "real-python-generators-and-yield"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/tutorial/inputoutput.html",
+          "title": "7. Input and Output",
+          "publisher": "Python Software Foundation",
+          "claim": "Looping over a file object to read lines is memory efficient, fast and simple; `list(f)` or `f.readlines()` reads all the lines of a file into a list.",
+          "accessed": "2026-10-03"
+        },
+        {
+          "url": "https://docs.python.org/3/reference/expressions.html",
+          "title": "6. Expressions",
+          "publisher": "Python Software Foundation",
+          "claim": "In a generator expression, all expressions except the outermost iterable are evaluated lazily, when values are requested from the generator.",
+          "accessed": "2026-10-03"
         }
       ]
     }

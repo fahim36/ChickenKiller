@@ -130,7 +130,12 @@
           "accessed": "2026-10-02",
           "claim": "Set android.experimental.androidTest.numManagedDeviceShards to split tests across identical virtual devices per device profile (a group of three with two shards provisions six); it costs compute, too many devices can cause a provisioning timeout, and results come as a .proto file per shard."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c018-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c018-q04",
@@ -159,7 +164,12 @@
           "accessed": "2026-10-02",
           "claim": "ACCESS_LOCAL_NETWORK is enforced for apps targeting SDK 37+ across all networking APIs; system pickers (Output Switcher, NsdManager FLAG_SHOW_PICKER) need no permission; broad use cases declare and request it and handle denial; on Android 16 test with adb shell am compat enable RESTRICT_LOCAL_NETWORK."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c018-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c018-q05",
@@ -232,6 +242,105 @@
           "publisher": "Google",
           "accessed": "2026-10-02",
           "claim": "Build-managed devices provision the number of shards you specify for each device profile; a device group of three devices with numManagedDeviceShards set to two provisions six virtual devices."
+        }
+      ]
+    },
+    {
+      "id": "c018-q07",
+      "lesson": null,
+      "concept": "c018-instrumented-test-sharding",
+      "type": "multiple_select",
+      "prompt": "Your instrumented test suite takes 40 minutes on one emulator in CI. Which statements about sharding it are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`AndroidJUnitRunner` takes `-e numShards` and `-e shardIndex` to run one shard"
+        },
+        {
+          "id": "b",
+          "text": "Sharding cuts both the test time and the compute that the run uses"
+        },
+        {
+          "id": "c",
+          "text": "With managed devices, `numManagedDeviceShards` goes in `gradle.properties`"
+        },
+        {
+          "id": "d",
+          "text": "Managed-device sharding writes one combined `.proto` result for all shards"
+        },
+        {
+          "id": "e",
+          "text": "A group of three devices with two shards each provisions six virtual devices"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "`AndroidJUnitRunner` splits a suite into shards: `-e numShards` sets how many and `-e shardIndex` which one to run, so several devices can run shards in parallel. With Gradle Managed Devices you set `android.experimental.androidTest.numManagedDeviceShards` in `gradle.properties`, and each device profile gets that many identical devices, so three devices with two shards is six. Sharding reduces time at the cost of more compute (too many devices can time out provisioning), and Gradle writes a `.proto` result for each shard.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://developer.android.com/training/testing/instrumented-tests/androidx-test-libraries/runner",
+          "title": "AndroidJUnitRunner",
+          "publisher": "Google",
+          "accessed": "2026-10-03",
+          "claim": "The test runner splits a suite into shards: `-e numShards` sets the number of shards and `-e shardIndex` which one to run."
+        },
+        {
+          "url": "https://developer.android.com/studio/test/managed-devices",
+          "title": "Scale your tests with build-managed devices",
+          "publisher": "Google",
+          "accessed": "2026-10-03",
+          "claim": "`android.experimental.androidTest.numManagedDeviceShards` in `gradle.properties` splits tests across identical virtual devices per device profile (a group of three with two shards provisions six), reducing time at the cost of additional compute; results come as a `.proto` file for each shard."
+        }
+      ]
+    },
+    {
+      "id": "c018-q08",
+      "lesson": null,
+      "concept": "c018-android17-local-network-permission",
+      "type": "multiple_select",
+      "prompt": "Your app's casting and smart-home features talk to devices on the user's Wi-Fi, and it now targets API 37 (Android 17). Which statements about local network protection are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Without `ACCESS_LOCAL_NETWORK`, its TCP, UDP and mDNS traffic on the LAN is blocked"
+        },
+        {
+          "id": "b",
+          "text": "Libraries such as OkHttp are exempt, so only raw sockets need the permission"
+        },
+        {
+          "id": "c",
+          "text": "Casting through the Output Switcher works without `ACCESS_LOCAL_NETWORK`"
+        },
+        {
+          "id": "d",
+          "text": "`ACCESS_LOCAL_NETWORK` is a normal permission, granted when the app installs"
+        },
+        {
+          "id": "e",
+          "text": "On Android 16 you can test it early with the `RESTRICT_LOCAL_NETWORK` compat flag"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "Apps targeting SDK 37 need `ACCESS_LOCAL_NETWORK` for local network traffic through all networking APIs: TCP, UDP, mDNS, `NsdManager` and libraries such as OkHttp. It is a runtime (dangerous) permission in the Nearby devices group, so ask for it only for broad use cases like home automation and handle denial. System-mediated pickers, such as the Output Switcher for casting or `NsdManager` with `FLAG_SHOW_PICKER`, need no permission. On Android 16, `adb shell am compat enable RESTRICT_LOCAL_NETWORK <package>` turns the restriction on for testing.",
+      "materials": [
+        "android-17-behavior-changes"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/privacy-and-security/local-network-permission",
+          "title": "Local network permission",
+          "publisher": "Google",
+          "accessed": "2026-10-03",
+          "claim": "Apps targeting SDK 37+ need the runtime `ACCESS_LOCAL_NETWORK` permission for local network traffic through all networking APIs, including mDNS, `NsdManager` and libraries like OkHttp; the Output Switcher and `NsdManager` with `FLAG_SHOW_PICKER` need no permission; on Android 16 test with `adb shell am compat enable RESTRICT_LOCAL_NETWORK`."
         }
       ]
     }

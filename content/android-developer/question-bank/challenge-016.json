@@ -121,7 +121,12 @@
           "accessed": "2026-10-02",
           "claim": "SCHEDULE_EXACT_ALARM is not pre-granted to fresh installs of apps targeting Android 13+ on Android 14 (and is denied after backup and restore) but stays granted on upgrade; check canScheduleExactAlarms(), request with ACTION_REQUEST_SCHEDULE_EXACT_ALARM, reschedule on ACTION_SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED; revoking it stops the app and cancels future exact alarms; most apps should use inexact alarms."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c016-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c016-q04",
@@ -155,7 +160,12 @@
           "accessed": "2026-10-02",
           "claim": "Observers paired with a LifecycleOwner are removed when its Lifecycle reaches DESTROYED; fragments observe with viewLifecycleOwner."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c016-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c016-q05",
@@ -228,6 +238,96 @@
           "publisher": "Google",
           "accessed": "2026-10-02",
           "claim": "When the SCHEDULE_EXACT_ALARM permission is revoked, the app stops and all future exact alarms are canceled; apps should check canScheduleExactAlarms() and reschedule on ACTION_SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED."
+        }
+      ]
+    },
+    {
+      "id": "c016-q07",
+      "lesson": null,
+      "concept": "c016-exact-alarm-permission",
+      "type": "multiple_select",
+      "prompt": "A medication-reminder app schedules exact alarms with `SCHEDULE_EXACT_ALARM`. On Android 14 its reminders never fire for new users, though they work for users who upgraded. Which statements are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "On Android 14, fresh installs aren't pre-granted `SCHEDULE_EXACT_ALARM`"
+        },
+        {
+          "id": "b",
+          "text": "If the user revokes it, exact alarms already scheduled still fire"
+        },
+        {
+          "id": "c",
+          "text": "Check `canScheduleExactAlarms()` before setting an exact alarm"
+        },
+        {
+          "id": "d",
+          "text": "Alarms from `setRepeating()` are exact on Android 4.4 and later"
+        },
+        {
+          "id": "e",
+          "text": "Send the user to `ACTION_REQUEST_SCHEDULE_EXACT_ALARM` to grant it"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "On Android 14, `SCHEDULE_EXACT_ALARM` is no longer pre-granted to fresh installs (and is lost on backup and restore to a new device), while apps that had it keep it on upgrade, which explains new users. So check `canScheduleExactAlarms()` first, send the user to `ACTION_REQUEST_SCHEDULE_EXACT_ALARM` if it is false, and reschedule on `ACTION_SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED`. Revoking it stops the app and cancels all its future exact alarms. All repeating alarms are inexact on Android 4.4 and later.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/background-work/services/alarms/schedule",
+          "title": "Schedule alarms",
+          "publisher": "Google",
+          "accessed": "2026-10-03",
+          "claim": "`SCHEDULE_EXACT_ALARM` is not pre-granted to fresh installs on Android 14 (and is lost on backup and restore) but stays granted on upgrade; check `canScheduleExactAlarms()`, send users to `ACTION_REQUEST_SCHEDULE_EXACT_ALARM`, and handle `ACTION_SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED`; when it is revoked the app stops and all future exact alarms are cancelled; repeating alarms are inexact on Android 4.4+."
+        }
+      ]
+    },
+    {
+      "id": "c016-q08",
+      "lesson": null,
+      "concept": "c016-fragment-view-lifecycle-owner",
+      "type": "multiple_select",
+      "prompt": "A Fragment keeps `private var binding: FragmentHomeBinding?` and observes a ViewModel's `LiveData` in `onViewCreated()`. Which statements about its lifecycles are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The Fragment's view has its own `Lifecycle`, separate from the Fragment's"
+        },
+        {
+          "id": "b",
+          "text": "The view's `Lifecycle` exists from `onCreate()`, before any view is made"
+        },
+        {
+          "id": "c",
+          "text": "Observe with `viewLifecycleOwner` so updates stop when the view is destroyed"
+        },
+        {
+          "id": "d",
+          "text": "The view's `Lifecycle` reaches `DESTROYED` only when the Fragment itself does"
+        },
+        {
+          "id": "e",
+          "text": "Set `binding` to null in `onDestroyView()` so the old view can be collected"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "A Fragment's view has a `Lifecycle` managed independently of the Fragment's, created only when the Fragment provides a view. When the view is detached (for example on the back stack, while the Fragment lives on) the view's `Lifecycle` moves to `DESTROYED` and `onDestroyView()` runs, so observers tied to `viewLifecycleOwner` stop, and you remove references like `binding` there so the view can be garbage collected.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://developer.android.com/guide/fragments/lifecycle",
+          "title": "Fragment lifecycle",
+          "publisher": "Google",
+          "accessed": "2026-10-03",
+          "claim": "A fragment's view has a Lifecycle managed independently of the fragment's, created only when the fragment provides a View; after the view is detached its Lifecycle moves to DESTROYED and `onDestroyView()` runs, and all references to the view should be removed so it can be garbage collected; the view Lifecycle is useful for observing LiveData only while the view exists."
         }
       ]
     }

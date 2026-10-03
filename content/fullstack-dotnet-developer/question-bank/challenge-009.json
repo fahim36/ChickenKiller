@@ -121,7 +121,12 @@
           "accessed": "2026-10-02",
           "claim": "Pool objects that are expensive to allocate or initialize, represent a limited resource, or are used predictably and frequently; for cheap objects getting one from the pool is usually slower; pooled objects aren't freed until the pool is; measure first; the pool limits how many objects it retains, not how many it allocates; reset objects with IResettable or a PooledObjectPolicy."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c009-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c009-q04",
@@ -148,7 +153,12 @@
           "accessed": "2026-10-02",
           "claim": "Parallel loops aren't always faster, so measure; avoid writing shared state (locks cost performance) and use thread-local or partition-local overloads; iterations may but don't have to run in parallel or in order, and one iteration should never wait on another, or the loop can deadlock."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c009-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c009-q05",
@@ -228,6 +238,96 @@
           "publisher": "Microsoft Learn",
           "accessed": "2026-10-02",
           "claim": "Pool objects that are expensive to allocate or initialize, represent a limited resource, or are used predictably and frequently; for cheap objects getting one from the pool is usually slower; pooled objects aren't freed until the pool is; measure first; the pool limits how many objects it retains, not how many it allocates; reset objects with IResettable or a PooledObjectPolicy."
+        }
+      ]
+    },
+    {
+      "id": "c009-q07",
+      "lesson": null,
+      "concept": "c009-objectpool-tradeoffs",
+      "type": "multiple_select",
+      "prompt": "A teammate wants to pool every DTO and `List<T>` in a hot ASP.NET Core endpoint with `Microsoft.Extensions.ObjectPool` to cut GC work. Which statements are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "For cheap objects, getting one from the pool is usually slower than allocating"
+        },
+        {
+          "id": "b",
+          "text": "Reset each object when it is returned, with `IResettable` or a policy"
+        },
+        {
+          "id": "c",
+          "text": "Pooled objects aren't freed until the pool itself is deallocated"
+        },
+        {
+          "id": "d",
+          "text": "The pool caps how many objects it allocates, so it bounds memory use"
+        },
+        {
+          "id": "e",
+          "text": "Pooling always cuts latency, so no measurement is needed before adopting it"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "c"
+      ],
+      "explanation": "Pooling pays off for objects that are expensive to create, limited, or used predictably and often, such as `StringBuilder`. Unless an object's initialization cost is high, getting it from the pool is usually slower than allocating it, and pooled objects stay in memory until the pool is deallocated. Reset state on return (`IResettable`, or a `PooledObjectPolicy<T>`) so one request never sees another's data. The pool limits how many objects it retains, not how many it allocates, and the docs say to pool only after measuring realistic scenarios.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/performance/objectpool",
+          "title": "Object reuse with ObjectPool in ASP.NET Core",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-03",
+          "claim": "Unless an object's initialization cost is high it's usually slower to get it from the pool; pooled objects aren't deallocated until the pool is; the pool limits how many objects it retains, not how many it allocates; IResettable or a PooledObjectPolicy<T> resets objects on return; use pooling only after collecting performance data."
+        }
+      ]
+    },
+    {
+      "id": "c009-q08",
+      "lesson": null,
+      "concept": "c009-parallel-loop-pitfalls",
+      "type": "multiple_select",
+      "prompt": "A CPU-bound report runs in `Parallel.ForEach`, and every iteration adds its subtotal to a shared `decimal total` field. Which statements are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Concurrent writes to the shared field are a race, so the total can be wrong"
+        },
+        {
+          "id": "b",
+          "text": "Thread-local or partition-local subtotals merged once avoid most locking"
+        },
+        {
+          "id": "c",
+          "text": "With few iterations or cheap bodies, the parallel loop may run slower"
+        },
+        {
+          "id": "d",
+          "text": "Locking every update fixes it and still keeps the full parallel speed-up"
+        },
+        {
+          "id": "e",
+          "text": "Iterations always run in parallel, so one can safely wait on another"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "c"
+      ],
+      "explanation": "Several threads writing one field at once is a race condition, so updates can be lost. A lock restores correctness, but the synchronization cost can erase the speed-up; the overloads with thread-local or partition-local state let each worker keep its own subtotal and combine once. A parallel loop with few iterations or fast bodies may be slower than the sequential one, so measure. Iterations may but need not run in parallel or in order, so one must never wait on another: that can deadlock.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/standard/parallel-programming/potential-pitfalls-in-data-and-task-parallelism",
+          "title": "Potential Pitfalls in Data and Task Parallelism - .NET",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-03",
+          "claim": "Writing shared variables from parallel iterations risks race conditions, locks can hurt performance, and thread-local or partition-local overloads are the best fix; parallel loops with few iterations and fast delegates may be slower; iterations may but don't have to run in parallel or in order, so no iteration should wait on another."
         }
       ]
     }

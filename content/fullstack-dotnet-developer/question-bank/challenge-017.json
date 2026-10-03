@@ -134,7 +134,12 @@
           "accessed": "2026-10-02",
           "claim": "OnInitialized runs again when a prerendered component renders interactively; in .NET 10 a public property marked [PersistentState] (or PersistentComponentState) is serialized into the prerendered HTML and restored, so initialization runs once; with WebAssembly or Auto the data is exposed to the browser, while Interactive Server protects it with Data Protection."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c017-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c017-q04",
@@ -164,7 +169,12 @@
           "accessed": "2026-10-02",
           "claim": "EF Core does not support multiple parallel operations on one DbContext instance and throws InvalidOperationException ('A second operation started on this context...') when it detects them; always await immediately or use separate instances; in Blazor Server a scoped context lives for the user's circuit, so use AddDbContextFactory and dispose the contexts you create."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c017-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c017-q05",
@@ -248,6 +258,108 @@
           "publisher": "Microsoft Learn",
           "accessed": "2026-10-02",
           "claim": "OnInitialized runs again when a prerendered component renders interactively; in .NET 10 a public property marked [PersistentState] (or PersistentComponentState) is serialized into the prerendered HTML and restored, so initialization runs once; with WebAssembly or Auto the data is exposed to the browser, while Interactive Server protects it with Data Protection."
+        }
+      ]
+    },
+    {
+      "id": "c017-q07",
+      "lesson": null,
+      "concept": "c017-blazor-prerender-state",
+      "type": "multiple_select",
+      "prompt": "A .NET 10 Blazor Web App page with Interactive Server rendering loads products in `OnInitializedAsync`. Logs show the query running twice on every full page load, and the list flickers. Which statements are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Prerendering is on by default, so the component initializes twice"
+        },
+        {
+          "id": "b",
+          "text": "A `[PersistentState]` property, loaded only when null, makes the query run once"
+        },
+        {
+          "id": "c",
+          "text": "`new InteractiveServerRenderMode(prerender: false)` stops the double load"
+        },
+        {
+          "id": "d",
+          "text": "`OnAfterRenderAsync` also runs during prerendering, on the server"
+        },
+        {
+          "id": "e",
+          "text": "With Interactive Server, persisted state is sent to the browser unprotected"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "c"
+      ],
+      "explanation": "Prerendering is on by default for interactive components: the page renders once to static HTML and again when it becomes interactive, so initialization runs twice and the async reload replaces the prerendered list, which flickers. In .NET 10, a public property marked `[PersistentState]` and loaded only when null is serialized into the page and restored, so the query runs once. Disabling prerendering also works, at the cost of the fast first paint. `OnAfterRenderAsync` isn't called while prerendering, and Interactive Server state is protected with Data Protection; only WebAssembly and Auto expose it to the browser.",
+      "materials": [
+        "blazor-docs"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/blazor/components/prerender",
+          "title": "Prerender ASP.NET Core Razor components",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-03",
+          "claim": "Prerendering is enabled by default for interactive components, which must render twice; it can be disabled with new InteractiveServerRenderMode(prerender: false); OnAfterRender{Async} isn't called when prerendering; without persisted state the UI may flicker."
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/blazor/state-management/prerendered-state-persistence",
+          "title": "ASP.NET Core Blazor prerendered state persistence",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-03",
+          "claim": "In .NET 10, public properties marked [PersistentState] are serialized during prerendering and restored when the component renders interactively, so initialization runs once; Interactive Server state is protected by Data Protection, while WebAssembly and Auto expose it to the browser."
+        }
+      ]
+    },
+    {
+      "id": "c017-q08",
+      "lesson": null,
+      "concept": "c017-dbcontext-concurrent-use",
+      "type": "multiple_select",
+      "prompt": "In a Blazor Server app, components inject a scoped `DbContext`, and users intermittently get \"A second operation started on this context before a previous operation completed\". Which statements are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "One scope, and so one scoped `DbContext`, serves a whole Blazor Server circuit"
+        },
+        {
+          "id": "b",
+          "text": "A `DbContext` doesn't support parallel operations on the same instance"
+        },
+        {
+          "id": "c",
+          "text": "With `AddDbContextFactory`, create a context per operation and dispose it yourself"
+        },
+        {
+          "id": "d",
+          "text": "Registering the `DbContext` as a singleton makes it safe to share across components"
+        },
+        {
+          "id": "e",
+          "text": "Contexts created by the factory are disposed by the DI container automatically"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "c"
+      ],
+      "explanation": "In Blazor Server one logical request maintains the user's circuit, so a scoped `DbContext` is shared by all of that user's components for as long as the circuit lives. A `DbContext` isn't thread-safe and doesn't support parallel operations; EF Core throws this `InvalidOperationException` when it detects overlap, and undetected overlap can corrupt data. Register `AddDbContextFactory` and create a short-lived context per unit of work; the application must dispose those contexts, since the container doesn't manage them. A singleton would share one context even more widely.",
+      "materials": [
+        "efcore-performance",
+        "blazor-docs"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/ef/core/dbcontext-configuration/",
+          "title": "DbContext Lifetime, Configuration, and Initialization - EF Core",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-03",
+          "claim": "A DbContext is designed for a single unit of work, isn't thread-safe and doesn't support parallel operations; in Blazor Server one scoped DbContext is available per user circuit; AddDbContextFactory suits Blazor, and contexts it creates aren't managed by the service provider and must be disposed by the application."
         }
       ]
     }

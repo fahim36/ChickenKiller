@@ -127,7 +127,12 @@
           "accessed": "2026-09-26",
           "claim": "Improper Output Handling is insufficient validation, sanitisation and handling of LLM output before it goes downstream; examples include shell execution (RCE), unencoded JavaScript or Markdown in browsers (XSS) and unparameterised SQL (SQL injection); mitigations are a zero-trust approach with validation, context-aware output encoding, parameterised queries, CSP and logging; impact grows with excessive LLM privileges."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c004-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c004-q04",
@@ -195,7 +200,12 @@
           "accessed": "2026-09-26",
           "claim": "Without a reducer, updates override a key; operator.add concatenates lists; add_messages appends new messages, updates existing messages by ID, and deserialises dicts into LangChain Message objects; MessagesState's messages key uses add_messages."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c004-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c004-q06",
@@ -233,6 +243,100 @@
           "publisher": "OWASP Gen AI Security Project",
           "accessed": "2026-09-26",
           "claim": "Passing LLM output directly into a system shell or exec function can cause remote code execution; the mitigation is to treat the model as any other user with a zero-trust approach and validate its responses before they reach backend functions. LLM05 is distinct from Overreliance, which is about depending on output accuracy."
+        }
+      ]
+    },
+    {
+      "id": "c004-q07",
+      "lesson": null,
+      "concept": "c004-improper-output-handling",
+      "type": "multiple_select",
+      "prompt": "Your agent has an LLM write SQL from the user's question and runs it, then renders the model's reply as HTML in a web chat. Under OWASP LLM05:2025 (Improper Output Handling), which statements are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Treat model output as untrusted, like a user's, and validate it before it is used"
+        },
+        {
+          "id": "b",
+          "text": "Output is safe once the system prompt forbids writing harmful SQL or scripts"
+        },
+        {
+          "id": "c",
+          "text": "Run model-written SQL through parameterised queries to stop SQL injection"
+        },
+        {
+          "id": "d",
+          "text": "Encode the reply for HTML and add a Content Security Policy against XSS"
+        },
+        {
+          "id": "e",
+          "text": "A database user with write rights lowers the risk, since mistakes are easy to undo"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "d"
+      ],
+      "explanation": "OWASP says to treat the model as any other user, with zero trust, and validate its output before it reaches backend functions; a system-prompt rule is not a control. Unparameterised model-written SQL leads to SQL injection, so use parameterised queries or prepared statements. Model-generated JavaScript or Markdown rendered in a browser leads to XSS, so use context-aware output encoding and a strict CSP. Giving the LLM's integration more privilege than intended raises the impact, so a database user with write rights makes it worse.",
+      "materials": [
+        "owasp-top-10-for-llm-applications"
+      ],
+      "sources": [
+        {
+          "url": "https://genai.owasp.org/llmrisk/llm052025-improper-output-handling/",
+          "title": "LLM05:2025 Improper Output Handling",
+          "publisher": "OWASP Gen AI Security Project",
+          "accessed": "2026-10-03",
+          "claim": "Examples include LLM-generated SQL run without parameterization (SQL injection) and LLM-generated JavaScript or Markdown interpreted by the browser (XSS); granting the LLM privileges beyond those intended for end users increases impact; mitigations are treating the model as any other user with a zero-trust approach and validating its responses, context-aware output encoding, parameterized queries or prepared statements, and strict Content Security Policies."
+        }
+      ]
+    },
+    {
+      "id": "c004-q08",
+      "lesson": null,
+      "concept": "c004-langgraph-state-reducers",
+      "type": "multiple_select",
+      "prompt": "In a LangGraph chat agent, several nodes add turns to `messages`, and one node sometimes rewrites an earlier message. Which statements about the key's reducer are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`operator.add` replaces a message that has the same ID instead of appending it"
+        },
+        {
+          "id": "b",
+          "text": "With no reducer, a node's update overwrites the key, so earlier turns are lost"
+        },
+        {
+          "id": "c",
+          "text": "`add_messages` appends new messages and updates one that has the same ID"
+        },
+        {
+          "id": "d",
+          "text": "`MessagesState` uses `operator.add` for its `messages` key, not `add_messages`"
+        },
+        {
+          "id": "e",
+          "text": "`add_messages` turns dicts like `{\"type\": \"human\", ...}` into message objects"
+        }
+      ],
+      "answers": [
+        "b",
+        "c",
+        "e"
+      ],
+      "explanation": "Without a reducer, a node's update replaces the key's value, so earlier messages disappear. `operator.add` just concatenates lists, so resending a rewritten message adds a duplicate rather than replacing it. `add_messages` appends new messages, overwrites an existing message with the same ID, and deserialises dicts into LangChain message objects. The prebuilt `MessagesState` uses `add_messages` for its `messages` key.",
+      "materials": [
+        "langgraph-graph-api"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.langchain.com/oss/python/langgraph/graph-api",
+          "title": "Graph API overview (LangGraph, Python)",
+          "publisher": "LangChain",
+          "accessed": "2026-10-03",
+          "claim": "The default reducer replaces the state value with the update; `operator.add` concatenates lists; `add_messages` appends new messages, overwrites existing messages with the same ID, and deserialises dicts such as `{\"type\": \"human\", ...}` into LangChain Message objects; `MessagesState` has a `messages` key with `add_messages` as its reducer."
         }
       ]
     }

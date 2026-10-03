@@ -127,7 +127,12 @@
           "accessed": "2026-10-02",
           "claim": "Try to keep metric cardinality below 10; for metrics over 100 or able to grow that large, reduce dimensions or move the analysis away from monitoring to a general-purpose processing system."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c025-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c025-q04",
@@ -198,7 +203,12 @@
           "accessed": "2026-10-02",
           "claim": "FOR UPDATE prevents the rows from being locked, modified or deleted by other transactions until the current transaction ends."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c025-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c025-q06",
@@ -241,6 +251,110 @@
           "publisher": "Prometheus",
           "accessed": "2026-10-02",
           "claim": "Prefer one metric such as http_responses_total with a code label, and keep metric cardinality low."
+        }
+      ]
+    },
+    {
+      "id": "c025-q07",
+      "lesson": null,
+      "concept": "c025-metric-label-cardinality",
+      "type": "multiple_select",
+      "prompt": "A teammate proposes a Prometheus counter `llm_tokens_total` with labels `model`, `tenant_id`, `user_id` and `conversation_id`, to answer cost questions. Which of these are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Each unique combination of label values becomes its own time series"
+        },
+        {
+          "id": "b",
+          "text": "Prometheus stores each label once, so more label values cost nothing"
+        },
+        {
+          "id": "c",
+          "text": "`user_id` and `conversation_id` are unbounded, which Prometheus warns against"
+        },
+        {
+          "id": "d",
+          "text": "Per-conversation cost analysis belongs in logs, traces or a data system"
+        },
+        {
+          "id": "e",
+          "text": "Labels should be avoided entirely, so `model` should also be dropped"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "d"
+      ],
+      "explanation": "Every unique combination of label values is a new time series (a), so the stored data grows with every value; labels aren't free (b). Prometheus says not to use labels for unbounded, high-cardinality values such as user IDs (c), and suggests moving such analysis from monitoring to a general-purpose processing system (d). A small, bounded label like `model` is fine: the advice is to keep cardinality low, not to drop all labels (e).",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://prometheus.io/docs/practices/naming/",
+          "title": "Metric and label naming",
+          "publisher": "Prometheus",
+          "claim": "Every unique combination of key-value label pairs represents a new time series; do not use labels to store high-cardinality dimensions such as user IDs, email addresses or other unbounded sets of values.",
+          "accessed": "2026-10-03"
+        },
+        {
+          "url": "https://prometheus.io/docs/practices/instrumentation/",
+          "title": "Instrumentation",
+          "publisher": "Prometheus",
+          "claim": "Keep metric cardinality below 10; for a metric over 100 or able to grow that large, reduce the dimensions or move the analysis away from monitoring to a general-purpose processing system.",
+          "accessed": "2026-10-03"
+        }
+      ]
+    },
+    {
+      "id": "c025-q08",
+      "lesson": null,
+      "concept": "c025-skip-locked-queue",
+      "type": "multiple_select",
+      "prompt": "Several workers claim agent jobs from a Postgres table with `SELECT ... FOR UPDATE SKIP LOCKED LIMIT 1` inside a transaction. Which of these are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A row locked by one worker is skipped by the others, not waited on"
+        },
+        {
+          "id": "b",
+          "text": "`NOWAIT` would also skip the locked rows, just with less overhead"
+        },
+        {
+          "id": "c",
+          "text": "Other workers can't lock or update a claimed row until its commit"
+        },
+        {
+          "id": "d",
+          "text": "It gives an inconsistent view, so it suits queues, not general reads"
+        },
+        {
+          "id": "e",
+          "text": "A claimed row is hidden from plain `SELECT`s until the commit"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "d"
+      ],
+      "explanation": "With `SKIP LOCKED`, rows that can't be locked immediately are skipped (a), and `FOR UPDATE` stops other transactions locking, updating or deleting the claimed rows until the transaction ends (c), so two workers never take the same job. Skipping locked rows gives an inconsistent view of the data, fine for a queue-like table but not general work (d). `NOWAIT` raises an error instead of skipping (b), and row-level locks don't block plain readers (e).",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/sql-select.html",
+          "title": "SELECT",
+          "publisher": "PostgreSQL Global Development Group",
+          "claim": "With NOWAIT the statement reports an error rather than waiting if a row can't be locked immediately; with SKIP LOCKED such rows are skipped, which gives an inconsistent view of the data unsuitable for general purpose work but usable to avoid lock contention with multiple consumers of a queue-like table.",
+          "accessed": "2026-10-03"
+        },
+        {
+          "url": "https://www.postgresql.org/docs/current/explicit-locking.html",
+          "title": "13.3. Explicit Locking",
+          "publisher": "PostgreSQL Global Development Group",
+          "claim": "FOR UPDATE prevents the rows from being locked, modified or deleted by other transactions until the current transaction ends; row-level locks don't affect data querying, only writers and lockers of the same row.",
+          "accessed": "2026-10-03"
         }
       ]
     }

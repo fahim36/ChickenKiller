@@ -132,7 +132,12 @@
           "accessed": "2026-10-02",
           "claim": "In SQLite's example, a MATCH query on an FTS table returned in about 0.03 s versus 22.5 s for LIKE '%linux%' on an ordinary table; the porter tokenizer stems words so 'Frustration' matches 'Frustrated'."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c008-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c008-q04",
@@ -246,6 +251,67 @@
           "publisher": "Google (Android Developers)",
           "accessed": "2026-10-02",
           "claim": "With `contentEntity`, the FTS table works in external content mode and doesn't store its own content; Room creates triggers to keep the tables in sync, so all writes should go to the content entity table; the triggers are removed before migrations and re-created after."
+        }
+      ]
+    },
+    {
+      "id": "c008-q07",
+      "lesson": null,
+      "concept": "c008-room-fts-search",
+      "type": "multiple_select",
+      "prompt": "Users search 50,000 offline notes by word with `body LIKE '%' || :term || '%'`, and it's slow. Which statements about adding full-text search with Room are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Back the search with an `@Fts4` entity and query it with `MATCH`"
+        },
+        {
+          "id": "b",
+          "text": "An FTS entity may use any primary key, such as a `String` column named `id`"
+        },
+        {
+          "id": "c",
+          "text": "With `contentEntity = Note::class`, Room's triggers keep the FTS table in sync"
+        },
+        {
+          "id": "d",
+          "text": "With `contentEntity`, the app should write new notes into the FTS table itself"
+        },
+        {
+          "id": "e",
+          "text": "The `porter` tokenizer lets 'frustrated' match a search for 'frustration'"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "Room backs an entity with an FTS virtual table through `@Fts3`, `@Fts4` or `@Fts5`, searched with `MATCH`; in SQLite's own example a `MATCH` query took about 0.03 s where `LIKE '%linux%'` took 22.5 s. FTS tables always use an INTEGER primary key named `rowid`, so a `String` `id` key isn't allowed. With `contentEntity` the FTS table works in external content mode and doesn't store the text twice; Room creates triggers to keep the tables in sync, so all writes go to the notes table, not the FTS table. The `porter` tokenizer stems English words, so 'Frustrated' and 'Frustration' match each other.",
+      "materials": [
+        "android-room"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/training/data-storage/room/defining-data",
+          "title": "Define data using Room entities",
+          "publisher": "Google (Android Developers)",
+          "accessed": "2026-10-03",
+          "claim": "For fast full-text search, back entities with an FTS virtual table using `@Fts3`, `@Fts4` or `@Fts5`; FTS tables always use a primary key of type INTEGER named `rowid`; the `tokenizer` option picks how text is tokenized."
+        },
+        {
+          "url": "https://developer.android.com/reference/kotlin/androidx/room/Fts4",
+          "title": "Fts4",
+          "publisher": "Google (Android Developers)",
+          "accessed": "2026-10-03",
+          "claim": "With `contentEntity`, the FTS table operates in external content mode and doesn't store its own content; Room creates triggers to keep the tables in sync, so all write operations should be performed against the content entity table and not the FTS table."
+        },
+        {
+          "url": "https://www.sqlite.org/fts3.html",
+          "title": "SQLite FTS3 and FTS4 Extensions",
+          "publisher": "SQLite",
+          "accessed": "2026-10-03",
+          "claim": "In SQLite's example a MATCH query on an FTS table returned in about 0.03 s versus 22.5 s for LIKE '%linux%' on an ordinary table; the porter tokenizer stems words so a document with 'frustrated' matches both MATCH 'Frustrated' and MATCH 'Frustration'."
         }
       ]
     }

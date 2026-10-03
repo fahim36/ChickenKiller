@@ -120,7 +120,12 @@
           "accessed": "2026-10-02",
           "claim": "Domain entities should always be valid and enforce invariants in constructors and methods by raising exceptions or notifications; a method should not leave the entity partly changed; data annotations belong on DTOs and ViewModels for model binding, not at the exclusion of domain validation; consider two-step validation with field-level checks on command DTOs and domain-level checks in entities."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c028-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c028-q04",
@@ -149,7 +154,12 @@
           "accessed": "2026-10-02",
           "claim": "Equal objects must return equal hash codes but not vice versa; override Equals and GetHashCode together; mutable keys must not change their hash while in a hash table; HashCode.Combine avoids XOR's symmetry problem; poor hashes cause O(n) lookups; hash codes must not be persisted, sent across processes or used as keys, and can differ between runs."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c028-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c028-q05",
@@ -178,7 +188,12 @@
           "accessed": "2026-10-02",
           "claim": "A snapshot is a serialized representation of the entity's state at a point in its stream; rehydrate from the latest snapshot plus later events; choose a frequency that balances storage against rehydration time; snapshots are an optimization and can be regenerated from the stream; purpose-built event stores support them."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c028-q09",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c028-q06",
@@ -216,6 +231,146 @@
           "publisher": "Microsoft Learn",
           "accessed": "2026-10-02",
           "claim": "Data annotations and IValidatableObject.Validate no longer work for entity validation in EF Core as they did in EF 4.x; they can still be used during model binding before controller actions, which is an MVC or API concern."
+        }
+      ]
+    },
+    {
+      "id": "c028-q07",
+      "lesson": null,
+      "concept": "c028-input-vs-domain-validation",
+      "type": "multiple_select",
+      "prompt": "A .NET API has commands, handlers and a DDD domain model. Which of these follow Microsoft's guidance for validating a `PlaceOrder` request? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Check fields on the command DTO at the edge, so a bad request fails fast with a clear error"
+        },
+        {
+          "id": "b",
+          "text": "Enforce invariants in the `Order` entity's constructor and methods, so it can't be invalid"
+        },
+        {
+          "id": "c",
+          "text": "Validate only during the API's model binding, since nothing else ever calls the domain"
+        },
+        {
+          "id": "d",
+          "text": "Put data annotations on the entities, since EF Core checks them for you on every `SaveChanges`"
+        },
+        {
+          "id": "e",
+          "text": "Check a method's inputs before it changes state, so a failure can't leave it half-updated"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "e"
+      ],
+      "explanation": "The guidance is two-step validation: field-level checks on command DTOs, and domain-level checks inside the entities. Entities must always be valid, so invariants are enforced in constructors and methods, and a method must not leave the entity partly changed when a check fails. Input validation in model binding doesn't replace domain validation, which still has to hold whoever calls the domain. And data annotations no longer validate entities in EF Core: they only configure the database mapping.",
+      "materials": [
+        "dotnet-microservices-ebook"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/architecture/microservices/microservice-ddd-cqrs-patterns/domain-model-layer-validations",
+          "title": "Designing validations in the domain model layer - .NET",
+          "publisher": "Microsoft Learn",
+          "claim": "Domain entities should always be valid, with invariants enforced in constructors and update methods; a method should not leave the entity partly changed; data annotations no longer work for entity validation in EF Core and belong on ViewModels or DTOs, not at the exclusion of domain validation; consider two-step validation with field-level checks on command DTOs and domain-level checks in entities.",
+          "accessed": "2026-10-03"
+        }
+      ]
+    },
+    {
+      "id": "c028-q08",
+      "lesson": null,
+      "concept": "c028-mutable-hash-keys",
+      "type": "multiple_select",
+      "prompt": "You're writing a `Money` type that will be a `Dictionary` key and live in `HashSet`s. Which rules should its `Equals` and `GetHashCode` follow? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Override both together, so any two equal values always return the same hash code"
+        },
+        {
+          "id": "b",
+          "text": "Compute the hash only from state that can't change while the value is in a collection"
+        },
+        {
+          "id": "c",
+          "text": "Make sure two unequal values never share a hash code, so that lookups stay correct"
+        },
+        {
+          "id": "d",
+          "text": "Combine the fields with XOR, since it spreads values evenly and avoids collisions"
+        },
+        {
+          "id": "e",
+          "text": "Store the hash code in the database as a compact, stable identifier for each value"
+        }
+      ],
+      "answers": [
+        "a",
+        "b"
+      ],
+      "explanation": "Equal objects must return equal hash codes, so `Equals` and `GetHashCode` are overridden together. If a key's hash changes while it is in a hash table, the entry is effectively lost, so hash only immutable state. Unequal values may share a hash code: that is allowed, and lookups still call `Equals`. XOR is symmetric, so (5, 8) and (8, 5) collide; `HashCode.Combine` avoids that. Hash codes aren't permanent: never store them or use them as identifiers, since they can differ between runs and platforms.",
+      "materials": [
+        "csharp-docs"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/api/system.object.gethashcode",
+          "title": "Object.GetHashCode Method (System)",
+          "publisher": "Microsoft Learn",
+          "claim": "Equal objects return equal hash codes but equal hash codes don't imply equality; override Equals and GetHashCode together; a mutable object's hash must not change while it is in a hash-based collection; XOR gives (n1, n2) and (n2, n1) the same hash and HashCode.Combine avoids it; don't store hash codes in databases or use them as keys, since they can differ between runs.",
+          "accessed": "2026-10-03"
+        }
+      ]
+    },
+    {
+      "id": "c028-q09",
+      "lesson": null,
+      "concept": "c028-event-store-snapshots",
+      "type": "multiple_select",
+      "prompt": "Your team is adding snapshots to an event-sourced `Order` stream. Which statements about snapshots are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A snapshot is the serialized state of the entity at a specific point in its event stream"
+        },
+        {
+          "id": "b",
+          "text": "To load the entity, read the latest snapshot and replay only the events recorded after it"
+        },
+        {
+          "id": "c",
+          "text": "Once a snapshot is written, the events before it can be safely deleted to save storage space"
+        },
+        {
+          "id": "d",
+          "text": "Snapshots can be thrown away and rebuilt from the stream, such as after the state changes shape"
+        },
+        {
+          "id": "e",
+          "text": "Take a snapshot after every single event, since replaying even one event is too costly"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "d"
+      ],
+      "explanation": "A snapshot is the entity's serialized state at a point in its stream. Rehydration loads the latest snapshot and replays only the later events. Snapshots are an optimization, not a replacement: the stream stays the source of truth, so you never delete events because a snapshot exists, and you can regenerate snapshots from the stream at any time. Snapshots are taken at intervals, such as every N events, balancing their storage cost against the rehydration time saved.",
+      "materials": [
+        "azure-cloud-design-patterns"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/event-sourcing",
+          "title": "Event Sourcing Pattern - Azure Architecture Center",
+          "publisher": "Microsoft Learn",
+          "claim": "A snapshot is a serialized representation of the entity's state at a specific point in its eventstream; rehydrate by loading the most recent snapshot and replaying only later events; create snapshots at intervals such as every N events, balancing storage cost against rehydration time; snapshots are an optimization, the stream remains the source of truth and snapshots can be regenerated from it.",
+          "accessed": "2026-10-03"
         }
       ]
     }

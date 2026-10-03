@@ -118,7 +118,12 @@
           "accessed": "2026-10-02",
           "claim": "An internal test can have up to 100 testers per app and a new bundle becomes available within minutes; closed tests use email lists (up to 2,000 users each) or Google Groups and take hours to become available; open tests are visible on Google Play and anyone can join; testers can't leave public reviews and their feedback doesn't affect the public rating."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c011-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c011-q04",
@@ -154,7 +159,12 @@
           "accessed": "2026-10-02",
           "claim": "WhileSubscribed keeps the upstream producer active while there are active subscribers; Eagerly starts the producer immediately and Lazily starts after the first subscriber and keeps the flow active forever."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c011-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c011-q05",
@@ -229,6 +239,98 @@
           "publisher": "Google",
           "accessed": "2026-10-02",
           "claim": "An internal test can have up to 100 testers per app and a new bundle becomes available to testers within minutes; closed and open tests take several hours to become available, and open tests are visible on Google Play."
+        }
+      ]
+    },
+    {
+      "id": "c011-q07",
+      "lesson": null,
+      "concept": "c011-play-testing-tracks",
+      "type": "multiple_select",
+      "prompt": "Before launch you want QA to get each build within minutes, then a beta for 1,500 invited users, then a public beta anyone can join. Which statements about Google Play's testing tracks are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Internal testing suits QA: up to 100 testers, and builds arrive within minutes"
+        },
+        {
+          "id": "b",
+          "text": "Testers' reviews of the open beta count toward the app's public star rating"
+        },
+        {
+          "id": "c",
+          "text": "Closed testing suits the invited beta, with email lists or Google Groups"
+        },
+        {
+          "id": "d",
+          "text": "Internal testing suits the invited beta too, as it allows 2,000 testers"
+        },
+        {
+          "id": "e",
+          "text": "Open testing suits the public beta: it's visible on Google Play to anyone"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "Internal testing reaches up to 100 testers and a new build becomes available within minutes, so it fits QA but not 1,500 users. Closed testing uses email lists (up to 2,000 users each) or Google Groups, so it fits the invited beta, though a release can take hours to reach testers. Open testing is visible on Google Play and anyone can join, so it fits the public beta. Testers can't leave public reviews on test versions, and their feedback doesn't affect the public rating.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://support.google.com/googleplay/android-developer/answer/9845334",
+          "title": "Set up an open, closed, or internal test",
+          "publisher": "Google",
+          "accessed": "2026-10-03",
+          "claim": "Internal testing reaches up to 100 testers and becomes available within minutes; closed tests use email lists of up to 2,000 users each or Google Groups and can take several hours to become available; open tests are visible on Google Play and anyone can join; testers can't leave public reviews and their feedback doesn't affect the public rating."
+        }
+      ]
+    },
+    {
+      "id": "c011-q08",
+      "lesson": null,
+      "concept": "c011-sharing-started-strategies",
+      "type": "multiple_select",
+      "prompt": "A repository exposes `upstream.shareIn(scope, started, replay = 1)`. Which statements about the `started` strategies are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`Eagerly` starts the upstream even before the first subscriber appears"
+        },
+        {
+          "id": "b",
+          "text": "`WhileSubscribed()` clears the replay cache once the upstream is stopped"
+        },
+        {
+          "id": "c",
+          "text": "`Lazily` starts on the first subscriber and keeps running after all leave"
+        },
+        {
+          "id": "d",
+          "text": "A late subscriber to a `Lazily` flow gets every value emitted so far"
+        },
+        {
+          "id": "e",
+          "text": "`WhileSubscribed()` stops the upstream when the last subscriber leaves"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "`Eagerly` starts the upstream at once, before any subscriber, discarding values beyond the replay count. `Lazily` starts when the first subscriber appears, so that one gets every value, and stays active even when all subscribers disappear. `WhileSubscribed()` starts on the first subscriber and stops when the last one disappears, keeping the replay cache forever. Later subscribers get only the most recent `replay` values (here one), then new ones.",
+      "materials": [
+        "android-stateflow-sharedflow"
+      ],
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/share-in.html",
+          "title": "shareIn",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-03",
+          "claim": "`Eagerly` starts the upstream before the first subscriber; `Lazily` starts after the first subscriber, which gets all values, and stays active when all subscribers disappear, while later subscribers get only the most recent replay values; `WhileSubscribed` stops when the last subscriber disappears, keeping the replay cache forever."
         }
       ]
     }

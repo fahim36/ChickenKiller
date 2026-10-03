@@ -132,7 +132,12 @@
           "accessed": "2026-09-26",
           "claim": "Build a few tools for high-impact workflows (e.g. `schedule_event` instead of list and create tools) rather than wrapping every endpoint, namespace related tools, return meaningful context such as names over UUIDs, use pagination, filtering and truncation with sensible defaults, and make errors specific and actionable rather than opaque codes or tracebacks."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c007-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c007-q04",
@@ -166,7 +171,12 @@
           "accessed": "2026-09-26",
           "claim": "Compaction replaces the older turns of a conversation with a summary that Claude writes on the server."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c007-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c007-q05",
@@ -250,6 +260,105 @@
           "publisher": "Anthropic",
           "accessed": "2026-09-26",
           "claim": "Use pagination, range selection, filtering and/or truncation with sensible defaults, steer agents towards many small targeted searches, and resolve opaque UUIDs to meaningful language because it improves precision."
+        }
+      ]
+    },
+    {
+      "id": "c007-q07",
+      "lesson": null,
+      "concept": "c007-effective-agent-tools",
+      "type": "multiple_select",
+      "prompt": "You are turning a CRM's 40-endpoint REST API into tools for an agent. Which design choices match Anthropic's advice on writing tools for agents? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Wrap every endpoint as its own tool, since more tools always help the agent"
+        },
+        {
+          "id": "b",
+          "text": "Build a few tools for key workflows, like one `schedule_event` that books"
+        },
+        {
+          "id": "c",
+          "text": "Give related tools a shared prefix so the agent can tell them apart"
+        },
+        {
+          "id": "d",
+          "text": "Return opaque IDs and raw tracebacks, so the agent sees the raw API"
+        },
+        {
+          "id": "e",
+          "text": "Return meaningful fields such as names, and paginate large results"
+        }
+      ],
+      "answers": [
+        "b",
+        "c",
+        "e"
+      ],
+      "explanation": "More tools don't always lead to better outcomes: build a few tools for high-impact workflows, such as one `schedule_event` that finds availability and books, instead of wrapping every endpoint. Namespace related tools with a common prefix so the agent can choose between them. Return meaningful context, such as names instead of opaque UUIDs, keep responses small with pagination, filtering and truncation, and make errors specific and actionable rather than opaque codes or tracebacks.",
+      "materials": [
+        "anthropic-writing-effective-tools-for-agents"
+      ],
+      "sources": [
+        {
+          "url": "https://www.anthropic.com/engineering/writing-tools-for-agents",
+          "title": "Writing effective tools for agents — with agents",
+          "publisher": "Anthropic",
+          "accessed": "2026-10-03",
+          "claim": "More tools don't always lead to better outcomes: build a few tools for high-impact workflows (e.g. `schedule_event` instead of separate list and create tools) rather than wrapping every endpoint; namespace related tools with common prefixes; return meaningful context such as names rather than opaque UUIDs; use pagination, filtering and truncation with sensible defaults; replace opaque error codes and tracebacks with specific, actionable errors."
+        }
+      ]
+    },
+    {
+      "id": "c007-q08",
+      "lesson": null,
+      "concept": "c007-tool-result-clearing",
+      "type": "multiple_select",
+      "prompt": "A long Claude API agent run keeps hitting the context limit. Which statements comparing tool result clearing (context editing) with compaction are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Compaction deletes old tool results only, and keeps all other turns word for word"
+        },
+        {
+          "id": "b",
+          "text": "Tool result clearing removes the oldest tool results past a threshold, keeping recent ones"
+        },
+        {
+          "id": "c",
+          "text": "By default the tool calls stay visible, and only their results become placeholders"
+        },
+        {
+          "id": "d",
+          "text": "Compaction replaces older turns with a summary that Claude writes on the server"
+        },
+        {
+          "id": "e",
+          "text": "Clearing tool results keeps the cached prompt prefix valid, so it costs no cache writes"
+        }
+      ],
+      "answers": [
+        "b",
+        "c",
+        "d"
+      ],
+      "explanation": "Tool result clearing removes the oldest tool results once a trigger threshold is passed, keeps the most recent tool uses, and replaces each cleared result with placeholder text; by default the tool calls themselves stay visible, and you can exclude chosen tools. It does invalidate the cached prompt prefix, so you pay cache writes when content is cleared. Compaction is different: it replaces the older turns of the whole conversation with a summary that Claude writes on the server.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://platform.claude.com/docs/en/build-with-claude/context-editing",
+          "title": "Context editing",
+          "publisher": "Anthropic",
+          "accessed": "2026-10-03",
+          "claim": "Tool result clearing clears the oldest tool results once a trigger threshold is reached, keeps a number of recent tool uses, replaces cleared results with placeholder text, keeps tool call parameters by default (`clear_tool_inputs: false`), supports `exclude_tools`, and invalidates cached prompt prefixes when content is cleared, incurring cache write costs."
+        },
+        {
+          "url": "https://platform.claude.com/docs/en/build-with-claude/compaction",
+          "title": "Compaction overview",
+          "publisher": "Anthropic",
+          "accessed": "2026-10-03",
+          "claim": "Compaction replaces the older turns of a conversation with a summary that Claude writes on the server."
         }
       ]
     }

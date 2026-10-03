@@ -127,7 +127,12 @@
           "accessed": "2026-10-02",
           "claim": "Immediate steps for a cascading failure include increasing resources (which may not suffice), stopping health check failures or deaths, restarting servers once the cause is known, dropping traffic until crashing stops and then ramping up, entering degraded modes, eliminating batch load and eliminating bad traffic; retries should use randomized exponential backoff, be limited per request and by a server-wide retry budget, and not be issued at multiple levels."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c014-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c014-q04",
@@ -243,6 +248,53 @@
           "publisher": "Google",
           "accessed": "2026-10-02",
           "claim": "Always use randomized exponential backoff when scheduling retries, limit retries per request, use a server-wide retry budget, and avoid amplifying retries by issuing retries at multiple levels."
+        }
+      ]
+    },
+    {
+      "id": "c014-q07",
+      "lesson": null,
+      "concept": "c014-cascading-failure-response",
+      "type": "multiple_select",
+      "prompt": "During an incident, a service's instances crash under load, clients retry at every layer, and new instances fall over as soon as they start. Which statements are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Dropping traffic until the crashing stops, then ramping it back up gradually, can end it"
+        },
+        {
+          "id": "b",
+          "text": "Disabling batch work and blocking heavy queries frees capacity for critical traffic"
+        },
+        {
+          "id": "c",
+          "text": "Retries should happen at one layer only, with randomized exponential backoff"
+        },
+        {
+          "id": "d",
+          "text": "Adding instances always recovers a cascade, so scale out before doing anything else"
+        },
+        {
+          "id": "e",
+          "text": "Keep health checks strict, since killing struggling instances always stabilizes things"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "c"
+      ],
+      "explanation": "In a severe cascade new capacity is overwhelmed as it arrives, so adding tasks may not be enough: drop load (even drastically) until the crash loop stops, then ramp up gradually so caches warm. Turning off batch work, indexing or statistics jobs and blocking bad or heavy queries frees capacity. If health checks are killing instances and making things worse, disabling them for a while can help. Afterwards, limit retries per request, use a retry budget and randomized exponential backoff, and retry at one level so retries don't multiply across the stack.",
+      "materials": [
+        "google-sre-book"
+      ],
+      "sources": [
+        {
+          "url": "https://sre.google/sre-book/addressing-cascading-failures/",
+          "title": "Site Reliability Engineering, Chapter 22: Addressing Cascading Failures",
+          "publisher": "Google",
+          "accessed": "2026-10-03",
+          "claim": "Adding resources may not be enough to recover from a cascade; drop traffic, then ramp it up gradually; eliminate batch load and bad traffic; temporarily disable health checks that cause instability; use randomized exponential backoff, limit retries per request and avoid retrying at multiple levels."
         }
       ]
     }

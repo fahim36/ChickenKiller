@@ -114,7 +114,12 @@
           "accessed": "2026-10-02",
           "claim": "A circuit breaker stops calls to an operation that's likely to fail, unlike Retry, which expects eventual success; Closed passes calls through and counts recent failures, opening and starting a time-out timer past a threshold; Open fails calls immediately; Half-Open lets a limited number of trial requests through, closing and resetting the counter on success and returning to Open with the timer restarted if any fails; retry logic should stop when the breaker says the fault isn't transient."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c022-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c022-q04",
@@ -179,7 +184,12 @@
           "accessed": "2026-10-02",
           "claim": "Draft pull requests can't be merged and code owners aren't automatically requested to review them; marking a draft ready for review requests reviews from any code owners, and you can convert a pull request to a draft at any time."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c022-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c022-q06",
@@ -215,6 +225,98 @@
           "publisher": "Microsoft",
           "accessed": "2026-10-02",
           "claim": "A circuit breaker stops calls to an operation that's likely to fail, unlike Retry, which expects eventual success; Closed passes calls through and counts recent failures, opening and starting a time-out timer past a threshold; Open fails calls immediately; Half-Open lets a limited number of trial requests through, closing and resetting the counter on success and returning to Open with the timer restarted if any fails; retry logic should stop when the breaker says the fault isn't transient."
+        }
+      ]
+    },
+    {
+      "id": "c022-q07",
+      "lesson": null,
+      "concept": "c022-circuit-breaker",
+      "type": "multiple_select",
+      "prompt": "You put a circuit breaker in front of a flaky third-party search API that your agent calls, on top of retries. Which of these are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "While Open, calls fail at once (or get a fallback) without calling the API"
+        },
+        {
+          "id": "b",
+          "text": "Half-Open lets a limited number of trial calls through to test recovery"
+        },
+        {
+          "id": "c",
+          "text": "A failed trial call in Half-Open moves the breaker straight back to Closed"
+        },
+        {
+          "id": "d",
+          "text": "Retry logic should stop when the breaker says the fault isn't transient"
+        },
+        {
+          "id": "e",
+          "text": "While Closed, every call is blocked until a health check has passed"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "d"
+      ],
+      "explanation": "In Closed, calls pass through and recent failures are counted; past a threshold it trips to Open, where calls fail immediately or return a default such as a cached result (a). After a time-out, Half-Open lets a limited number of trial calls through (b): success closes it, but any failure sends it back to Open and restarts the timer, not to Closed (c). Closed passes calls through rather than blocking them (e). Retries can wrap a breaker, but should stop once it signals the fault isn't transient (d).",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/circuit-breaker",
+          "title": "Circuit Breaker pattern",
+          "publisher": "Microsoft",
+          "claim": "Closed routes requests to the operation and counts recent failures, opening past a threshold; Open fails requests immediately (or returns a meaningful default); Half-Open lets a limited number of requests through, closing on success and reverting to Open if any fails; retry logic should stop retrying if the circuit breaker indicates a fault isn't transient.",
+          "accessed": "2026-10-03"
+        }
+      ]
+    },
+    {
+      "id": "c022-q08",
+      "lesson": null,
+      "concept": "c022-draft-pull-requests",
+      "type": "multiple_select",
+      "prompt": "You open your first contribution to an open-source project as a draft pull request on GitHub. Which of these are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A draft pull request can't be merged while it is still a draft"
+        },
+        {
+          "id": "b",
+          "text": "Code owners are not automatically asked to review a draft"
+        },
+        {
+          "id": "c",
+          "text": "Once marked ready for review, it can never become a draft again"
+        },
+        {
+          "id": "d",
+          "text": "Marking it ready for review requests reviews from any code owners"
+        },
+        {
+          "id": "e",
+          "text": "A draft is private: only you can see it until it is marked ready"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "d"
+      ],
+      "explanation": "A draft pull request can't be merged (a), and code owners aren't automatically requested to review it (b), so you can share work in progress without asking for formal review. Marking it ready for review requests reviews from any code owners (d). You can convert a pull request back to a draft at any time (c), and a draft is an ordinary pull request others can see and comment on, not a private one (e).",
+      "materials": [
+        "github-good-first-issue-projects"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/about-pull-requests",
+          "title": "About pull requests",
+          "publisher": "GitHub",
+          "claim": "Draft pull requests can't be merged and code owners aren't automatically requested to review them; marking a draft ready for review requests reviews from any code owners, and you can convert a pull request to a draft at any time.",
+          "accessed": "2026-10-03"
         }
       ]
     }

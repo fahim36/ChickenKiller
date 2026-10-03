@@ -132,7 +132,12 @@
           "accessed": "2026-10-02",
           "claim": "Push protection blocks pushes that contain detected secrets before they reach the repository, whereas secret scanning alerts find secrets already committed."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c025-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c025-q04",
@@ -246,6 +251,58 @@
           "publisher": "GitHub",
           "accessed": "2026-10-02",
           "claim": "For a committed secret the first step is to revoke or rotate it; data stays in clones, forks, cached views and pull requests even after a history rewrite."
+        }
+      ]
+    },
+    {
+      "id": "c025-q07",
+      "lesson": null,
+      "concept": "c025-leaked-secret-response",
+      "type": "multiple_select",
+      "prompt": "An hour ago a developer pushed a commit containing a production database connection string to your GitHub repository. Which statements are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Revoke or rotate the credential first, so a copy of the leaked value is useless"
+        },
+        {
+          "id": "b",
+          "text": "A history rewrite leaves the secret in other clones, forks and cached views"
+        },
+        {
+          "id": "c",
+          "text": "Push protection can block pushes with detected secrets before they reach the repo"
+        },
+        {
+          "id": "d",
+          "text": "Force-pushing a rewritten history removes the secret everywhere it was copied"
+        },
+        {
+          "id": "e",
+          "text": "Rewriting history keeps every commit hash, so open clones keep working as before"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "c"
+      ],
+      "explanation": "GitHub's first step for a leaked secret is to revoke or rotate it, which makes it useless even to someone who already copied it. Rewriting history, for example with `git filter-repo --sensitive-data-removal`, doesn't reach other people's clones and forks, GitHub's cached views or pull request refs, and it changes commit hashes and risks recontamination when an old clone pushes again. Push protection prevents a repeat by blocking pushes that contain detected secrets before they reach the repository.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/removing-sensitive-data-from-a-repository",
+          "title": "Removing sensitive data from a repository",
+          "publisher": "GitHub",
+          "accessed": "2026-10-03",
+          "claim": "If the sensitive data is a secret, first revoke or rotate it; after rewriting history the data still persists in clones and forks, cached views and pull request references; rewriting changes commit hashes and risks recontamination from old clones; GitHub Support can remove cached views and dereference pull requests."
+        },
+        {
+          "url": "https://docs.github.com/en/code-security/secret-scanning/introduction/about-push-protection",
+          "title": "About push protection",
+          "publisher": "GitHub",
+          "accessed": "2026-10-03",
+          "claim": "Push protection prevents hardcoded secrets from being pushed by blocking pushes before they reach the repository, whereas secret scanning alerts report leaks that have already happened."
         }
       ]
     }

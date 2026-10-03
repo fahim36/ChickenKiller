@@ -134,7 +134,12 @@
           "accessed": "2026-10-02",
           "claim": "Reliability trade-offs: replication and disaster recovery increase surface area (Security); more replicas, over-provisioning and excessive DR cost more (Cost Optimization); multiple regions and replication increase operational complexity and documentation effort (Operational Excellence); replication and cross-zone distribution add latency (Performance Efficiency)."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c030-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c030-q04",
@@ -163,7 +168,12 @@
           "accessed": "2026-10-02",
           "claim": "Never update event data; schema strategies are tolerant deserialization for additive changes, a version identifier per event, chained upcasters that transform older schemas on deserialization while stored events stay unchanged, and in-place migration only as a last resort; bad events from bugs may need compensating events or upcasters."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c030-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c030-q05",
@@ -247,6 +257,100 @@
           "publisher": "Microsoft Learn",
           "accessed": "2026-10-02",
           "claim": "The Well-Architected Framework has five pillars (Reliability, Security, Cost Optimization, Operational Excellence, Performance Efficiency), each with its own tradeoffs."
+        }
+      ]
+    },
+    {
+      "id": "c030-q07",
+      "lesson": null,
+      "concept": "c030-waf-pillar-tradeoffs",
+      "type": "multiple_select",
+      "prompt": "A team proposes making its single-region .NET API active-active across two Azure regions for reliability. By the Well-Architected Framework, which trade-offs should a reviewer raise? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Replicas in a second region enlarge the surface area that must be secured"
+        },
+        {
+          "id": "b",
+          "text": "Replicating data across regions adds latency to every reliable write"
+        },
+        {
+          "id": "c",
+          "text": "Running in two regions removes the need for monitoring and drills"
+        },
+        {
+          "id": "d",
+          "text": "Managing two regions and the replication between them adds complexity"
+        },
+        {
+          "id": "e",
+          "text": "Recovery capacity beyond the agreed RPO and RTO lowers the total cost"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "d"
+      ],
+      "explanation": "Each reliability choice costs something in another pillar. Replicas increase the surface area to secure (Security). Replication adds latency to reliable writes (Performance Efficiency). Multiple regions and their data replication increase operational complexity (Operational Excellence). Reliability needs more observability, testing and drills, not less, and disaster recovery that exceeds the agreed recovery objectives is waste that raises cost (Cost Optimization).",
+      "materials": [
+        "azure-well-architected"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/well-architected/reliability/tradeoffs",
+          "title": "Reliability tradeoffs - Microsoft Azure Well-Architected Framework",
+          "publisher": "Microsoft Learn",
+          "claim": "Replicas increase the workload's surface area; replication adds latency to reliable data writes; multiple regions and data replication increase operational complexity; reliability requires observability, tests and drills; disaster recovery that excessively satisfies the recovery point and time objectives leads to higher costs.",
+          "accessed": "2026-10-03"
+        }
+      ]
+    },
+    {
+      "id": "c030-q08",
+      "lesson": null,
+      "concept": "c030-event-schema-evolution",
+      "type": "multiple_select",
+      "prompt": "Your event-sourced service must change several event types: some gain optional fields, and one renames and splits a field. Which strategies fit the event store's guidance? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Handle the new optional fields with tolerant deserialization that defaults missing ones"
+        },
+        {
+          "id": "b",
+          "text": "Register upcasters that convert old event shapes to the current one when they are read"
+        },
+        {
+          "id": "c",
+          "text": "Rewrite the stored events to the new schema in place as the routine first step"
+        },
+        {
+          "id": "d",
+          "text": "Put a version identifier in each event's envelope or type name for consumers to use"
+        },
+        {
+          "id": "e",
+          "text": "Delete the old events once a snapshot exists, so only the new schema is left to read"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "d"
+      ],
+      "explanation": "Additive changes need only tolerant deserialization: ignore unknown fields and default missing ones. A version in each event lets consumers pick the right handling, and chained upcasters convert old shapes on read while the stored events stay unchanged. Rewriting events in place breaks immutability and the audit trail, so it is a last resort, not a first step. Snapshots never replace the stream, which stays the source of truth.",
+      "materials": [
+        "azure-cloud-design-patterns"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/event-sourcing",
+          "title": "Event Sourcing Pattern - Azure Architecture Center",
+          "publisher": "Microsoft Learn",
+          "claim": "Never update event data; schema strategies are tolerant deserialization for additive changes, a version identifier in each event's envelope or type name, upcasters that convert older schemas on deserialization while stored events stay unchanged, and in-place migration only as a last resort; snapshots don't replace the eventstream, which remains the source of truth.",
+          "accessed": "2026-10-03"
         }
       ]
     }

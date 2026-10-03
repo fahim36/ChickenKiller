@@ -128,7 +128,12 @@
           "accessed": "2026-10-02",
           "claim": "Superusers and roles with BYPASSRLS always bypass row security; table owners normally bypass it too unless the table uses ALTER TABLE ... FORCE ROW LEVEL SECURITY."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c024-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c024-q04",
@@ -155,7 +160,12 @@
           "accessed": "2026-10-02",
           "claim": "NOT IN yields null, not true, if there are no equal right-hand values and at least one right-hand row yields null; EXISTS returns true if the subquery returns at least one row and false otherwise."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c024-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c024-q05",
@@ -235,6 +245,117 @@
           "publisher": "PostgreSQL Global Development Group",
           "accessed": "2026-10-02",
           "claim": "PostgreSQL 15's CREATE VIEW documents the security_invoker option."
+        }
+      ]
+    },
+    {
+      "id": "c024-q07",
+      "lesson": null,
+      "concept": "c024-rls-views-security-invoker",
+      "type": "multiple_select",
+      "prompt": "RLS policies isolate tenants in `documents`. A migration adds a view `recent_docs` over it, owned by the table's owner, and the app (a role subject to the policies) reads the view. Which of these are true in PostgreSQL? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "By default the view applies the view owner's RLS policies, not the caller's"
+        },
+        {
+          "id": "b",
+          "text": "The view applies the caller's policies, since RLS is always per session"
+        },
+        {
+          "id": "c",
+          "text": "Because table owners normally bypass RLS, tenants may see others' rows"
+        },
+        {
+          "id": "d",
+          "text": "Creating it `WITH (security_invoker = true)` applies the caller's policies"
+        },
+        {
+          "id": "e",
+          "text": "Views ignore RLS, so it returns every row whoever owns or queries it"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "d"
+      ],
+      "explanation": "By default, access to a view's base tables uses the view owner's permissions, and the view owner's row-level security policies apply (a), not the caller's (b). Table owners normally bypass row security, so a view owned by the table owner returns every tenant's rows (c). With `security_invoker = true` (PostgreSQL 15+) the invoking user's permissions and policies apply, as if it queried the table directly (d). Views don't ignore RLS: whose policies apply depends on the owner and that option (e).",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/sql-createview.html",
+          "title": "CREATE VIEW",
+          "publisher": "PostgreSQL Global Development Group",
+          "claim": "If a base relation has row-level security enabled, by default the view owner's row-level security policies apply; if the view has security_invoker set to true, the invoking user's policies and permissions are used instead, as if the base relations were referenced directly.",
+          "accessed": "2026-10-03"
+        },
+        {
+          "url": "https://www.postgresql.org/docs/15/sql-createview.html",
+          "title": "CREATE VIEW (PostgreSQL 15)",
+          "publisher": "PostgreSQL Global Development Group",
+          "claim": "PostgreSQL 15's CREATE VIEW documents the security_invoker option.",
+          "accessed": "2026-10-03"
+        },
+        {
+          "url": "https://www.postgresql.org/docs/current/ddl-rowsecurity.html",
+          "title": "5.9. Row Security Policies",
+          "publisher": "PostgreSQL Global Development Group",
+          "claim": "Superusers and roles with BYPASSRLS always bypass row security, and table owners normally bypass it too unless the table uses ALTER TABLE ... FORCE ROW LEVEL SECURITY.",
+          "accessed": "2026-10-03"
+        }
+      ]
+    },
+    {
+      "id": "c024-q08",
+      "lesson": null,
+      "concept": "c024-not-in-null",
+      "type": "multiple_select",
+      "prompt": "You find conversations with no messages using `WHERE id NOT IN (SELECT conversation_id FROM messages)`, and one message row has a NULL `conversation_id`. Which of these are true in PostgreSQL? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "For a non-matching `id`, `NOT IN` yields NULL instead of true"
+        },
+        {
+          "id": "b",
+          "text": "The query returns no rows, since `WHERE` drops NULL conditions"
+        },
+        {
+          "id": "c",
+          "text": "`NOT IN` skips NULL values, so the query works just as intended"
+        },
+        {
+          "id": "d",
+          "text": "A correlated `NOT EXISTS` subquery isn't affected by the NULL"
+        },
+        {
+          "id": "e",
+          "text": "The query raises an error because the subquery yields a NULL"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "d"
+      ],
+      "explanation": "When no right-hand value equals the left side and at least one is NULL, `NOT IN` yields NULL, not true (a), so it doesn't skip NULLs (c) and raises no error (e). `WHERE` keeps only rows whose condition is true, so every row is dropped and the query silently returns nothing (b). `NOT EXISTS (SELECT 1 FROM messages m WHERE m.conversation_id = c.id)` depends only on whether a matching row exists, so the NULL doesn't affect it (d).",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/functions-subquery.html",
+          "title": "9.24. Subquery Expressions",
+          "publisher": "PostgreSQL Global Development Group",
+          "claim": "If there are no equal right-hand values and at least one right-hand row yields null, the result of NOT IN is null, not true; the result of EXISTS depends only on whether any rows are returned.",
+          "accessed": "2026-10-03"
+        },
+        {
+          "url": "https://www.postgresql.org/docs/current/sql-select.html",
+          "title": "SELECT",
+          "publisher": "PostgreSQL Global Development Group",
+          "claim": "Any row that does not satisfy the WHERE condition is eliminated from the output; a row satisfies it only if the condition returns true.",
+          "accessed": "2026-10-03"
         }
       ]
     }

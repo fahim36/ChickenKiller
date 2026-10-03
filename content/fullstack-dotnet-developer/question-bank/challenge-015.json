@@ -125,7 +125,12 @@
           "accessed": "2026-10-02",
           "claim": "Adding fields clients can ignore might not be breaking, but removing or renaming fields or restructuring resources can be; URI, query string, header and media type versioning keep existing versions working, URI and query string versioning are cache-friendly, header and media type versioning need more logic and can duplicate cached data, and an omitted version should default to a meaningful value like 1."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c015-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c015-q04",
@@ -239,6 +244,53 @@
           "publisher": "Microsoft",
           "accessed": "2026-10-02",
           "claim": "Adding content to existing resources might not be a breaking change because clients that don't expect it ignore it, while field removals, renaming or restructuring can constitute breaking changes that need a versioning approach."
+        }
+      ]
+    },
+    {
+      "id": "c015-q07",
+      "lesson": null,
+      "concept": "c015-api-versioning-breaking-changes",
+      "type": "multiple_select",
+      "prompt": "Your public REST API must change `address` from a string into an object, and partner apps you don't control depend on it. Which statements are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Restructuring `address` is a breaking change, so ship it as a new version"
+        },
+        {
+          "id": "b",
+          "text": "The existing version should keep returning the original `address` schema"
+        },
+        {
+          "id": "c",
+          "text": "URI and query string versioning are cache-friendly: one URI, the same data"
+        },
+        {
+          "id": "d",
+          "text": "Header versioning is the most cache-friendly, since the URI never changes"
+        },
+        {
+          "id": "e",
+          "text": "A request that omits the version should get an error rather than a default"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "c"
+      ],
+      "explanation": "Adding a field old clients can ignore usually isn't breaking, but restructuring `address` into subfields is, so expose the new shape as a new version while existing URIs keep returning the original schema. URI and query string versioning are cache-friendly because the same URI or query string always refers to the same data. Header and media type versioning need more logic and can fill a server-side cache with duplicated data. When a client omits the version, default to a meaningful value such as 1.",
+      "materials": [
+        "aspnetcore-apis"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/best-practices/api-design",
+          "title": "Web API Design Best Practices - Azure Architecture Center",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-03",
+          "claim": "When the address field is restructured, the new version is exposed under a versioned URI while existing URIs keep returning the original schema; URI and query string versioning are cache-friendly, while header and media type versioning need more logic and can duplicate data in caches; an omitted version should default to a meaningful value like 1."
         }
       ]
     }

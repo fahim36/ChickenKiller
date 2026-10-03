@@ -130,7 +130,12 @@
           "accessed": "2026-10-02",
           "claim": "A cache stampede is when a popular item expires and many requests miss and regenerate it at once; the number of recomputations depends on request rate and recompute time (10 requests a second and a 3-second recompute gives 30), concurrent recomputations slow each other into a cascading failure, and the mitigations are external recomputation, locking (one request regenerates) and probabilistic early expiration, whose probability rises as expiry nears."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c020-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c020-q04",
@@ -164,7 +169,12 @@
           "accessed": "2026-10-02",
           "claim": "Changing hash values affects the iteration order of sets, and Python has never made guarantees about that ordering."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c020-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c020-q05",
@@ -204,7 +214,12 @@
           "accessed": "2026-10-02",
           "claim": "By signing off, a contributor certifies that they wrote the contribution or otherwise have the right to submit it under the project's open source license, and that a public record of the contribution, including the sign-off, is kept indefinitely."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c020-q09",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c020-q06",
@@ -240,6 +255,164 @@
           "publisher": "Proceedings of the VLDB Endowment",
           "accessed": "2026-10-02",
           "claim": "A cache stampede is when a popular item expires and many requests miss and regenerate it at once; the number of recomputations depends on request rate and recompute time (10 requests a second and a 3-second recompute gives 30), concurrent recomputations slow each other into a cascading failure, and the mitigations are external recomputation, locking (one request regenerates) and probabilistic early expiration, whose probability rises as expiry nears."
+        }
+      ]
+    },
+    {
+      "id": "c020-q07",
+      "lesson": null,
+      "concept": "c020-cache-stampede",
+      "type": "multiple_select",
+      "prompt": "A popular cached answer in your LLM app expires, and dozens of concurrent requests miss and all call the model to regenerate it. Which of these are true of this cache stampede? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It snowballs: parallel recomputes slow each other, so more requests miss"
+        },
+        {
+          "id": "b",
+          "text": "It only happens when the cache runs out of memory and evicts the item"
+        },
+        {
+          "id": "c",
+          "text": "A lock so only one request regenerates the item can prevent it"
+        },
+        {
+          "id": "d",
+          "text": "Lengthening the item's TTL removes the stampede at its next expiry"
+        },
+        {
+          "id": "e",
+          "text": "Refreshing early, with a chance that rises near expiry, mitigates it"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "A cache stampede happens when a popular item expires and every request arriving during the recompute misses and regenerates it; the concurrent recomputes slow the backend, so each takes longer and still more requests join (a). Locking so only one request regenerates (c), and probabilistic early expiration, whose probability rises as expiry nears (e), both mitigate it, as does a background refresher. It is triggered by expiry, not only by memory eviction (b), and a longer TTL just delays the same stampede to the next expiry (d).",
+      "materials": [
+        "redis-documentation"
+      ],
+      "sources": [
+        {
+          "url": "https://www.vldb.org/pvldb/vol8/p886-vattani.pdf",
+          "title": "Optimal Probabilistic Cache Stampede Prevention",
+          "publisher": "Proceedings of the VLDB Endowment",
+          "claim": "A cache stampede occurs when a popular item expires and many requests miss and regenerate it at once; concurrent recomputations slow each other, pulling more requests in (a cascading failure); mitigations are external recomputation, locking so one request regenerates, and probabilistic early expiration whose probability increases as expiry nears.",
+          "accessed": "2026-10-03"
+        }
+      ]
+    },
+    {
+      "id": "c020-q08",
+      "lesson": null,
+      "concept": "c020-hash-randomization",
+      "type": "multiple_select",
+      "prompt": "A pipeline loops over a Python `set` of strings and gives different results on each run, though nothing in it is random. Which of these are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`str` hashes are salted with a random value that changes between runs"
+        },
+        {
+          "id": "b",
+          "text": "Sets keep insertion order, so the input must be arriving in another order"
+        },
+        {
+          "id": "c",
+          "text": "Iterating over `sorted(the_set)` makes the loop order the same every run"
+        },
+        {
+          "id": "d",
+          "text": "Setting `PYTHONHASHSEED` to a fixed integer makes string hashing repeatable"
+        },
+        {
+          "id": "e",
+          "text": "Hash randomization is off by default and only turned on by the `-R` flag"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "d"
+      ],
+      "explanation": "By default `str` and `bytes` hashes are salted with an unpredictable value that is constant within a process but differs between runs (a), and changing hash values changes set iteration order, which Python never guarantees. Sorting before iterating removes the dependence on order (c), and a fixed integer `PYTHONHASHSEED` makes hashing repeatable (`0` disables randomization) (d). Dicts keep insertion order, sets don't (b), and randomization is on by default: `-R` only matters when `PYTHONHASHSEED` is set (e).",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/using/cmdline.html",
+          "title": "Command line and environment",
+          "publisher": "Python Software Foundation",
+          "claim": "Hash randomization is enabled by default: `str` and `bytes` hashes are salted with an unpredictable random value that is constant within a process but not predictable between runs; `PYTHONHASHSEED` set to an integer gives a fixed seed for repeatable hashing, and `0` disables randomization.",
+          "accessed": "2026-10-03"
+        },
+        {
+          "url": "https://docs.python.org/3/reference/datamodel.html",
+          "title": "Data model",
+          "publisher": "Python Software Foundation",
+          "claim": "Changing hash values affects the iteration order of sets, and Python has never made guarantees about this ordering; dictionaries preserve insertion order.",
+          "accessed": "2026-10-03"
+        }
+      ]
+    },
+    {
+      "id": "c020-q09",
+      "lesson": null,
+      "concept": "c020-dco-signoff",
+      "type": "multiple_select",
+      "prompt": "Your pull request has five commits, none signed off, and the project's DCO check fails. Which of these are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`git rebase --signoff` adds a `Signed-off-by` trailer to every rebased commit"
+        },
+        {
+          "id": "b",
+          "text": "`git commit -S` adds the `Signed-off-by` trailer the DCO check looks for"
+        },
+        {
+          "id": "c",
+          "text": "Signing off certifies you have the right to submit the work under its license"
+        },
+        {
+          "id": "d",
+          "text": "Signing off transfers your copyright in the change to the project's owners"
+        },
+        {
+          "id": "e",
+          "text": "Rewriting the commits to add trailers means you must force-push the branch"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "`git rebase --signoff` adds a `Signed-off-by` trailer to all the rebased commits (a); since that rewrites them, the branch has to be force-pushed (e). Under the Developer Certificate of Origin, signing off certifies that you wrote the work or otherwise have the right to submit it under the project's open source license (c). `-S` GPG-signs a commit, which is not the same as `-s`/`--signoff` (b), and the DCO doesn't transfer copyright (d).",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://git-scm.com/docs/git-rebase",
+          "title": "git-rebase Documentation",
+          "publisher": "Git",
+          "claim": "`--signoff` adds a `Signed-off-by` trailer to all the rebased commits.",
+          "accessed": "2026-10-03"
+        },
+        {
+          "url": "https://git-scm.com/docs/git-commit",
+          "title": "git-commit Documentation",
+          "publisher": "Git",
+          "claim": "`-s`/`--signoff` adds a `Signed-off-by` trailer whose meaning depends on the project, such as agreeing to a Developer Certificate of Origin, while `-S`/`--gpg-sign` GPG-signs the commit.",
+          "accessed": "2026-10-03"
+        },
+        {
+          "url": "https://developercertificate.org/",
+          "title": "Developer Certificate of Origin",
+          "publisher": "The Linux Foundation",
+          "claim": "By signing off, a contributor certifies they created the contribution or otherwise have the right to submit it under the open source license indicated, and that a public record of it is kept indefinitely.",
+          "accessed": "2026-10-03"
         }
       ]
     }

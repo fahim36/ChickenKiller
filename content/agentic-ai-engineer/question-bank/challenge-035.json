@@ -120,7 +120,12 @@
           "accessed": "2026-10-02",
           "claim": "Use `get_state_history` to find a checkpoint and invoke with its config to replay: nodes before it are not re-executed, nodes after it re-execute, including LLM calls, API requests and interrupts. `update_state` does not roll back a thread: it creates a new checkpoint branching from that point, applies values through the node's writers including reducers, and execution resumes from that node's successors; the original history stays."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c035-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c035-q04",
@@ -188,7 +193,12 @@
           "accessed": "2026-10-02",
           "claim": "Fargate Spot runs interruption-tolerant tasks at a discount; before a Spot interruption a two-minute warning is sent as an EventBridge task state change event and a SIGTERM to the task. Fargate doesn't replace Spot capacity with on-demand; containers must handle SIGTERM or get SIGKILL after `stopTimeout` (default 30 s, up to 120 s)."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c035-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c035-q06",
@@ -226,6 +236,100 @@
           "publisher": "LangChain",
           "accessed": "2026-10-02",
           "claim": "Use `get_state_history` to find a checkpoint and invoke with its config to replay: nodes before it are not re-executed, nodes after it re-execute, including LLM calls, API requests and interrupts. `update_state` does not roll back a thread: it creates a new checkpoint branching from that point, applies values through the node's writers including reducers, and execution resumes from that node's successors; the original history stays."
+        }
+      ]
+    },
+    {
+      "id": "c035-q07",
+      "lesson": null,
+      "concept": "c035-langgraph-time-travel",
+      "type": "multiple_select",
+      "prompt": "An agent run on a LangGraph thread went wrong at step 4 of 7, and you use time travel to replay and fork it from an earlier checkpoint. Which of these are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`get_state_history` lists the checkpoints you can replay or fork from"
+        },
+        {
+          "id": "b",
+          "text": "Replaying re-runs every node from the start, including earlier LLM calls"
+        },
+        {
+          "id": "c",
+          "text": "Nodes after the checkpoint re-run, so LLM calls may give new results"
+        },
+        {
+          "id": "d",
+          "text": "`update_state` rolls the thread back and deletes the later checkpoints"
+        },
+        {
+          "id": "e",
+          "text": "`update_state` creates a new checkpoint that branches from that point"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "You find the checkpoint with `get_state_history` (a) and invoke with its config to replay. Nodes before the checkpoint aren't re-executed (b); nodes after it re-execute, including LLM calls, API requests and interrupts, so results may differ (c). `update_state` doesn't roll the thread back (d): it creates a new checkpoint branching from that point, and the original history stays (e).",
+      "materials": [
+        "langgraph-documentation"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.langchain.com/oss/python/langgraph/use-time-travel",
+          "title": "Use time travel",
+          "publisher": "LangChain",
+          "claim": "Use `get_state_history` to find a checkpoint and invoke with its config to replay; nodes before it are not re-executed, while nodes after it re-execute, including LLM calls, API requests and interrupts; `update_state` does not roll back a thread but creates a new checkpoint branching from that point, leaving the original history intact.",
+          "accessed": "2026-10-03"
+        }
+      ]
+    },
+    {
+      "id": "c035-q08",
+      "lesson": null,
+      "concept": "c035-fargate-spot-interruption",
+      "type": "multiple_select",
+      "prompt": "Your Fargate Spot workers run long agent jobs on Amazon ECS. Which of these are true of a Spot interruption? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The task gets a SIGTERM and an EventBridge event two minutes ahead"
+        },
+        {
+          "id": "b",
+          "text": "Fargate moves the interrupted task onto on-demand capacity for you"
+        },
+        {
+          "id": "c",
+          "text": "A container that ignores SIGTERM gets SIGKILL after `stopTimeout`"
+        },
+        {
+          "id": "d",
+          "text": "`stopTimeout` can be raised from its 30 s default to at most 120 s"
+        },
+        {
+          "id": "e",
+          "text": "`stopTimeout` can be raised to 15 minutes to finish a long job"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "d"
+      ],
+      "explanation": "Before a Spot interruption, a two-minute warning is sent as an EventBridge task state change event and as a SIGTERM to the task (a). A container that doesn't handle SIGTERM gets SIGKILL after `stopTimeout`, risking lost or corrupt data (c); `stopTimeout` defaults to 30 seconds and can be set up to 120 (d, so e is wrong), so use it to checkpoint or requeue the job. Fargate doesn't replace Spot capacity with on-demand (b).",
+      "materials": [
+        "aws-fargate-for-amazon-ecs"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.aws.amazon.com/AmazonECS/latest/developerguide/fargate-capacity-providers.html",
+          "title": "Amazon ECS clusters for Fargate",
+          "publisher": "Amazon Web Services",
+          "claim": "Before a Fargate Spot interruption a two-minute warning is sent as an EventBridge task state change event and a SIGTERM; Fargate doesn't replace Spot capacity with on-demand; `stopTimeout` can be 120 seconds or less (default 30), and a container that doesn't handle SIGTERM gets SIGKILL after it, which may cause data loss or corruption.",
+          "accessed": "2026-10-03"
         }
       ]
     }

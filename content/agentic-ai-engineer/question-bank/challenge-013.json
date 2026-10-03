@@ -120,7 +120,12 @@
           "accessed": "2026-10-02",
           "claim": "The object passed as `context` to the run is wrapped in `RunContextWrapper[T]` for tools and hooks, all of which must use the same context type; it is not sent to the LLM, and data the LLM needs must come through instructions, input, function tools or retrieval."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c013-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c013-q04",
@@ -187,7 +192,12 @@
           "accessed": "2026-10-02",
           "claim": "Only one job or workflow in a concurrency group runs at a time; by default a pending one is canceled when a new one is queued, `cancel-in-progress: true` also cancels the running one, and `github.head_ref || github.run_id` gives a fallback group value."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c013-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c013-q06",
@@ -225,6 +235,100 @@
           "publisher": "OpenAI",
           "accessed": "2026-10-02",
           "claim": "The context object is not sent to the LLM; it is a purely local object, and the LLM only sees data given through instructions, input, function tools or retrieval."
+        }
+      ]
+    },
+    {
+      "id": "c013-q07",
+      "lesson": null,
+      "concept": "c013-agents-sdk-local-context",
+      "type": "multiple_select",
+      "prompt": "In the OpenAI Agents SDK, your tools need the current user's ID and a database client, and the model should also know the user's name. Which statements are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Pass a context object holding the ID and database client as `context=` to the run"
+        },
+        {
+          "id": "b",
+          "text": "Tools and hooks get it as a `RunContextWrapper[T]` and read it from `.context`"
+        },
+        {
+          "id": "c",
+          "text": "The context object is sent to the LLM each turn, so the model already sees the name"
+        },
+        {
+          "id": "d",
+          "text": "For the model to see the name, put it in instructions or input, or return it from a tool"
+        },
+        {
+          "id": "e",
+          "text": "Each tool in one run may declare its own context type, unrelated to the others"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "d"
+      ],
+      "explanation": "Local context is a Python object you pass to the run as `context=`; tools and lifecycle hooks receive it wrapped in `RunContextWrapper[T]` and read it from `.context`. It is never sent to the LLM, so data the model needs, such as the user's name, must come through the instructions, the input, a function tool or retrieval. Every agent, tool and hook in one run must use the same context type.",
+      "materials": [
+        "openai-agents-sdk"
+      ],
+      "sources": [
+        {
+          "url": "https://openai.github.io/openai-agents-python/context/",
+          "title": "Context management",
+          "publisher": "OpenAI",
+          "accessed": "2026-10-03",
+          "claim": "The object passed as `context` to the run is wrapped in `RunContextWrapper[T]` for tools and lifecycle hooks, and every agent, tool and hook in a run must use the same context type; the context object is not sent to the LLM, so data the LLM needs must come through instructions, input messages, function tools or retrieval."
+        }
+      ]
+    },
+    {
+      "id": "c013-q08",
+      "lesson": null,
+      "concept": "c013-actions-concurrency",
+      "type": "multiple_select",
+      "prompt": "You want a new push to a pull request to cancel that pull request's CI run in progress, without touching other pull requests' runs. Which statements about GitHub Actions `concurrency` are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Without `cancel-in-progress`, a new run cancels the run already going in its group"
+        },
+        {
+          "id": "b",
+          "text": "A group of `${{ github.workflow }}-${{ github.head_ref || github.run_id }}` is per PR"
+        },
+        {
+          "id": "c",
+          "text": "`cancel-in-progress: true` also cancels the run already going in that group"
+        },
+        {
+          "id": "d",
+          "text": "Only one run per group runs at a time, and a newly queued run replaces a pending one"
+        },
+        {
+          "id": "e",
+          "text": "Group names are case-sensitive, so `CI-main` and `ci-main` are separate groups"
+        }
+      ],
+      "answers": [
+        "b",
+        "c",
+        "d"
+      ],
+      "explanation": "Only one job or workflow run in a concurrency group runs at a time; by default a newly queued run cancels and replaces any pending one, but the running one carries on. `cancel-in-progress: true` cancels the running one too. A group built from `github.head_ref` is per pull request, and `github.run_id` is a unique fallback for events without a head ref. Group names are case-insensitive: `prod` and `Prod` are the same group.",
+      "materials": [
+        "github-actions-documentation"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency",
+          "title": "Control the concurrency of workflows and jobs",
+          "publisher": "GitHub",
+          "accessed": "2026-10-03",
+          "claim": "Only a single job or workflow using the same concurrency group runs at a time; by default a pending run in the group is canceled when a new one is queued, and `cancel-in-progress: true` also cancels the currently running one; `github.head_ref || github.run_id` falls back to the unique run ID when `head_ref` is undefined; concurrency group names are case insensitive."
         }
       ]
     }

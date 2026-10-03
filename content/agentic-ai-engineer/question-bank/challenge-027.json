@@ -128,7 +128,12 @@
           "accessed": "2026-10-02",
           "claim": "The registry defines gen_ai.operation.name, gen_ai.provider.name, gen_ai.request.model, gen_ai.response.model, gen_ai.usage.input_tokens, gen_ai.usage.output_tokens and gen_ai.response.finish_reasons, all in Development status; gen_ai.input.messages and gen_ai.output.messages may contain sensitive information; gen_ai.system is deprecated in favour of gen_ai.provider.name."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c027-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c027-q04",
@@ -155,7 +160,12 @@
           "accessed": "2026-10-02",
           "claim": "Index-only scans need a supporting index type and only indexed columns; the visibility map bit must show a heap page all-visible or the heap is visited, so the benefit depends on the table changing infrequently; INCLUDE columns are non-searchable payload and wide ones bloat the index."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c027-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c027-q05",
@@ -242,6 +252,103 @@
           "publisher": "OpenTelemetry",
           "accessed": "2026-10-02",
           "claim": "gen_ai.input.messages and gen_ai.output.messages may contain sensitive information including user or PII data; gen_ai.conversation.id is the unique identifier for a conversation, used to store and correlate messages."
+        }
+      ]
+    },
+    {
+      "id": "c027-q07",
+      "lesson": null,
+      "concept": "c027-otel-genai-semconv",
+      "type": "multiple_select",
+      "prompt": "You add OpenTelemetry spans for your agent's model calls, following the GenAI semantic conventions. Which of these are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Name an inference span `{gen_ai.operation.name} {gen_ai.request.model}`"
+        },
+        {
+          "id": "b",
+          "text": "Record prompts in `gen_ai.input.messages` on every span by default"
+        },
+        {
+          "id": "c",
+          "text": "Token counts go in `gen_ai.usage.input_tokens` and `output_tokens`"
+        },
+        {
+          "id": "d",
+          "text": "Use `gen_ai.system` for the provider, as `gen_ai.provider.name` is gone"
+        },
+        {
+          "id": "e",
+          "text": "Prompt and completion messages are opt-in, as they may hold PII"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "An inference span SHOULD be named `{gen_ai.operation.name} {gen_ai.request.model}`, such as `chat <model>` (a), and token usage is recorded in `gen_ai.usage.input_tokens` and `gen_ai.usage.output_tokens` (c). `gen_ai.input.messages` and `gen_ai.output.messages` are opt-in attributes, not default ones (b), because they are likely to contain sensitive data (e). `gen_ai.system` is the deprecated one, replaced by `gen_ai.provider.name` (d).",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://github.com/open-telemetry/semantic-conventions-genai/blob/main/docs/gen-ai/gen-ai-spans.md",
+          "title": "Semantic conventions for generative client AI spans",
+          "publisher": "OpenTelemetry",
+          "claim": "An inference span name SHOULD be `{gen_ai.operation.name} {gen_ai.request.model}`; `gen_ai.input.messages` and `gen_ai.output.messages` are Opt-In; token usage is recorded in `gen_ai.usage.input_tokens` and `gen_ai.usage.output_tokens`.",
+          "accessed": "2026-10-03"
+        },
+        {
+          "url": "https://opentelemetry.io/docs/specs/semconv/registry/attributes/gen-ai/",
+          "title": "Gen AI attributes (semantic conventions registry)",
+          "publisher": "OpenTelemetry",
+          "claim": "`gen_ai.input.messages` is likely to contain sensitive information including user/PII data; `gen_ai.system` is deprecated in favour of `gen_ai.provider.name`.",
+          "accessed": "2026-10-03"
+        }
+      ]
+    },
+    {
+      "id": "c027-q08",
+      "lesson": null,
+      "concept": "c027-covering-index-only-scan",
+      "type": "multiple_select",
+      "prompt": "You add a covering B-tree index with `INCLUDE` so a hot query gets an `Index Only Scan`, but `Heap Fetches` stays high on a constantly updated table. Which of these are true in PostgreSQL? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Pages not marked all-visible in the visibility map still need a heap visit"
+        },
+        {
+          "id": "b",
+          "text": "An index-only scan never reads the heap once the query's columns are covered"
+        },
+        {
+          "id": "c",
+          "text": "Covering indexes pay off most on tables whose rows change rarely"
+        },
+        {
+          "id": "d",
+          "text": "`INCLUDE` columns become part of the search key and can be filtered on fast"
+        },
+        {
+          "id": "e",
+          "text": "Wide `INCLUDE` columns bloat the index and can slow its searches"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "An index-only scan checks each heap page's visibility-map bit and must visit the heap unless the page is all-visible (a, so b is wrong); a frequently updated table has few all-visible pages, which is why the payoff needs a table that changes slowly (c). `INCLUDE` columns are non-key payload, not part of the search key (d), and wide ones duplicate data and bloat the index, which can slow searches (e).",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/indexes-index-only-scans.html",
+          "title": "11.9. Index-Only Scans and Covering Indexes",
+          "publisher": "PostgreSQL Global Development Group",
+          "claim": "An index-only scan must visit the heap unless the page's visibility-map bit shows it all-visible, so it wins only when much of the table is unchanging; INCLUDE columns are not part of the search key, and non-key columns, especially wide ones, bloat the index and can slow searches.",
+          "accessed": "2026-10-03"
         }
       ]
     }

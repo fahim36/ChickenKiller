@@ -116,7 +116,12 @@
           "accessed": "2026-09-26",
           "claim": "interrupt() needs a checkpointer and a thread_id; you resume with Command(resume=...) using the same thread ID, and the value becomes interrupt()'s return value; on resume the node restarts from the beginning, so side effects before interrupt() must be idempotent, or be placed after it or in a separate node."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c002-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c002-q04",
@@ -145,7 +150,12 @@
           "accessed": "2026-09-26",
           "claim": "For an invalid tool call such as a missing required parameter, return a tool_result with is_error: true and Claude retries 2-3 times with corrections before apologizing; write instructive error messages; more detailed descriptions or strict: true prevent invalid calls."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c002-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c002-q05",
@@ -218,6 +228,98 @@
           "publisher": "LangChain",
           "accessed": "2026-09-26",
           "claim": "On resume the runtime restarts the entire node from the beginning (not the whole graph, and not from the interrupt line), and the value passed to Command(resume=...) becomes the return value of interrupt()."
+        }
+      ]
+    },
+    {
+      "id": "c002-q07",
+      "lesson": null,
+      "concept": "c002-langgraph-interrupts",
+      "type": "multiple_select",
+      "prompt": "A LangGraph node creates a draft refund through a payment API, then calls `interrupt()` to wait for a manager's approval. Which statements are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`interrupt()` needs a checkpointer and a `thread_id`, so the paused state can be found"
+        },
+        {
+          "id": "b",
+          "text": "Resume with `Command(resume=value)` and the same `thread_id`; `interrupt()` returns it"
+        },
+        {
+          "id": "c",
+          "text": "On resume the node carries on from the `interrupt()` line, so the API call runs once"
+        },
+        {
+          "id": "d",
+          "text": "The payment call must be idempotent, or move after `interrupt()` or to its own node"
+        },
+        {
+          "id": "e",
+          "text": "Resume by invoking the graph with a fresh `thread_id`, so the approval starts clean"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "d"
+      ],
+      "explanation": "`interrupt()` needs a checkpointer (a durable one in production) and a `thread_id` in the config so the paused state is saved and can be found again. You resume by invoking the graph with `Command(resume=value)` and the same `thread_id`, and that value becomes the return value of `interrupt()`. On resume the whole node runs again from its start, not from the `interrupt()` line, so the payment call before it runs twice unless it is idempotent, placed after the `interrupt()`, or moved to a separate node.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://docs.langchain.com/oss/python/langgraph/interrupts",
+          "title": "Interrupts (LangGraph docs)",
+          "publisher": "LangChain",
+          "accessed": "2026-10-03",
+          "claim": "interrupt() needs a checkpointer and a thread_id in config; you resume by invoking the graph with Command(resume=value), and the value is returned by the interrupt() call; on resume the node re-runs from the beginning, not from the interrupt() line, so side effects before interrupt() must be idempotent, or be placed after it or in a separate node."
+        }
+      ]
+    },
+    {
+      "id": "c002-q08",
+      "lesson": null,
+      "concept": "c002-tool-error-results",
+      "type": "multiple_select",
+      "prompt": "Claude calls your `search_orders` tool but leaves out the required `customer_id`. Which statements about handling and preventing this are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Reply with a `tool_result` for that `tool_use_id`, with `is_error: true` and the cause"
+        },
+        {
+          "id": "b",
+          "text": "Skip the `tool_result` and send a plain user message asking Claude to try again"
+        },
+        {
+          "id": "c",
+          "text": "Claude then retries with corrections, 2-3 times, before apologizing to the user"
+        },
+        {
+          "id": "d",
+          "text": "A bare \"failed\" message works best, since Claude can work out what went wrong"
+        },
+        {
+          "id": "e",
+          "text": "More detailed tool descriptions, or `strict: true`, prevent such invalid calls"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "For an invalid call, reply in the next user message with a `tool_result` for the same `tool_use_id`, `is_error: true`, and a message saying what was wrong; tool results must come right after the tool use, so you can't skip it. Claude then retries 2-3 times with corrections before apologizing. Instructive errors (what went wrong, what to try) beat a generic \"failed\". To prevent the problem, write more detailed tool descriptions, or set `strict: true` so inputs always match the schema.",
+      "materials": [
+        "anthropic-docs-handle-tool-calls"
+      ],
+      "sources": [
+        {
+          "url": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/handle-tool-calls",
+          "title": "Handle tool calls (Claude API docs)",
+          "publisher": "Anthropic",
+          "accessed": "2026-10-03",
+          "claim": "Tool result blocks must immediately follow their tool use blocks; for an invalid call such as a missing required parameter, return a tool_result with the tool_use_id and is_error: true, and Claude retries 2-3 times with corrections before apologizing; write instructive error messages instead of generic ones like \"failed\"; more detailed descriptions, or strict tool use with strict: true, prevent invalid tool calls."
         }
       ]
     }

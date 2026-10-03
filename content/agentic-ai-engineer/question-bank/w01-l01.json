@@ -194,7 +194,12 @@
           "accessed": "2026-09-26",
           "claim": "A function's `__defaults__` attribute is a tuple holding the default parameter values."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w01-l01-q09",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w01-l01-q05",
@@ -263,7 +268,12 @@
           "accessed": "2026-09-26",
           "claim": "Assignment makes a second name refer to the same object, and arguments are passed by assignment, so rebinding a parameter inside a function does not change the caller's name (there is no call-by-reference)."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w01-l01-q10",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w01-l01-q07",
@@ -347,6 +357,109 @@
           "publisher": "Python Software Foundation",
           "accessed": "2026-09-26",
           "claim": "`dict.copy()` returns a shallow copy of the dictionary, and `dict(mapping)` returns a new dictionary initialised from the given mapping's items."
+        }
+      ]
+    },
+    {
+      "id": "w01-l01-q09",
+      "lesson": "w01-l01",
+      "concept": "mutable-default-argument",
+      "type": "multiple_select",
+      "prompt": "```python\ndef add(item, bucket=[]):\n    bucket.append(item)\n    return bucket\n```\nWhich of these are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The default list is created once, when the `def` statement runs"
+        },
+        {
+          "id": "b",
+          "text": "Each call that omits `bucket` gets a fresh, empty list"
+        },
+        {
+          "id": "c",
+          "text": "Calling `add(1)` then `add(2)` returns `[1, 2]` the second time"
+        },
+        {
+          "id": "d",
+          "text": "Python raises an error when a default value is a mutable list"
+        },
+        {
+          "id": "e",
+          "text": "Defaulting to `None` and making the list in the body fixes it"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "Default values are evaluated once, when the function definition runs (a), so every call that omits `bucket` shares the same list (b is wrong) and the second call returns `[1, 2]` (c). Python allows mutable defaults without complaint (d); the usual fix is `bucket=None` and `if bucket is None: bucket = []` in the body (e).",
+      "materials": [
+        "fluent-python-2nd-ed",
+        "facts-and-myths-about-python-names"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/reference/compound_stmts.html",
+          "title": "8. Compound statements",
+          "publisher": "Python Software Foundation",
+          "claim": "Default parameter values are evaluated once, when the function definition is executed, so a mutable default modified by the function stays modified; the workaround is a `None` default tested in the body.",
+          "accessed": "2026-10-03"
+        },
+        {
+          "url": "https://docs.python.org/3/faq/programming.html",
+          "title": "Programming FAQ",
+          "publisher": "Python Software Foundation",
+          "claim": "Default values are created exactly once, when the function is defined, so later calls see a changed default object; use `None` as the default and create a new object inside the function.",
+          "accessed": "2026-10-03"
+        }
+      ]
+    },
+    {
+      "id": "w01-l01-q10",
+      "lesson": "w01-l01",
+      "concept": "assignment-binds-names",
+      "type": "multiple_select",
+      "prompt": "```python\ndef reset(items):\n    items.append(0)\n    items = []\n\nnums = [1]\nb = nums\nreset(b)\n```\nWhich of these are true after this runs? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`b = nums` binds a second name to the same list, without a copy"
+        },
+        {
+          "id": "b",
+          "text": "`nums` is now `[]`, because `items = []` emptied the list"
+        },
+        {
+          "id": "c",
+          "text": "`nums` is now `[1, 0]`, since `append` changed the shared list"
+        },
+        {
+          "id": "d",
+          "text": "`items = []` rebinds only the local name, not the caller's list"
+        },
+        {
+          "id": "e",
+          "text": "`nums` is still `[1]`, because `reset` received its own private copy"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "d"
+      ],
+      "explanation": "Assignment binds a name to an existing object, so `b` and `nums` name one list (a), and the parameter `items` is bound to that same list too (arguments are passed by assignment, so `reset` gets no copy, e). `items.append(0)` mutates the shared list, so `nums` is `[1, 0]` (c). `items = []` just rebinds the local name to a new list; it doesn't empty or replace the caller's list (b, d).",
+      "materials": [
+        "facts-and-myths-about-python-names",
+        "fluent-python-2nd-ed"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/faq/programming.html",
+          "title": "Programming FAQ",
+          "publisher": "Python Software Foundation",
+          "claim": "`y = x` doesn't copy the list but makes `y` refer to the same object; arguments are passed by assignment, so there is no call-by-reference: rebinding a parameter doesn't change the caller's name, while mutating the object is visible to the caller.",
+          "accessed": "2026-10-03"
         }
       ]
     }

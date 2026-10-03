@@ -119,7 +119,12 @@
           "accessed": "2026-10-02",
           "claim": "Composables are accessible from UiAutomator only by descriptors like text or content description unless testTagsAsResourceId is enabled high in the hierarchy; then a Modifier.testTag can be found with By.res(resourceName), not By.res(resourcePackage, resourceId)."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c020-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c020-q04",
@@ -147,7 +152,12 @@
           "accessed": "2026-10-02",
           "claim": "For apps targeting Android 16, scheduleAtFixedRate() executes at most one missed execution, instead of all missed executions, when the app returns to a valid lifecycle; test with the STPE_SKIP_MULTIPLE_MISSED_PERIODIC_TASKS compat flag."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c020-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c020-q05",
@@ -224,6 +234,100 @@
           "publisher": "Google",
           "accessed": "2026-10-02",
           "claim": "Any composable with Modifier.testTag(tag) can be accessed with By.res(resourceName) using the tag as resourceName; use By.res(resourceName) only, not By.res(resourcePackage, resourceId), which formats differently."
+        }
+      ]
+    },
+    {
+      "id": "c020-q07",
+      "lesson": null,
+      "concept": "c020-compose-uiautomator-test-tags",
+      "type": "multiple_select",
+      "prompt": "A UI Automator test can't find a `LazyColumn` with `Modifier.testTag(\"feed\")`, though Compose tests find it fine. Which statements are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "By default UI Automator finds composables only by descriptors like their text"
+        },
+        {
+          "id": "b",
+          "text": "`testTagsAsResourceId` must be set on every single composable that has a test tag"
+        },
+        {
+          "id": "c",
+          "text": "Set `testTagsAsResourceId = true` once, high in the hierarchy, to expose tags"
+        },
+        {
+          "id": "d",
+          "text": "Find it with `By.res(packageName, \"feed\")`, as tags get the app's package"
+        },
+        {
+          "id": "e",
+          "text": "Then find it with `By.res(\"feed\")`, using the test tag as the resource name"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "By default composables are reachable from UI Automator only by descriptors such as displayed text or content description, not by `Modifier.testTag`. Enable the `testTagsAsResourceId` semantics property once, high in the hierarchy (on the `Scaffold`, say), so every nested test tag is exposed; you don't repeat it on each composable. Then use `By.res(\"feed\")`: `By.res(resourcePackage, resourceId)` formats the argument as `package:id/feed`, which doesn't match the tag.",
+      "materials": [
+        "compose-testing"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/testing/interoperability",
+          "title": "Interoperability",
+          "publisher": "Google",
+          "accessed": "2026-10-03",
+          "claim": "Composables are accessible from UiAutomator only by descriptors like text or content description unless `testTagsAsResourceId` is enabled, once and high in the hierarchy for all nested composables; a `Modifier.testTag` is then found with `By.res(resourceName)`, not `By.res(resourcePackage, resourceId)`, which formats it differently."
+        }
+      ]
+    },
+    {
+      "id": "c020-q08",
+      "lesson": null,
+      "concept": "c020-android16-fixed-rate-scheduling",
+      "type": "multiple_select",
+      "prompt": "Your app counts `scheduleAtFixedRate` ticks to track how long a workout has run, and it now targets Android 16. Which statements are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "At most one missed run executes when the app returns to a valid lifecycle"
+        },
+        {
+          "id": "b",
+          "text": "All missed runs still execute at once when the app comes back to life"
+        },
+        {
+          "id": "c",
+          "text": "Tick counts can now undercount, so work out elapsed time from timestamps"
+        },
+        {
+          "id": "d",
+          "text": "The change applies to every app on Android 16, no matter what its target SDK is"
+        },
+        {
+          "id": "e",
+          "text": "The `STPE_SKIP_MULTIPLE_MISSED_PERIODIC_TASKS` compat flag lets you test it"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "For apps targeting Android 16 (API 36) or higher, when `scheduleAtFixedRate` misses runs because the process was outside a valid lifecycle, at most one missed run executes when the app returns, instead of all of them. So a tick count undercounts the time that passed while the app was cached; store timestamps and compute elapsed time instead. Apps targeting lower SDKs keep the old behaviour, and you can test the new one with the `STPE_SKIP_MULTIPLE_MISSED_PERIODIC_TASKS` compat flag.",
+      "materials": [
+        "android-16-behavior-changes"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/about/versions/16/behavior-changes-16",
+          "title": "Behavior changes: Apps targeting Android 16 or higher",
+          "publisher": "Google",
+          "accessed": "2026-10-03",
+          "claim": "For apps targeting Android 16 (API 36) or higher, at most one missed execution of `scheduleAtFixedRate` runs immediately when the app returns to a valid lifecycle, instead of all missed executions; test it with the `STPE_SKIP_MULTIPLE_MISSED_PERIODIC_TASKS` compat flag."
         }
       ]
     }

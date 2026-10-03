@@ -123,7 +123,12 @@
           "accessed": "2026-10-02",
           "claim": "Each batch request has a unique `custom_id`; results can come back in any order, so match them by `custom_id`; each request ends as `succeeded`, `errored`, `canceled` or `expired`, and the last three are not billed; `params` are validated asynchronously, with errors returned when the batch ends; batches expire if not done within 24 hours, most finish within 1 hour, results are available for 29 days, and cost is 50% lower."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c012-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c012-q04",
@@ -150,7 +155,12 @@
           "accessed": "2026-10-02",
           "claim": "A stream is `message_start` (empty content), then per content block `content_block_start`, `content_block_delta` events and `content_block_stop`, then `message_delta` events with top-level changes such as `stop_reason`, then `message_stop`; `ping` events can appear anywhere; `usage` in `message_delta` is cumulative; tool input arrives as `input_json_delta` partial JSON strings to accumulate and parse at `content_block_stop`; error events such as `overloaded_error` can arrive in the stream."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c012-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c012-q05",
@@ -225,6 +235,98 @@
           "publisher": "Anthropic",
           "accessed": "2026-10-02",
           "claim": "Each batch request has a unique `custom_id`; results can come back in any order, so match them by `custom_id`; each request ends as `succeeded`, `errored`, `canceled` or `expired`, and the last three are not billed; `params` are validated asynchronously, with errors returned when the batch ends; batches expire if not done within 24 hours, most finish within 1 hour, results are available for 29 days, and cost is 50% lower."
+        }
+      ]
+    },
+    {
+      "id": "c012-q07",
+      "lesson": null,
+      "concept": "c012-batch-results-handling",
+      "type": "multiple_select",
+      "prompt": "You extract fields from 50,000 invoices overnight with Claude's Message Batches API. Which statements about matching and handling the results are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Give each request a unique `custom_id`, such as the invoice ID, to match its result"
+        },
+        {
+          "id": "b",
+          "text": "Results come back in the order you sent them, so a result's index gives its invoice"
+        },
+        {
+          "id": "c",
+          "text": "Only `succeeded` requests are billed: errored, canceled and expired ones are free"
+        },
+        {
+          "id": "d",
+          "text": "Bad `params` are rejected when you create the batch, so none errors as invalid later"
+        },
+        {
+          "id": "e",
+          "text": "Resend expired requests in a new batch, and fix an invalid request before resending"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "Batch results can come back in any order, so match each one by its `custom_id`, not by position. Each request ends `succeeded`, `errored`, `canceled` or `expired`, and you are not billed for the last three. `params` are validated asynchronously, so an invalid request only shows up as `errored` when the batch ends: fix it before resending, while server errors and expired requests (not done within 24 hours) can simply be sent again in a new batch.",
+      "materials": [
+        "anthropic-docs-batch-processing"
+      ],
+      "sources": [
+        {
+          "url": "https://platform.claude.com/docs/en/build-with-claude/batch-processing",
+          "title": "Batch processing",
+          "publisher": "Anthropic",
+          "accessed": "2026-10-03",
+          "claim": "Each request has a unique `custom_id`; results can be returned in any order, so always match them with `custom_id`; results are `succeeded`, `errored`, `canceled` or `expired`, and errored, canceled and expired requests are not billed; `params` are validated asynchronously, with errors returned when the batch ends; an `invalid_request_error` must be fixed before re-sending, while a server error can be retried directly; batches expire if not done within 24 hours."
+        }
+      ]
+    },
+    {
+      "id": "c012-q08",
+      "lesson": null,
+      "concept": "c012-streaming-events",
+      "type": "multiple_select",
+      "prompt": "Your client streams Claude responses, prints text as it arrives and records token usage. Which statements about the stream's events are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`message_start` carries the full content, and later deltas only refine parts of it"
+        },
+        {
+          "id": "b",
+          "text": "Each content block sends `content_block_start`, its deltas, then `content_block_stop`"
+        },
+        {
+          "id": "c",
+          "text": "`usage` in `message_delta` is cumulative, so keep the last value instead of a sum"
+        },
+        {
+          "id": "d",
+          "text": "Each `input_json_delta` is valid JSON, so parse every tool-input delta as it arrives"
+        },
+        {
+          "id": "e",
+          "text": "`ping` events and errors such as `overloaded_error` can arrive in mid-stream"
+        }
+      ],
+      "answers": [
+        "b",
+        "c",
+        "e"
+      ],
+      "explanation": "A stream opens with `message_start`, whose message has empty `content`; each content block then sends `content_block_start`, one or more `content_block_delta` events and `content_block_stop`; `message_delta` events carry top-level changes such as `stop_reason`, and `message_stop` ends it. The token counts in `message_delta` are cumulative, so summing them overcounts. Tool input arrives as partial JSON strings: accumulate them and parse at `content_block_stop`. `ping` events can appear anywhere, and errors such as `overloaded_error` can arrive in the stream.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://platform.claude.com/docs/en/build-with-claude/streaming",
+          "title": "Streaming messages",
+          "publisher": "Anthropic",
+          "accessed": "2026-10-03",
+          "claim": "A stream is `message_start` (a Message with empty `content`), then for each content block a `content_block_start`, one or more `content_block_delta` events and a `content_block_stop`, then one or more `message_delta` events and a final `message_stop`; `usage` counts in `message_delta` are cumulative; streams may include any number of `ping` events, and errors such as `overloaded_error` can be sent in the stream; tool-input deltas are partial JSON strings to accumulate and parse at `content_block_stop`."
         }
       ]
     }

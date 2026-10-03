@@ -120,7 +120,12 @@
           "accessed": "2026-10-02",
           "claim": "The session ID is on every result message; `resume` returns to a session with full context; `fork_session` creates a new session with a copy of the history and leaves the original unchanged; sessions persist the conversation, not the filesystem; session files are local to the machine that created them."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c015-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c015-q04",
@@ -195,7 +200,12 @@
           "accessed": "2026-10-02",
           "claim": "It's good security practice to set the default GITHUB_TOKEN permission to read access only for repository contents, and increase permissions as required for individual jobs."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c015-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c015-q06",
@@ -233,6 +243,107 @@
           "publisher": "Anthropic",
           "accessed": "2026-10-02",
           "claim": "Forking creates a new session with its own ID and a copy of the history while the original stays unchanged; it branches the conversation history, not the filesystem, so a forked agent's file edits are real and visible to any session in the same directory."
+        }
+      ]
+    },
+    {
+      "id": "c015-q07",
+      "lesson": null,
+      "concept": "c015-agent-sdk-sessions",
+      "type": "multiple_select",
+      "prompt": "A Claude Agent SDK service analyses a repository in one `query()` call, and users later ask follow-ups, sometimes wanting to try another approach without losing the first. Which statements about sessions are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Read `session_id` from the result message and pass it as `resume` to keep full context"
+        },
+        {
+          "id": "b",
+          "text": "`resume` with `fork_session=True` gives a new session ID and leaves the original as is"
+        },
+        {
+          "id": "c",
+          "text": "A fork also snapshots the files, so its file edits stay hidden from the original session"
+        },
+        {
+          "id": "d",
+          "text": "Sessions are stored in Anthropic's cloud, so any host can resume one using only its ID"
+        },
+        {
+          "id": "e",
+          "text": "Session files are local to the machine; another host needs a session store or the file"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "e"
+      ],
+      "explanation": "The session ID is on every result message, and passing it as `resume` returns to that session with its full context. Forking (`resume` plus `fork_session=True`) creates a new session with its own ID and a copy of the history, leaving the original unchanged. Sessions persist the conversation, not the filesystem: a fork's file edits are real for every session in that directory (use file checkpointing to revert them). Session files are written locally, so resuming on another host needs a session store adapter or the moved file.",
+      "materials": [
+        "claude-agent-sdk"
+      ],
+      "sources": [
+        {
+          "url": "https://code.claude.com/docs/en/agent-sdk/sessions",
+          "title": "Work with sessions",
+          "publisher": "Anthropic",
+          "accessed": "2026-10-03",
+          "claim": "The `session_id` is on every result message; `resume` returns to that session with full context; forking creates a new session with its own ID and a copy of the history while the original stays unchanged; sessions persist the conversation, not the filesystem, so a fork's file edits are real for any session in the same directory; session files are local to the machine that created them, so another host needs a session store or the moved session file."
+        }
+      ]
+    },
+    {
+      "id": "c015-q08",
+      "lesson": null,
+      "concept": "c015-github-token-permissions",
+      "type": "multiple_select",
+      "prompt": "Your repository's workflow lints and tests on every push, and one job publishes a release. Which statements about the `GITHUB_TOKEN` `permissions` key are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A job-level `permissions` key overrides the workflow-level one for that job"
+        },
+        {
+          "id": "b",
+          "text": "Listing any one permission leaves every unlisted one at its default access"
+        },
+        {
+          "id": "c",
+          "text": "Default to `contents: read`, and give only the release job `contents: write`"
+        },
+        {
+          "id": "d",
+          "text": "`permissions: {}` disables every permission, for jobs that need no token"
+        },
+        {
+          "id": "e",
+          "text": "A job can only narrow the workflow's permissions, so the release job can't write"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "d"
+      ],
+      "explanation": "`permissions` can be set for the whole workflow or per job, and a job's own key applies to that job. GitHub's advice is least privilege: read-only `contents` by default, raised only for the jobs that need it, such as the release job. Specifying any permission sets all the unspecified ones to `none`, not to their defaults, and `permissions: {}` turns them all off.",
+      "materials": [
+        "github-actions-documentation"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax",
+          "title": "Workflow syntax for GitHub Actions",
+          "publisher": "GitHub",
+          "accessed": "2026-10-03",
+          "claim": "`permissions` can be a top-level key for all jobs or set within a specific job, which then gets the access rights it specifies; if you specify access for any permission, all unspecified ones are set to `none`; `permissions: {}` disables all permissions."
+        },
+        {
+          "url": "https://docs.github.com/en/actions/reference/security/secure-use",
+          "title": "Secure use reference",
+          "publisher": "GitHub",
+          "accessed": "2026-10-03",
+          "claim": "Set the default GITHUB_TOKEN permission to read access only for repository contents, then increase permissions as required for individual jobs in the workflow file."
         }
       ]
     }

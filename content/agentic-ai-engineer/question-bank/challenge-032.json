@@ -128,7 +128,12 @@
           "accessed": "2026-10-02",
           "claim": "CaMeL separates control and data flows derived from the trusted query, so untrusted data can never affect program flow, and uses capabilities to prevent private data being exfiltrated over unauthorised data flows."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c032-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c032-q04",
@@ -197,7 +202,12 @@
           "accessed": "2026-10-02",
           "claim": "Reflexion uses an Actor that generates text and actions, an Evaluator that scores outputs (exact match, heuristics, LLM, self-generated unit tests for programming) and a Self-Reflection model that produces verbal feedback stored in memory bounded to usually 1-3 experiences; it may still reach non-optimal local minima and relies on the LLM's self-evaluation."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c032-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c032-q06",
@@ -235,6 +245,107 @@
           "publisher": "arXiv (Beurer-Kellner et al.)",
           "accessed": "2026-10-02",
           "claim": "In plan-then-execute, untrusted third-party data cannot inject instructions that deviate from the fixed plan, but it can still arbitrarily alter the parameters of planned actions, such as the content of an email the agent sends."
+        }
+      ]
+    },
+    {
+      "id": "c032-q07",
+      "lesson": null,
+      "concept": "c032-plan-then-execute",
+      "type": "multiple_select",
+      "prompt": "Your email agent uses plan-then-execute: it fixes its list of tool calls from the user's request before it reads any email. Which of these are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "An injected email can't add a tool call that isn't in the plan"
+        },
+        {
+          "id": "b",
+          "text": "An injected email can't change the arguments of the planned calls"
+        },
+        {
+          "id": "c",
+          "text": "It doesn't protect against injections in the user's own prompt"
+        },
+        {
+          "id": "d",
+          "text": "Injected text can still alter the body of a reply the plan sends"
+        },
+        {
+          "id": "e",
+          "text": "It makes the agent fully immune to every prompt injection"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "d"
+      ],
+      "explanation": "Because the plan is fixed before untrusted data is read, injected text can't make the agent run a tool outside the plan (a): a form of control-flow integrity. But it can still alter the parameters of planned calls, such as an email's body (d, so b is wrong), it gives no protection against injections in the user prompt (c), and so it doesn't prevent all injections (e). Controlling data flow too, as CaMeL does with capabilities, closes more of the gap.",
+      "materials": [
+        "simon-willison-prompt-injection-series"
+      ],
+      "sources": [
+        {
+          "url": "https://arxiv.org/abs/2506.08837",
+          "title": "Design Patterns for Securing LLM Agents against Prompt Injections",
+          "publisher": "arXiv (Beurer-Kellner et al.)",
+          "claim": "In plan-then-execute, untrusted tool output cannot inject instructions that make the agent deviate from its fixed plan (control-flow integrity), but it can arbitrarily alter the inputs to planned calls such as an email's body; the pattern doesn't prevent all prompt injections, nor ones in the user prompt.",
+          "accessed": "2026-10-03"
+        },
+        {
+          "url": "https://arxiv.org/abs/2503.18813",
+          "title": "Defeating Prompt Injections by Design",
+          "publisher": "arXiv (Debenedetti et al., Google DeepMind)",
+          "claim": "CaMeL extracts control and data flows from the trusted query so untrusted data can never impact program flow, and uses capabilities to prevent private data being exfiltrated over unauthorised data flows.",
+          "accessed": "2026-10-03"
+        }
+      ]
+    },
+    {
+      "id": "c032-q08",
+      "lesson": null,
+      "concept": "c032-reflexion",
+      "type": "multiple_select",
+      "prompt": "Which of these are true of a Reflexion agent (Shinn et al., 2023)? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "An Evaluator scores each attempt, e.g. by exact match or unit tests"
+        },
+        {
+          "id": "b",
+          "text": "It improves by fine-tuning the Actor's weights after each failed trial"
+        },
+        {
+          "id": "c",
+          "text": "Verbal self-reflections are kept in a memory of usually 1 to 3 entries"
+        },
+        {
+          "id": "d",
+          "text": "It can still get stuck in non-optimal local minima"
+        },
+        {
+          "id": "e",
+          "text": "It needs no evaluation signal, since the Actor checks its own steps"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "d"
+      ],
+      "explanation": "An Actor generates text and actions, an Evaluator scores the attempt (exact match, heuristics, an LLM, or self-generated unit tests) (a, so e is wrong), and a Self-Reflection model turns that into verbal feedback stored in a memory bounded to usually 1 to 3 experiences (c). It reinforces the agent through language, not by updating weights (b). The authors note it may still succumb to non-optimal local minima (d).",
+      "materials": [
+        "lilian-weng-llm-powered-autonomous-agents"
+      ],
+      "sources": [
+        {
+          "url": "https://arxiv.org/abs/2303.11366",
+          "title": "Reflexion: Language Agents with Verbal Reinforcement Learning",
+          "publisher": "arXiv (Shinn et al.)",
+          "claim": "Reflexion reinforces agents through linguistic feedback, not weight updates: an Actor generates text and actions, an Evaluator scores outputs (exact match, heuristics, an LLM, or self-generated unit tests), and a Self-Reflection model writes verbal feedback stored in memory bounded to usually 1-3 experiences; it may still succumb to non-optimal local minima.",
+          "accessed": "2026-10-03"
         }
       ]
     }

@@ -118,7 +118,12 @@
           "accessed": "2026-10-02",
           "claim": "Each AgentCore Runtime session gets its own microVM with isolated compute, memory and filesystem, terminated and sanitised after the session; sessions stop after 15 minutes idle by default or at the maximum lifetime (8 hours by default on microVMs); in-memory and on-disk data is ephemeral unless you use session storage, and AgentCore Memory is for data kept beyond a session. AgentCore does not enforce session-to-user mappings; the same runtimeSessionId routes to the same microVM."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c034-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c034-q04",
@@ -186,7 +191,12 @@
           "accessed": "2026-10-02",
           "claim": "Durability \"exit\" persists only when execution exits (success, error or interrupt) with no mid-run recovery; \"async\" persists while the next step runs, with a small risk of lost checkpoints if the process crashes; \"sync\" writes every checkpoint before the next step starts, at some performance cost. It is set per run, as in `graph.stream(..., durability=\"sync\")`."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c034-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c034-q06",
@@ -222,6 +232,98 @@
           "publisher": "Amazon Web Services",
           "accessed": "2026-10-02",
           "claim": "Each AgentCore Runtime session gets its own microVM with isolated compute, memory and filesystem, terminated and sanitised after the session; sessions stop after 15 minutes idle by default or at the maximum lifetime (8 hours by default on microVMs); in-memory and on-disk data is ephemeral unless you use session storage, and AgentCore Memory is for data kept beyond a session. AgentCore does not enforce session-to-user mappings; the same runtimeSessionId routes to the same microVM."
+        }
+      ]
+    },
+    {
+      "id": "c034-q07",
+      "lesson": null,
+      "concept": "c034-agentcore-runtime-sessions",
+      "type": "multiple_select",
+      "prompt": "You deploy a multi-turn agent on Amazon Bedrock AgentCore Runtime (microVM sessions, default settings). Which of these are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Each session gets its own microVM with isolated memory and filesystem"
+        },
+        {
+          "id": "b",
+          "text": "AgentCore maps each signed-in user to their own sessions for you"
+        },
+        {
+          "id": "c",
+          "text": "A session's compute stops after 15 minutes idle by default"
+        },
+        {
+          "id": "d",
+          "text": "Files written to the microVM's disk always survive a session stop"
+        },
+        {
+          "id": "e",
+          "text": "Data to keep beyond the session belongs in AgentCore Memory"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "Each session gets a dedicated microVM with isolated compute, memory and filesystem (a). Its compute stops after 15 minutes of inactivity by default, or at its maximum lifetime (8 hours by default) (c). Memory and disk are ephemeral unless you configure session storage (d), and structured data to keep beyond the session goes in AgentCore Memory (e). AgentCore doesn't enforce session-to-user mappings: your backend must (b).",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-sessions.html",
+          "title": "Use isolated sessions for agents",
+          "publisher": "Amazon Web Services",
+          "claim": "Each AgentCore Runtime session gets its own microVM with isolated compute, memory and filesystem; compute stops after inactivity (default 15 minutes) or at max lifetime (default 8 hours); data in memory or on disk is ephemeral unless session storage is configured, and AgentCore Memory holds data beyond the session; AgentCore does not enforce session-to-user mappings.",
+          "accessed": "2026-10-03"
+        }
+      ]
+    },
+    {
+      "id": "c034-q08",
+      "lesson": null,
+      "concept": "c034-langgraph-durability-modes",
+      "type": "multiple_select",
+      "prompt": "You choose a LangGraph durability mode per run, as in `graph.stream(inputs, durability=...)`. Which of these are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`\"exit\"` persists only when the run ends, so a crash mid-run can't be resumed"
+        },
+        {
+          "id": "b",
+          "text": "`\"sync\"` writes each checkpoint before the next step starts, at some cost"
+        },
+        {
+          "id": "c",
+          "text": "`\"async\"` writes checkpoints in the background with no risk of losing any"
+        },
+        {
+          "id": "d",
+          "text": "`\"async\"` writes while the next step runs, so a crash may lose a checkpoint"
+        },
+        {
+          "id": "e",
+          "text": "`\"exit\"` is the slowest mode, since it saves a checkpoint at every step"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "d"
+      ],
+      "explanation": "`\"exit\"` persists only when execution exits (success, error or interrupt): the best performance, but no recovery from a crash mid-run (a), so it isn't the slowest (e). `\"async\"` persists while the next step runs, with a small risk of losing checkpoints if the process crashes (d, so c is wrong). `\"sync\"` writes every checkpoint before the next step starts: the most durable, with some performance overhead (b).",
+      "materials": [
+        "langgraph-documentation"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.langchain.com/oss/python/langgraph/checkpointers",
+          "title": "Checkpointers",
+          "publisher": "LangChain",
+          "claim": "Durability \"exit\" persists only when execution exits, giving the best performance but no recovery from mid-run failures; \"async\" persists while the next step executes, with a small risk of lost checkpoints if the process crashes; \"sync\" persists before the next step starts, at some performance cost; the mode is passed per run, as in `graph.stream(..., durability=\"sync\")`.",
+          "accessed": "2026-10-03"
         }
       ]
     }

@@ -113,7 +113,12 @@
           "accessed": "2026-10-02",
           "claim": "Window functions compute across related rows without grouping them into one output row; they are permitted only in the SELECT list and ORDER BY, not in WHERE, GROUP BY or HAVING, so to filter on them you use a sub-select, for example row_number() OVER (PARTITION BY depname ORDER BY salary DESC) with WHERE pos < 3 outside."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c026-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c026-q04",
@@ -140,7 +145,12 @@
           "accessed": "2026-10-02",
           "claim": "Null values in a merge patch indicate removal; non-object values, including arrays, replace the target value whole, so part of an array can't be patched; the format suits documents that primarily use objects and do not make use of explicit null values."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c026-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c026-q05",
@@ -213,6 +223,96 @@
           "publisher": "PostgreSQL Global Development Group",
           "accessed": "2026-10-02",
           "claim": "A window function does not group rows into a single output row, so each row keeps its identity; without ORDER BY in the window the frame is all rows of the partition, while with ORDER BY it runs from the partition start to the current row."
+        }
+      ]
+    },
+    {
+      "id": "c026-q07",
+      "lesson": null,
+      "concept": "c026-window-top-n",
+      "type": "multiple_select",
+      "prompt": "From `conversations(id, user_id, title, created_at)` you need each user's 3 most recent conversations, using `row_number() OVER (PARTITION BY user_id ORDER BY created_at DESC)`. Which of these are true in PostgreSQL? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Filter on the row number in an outer query or CTE, e.g. `WHERE rn <= 3`"
+        },
+        {
+          "id": "b",
+          "text": "Put `row_number() OVER (...) <= 3` straight into the query's `WHERE`"
+        },
+        {
+          "id": "c",
+          "text": "A window function keeps every row, unlike `GROUP BY`, which merges them"
+        },
+        {
+          "id": "d",
+          "text": "Window functions run after `WHERE`, so they can't be filtered there"
+        },
+        {
+          "id": "e",
+          "text": "`GROUP BY user_id` with `LIMIT 3` returns three rows for each user"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "d"
+      ],
+      "explanation": "Window functions are allowed only in the select list and `ORDER BY`, because they logically run after `WHERE`, `GROUP BY` and `HAVING` (d), so you compute the row number in a sub-select and filter it outside (a), not in the same `WHERE` (b). Unlike `GROUP BY`, which collapses each group into one row, a window function keeps every row (c). `LIMIT` caps the whole result, not each group, and `GROUP BY` gives one row per user anyway (e).",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/tutorial-window.html",
+          "title": "3.5. Window Functions",
+          "publisher": "PostgreSQL Global Development Group",
+          "claim": "Window functions don't group rows into one output row; they are permitted only in the SELECT list and ORDER BY, not in WHERE, GROUP BY or HAVING, because they logically execute after those clauses, so filtering on them uses a sub-select such as row_number() OVER (PARTITION BY depname ORDER BY salary DESC) with WHERE pos < 3 outside.",
+          "accessed": "2026-10-03"
+        }
+      ]
+    },
+    {
+      "id": "c026-q08",
+      "lesson": null,
+      "concept": "c026-json-merge-patch",
+      "type": "multiple_select",
+      "prompt": "Your API accepts `PATCH` bodies as JSON Merge Patch (`application/merge-patch+json`, RFC 7396). Which of these are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A member set to `null` in the patch removes that member from the target"
+        },
+        {
+          "id": "b",
+          "text": "An array in the patch is merged element by element into the target's array"
+        },
+        {
+          "id": "c",
+          "text": "Members the patch doesn't mention are left as they are in the target"
+        },
+        {
+          "id": "d",
+          "text": "Setting a field to `null` explicitly is done by sending `null` for it"
+        },
+        {
+          "id": "e",
+          "text": "An array in the patch replaces the target's array as a whole"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "A merge patch looks like the document it changes: `null` means remove the member (a), so you can't use it to store an explicit `null` (d). Members the patch doesn't name are untouched (c), and nested objects are merged recursively. Arrays and other non-object values replace the target value whole (e), so you can't add or remove one array element (b).",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc7396.html",
+          "title": "RFC 7396: JSON Merge Patch",
+          "publisher": "IETF",
+          "claim": "Null values in a merge patch indicate removal of existing values; content the patch doesn't mention is left untouched; non-object values such as arrays replace the target value whole, so arrays can't be partly changed; merge patch suits documents that primarily use objects and don't use explicit null values.",
+          "accessed": "2026-10-03"
         }
       ]
     }

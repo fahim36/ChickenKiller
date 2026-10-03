@@ -130,7 +130,12 @@
           "accessed": "2026-10-02",
           "claim": "PSP optimization (SQL Server 2022+, compatibility level 160) caches multiple active plans for one parameterized statement: a dispatcher plan routes each execution to a query variant by the predicate's cardinality range; it works only with equality predicates and is off when parameter sniffing is disabled."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c018-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c018-q04",
@@ -159,7 +164,12 @@
           "accessed": "2026-10-02",
           "claim": "SaveChanges batches tracked changes into as few round trips as possible; on SQL Server EF executes at most 42 statements per batch by default (MinBatchSize/MaxBatchSize are tunable, benchmark first), but still sends one UPDATE per entity, while ExecuteUpdateAsync sends a single UPDATE without loading or change tracking."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c018-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c018-q05",
@@ -239,6 +249,105 @@
           "publisher": "Microsoft Learn",
           "accessed": "2026-10-02",
           "claim": "If freeing a plan with DBCC FREEPROCCACHE (plan_handle) fixes the problem, it points to a parameter-sensitive plan; mitigations include the RECOMPILE hint (extra compile CPU), OPTIMIZE FOR a typical value, OPTIMIZE FOR UNKNOWN (density average) and DISABLE_PARAMETER_SNIFFING, each with trade-offs."
+        }
+      ]
+    },
+    {
+      "id": "c018-q07",
+      "lesson": null,
+      "concept": "c018-parameter-sniffing",
+      "type": "multiple_select",
+      "prompt": "A parameterized SQL Server query `WHERE CustomerId = @c` is sometimes fast and sometimes slow for every customer, and freeing its cached plan changes which. A few customers have millions of rows. Which statements are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "One cached plan, compiled for the first value seen, is reused for every value"
+        },
+        {
+          "id": "b",
+          "text": "`OPTION (RECOMPILE)` fixes it at the cost of compile CPU on every execution"
+        },
+        {
+          "id": "c",
+          "text": "On SQL Server 2022 at compatibility level 160, PSP optimization can cache several plans"
+        },
+        {
+          "id": "d",
+          "text": "`OPTIMIZE FOR UNKNOWN` compiles a fresh plan for each actual parameter value"
+        },
+        {
+          "id": "e",
+          "text": "PSP optimization also handles range predicates such as `Amount > @x`"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "c"
+      ],
+      "explanation": "This is a parameter-sensitive plan (parameter sniffing): a single cached plan for a parameterized query isn't optimal for every value when data is skewed, and that freeing just this plan changes the behaviour confirms it. `OPTION (RECOMPILE)` trades a little compile CPU on each run for a plan that fits each value. Parameter Sensitive Plan optimization (SQL Server 2022+, compatibility level 160) caches several plans for one statement, chosen by cardinality range, but only for equality predicates. `OPTIMIZE FOR UNKNOWN` uses the density vector average, not each actual value.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/sql/relational-databases/performance/parameter-sensitive-plan-optimization",
+          "title": "Parameter Sensitive Plan Optimization - SQL Server",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-03",
+          "claim": "A single cached plan for a parameterized query isn't optimal for all parameter values with non-uniform data; PSP optimization (SQL Server 2022+, compatibility level 160) enables multiple cached plans for one parameterized statement and works only with equality predicates."
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/troubleshoot/sql/database-engine/performance/troubleshoot-high-cpu-usage-issues",
+          "title": "Troubleshoot High CPU Usage Issues in SQL Server",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-03",
+          "claim": "If freeing the plan with DBCC FREEPROCCACHE fixes the problem it indicates a parameter-sensitive issue; RECOMPILE trades a slight increase in compilation CPU for a better plan per execution; OPTIMIZE FOR UNKNOWN uses the density vector average."
+        }
+      ]
+    },
+    {
+      "id": "c018-q08",
+      "lesson": null,
+      "concept": "c018-savechanges-batching",
+      "type": "multiple_select",
+      "prompt": "A nightly job gives every employee a 5% raise by loading 200,000 tracked `Employee` rows, changing `Salary`, and calling `SaveChangesAsync()`. Which statements are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`SaveChanges` batches, but still sends one UPDATE statement per employee"
+        },
+        {
+          "id": "b",
+          "text": "The change tracker snapshots and compares every loaded entity"
+        },
+        {
+          "id": "c",
+          "text": "`ExecuteUpdateAsync` does it in one UPDATE, without loading or tracking rows"
+        },
+        {
+          "id": "d",
+          "text": "Raising `MaxBatchSize` turns the updates into a single UPDATE statement"
+        },
+        {
+          "id": "e",
+          "text": "`SaveChanges` sends all 200,000 updates in one round trip on SQL Server"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "c"
+      ],
+      "explanation": "Loading brings every employee's row to the client, and change tracking snapshots each entity and compares it to find what changed. `SaveChanges` batches statements (on SQL Server up to 42 per round trip by default), but it still sends an UPDATE per employee, which the database executes separately. `ExecuteUpdateAsync(s => s.SetProperty(e => e.Salary, e => e.Salary * 1.05m))` sends one set-based UPDATE in one round trip. `MaxBatchSize` only changes how statements are grouped into round trips, not how many there are.",
+      "materials": [
+        "efcore-performance"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/ef/core/performance/efficient-updating",
+          "title": "Efficient Updating - EF Core",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-03",
+          "claim": "EF Core on SQL Server executes up to 42 statements per batch by default and still sends an UPDATE per entity after loading and snapshotting it; ExecuteUpdateAsync performs the whole operation in a single UPDATE and round trip without loading data or using change tracking; batch sizes can be tuned but should be benchmarked."
         }
       ]
     }

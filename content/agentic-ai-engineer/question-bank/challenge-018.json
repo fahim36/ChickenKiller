@@ -123,7 +123,12 @@
           "accessed": "2026-10-02",
           "claim": "Have Backbone; Disagree and Commit: leaders respectfully challenge decisions they disagree with, even when uncomfortable, don't compromise just for social cohesion, and once a decision is made they commit to it wholly; Earn Trust: listen attentively, speak candidly and treat others respectfully."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c018-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c018-q04",
@@ -156,7 +161,12 @@
           "accessed": "2026-10-02",
           "claim": "Don't rely on CPython's in-place optimisation of `a += b` for strings: it is fragile even in CPython and absent in other implementations; use `''.join()` so concatenation is linear time everywhere."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c018-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c018-q05",
@@ -231,6 +241,105 @@
           "publisher": "Amazon",
           "accessed": "2026-10-02",
           "claim": "Have Backbone; Disagree and Commit: leaders respectfully challenge decisions they disagree with, even when uncomfortable, don't compromise just for social cohesion, and once a decision is made they commit to it wholly; Earn Trust: listen attentively, speak candidly and treat others respectfully."
+        }
+      ]
+    },
+    {
+      "id": "c018-q07",
+      "lesson": null,
+      "concept": "c018-disagree-and-commit",
+      "type": "multiple_select",
+      "prompt": "An interviewer asks: \"Tell me about a time you disagreed with your team's technical decision.\" By Amazon's \"Have Backbone; Disagree and Commit\" principle, which of these should your story show? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "You challenged the decision respectfully, even though it was uncomfortable"
+        },
+        {
+          "id": "b",
+          "text": "You dropped your objection quickly, to keep the team's harmony intact"
+        },
+        {
+          "id": "c",
+          "text": "Once it was decided, you committed to it wholly, though it wasn't your pick"
+        },
+        {
+          "id": "d",
+          "text": "You kept pushing your option after the decision, until the team came round"
+        },
+        {
+          "id": "e",
+          "text": "You argued your view with conviction, rather than just going along with it"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "The principle asks you to respectfully challenge a decision you disagree with, even when that is uncomfortable, and to do it with conviction rather than compromising for the sake of social cohesion. So dropping your view just to keep the peace is the wrong story. Once the decision is made, you commit to it wholly: reopening it until the team gives in is the opposite of committing.",
+      "materials": [
+        "tech-interview-handbook-behavioral-interviews"
+      ],
+      "sources": [
+        {
+          "url": "https://www.amazon.jobs/content/en/our-workplace/leadership-principles",
+          "title": "Leadership Principles",
+          "publisher": "Amazon",
+          "accessed": "2026-10-03",
+          "claim": "Have Backbone; Disagree and Commit: leaders respectfully challenge decisions when they disagree, even when doing so is uncomfortable or exhausting; they have conviction and are tenacious; they do not compromise for the sake of social cohesion; once a decision is determined, they commit wholly."
+        }
+      ]
+    },
+    {
+      "id": "c018-q08",
+      "lesson": null,
+      "concept": "c018-quadratic-string-concat",
+      "type": "multiple_select",
+      "prompt": "A code review flags `for row in rows: csv_text += format_row(row)` in a hot path. Which statements are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Each `+=` on an immutable `str` builds a new object, so the loop can be quadratic"
+        },
+        {
+          "id": "b",
+          "text": "Collect the pieces in a list and call `\"\".join(pieces)` once: that is linear"
+        },
+        {
+          "id": "c",
+          "text": "CPython always extends the string in place, so it is linear on every Python"
+        },
+        {
+          "id": "d",
+          "text": "Writing each piece to an `io.StringIO` and reading it once at the end is linear"
+        },
+        {
+          "id": "e",
+          "text": "Writing `csv_text = csv_text + piece` instead avoids the copy that `+=` makes"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "d"
+      ],
+      "explanation": "Concatenating immutable sequences always makes a new object, so building a string by repeated concatenation can cost time quadratic in its final length. The linear alternatives are `\"\".join()` over a list of pieces, or an `io.StringIO`. CPython can sometimes do `a += b` in place, but PEP 8 says the optimisation is fragile even in CPython and absent in implementations such as PyPy, and it treats `a = a + b` the same way as `a += b`.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/library/stdtypes.html",
+          "title": "Built-in Types",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-10-03",
+          "claim": "Concatenating immutable sequences always results in a new object, so building a sequence by repeated concatenation has a quadratic runtime cost in its total length; for linear cost with `str`, build a list and use `str.join()` at the end, or write to an `io.StringIO` instance and retrieve its value when complete."
+        },
+        {
+          "url": "https://peps.python.org/pep-0008/",
+          "title": "PEP 8 – Style Guide for Python Code",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-10-03",
+          "claim": "Do not rely on CPython's in-place string concatenation for `a += b` or `a = a + b`: the optimisation is fragile even in CPython and is not present in implementations that don't use refcounting (such as PyPy); use `''.join()` so concatenation happens in linear time across implementations."
         }
       ]
     }

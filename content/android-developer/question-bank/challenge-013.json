@@ -128,7 +128,12 @@
           "accessed": "2026-10-02",
           "claim": "The Compose BOM lets you manage all Compose library versions by specifying only the BOM's version with platform(); libraries are declared without versions; updating the BOM updates them all; the BOM doesn't add libraries itself; overriding a library's version pulls in that version's dependencies; it works with version catalogs."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c013-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c013-q04",
@@ -164,7 +169,12 @@
           "accessed": "2026-10-02",
           "claim": "channelFlow's ProducerScope can be used concurrently from different contexts; it uses a channel with the default buffer size (use buffer to change it); the flow completes when the block and all its children complete, while callbackFlow uses awaitClose to keep running."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c013-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c013-q05",
@@ -241,6 +251,107 @@
           "publisher": "Google",
           "accessed": "2026-10-02",
           "claim": "The BOM doesn't add Compose libraries to your app; you must declare each library as a separate dependency, and the BOM verifies their versions are compatible."
+        }
+      ]
+    },
+    {
+      "id": "c013-q07",
+      "lesson": null,
+      "concept": "c013-bom-version-alignment",
+      "type": "multiple_select",
+      "prompt": "Your app uses eight Compose libraries across several modules, and their versions keep drifting apart. Which statements about the Compose BOM are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Import it with `platform(...)` and declare the Compose libraries without versions"
+        },
+        {
+          "id": "b",
+          "text": "Adding the BOM adds every Compose library to the app, with no other lines"
+        },
+        {
+          "id": "c",
+          "text": "Updating the BOM's version updates every Compose library declared through it"
+        },
+        {
+          "id": "d",
+          "text": "The BOM also sets the Compose compiler's version for Kotlin 2.0 and later"
+        },
+        {
+          "id": "e",
+          "text": "You can still override one library's version, for example with an alpha"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "You add the Compose BOM once with `platform(...)` and its version, and declare the Compose libraries without versions, so updating the BOM's version updates them all together. The BOM only aligns versions: it adds no library, so each still needs its own dependency line. You can override one library's version (overriding to an alpha also moves its dependencies to compatible alphas). The Compose compiler isn't in the BOM: from Kotlin 2.0 it is managed with the Kotlin compiler.",
+      "materials": [
+        "android-version-catalogs"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/bom",
+          "title": "Use a Bill of Materials",
+          "publisher": "Google",
+          "accessed": "2026-10-03",
+          "claim": "The Compose BOM manages all Compose library versions by specifying only the BOM's version with `platform()`; libraries are declared without versions and update when the BOM does; the BOM doesn't add the libraries itself; a library's version can be overridden; the Compose compiler isn't included in the BOM."
+        }
+      ]
+    },
+    {
+      "id": "c013-q08",
+      "lesson": null,
+      "concept": "c013-channelflow-concurrent-emission",
+      "type": "multiple_select",
+      "prompt": "Which statements about `channelFlow`, compared with the `flow` and `callbackFlow` builders, are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Inside `flow { }`, calling `emit` from a `launch`ed child coroutine is prohibited"
+        },
+        {
+          "id": "b",
+          "text": "`channelFlow` is hot: its block runs once and is shared by all its collectors"
+        },
+        {
+          "id": "c",
+          "text": "`channelFlow`'s `ProducerScope` can be used concurrently from different contexts"
+        },
+        {
+          "id": "d",
+          "text": "`channelFlow` always uses a rendezvous channel, and its buffer can't be changed"
+        },
+        {
+          "id": "e",
+          "text": "A `channelFlow` completes once its block and all of its children complete"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "The `flow` builder preserves context, so launching coroutines that emit inside it is prohibited; use `channelFlow` when emission is split across coroutines. Its `ProducerScope` is thread-safe and can be used concurrently from different contexts. It completes as soon as its block and all its children complete, whereas `callbackFlow` needs `awaitClose` to keep running for callbacks. `channelFlow` is cold (its block runs for every terminal operator) and uses a channel with the default buffer size, which `buffer()` can change.",
+      "materials": [
+        "kotlin-flow-docs"
+      ],
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/-flow/",
+          "title": "Flow",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-03",
+          "claim": "The `flow` builder prohibits emission from launched coroutines or other contexts; use `channelFlow` if collection and emission are separated into multiple coroutines."
+        },
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/channel-flow.html",
+          "title": "channelFlow",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-03",
+          "claim": "`channelFlow` creates a cold flow whose `ProducerScope` can be used concurrently from different contexts; it uses a channel with the default buffer size (changed with `buffer`) and completes as soon as its block and all its children complete, with `awaitClose` used to keep it running."
         }
       ]
     }

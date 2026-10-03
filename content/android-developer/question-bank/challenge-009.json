@@ -125,7 +125,12 @@
           "accessed": "2026-10-02",
           "claim": "NET_CAPABILITY_INTERNET is about setup, not actual ability to reach the internet; NET_CAPABILITY_VALIDATED means probes reached the public internet and is missing behind a captive portal or without DNS; use registerDefaultNetworkCallback with onAvailable, onCapabilitiesChanged and onLost; don't call synchronous methods in onAvailable (race) but wait for onCapabilitiesChanged/onLinkPropertiesChanged; transport type is a poor proxy for meteredness, use NET_CAPABILITY_NOT_METERED."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c009-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c009-q04",
@@ -166,7 +171,12 @@
           "accessed": "2026-10-02",
           "claim": "`advanceUntilIdle` runs the enqueued tasks, advancing virtual time as needed, until no tasks remain on the dispatchers linked to the scheduler."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c009-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c009-q05",
@@ -243,6 +253,111 @@
           "publisher": "Google (Android Developers)",
           "accessed": "2026-10-02",
           "claim": "NET_CAPABILITY_INTERNET is about setup, not actual ability to reach the internet; NET_CAPABILITY_VALIDATED means probes reached the public internet and is missing behind a captive portal or without DNS; use registerDefaultNetworkCallback with onAvailable, onCapabilitiesChanged and onLost; don't call synchronous methods in onAvailable (race) but wait for onCapabilitiesChanged/onLinkPropertiesChanged; transport type is a poor proxy for meteredness, use NET_CAPABILITY_NOT_METERED."
+        }
+      ]
+    },
+    {
+      "id": "c009-q07",
+      "lesson": null,
+      "concept": "c009-validated-network-state",
+      "type": "multiple_select",
+      "prompt": "Your offline-first app shows an 'Offline' banner and starts a sync when the network comes back. Which statements about reading network state on Android are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Follow the default network with `registerDefaultNetworkCallback`"
+        },
+        {
+          "id": "b",
+          "text": "`NET_CAPABILITY_INTERNET` proves the network can reach public servers"
+        },
+        {
+          "id": "c",
+          "text": "Treat the device as online only if the network has `NET_CAPABILITY_VALIDATED`"
+        },
+        {
+          "id": "d",
+          "text": "In `onAvailable`, call the synchronous `ConnectivityManager` methods at once"
+        },
+        {
+          "id": "e",
+          "text": "A Wi-Fi transport is a reliable sign that the network is unmetered"
+        }
+      ],
+      "answers": [
+        "a",
+        "c"
+      ],
+      "explanation": "Register a default network callback and follow `onAvailable`, `onCapabilitiesChanged` and `onLost`. `NET_CAPABILITY_INTERNET` is about setup, not the actual ability to reach the internet; `NET_CAPABILITY_VALIDATED` means probes reached the public internet, and a captive portal or a network without DNS lacks it. Calling the synchronous methods inside `onAvailable` races: wait for `onCapabilitiesChanged` and `onLinkPropertiesChanged` instead. Transport type is a poor proxy for meteredness, so check `NET_CAPABILITY_NOT_METERED`.",
+      "materials": [
+        "android-offline-first"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/connectivity/network-ops/reading-network-state",
+          "title": "Read network state",
+          "publisher": "Google (Android Developers)",
+          "accessed": "2026-10-03",
+          "claim": "`NET_CAPABILITY_INTERNET` is about setup, not actual ability to reach public servers; `NET_CAPABILITY_VALIDATED` means the network provides actual access to the public internet and is missing behind a captive portal or without DNS; use `registerDefaultNetworkCallback`; don't call synchronous methods in `onAvailable` because of race conditions; transport type is a poor proxy for meteredness."
+        }
+      ]
+    },
+    {
+      "id": "c009-q08",
+      "lesson": null,
+      "concept": "c009-advance-time-by-exclusive",
+      "type": "multiple_select",
+      "prompt": "In `runTest`, a search box calls the API after `delay(300)` from the last keystroke, starting at virtual time 0. Which statements about the test scheduler are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`advanceTimeBy(300)` alone doesn't run a task due at exactly 300 ms"
+        },
+        {
+          "id": "b",
+          "text": "`advanceTimeBy(n)` runs every task due up to and including now + n"
+        },
+        {
+          "id": "c",
+          "text": "`runCurrent()` runs the tasks scheduled at the current virtual time"
+        },
+        {
+          "id": "d",
+          "text": "`advanceUntilIdle()` returns how many milliseconds of virtual time passed"
+        },
+        {
+          "id": "e",
+          "text": "After `advanceTimeBy(299)` and `runCurrent()`, the API isn't called yet"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "`advanceTimeBy(n)` moves the virtual clock forward by n and runs the tasks scheduled for `currentTime..<currentTime + n`, so a task due exactly at the end isn't run yet: that's what `runCurrent()` is for, as it runs the tasks due at the current virtual time. After `advanceTimeBy(299)` and `runCurrent()` nothing is due, so you can assert no call, then `advanceTimeBy(1)` and `runCurrent()` and assert one. `advanceUntilIdle()` runs everything left, advancing time as needed, and no longer returns the time advanced: compare `currentTime` before and after instead.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-test/kotlinx.coroutines.test/-test-coroutine-scheduler/advance-time-by.html",
+          "title": "advanceTimeBy",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-03",
+          "claim": "`advanceTimeBy` moves the virtual clock forward, running the tasks scheduled for `currentTime()..<currentTime() + delayTimeMillis`, so a task due exactly at the end is not run."
+        },
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-test/kotlinx.coroutines.test/-test-coroutine-scheduler/run-current.html",
+          "title": "runCurrent",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-03",
+          "claim": "`runCurrent` runs the tasks that are scheduled to execute at the current moment of virtual time."
+        },
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-test/kotlinx.coroutines.test/-test-coroutine-scheduler/advance-until-idle.html",
+          "title": "advanceUntilIdle",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-03",
+          "claim": "`advanceUntilIdle` runs the enqueued tasks, advancing virtual time as needed, until no tasks remain, and no longer returns the number of milliseconds advanced; query `currentTime` before and after instead."
         }
       ]
     }

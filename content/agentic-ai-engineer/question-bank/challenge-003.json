@@ -127,7 +127,12 @@
           "accessed": "2026-09-26",
           "claim": "Traditional chunking loses context (e.g. a chunk saying revenue grew 3% doesn't say which company or period); Contextual Retrieval prepends a 50–100 token chunk-specific context, written by Claude from the whole document, before embedding (contextual embeddings) and before creating the BM25 index (contextual BM25), cutting top-20 retrieval failures by 49%, and by 67% when reranking is added."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c003-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c003-q04",
@@ -156,7 +161,12 @@
           "accessed": "2026-09-26",
           "claim": "With manual extended thinking (`thinking: {type: \"enabled\"}`), `tool_choice` `any` and `tool` are not supported and error, while `auto` and `none` work; `any` and `tool` prefill the assistant message so no text precedes `tool_use`; to get an explanation plus a specific tool, use `auto` and ask for the tool in the user message; strict tool use guarantees schema-valid inputs."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c003-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c003-q05",
@@ -233,6 +243,100 @@
           "publisher": "Anthropic",
           "accessed": "2026-09-26",
           "claim": "Contextual Retrieval prepends chunk-specific explanatory context to each chunk before embedding and before creating the BM25 index; contextual embeddings alone cut top-20 retrieval failures by 35%, and contextual embeddings plus contextual BM25 by 49%."
+        }
+      ]
+    },
+    {
+      "id": "c003-q07",
+      "lesson": null,
+      "concept": "c003-contextual-retrieval",
+      "type": "multiple_select",
+      "prompt": "Your RAG system over many companies' quarterly reports retrieves the chunk \"Revenue grew 3% over the previous quarter\" for questions about the wrong company. Which statements about Anthropic's Contextual Retrieval are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The added context goes into the embeddings only, since BM25 can't use the extra words"
+        },
+        {
+          "id": "b",
+          "text": "The chunk alone doesn't say which company or quarter it is about, so search misses it"
+        },
+        {
+          "id": "c",
+          "text": "An LLM shown the whole document writes about 50–100 tokens of context for each chunk"
+        },
+        {
+          "id": "d",
+          "text": "The context is written at query time from the user's question, not when indexing"
+        },
+        {
+          "id": "e",
+          "text": "Adding a reranking step cut retrieval failures further than the contextual indexes"
+        }
+      ],
+      "answers": [
+        "b",
+        "c",
+        "e"
+      ],
+      "explanation": "Plain chunking loses context: the chunk doesn't say which company or period it describes, so neither embeddings nor keyword search can tie it to the right question. Contextual Retrieval has Claude read the whole document and write a short, chunk-specific context (usually 50–100 tokens) during preprocessing, and prepends it to the chunk before embedding (contextual embeddings) and before building the BM25 index (contextual BM25). Together they cut top-20 retrieval failures by 49%, and adding reranking took that to 67%.",
+      "materials": [
+        "anthropic-contextual-retrieval"
+      ],
+      "sources": [
+        {
+          "url": "https://www.anthropic.com/engineering/contextual-retrieval",
+          "title": "Introducing Contextual Retrieval",
+          "publisher": "Anthropic",
+          "accessed": "2026-10-03",
+          "claim": "Traditional chunking loses context (a chunk saying revenue grew 3% doesn't say which company or period); during preprocessing Claude is given the whole document and the chunk and writes a 50–100 token chunk-specific context, which is prepended before embedding and before creating the BM25 index; contextual embeddings plus contextual BM25 cut retrieval failures by 49%, and adding reranking by 67%."
+        }
+      ]
+    },
+    {
+      "id": "c003-q08",
+      "lesson": null,
+      "concept": "c003-forced-tool-choice",
+      "type": "multiple_select",
+      "prompt": "Your app runs Claude with manual extended thinking (`thinking: {\"type\": \"enabled\"}`), must call `get_weather` for weather questions, and should show a one-line explanation first. Which statements are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "With manual extended thinking, `tool_choice` `any` or `tool` is unsupported and errors"
+        },
+        {
+          "id": "b",
+          "text": "`any` and `tool` prefill the assistant turn, so no text comes before the `tool_use`"
+        },
+        {
+          "id": "c",
+          "text": "Use `auto` and ask for the tool in the user message, so Claude explains, then calls it"
+        },
+        {
+          "id": "d",
+          "text": "`{\"type\": \"tool\", \"name\": \"get_weather\"}` still lets Claude write a short note first"
+        },
+        {
+          "id": "e",
+          "text": "`tool_choice` `none` forces a tool call but lets Claude write text before the call"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "c"
+      ],
+      "explanation": "With manual extended thinking, forcing a tool with `any` or `tool` isn't supported and returns an error; only `auto` and `none` work, and `none` prevents tool use altogether. Even where forcing works, `any` and `tool` prefill the assistant message, so Claude writes no text before the `tool_use` block, even if asked. To get an explanation and then the call, use `auto` and say in the user message to use `get_weather`.",
+      "materials": [
+        "anthropic-docs-tool-use-with-claude"
+      ],
+      "sources": [
+        {
+          "url": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/define-tools",
+          "title": "Define tools (Claude API docs), section \"Forcing tool use\"",
+          "publisher": "Anthropic",
+          "accessed": "2026-10-03",
+          "claim": "With manual extended thinking (`thinking: {type: \"enabled\"}`), `tool_choice` `any` and `tool` are not supported and result in an error, while `auto` and `none` work; `none` prevents Claude from using any tools; with `any` or `tool` the API prefills the assistant message, so the model emits no natural-language text before `tool_use` blocks; to get an explanation plus a specific tool, use `auto` and add explicit instructions in a user message."
         }
       ]
     }

@@ -123,7 +123,12 @@
           "accessed": "2026-10-02",
           "claim": "The `toggleable` modifier automatically merges its descendants' semantics, and `Role` indicates the type of element."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c030-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c030-q04",
@@ -187,7 +192,12 @@
           "accessed": "2026-10-02",
           "claim": "Data messages go to onMessageReceived in both foreground and background, while background notification messages go to the system tray; offload processing over about 10 seconds to WorkManager; onDeletedMessages is called after more than 100 pending messages or 30 days without connecting, and the app should do a full sync."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c030-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c030-q06",
@@ -225,6 +235,105 @@
           "publisher": "Android Developers (Google)",
           "accessed": "2026-10-02",
           "claim": "In the CheckableRow example the Row uses Modifier.toggleable with role = Role.Checkbox and the inner Checkbox has onCheckedChange = null so there is a single clickable element and one focus stop."
+        }
+      ]
+    },
+    {
+      "id": "c030-q07",
+      "lesson": null,
+      "concept": "c030-toggleable-row-semantics",
+      "type": "multiple_select",
+      "prompt": "A settings row holds a `Text` label and a `Switch` that toggles only when the switch itself is tapped, and TalkBack stops on each separately. Which fixes match the Compose accessibility docs? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Put `Modifier.toggleable` with `role = Role.Switch` on the whole `Row`"
+        },
+        {
+          "id": "b",
+          "text": "Set the inner `Switch`'s `onCheckedChange` to `null`"
+        },
+        {
+          "id": "c",
+          "text": "Keep `onCheckedChange` on the `Switch` too, so both stay clickable"
+        },
+        {
+          "id": "d",
+          "text": "`toggleable` keeps children separate, so also add `mergeDescendants`"
+        },
+        {
+          "id": "e",
+          "text": "The whole row then becomes the touch target, not only the switch"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "e"
+      ],
+      "explanation": "The docs lift the click behaviour to the parent: `Modifier.toggleable` with a `Role` on the `Row`, and `onCheckedChange = null` on the `Switch`, so it isn't a second clickable element. `toggleable` merges its descendants' semantics automatically, so TalkBack reads label, role and state as one focus stop with no extra `mergeDescendants`, and the whole row becomes the touch target.",
+      "materials": [
+        "compose-semantics"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/accessibility/api-defaults",
+          "title": "API defaults",
+          "publisher": "Android Developers (Google)",
+          "accessed": "2026-10-03",
+          "claim": "For a selection control with a label, put `Modifier.toggleable` with a `Role` on the parent `Row` and set the control's `onCheckedChange` to `null`, so the row is one focusable element with merged semantics and a larger touch target."
+        },
+        {
+          "url": "https://developer.android.com/develop/ui/compose/accessibility/semantics",
+          "title": "Semantics",
+          "publisher": "Android Developers (Google)",
+          "accessed": "2026-10-03",
+          "claim": "The `clickable` and `toggleable` modifiers automatically merge their descendants' semantics."
+        }
+      ]
+    },
+    {
+      "id": "c030-q08",
+      "lesson": null,
+      "concept": "c030-fcm-notification-vs-data",
+      "type": "multiple_select",
+      "prompt": "Your chat app must save every incoming FCM message to its local database, even while it is in the background. Which statements match Firebase's docs on receiving messages? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Send data messages, which reach `onMessageReceived` in the background too"
+        },
+        {
+          "id": "b",
+          "text": "Send notification messages, which reach `onMessageReceived` in the background"
+        },
+        {
+          "id": "c",
+          "text": "Hand long work in `onMessageReceived` to WorkManager, as its window is short"
+        },
+        {
+          "id": "d",
+          "text": "With both payloads in the background, `onMessageReceived` gets the data part"
+        },
+        {
+          "id": "e",
+          "text": "Do a full sync in `onDeletedMessages`, called when FCM dropped pending messages"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "Data messages go to `onMessageReceived` whether the app is in the foreground or background. In the background a notification message goes to the system tray instead, and with both payloads the data arrives only in the tapped notification's intent extras. `onMessageReceived` has a short execution window, so longer work goes to WorkManager, and when FCM drops pending messages (more than 100, or a long time offline) it calls `onDeletedMessages`, where the app does a full sync.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://firebase.google.com/docs/cloud-messaging/android/receive-messages",
+          "title": "Receive messages in an Android app",
+          "publisher": "Google (Firebase)",
+          "accessed": "2026-10-03",
+          "claim": "Data messages reach onMessageReceived in foreground and background, while background notification messages go to the system tray and, with both payloads, data goes to the intent extras; onMessageReceived has a short window, so schedule longer work with WorkManager; onDeletedMessages is called when over 100 messages are pending or the device hasn't connected for over a month, and the app should do a full sync."
         }
       ]
     }

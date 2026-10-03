@@ -160,7 +160,12 @@
           "accessed": "2026-10-02",
           "claim": "A federated identity credential on a user-assigned managed identity or app registration trusts an external IdP such as GitHub; the workload exchanges the external token for a Microsoft identity platform access token; issuer, subject and audience must match case-sensitively."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c008-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c008-q04",
@@ -203,7 +208,12 @@
           "accessed": "2026-10-02",
           "claim": "For operations that can't be cancelled, prefer Task.WaitAsync on .NET 6+ to stop waiting; CancellationTokenSource objects used for timeouts (CancelAfter) should be disposed so they don't put pressure on the timer queue."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c008-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c008-q05",
@@ -306,6 +316,121 @@
           "publisher": "Microsoft Learn",
           "accessed": "2026-10-02",
           "claim": "A federated identity credential on a user-assigned managed identity or app registration trusts an external IdP such as GitHub; the workload exchanges the external token for a Microsoft identity platform access token; issuer, subject and audience must match case-sensitively."
+        }
+      ]
+    },
+    {
+      "id": "c008-q07",
+      "lesson": null,
+      "concept": "c008-github-oidc-azure",
+      "type": "multiple_select",
+      "prompt": "You replace the client secret your GitHub Actions workflow uses to deploy to Azure with OpenID Connect and a federated credential on an Entra identity. Which statements are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The job needs `permissions: id-token: write` to request GitHub's OIDC token"
+        },
+        {
+          "id": "b",
+          "text": "The job swaps GitHub's token for an Entra access token, so no secret is stored"
+        },
+        {
+          "id": "c",
+          "text": "A subject like `repo:org/app:environment:production` limits which jobs can log in"
+        },
+        {
+          "id": "d",
+          "text": "The federated credential matches the token's subject case-insensitively"
+        },
+        {
+          "id": "e",
+          "text": "Only a system-assigned managed identity can hold a federated identity credential"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "c"
+      ],
+      "explanation": "A job must grant `id-token: write` to get a GitHub OIDC token. At login it sends that short-lived token to the Microsoft identity platform, which checks the federated credential and issues an access token, so no long-lived secret is stored. The subject claim is the access control: when a job references an environment its subject is `repo:ORG/REPO:environment:NAME`, so trusting that subject keeps other repositories and jobs out. Issuer, subject and audience must match case-sensitively, and the credential goes on an app registration or a user-assigned managed identity.",
+      "materials": [
+        "github-actions"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.github.com/en/actions/reference/security/oidc",
+          "title": "OpenID Connect reference",
+          "publisher": "GitHub",
+          "accessed": "2026-10-03",
+          "claim": "The job must grant id-token: write to request an OIDC token; when the job references an environment the subject claim is repo:ORG/REPO:environment:NAME."
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/entra/workload-id/workload-identity-federation",
+          "title": "Workload Identity Federation - Microsoft Entra Workload ID",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-03",
+          "claim": "A federated identity credential on a user-assigned managed identity or app registration trusts an external IdP such as GitHub; the workload exchanges the external token for a Microsoft identity platform access token without managing secrets; issuer, subject and audience must match case-sensitively."
+        }
+      ]
+    },
+    {
+      "id": "c008-q08",
+      "lesson": null,
+      "concept": "c008-waitasync-vs-cancellation",
+      "type": "multiple_select",
+      "prompt": "An endpoint must give up on a slow downstream call after 2 seconds, and also stop if the request itself is aborted. Which statements are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A linked token source can join the request's token with a timeout"
+        },
+        {
+          "id": "b",
+          "text": "The downstream call stops only if it is passed the token and observes it"
+        },
+        {
+          "id": "c",
+          "text": "Dispose the linked `CancellationTokenSource` once the call finishes"
+        },
+        {
+          "id": "d",
+          "text": "`WaitAsync(TimeSpan)` cancels the original task when the timeout expires"
+        },
+        {
+          "id": "e",
+          "text": "Cancelling a token forcibly aborts the thread still running the operation"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "c"
+      ],
+      "explanation": "`CancellationTokenSource.CreateLinkedTokenSource` joins the request's token with your own, and `CancelAfter` on it adds the timeout, so one token fires on either condition. Cancellation is cooperative: the downstream call stops only if it receives the token and notices it, and nothing is aborted by force. Linked token sources must be disposed, and undisposed timeout sources put pressure on the timer queue. `WaitAsync` only gives you a task for the wait, which faults with `TimeoutException`; the original work keeps running.",
+      "materials": [
+        "aspnetcore-diagnostic-scenarios"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/standard/threading/cancellation-in-managed-threads",
+          "title": "Cancellation in Managed Threads - .NET",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-03",
+          "claim": "Cancellation is cooperative and not forced on the listener, which must notice the request; a linked token source joins several tokens into one, and CancellationTokenSource objects, including linked ones, must be disposed."
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/api/system.threading.tasks.task.waitasync",
+          "title": "Task.WaitAsync Method (System.Threading.Tasks)",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-03",
+          "claim": "WaitAsync(TimeSpan) returns a task representing the asynchronous wait, which completes when the original task completes or is faulted with a TimeoutException when the timeout expires."
+        },
+        {
+          "url": "https://github.com/davidfowl/AspNetCoreDiagnosticScenarios/blob/master/AsyncGuidance.md",
+          "title": "AspNetCoreDiagnosticScenarios: AsyncGuidance.md",
+          "publisher": "David Fowler (Microsoft), GitHub",
+          "accessed": "2026-10-03",
+          "claim": "Always dispose CancellationTokenSource objects used for timeouts, since undisposed ones put pressure on the timer queue; prefer Task.WaitAsync to stop waiting on operations that can't be cancelled."
         }
       ]
     }

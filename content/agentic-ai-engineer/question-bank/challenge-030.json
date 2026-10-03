@@ -120,7 +120,12 @@
           "accessed": "2026-10-02",
           "claim": "The Dual LLM pattern uses a Privileged LLM that takes trusted input and has tool access, and a Quarantined LLM that handles untrusted content with no tool access; a non-LLM controller passes content as variables like $VAR1, so the Privileged LLM never sees untrusted content; it adds complexity and degrades UX, and users can still be socially engineered."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c030-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c030-q04",
@@ -236,6 +241,53 @@
           "publisher": "Simon Willison",
           "accessed": "2026-10-02",
           "claim": "The Privileged LLM only ever sees variable names such as $VAR1 and is never exposed to the untrusted content of the email or the tainted summary; the Quarantined LLM has no tool access."
+        }
+      ]
+    },
+    {
+      "id": "c030-q07",
+      "lesson": null,
+      "concept": "c030-dual-llm-pattern",
+      "type": "multiple_select",
+      "prompt": "You build an email assistant with Simon Willison's Dual LLM pattern. Which of these are true of it? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The privileged LLM can call tools but never sees untrusted email text"
+        },
+        {
+          "id": "b",
+          "text": "The quarantined LLM reads email text and calls tools to act on it"
+        },
+        {
+          "id": "c",
+          "text": "Plain code passes untrusted text around as variables like `$VAR1`"
+        },
+        {
+          "id": "d",
+          "text": "A user can still be socially engineered by text the system shows them"
+        },
+        {
+          "id": "e",
+          "text": "The privileged LLM reads the quarantined LLM's summary to plan steps"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "d"
+      ],
+      "explanation": "The privileged LLM takes the trusted user's instructions and has tool access, but never sees untrusted content (a). The quarantined LLM handles untrusted content and has no tools (b). A non-LLM controller stores untrusted content and quarantined outputs as variables like `$VAR1`, so the privileged LLM sees only the names, never the tainted text itself (c, e). Willison lists its weaknesses: complexity, worse UX, and users who can still be socially engineered (d).",
+      "materials": [
+        "simon-willison-prompt-injection-series"
+      ],
+      "sources": [
+        {
+          "url": "https://simonwillison.net/2023/Apr/25/dual-llm-pattern/",
+          "title": "The Dual LLM pattern for building AI assistants that can resist prompt injection",
+          "publisher": "Simon Willison",
+          "claim": "The Privileged LLM takes trusted input and has tool access; the Quarantined LLM handles untrusted content with no tool access; a non-LLM controller passes content as variables like $VAR1 so the Privileged LLM never sees untrusted content or the Quarantined LLM's tainted output; it adds complexity, degrades UX, and users can still be socially engineered.",
+          "accessed": "2026-10-03"
         }
       ]
     }

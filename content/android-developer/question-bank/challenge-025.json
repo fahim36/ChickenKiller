@@ -127,7 +127,12 @@
           "accessed": "2026-10-02",
           "claim": "A debuggable app, based on the debug variant, has performance costs; a profileable app, based on the release variant with `<profileable android:shell=\"true\"/>`, enables a subset of common profiling tasks without that overhead; it needs a device on API 29+, and recording Java/Kotlin allocations or capturing a heap dump requires a debuggable app."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c025-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c025-q04",
@@ -155,7 +160,12 @@
           "accessed": "2026-10-02",
           "claim": "Annotating with `@Stable` or `@Immutable` opts into a contract that overrides the compiler's inference, like `!!`; incorrect annotation can break recomposition so a composable doesn't recompose when expected; Kotlinx Immutable Collections are supported and treated as immutable by the Compose compiler."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c025-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c025-q05",
@@ -239,6 +249,100 @@
           "publisher": "Android Developers",
           "accessed": "2026-10-02",
           "claim": "A profileable app lets you do most common profiling tasks, but you should use a debuggable app if you need to record Java/Kotlin allocations or capture a heap dump."
+        }
+      ]
+    },
+    {
+      "id": "c025-q07",
+      "lesson": null,
+      "concept": "c025-profileable-vs-debuggable-builds",
+      "type": "multiple_select",
+      "prompt": "A teammate profiles a slow scroll's CPU usage and frame timing on a debug build to find the hottest functions. Which statements match Android Studio's profiling docs? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A debuggable build has performance costs, so its timings can mislead"
+        },
+        {
+          "id": "b",
+          "text": "A profileable build is the release variant with `<profileable android:shell=\"true\"/>`"
+        },
+        {
+          "id": "c",
+          "text": "A profileable build can record Java/Kotlin allocations and capture heap dumps"
+        },
+        {
+          "id": "d",
+          "text": "A profileable build is the debug variant with the debugger turned off"
+        },
+        {
+          "id": "e",
+          "text": "Profiling a profileable app needs a device on API level 29 or higher"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "e"
+      ],
+      "explanation": "A debuggable app, built from the debug variant, lets you use the debugger but has performance costs, so CPU and timing profiles from it can point at the wrong hotspots. A profileable app is the release variant with `<profileable android:shell=\"true\"/>`, runs common profiling tasks without that overhead, and needs a device on API 29 or higher. It is not the debug variant, and recording Java/Kotlin allocations or capturing a heap dump still needs a debuggable app.",
+      "materials": [
+        "android-tracing"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/studio/profile",
+          "title": "Profile your app performance",
+          "publisher": "Android Developers",
+          "accessed": "2026-10-03",
+          "claim": "A debuggable app (debug variant) has performance costs; a profileable app (release variant with `<profileable android:shell=\"true\"/>`) enables common profiling without that overhead on API 29+, but recording Java/Kotlin allocations or capturing a heap dump needs a debuggable app."
+        }
+      ]
+    },
+    {
+      "id": "c025-q08",
+      "lesson": null,
+      "concept": "c025-immutable-annotation-contract",
+      "type": "multiple_select",
+      "prompt": "The Compose compiler reports a UI model unstable because it holds a `List<Tag>`, and a teammate proposes adding `@Immutable` to it. Which statements match the Compose stability docs? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The annotation doesn't make the class immutable: it is a contract with the compiler"
+        },
+        {
+          "id": "b",
+          "text": "The compiler verifies the annotation and fails the build if the class is ever mutated"
+        },
+        {
+          "id": "c",
+          "text": "If instances are mutated anyway, composables may not recompose when they should"
+        },
+        {
+          "id": "d",
+          "text": "`@Immutable` copies the list into an immutable collection when the model is built"
+        },
+        {
+          "id": "e",
+          "text": "Kotlinx immutable collections such as `ImmutableList` are treated as immutable"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "`@Immutable` and `@Stable` don't make a class immutable or stable; they opt into a contract that overrides the compiler's inference, much like Kotlin's `!!`. Nothing verifies or converts anything, so if an instance is mutated, composables taking it may not recompose when expected. The safer fix is a really immutable model, for example holding a Kotlinx `ImmutableList`, which the Compose compiler treats as immutable.",
+      "materials": [
+        "compose-stability"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/performance/stability/fix",
+          "title": "Fix stability issues (Compose)",
+          "publisher": "Android Developers",
+          "accessed": "2026-10-03",
+          "claim": "`@Stable` and `@Immutable` don't make a class stable on their own but opt into a contract that overrides the compiler's inference, like `!!`; wrong annotation can stop a composable recomposing when expected; the Compose compiler treats Kotlinx Immutable Collections as immutable."
         }
       ]
     }

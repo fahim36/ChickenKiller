@@ -132,7 +132,12 @@
           "accessed": "2026-10-02",
           "claim": "Retries at several layers multiply: with three layers each making up to 4 attempts, one user action can cause 64 (4^3) attempts on the database; limit retries per request, consider a server-wide retry budget (for example 60 retries a minute per process, after which requests fail instead of retrying), retry at one layer, use randomized exponential backoff, and return a specific status when overloaded so clients don't retry."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c019-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c019-q04",
@@ -205,7 +210,12 @@
           "accessed": "2026-10-02",
           "claim": "`NX` sets the key only if it doesn't exist and `XX` only if it does; for a lock, set a non-guessable random token and release with a script that deletes the key only if its value still matches, so a client whose lock expired can't delete a lock another client took later."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c019-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c019-q06",
@@ -243,6 +253,107 @@
           "publisher": "Google",
           "accessed": "2026-10-02",
           "claim": "Retries at several layers multiply: with three layers each making up to 4 attempts, one user action can cause 64 (4^3) attempts on the database; limit retries per request, consider a server-wide retry budget (for example 60 retries a minute per process, after which requests fail instead of retrying), retry at one layer, use randomized exponential backoff, and return a specific status when overloaded so clients don't retry."
+        }
+      ]
+    },
+    {
+      "id": "c019-q07",
+      "lesson": null,
+      "concept": "c019-retry-amplification",
+      "type": "multiple_select",
+      "prompt": "Your agent API calls a tool service, which calls a database, and each of the three layers in front of the database makes up to 4 attempts. Which statements about retries during a database slowdown are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Retrying at every layer is safest, since each layer can then recover by itself"
+        },
+        {
+          "id": "b",
+          "text": "One user action can cause up to 64 database attempts, since 4 × 4 × 4 = 64"
+        },
+        {
+          "id": "c",
+          "text": "A per-process retry budget, such as 60 a minute, fails requests once spent"
+        },
+        {
+          "id": "d",
+          "text": "Retry at fixed, identical intervals, so that every client backs off together"
+        },
+        {
+          "id": "e",
+          "text": "An overloaded server returns a specific status, so its callers back off"
+        }
+      ],
+      "answers": [
+        "b",
+        "c",
+        "e"
+      ],
+      "explanation": "Attempts multiply across layers: three layers of 4 attempts each can send 64 attempts to an already struggling database for one user action. Google's SRE book advises limiting retries per request, a server-wide retry budget (for example 60 retries a minute per process, after which requests fail instead of retrying), retrying at a single layer rather than every one, and returning a specific status when overloaded so callers don't retry. Backoff should be randomized exponential: fixed, identical intervals make clients retry in synchronized waves.",
+      "materials": [
+        "tenacity-retries-in-python"
+      ],
+      "sources": [
+        {
+          "url": "https://sre.google/sre-book/addressing-cascading-failures/",
+          "title": "Addressing Cascading Failures (Site Reliability Engineering)",
+          "publisher": "Google",
+          "accessed": "2026-10-03",
+          "claim": "A request may produce as many attempts as the product of each layer's attempts, so three layers of 4 attempts can mean 64 attempts on the database; always use randomized exponential backoff, limit retries per request, use a server-wide retry budget (e.g. 60 retries a minute per process, not retrying once exceeded), avoid retrying at multiple layers, and return a specific status when overloaded so clients and other layers back off and do not retry."
+        }
+      ]
+    },
+    {
+      "id": "c019-q08",
+      "lesson": null,
+      "concept": "c019-redis-lock-token",
+      "type": "multiple_select",
+      "prompt": "A worker takes a Redis lock with `SET lock 1 NX PX 30000`, stalls for 40 seconds, then runs `DEL lock`. Which statements are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The key expires after 30 seconds, so a second worker can take the lock meanwhile"
+        },
+        {
+          "id": "b",
+          "text": "The first worker's `DEL` can then delete the lock the second worker now holds"
+        },
+        {
+          "id": "c",
+          "text": "`NX` makes Redis keep the key until its owner deletes it, whatever `PX` says"
+        },
+        {
+          "id": "d",
+          "text": "Store a value unique to each client and request, and delete only if it matches"
+        },
+        {
+          "id": "e",
+          "text": "Taking the lock with `XX` instead of `NX` stops two workers holding it at once"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "d"
+      ],
+      "explanation": "`PX 30000` gives the key a 30-second expiry, so while the first worker stalls the key expires and another worker's `SET ... NX` succeeds. The first worker's plain `DEL` then removes that worker's lock. The fix is to set a value unique across all clients and requests, and release with a check-and-delete (a Lua script, or `DELEX key IFEQ value` on Redis 8.4+). `NX` only means \"set if the key doesn't exist\"; `XX` means \"set only if it does\", which can't take a free lock at all.",
+      "materials": [
+        "redis-documentation"
+      ],
+      "sources": [
+        {
+          "url": "https://redis.io/docs/latest/develop/clients/patterns/distributed-locks/",
+          "title": "Distributed Locks with Redis",
+          "publisher": "Redis",
+          "accessed": "2026-10-03",
+          "claim": "Acquire with `SET resource_name my_random_value NX PX 30000`, the value unique across all clients and lock requests, and release only if the stored value still matches (`DELEX key IFEQ value` on Redis 8.4+, or a Lua script); plain `DEL` is unsafe because a client blocked longer than the lock validity time can remove a lock another client acquired after the key expired."
+        },
+        {
+          "url": "https://redis.io/docs/latest/commands/set/",
+          "title": "SET",
+          "publisher": "Redis",
+          "accessed": "2026-10-03",
+          "claim": "`NX` only sets the key if it does not already exist, `XX` only if it already exists, and `PX` sets an expiry in milliseconds; for a lock, set a non-guessable random token and release with a script that deletes the key only if the value matches, so a client can't delete a lock another client acquired after its own expired."
         }
       ]
     }

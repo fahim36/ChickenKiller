@@ -120,7 +120,12 @@
           "accessed": "2026-10-02",
           "claim": "A proxy using a static client ID with a third-party authorization server, dynamic client registration and a consent cookie lets an attacker skip consent and receive an authorization code; proxies MUST implement per-client consent checked before third-party authorization, exact redirect_uri matching, and state set only after consent."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c014-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c014-q04",
@@ -188,7 +193,12 @@
           "accessed": "2026-10-02",
           "claim": "TestModel generates valid structured data for tools and output types from their schemas with no ML; FunctionModel calls a user function given the messages and agent info; Agent.override replaces the model in application code; ALLOW_MODEL_REQUESTS = False blocks non-test model requests; capture_run_messages captures the exchange."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c014-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c014-q06",
@@ -226,6 +236,100 @@
           "publisher": "Model Context Protocol",
           "accessed": "2026-10-02",
           "claim": "The third-party authorization server sets a consent cookie for the proxy's static client ID; when the user follows the attacker's link the cookie is present, so consent is skipped and the code is redirected to the attacker's registered redirect_uri."
+        }
+      ]
+    },
+    {
+      "id": "c014-q07",
+      "lesson": null,
+      "concept": "c014-mcp-confused-deputy",
+      "type": "multiple_select",
+      "prompt": "Your MCP server proxies a third-party API with one static OAuth client ID, and lets MCP clients register dynamically. Which statements about the confused deputy attack this allows, and its fix, are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Matching `redirect_uri` by prefix or wildcard is enough while the domain stays the same"
+        },
+        {
+          "id": "b",
+          "text": "A consent cookie for the proxy's static client ID lets a later request skip consent"
+        },
+        {
+          "id": "c",
+          "text": "An attacker registers a client with its own `redirect_uri` and gets the MCP auth code"
+        },
+        {
+          "id": "d",
+          "text": "The proxy checks its per-user list of approved `client_id`s before the third-party flow"
+        },
+        {
+          "id": "e",
+          "text": "Set the `state` cookie before showing the consent page, so the page can verify it"
+        }
+      ],
+      "answers": [
+        "b",
+        "c",
+        "d"
+      ],
+      "explanation": "After a user's first real authorization, the third-party server sets a consent cookie for the proxy's static client ID. An attacker then registers a client with its own `redirect_uri` and sends the user a link: the cookie skips the consent screen and the MCP authorization code goes to the attacker. The proxy MUST keep a per-user registry of approved `client_id`s and check it, with its own consent page, before starting the third-party flow. It MUST match `redirect_uri` exactly, never by pattern, and MUST NOT set the `state` cookie until after consent is approved.",
+      "materials": [
+        "mcp-specification"
+      ],
+      "sources": [
+        {
+          "url": "https://modelcontextprotocol.io/specification/latest/basic/security_best_practices",
+          "title": "Security Best Practices",
+          "publisher": "Model Context Protocol",
+          "accessed": "2026-10-03",
+          "claim": "With a static client ID, dynamic client registration and a third-party consent cookie, an attacker's dynamically registered client with a malicious redirect_uri can skip consent and receive the MCP authorization code; MCP proxy servers MUST keep a registry of approved client_id values per user and check it before the third-party flow, validate redirect_uri by exact string matching (not patterns or wildcards), and set the state cookie only after consent is approved."
+        }
+      ]
+    },
+    {
+      "id": "c014-q08",
+      "lesson": null,
+      "concept": "c014-pydantic-ai-test-model",
+      "type": "multiple_select",
+      "prompt": "You are unit-testing a Pydantic AI agent without calling a real LLM. Which statements about `TestModel`, `FunctionModel` and the related helpers are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`TestModel` makes schema-valid tool arguments and output with plain code, no ML"
+        },
+        {
+          "id": "b",
+          "text": "`TestModel` sends prompts to a small hosted model, so the tests need network access"
+        },
+        {
+          "id": "c",
+          "text": "`FunctionModel` calls a function you write, so you decide which tools get called"
+        },
+        {
+          "id": "d",
+          "text": "`agent.override(model=...)` swaps the model without changing the agent definition"
+        },
+        {
+          "id": "e",
+          "text": "`ALLOW_MODEL_REQUESTS = False` makes real model calls return canned empty replies"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "d"
+      ],
+      "explanation": "`TestModel` generates valid data for tools and output types from their schemas with procedural Python, no ML and no network. `FunctionModel` replaces the model with a function you write, given the messages and agent info, so you control the tool calls and replies. `agent.override(model=...)` swaps the model inside application code without editing the agent. Setting `models.ALLOW_MODEL_REQUESTS = False` is a safety net that stops accidental real requests to an LLM; it doesn't fake replies.",
+      "materials": [
+        "pydantic-ai"
+      ],
+      "sources": [
+        {
+          "url": "https://pydantic.dev/docs/ai/guides/testing/",
+          "title": "Unit testing",
+          "publisher": "Pydantic",
+          "accessed": "2026-10-03",
+          "claim": "TestModel generates valid structured data for tools and output types from their schemas with plain procedural Python, no ML; FunctionModel calls a user-defined function with the messages and agent info; Agent.override replaces an agent's model inside application code; `models.ALLOW_MODEL_REQUESTS = False` prevents accidental real requests to an LLM during tests."
         }
       ]
     }

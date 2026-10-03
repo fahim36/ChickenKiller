@@ -116,7 +116,12 @@
           "accessed": "2026-10-02",
           "claim": "Reviewers should consider whether pushback is valid, and if their suggestion improves code health keep advocating with courteous explanation; clean-up later rarely happens, so insist on it before submission unless it is an emergency, and have developers file a bug assigned to themselves when it must wait."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c028-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c028-q04",
@@ -150,7 +155,12 @@
           "accessed": "2026-10-02",
           "claim": "onDeletedMessages() is called when FCM can't deliver more than 100 pending messages or the app hasn't connected for over 30 days, and the app should then perform a full sync with its server."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c028-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c028-q05",
@@ -225,6 +235,103 @@
           "publisher": "Google",
           "accessed": "2026-10-02",
           "claim": "Clean-up later rarely happens, so reviewers should insist on cleanup before submission unless it's an emergency; developer upset is usually temporary and often due to how comments are written."
+        }
+      ]
+    },
+    {
+      "id": "c028-q07",
+      "lesson": null,
+      "concept": "c028-review-pushback",
+      "type": "multiple_select",
+      "prompt": "You asked for a cleanup in a pull request, and the author replies: \"Let's merge now and I'll clean it up in a follow-up.\" Nothing is urgent. Which responses match Google's code review guidance? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "First consider whether the author is right, since they may know the code better"
+        },
+        {
+          "id": "b",
+          "text": "Approve now, since the cleanup can safely wait for the author's next change"
+        },
+        {
+          "id": "c",
+          "text": "Usually insist on the cleanup now, since later cleanups rarely ever happen"
+        },
+        {
+          "id": "d",
+          "text": "Drop the request, since pushing back twice will likely upset the developer"
+        },
+        {
+          "id": "e",
+          "text": "When a cleanup really must wait, the author files a bug for it, assigned to themselves"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "Google's guide says to first consider whether the author is right, since they are often closer to the code. If the cleanup improves code health, keep advocating politely: experience shows a cleanup not done right after the change usually never happens, so insist on it before submission unless it is an emergency, and when it must wait the author files a bug assigned to themselves. Polite insistence rarely upsets developers; that worry is usually only in the reviewer's mind.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://google.github.io/eng-practices/review/reviewer/pushback.html",
+          "title": "Handling pushback in code reviews",
+          "publisher": "Google",
+          "accessed": "2026-10-03",
+          "claim": "Consider whether the developer's pushback is correct; if the suggestion improves code health keep advocating politely; clean-up later usually never happens, so insist on it now unless it is an emergency, and otherwise have the developer file a bug assigned to themselves; polite comments rarely upset developers."
+        }
+      ]
+    },
+    {
+      "id": "c028-q08",
+      "lesson": null,
+      "concept": "c028-fcm-collapsible-messages",
+      "type": "multiple_select",
+      "prompt": "A chat app sends chat messages and \"new data, please sync\" signals through FCM. Which statements match Firebase's docs on collapsible messages? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Send chat messages non-collapsible, so each one is delivered to the device"
+        },
+        {
+          "id": "b",
+          "text": "A sync signal can be collapsible: a newer one may replace an undelivered one"
+        },
+        {
+          "id": "c",
+          "text": "FCM keeps any number of collapse keys per device and delivers the latest of each"
+        },
+        {
+          "id": "d",
+          "text": "Android stores any number of non-collapsible messages until the device reconnects"
+        },
+        {
+          "id": "e",
+          "text": "Past 100 stored non-collapsible messages on Android, all of them are discarded"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "e"
+      ],
+      "explanation": "Non-collapsible messages are each delivered, which suits chat messages; collapsible ones, set with `collapse_key`, may be replaced by a newer message before delivery, which suits signals where only the latest matters. FCM keeps only four collapse keys per device at once, with no guarantee which, and Android stores at most 100 non-collapsible messages: past that all are discarded, and the app must do a full sync.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://firebase.google.com/docs/cloud-messaging/customize-messages/collapsible-message-types",
+          "title": "Non-collapsible and collapsible messages",
+          "publisher": "Google (Firebase)",
+          "accessed": "2026-10-03",
+          "claim": "Non-collapsible messages are each delivered (e.g. chat); collapsible messages may be replaced by a newer undelivered one; FCM keeps only four collapse keys per device; Android stores up to 100 non-collapsible messages, and past that all stored messages are discarded."
+        },
+        {
+          "url": "https://firebase.google.com/docs/cloud-messaging/android/receive-messages",
+          "title": "Receive messages in an Android app",
+          "publisher": "Google (Firebase)",
+          "accessed": "2026-10-03",
+          "claim": "`onDeletedMessages()` is called when more than 100 messages are pending for the app on a device, and the app should then do a full sync with its server."
         }
       ]
     }

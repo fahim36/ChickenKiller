@@ -127,7 +127,12 @@
           "accessed": "2026-10-02",
           "claim": "Kotlin exceptions reaching Swift/Objective-C that are not declared are unhandled and terminate the program; non-suspend functions without @Throws propagate none and suspend functions without @Throws propagate only CancellationException; exceptions of the @Throws classes (or subclasses) become NSError and such functions are `throws` methods in Swift; suspend functions always have an error parameter in the completion handler."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c007-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c007-q04",
@@ -243,6 +248,53 @@
           "publisher": "JetBrains",
           "accessed": "2026-10-02",
           "claim": "Kotlin exceptions reaching Swift/Objective-C that are not declared are unhandled and terminate the program; non-suspend functions without @Throws propagate none and suspend functions without @Throws propagate only CancellationException; exceptions of the @Throws classes (or subclasses) become NSError and such functions are `throws` methods in Swift; suspend functions always have an error parameter in the completion handler."
+        }
+      ]
+    },
+    {
+      "id": "c007-q07",
+      "lesson": null,
+      "concept": "c007-kmp-swift-exceptions",
+      "type": "multiple_select",
+      "prompt": "A shared KMP function `fun loadProfile(): Profile` throws `IOException` when offline, and the iOS app crashes instead of showing an error. Which statements about Kotlin exceptions in Swift are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Without `@Throws`, the exception reaching Swift is unhandled and ends the app"
+        },
+        {
+          "id": "b",
+          "text": "Swift's `do`/`catch` catches any Kotlin exception, with or without `@Throws`"
+        },
+        {
+          "id": "c",
+          "text": "With `@Throws(IOException::class)`, Swift sees `loadProfile` as a `throws` method"
+        },
+        {
+          "id": "d",
+          "text": "With `@Throws(IOException::class)`, any other exception also becomes `NSError`"
+        },
+        {
+          "id": "e",
+          "text": "A listed `IOException`, or a subclass of it, reaches Swift as an `NSError`"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "Swift has only checked errors, so a Kotlin exception that reaches Swift without being declared is unhandled and terminates the program; a non-suspend function without `@Throws` propagates no Kotlin exceptions at all, so `do`/`catch` can't help. Marking it `@Throws(IOException::class)` makes it a `throws` method in Swift, and an `IOException` or subclass is propagated as an `NSError`. An exception of a class not listed still terminates the app, so list what callers must handle, or catch errors in Kotlin and return a result type.",
+      "materials": [
+        "kmp-get-started"
+      ],
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/native-objc-interop.html",
+          "title": "Interoperability with Swift/Objective-C",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-03",
+          "claim": "Non-suspend functions with `@Throws` are `throws` methods in Swift, and exceptions of the `@Throws` classes or their subclasses are propagated as `NSError`; other Kotlin exceptions reaching Swift/Objective-C are unhandled and terminate the program, and non-suspend functions without `@Throws` don't propagate Kotlin exceptions at all."
         }
       ]
     }

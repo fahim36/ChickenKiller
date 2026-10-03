@@ -192,7 +192,12 @@
           "accessed": "2026-09-26",
           "claim": "A name bound in a block is local to that block unless declared nonlocal or global, and a name used but not defined in a block is a free variable."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w01-l02-q09",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w01-l02-q05",
@@ -338,6 +343,120 @@
           "publisher": "Python Software Foundation",
           "accessed": "2026-09-26",
           "claim": "`*identifier` receives a tuple of excess positional arguments, `**identifier` receives a new mapping of excess keyword arguments, and parameters after `*` or `*identifier` are keyword-only."
+        }
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w01-l02-q10",
+        "on": "2026-10-03"
+      }
+    },
+    {
+      "id": "w01-l02-q09",
+      "lesson": "w01-l02",
+      "concept": "closures-and-nonlocal",
+      "type": "multiple_select",
+      "prompt": "```python\ndef make_counter():\n    count = 0\n    def inc():\n        nonlocal count\n        count += 1\n        return count\n    return inc\n\nc = make_counter()\n```\nWhich of these are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`c()` returns 1, then 2: `count` outlives `make_counter`'s return"
+        },
+        {
+          "id": "b",
+          "text": "Each call to `c()` starts over from `count = 0` and returns 1"
+        },
+        {
+          "id": "c",
+          "text": "Without `nonlocal`, calling `c()` raises `UnboundLocalError`"
+        },
+        {
+          "id": "d",
+          "text": "`nonlocal count` would also bind to a module-level `count`"
+        },
+        {
+          "id": "e",
+          "text": "`c.__closure__` holds a cell with the binding for `count`"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "`inc` is a closure: its free variable `count` lives in a cell, visible in `c.__closure__` (e), which outlives the call to `make_counter`, so calls return 1, then 2 (a), not 1 each time (b). Without `nonlocal`, assigning `count` makes it local to `inc`, so reading it in `count += 1` before it is bound raises `UnboundLocalError` (c). `nonlocal` only reaches enclosing function scopes; a module-level name needs `global` (d).",
+      "materials": [
+        "fluent-python-2nd-ed"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/reference/datamodel.html",
+          "title": "3. Data model",
+          "publisher": "Python Software Foundation",
+          "claim": "A function's `__closure__` is None or a tuple of cells that contain bindings for the function's free variables.",
+          "accessed": "2026-10-03"
+        },
+        {
+          "url": "https://docs.python.org/3/reference/simple_stmts.html",
+          "title": "7. Simple statements",
+          "publisher": "Python Software Foundation",
+          "claim": "`nonlocal` makes identifiers refer to names previously bound in nonlocal scopes, which are the local scopes of enclosing functions, and lets nested code rebind them; if a name isn't bound in any nonlocal scope a SyntaxError is raised.",
+          "accessed": "2026-10-03"
+        },
+        {
+          "url": "https://docs.python.org/3/reference/executionmodel.html",
+          "title": "4. Execution model",
+          "publisher": "Python Software Foundation",
+          "claim": "A name bound in a block is local to it unless declared nonlocal or global, and if a binding occurs anywhere in a block, all uses of the name in that block refer to the current block, which raises an error when it is used before being bound.",
+          "accessed": "2026-10-03"
+        }
+      ]
+    },
+    {
+      "id": "w01-l02-q10",
+      "lesson": "w01-l02",
+      "concept": "parameter-kinds",
+      "type": "multiple_select",
+      "prompt": "Given `def call(model, *args, retries=3, **kwargs): ...`, you run `call(\"m\", 1, 2, timeout=5)`. Which of these are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Inside the call, `args` is the tuple `(1, 2)`"
+        },
+        {
+          "id": "b",
+          "text": "Inside the call, `args` is the list `[1, 2]`"
+        },
+        {
+          "id": "c",
+          "text": "Inside the call, `kwargs` is `{\"timeout\": 5}`"
+        },
+        {
+          "id": "d",
+          "text": "`retries` can only be passed by keyword"
+        },
+        {
+          "id": "e",
+          "text": "`call(\"m\", 1, 2, 4)` sets `retries` to `4`"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "d"
+      ],
+      "explanation": "`*args` receives a tuple of the excess positional arguments, `(1, 2)` (a), not a list (b), and `**kwargs` receives a new mapping of the excess keyword arguments, `{\"timeout\": 5}` (c). Parameters after `*args` are keyword-only (d), so in `call(\"m\", 1, 2, 4)` the `4` goes into `args` and `retries` stays `3` (e).",
+      "materials": [
+        "fluent-python-2nd-ed",
+        "python-docs-the-data-model"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/reference/compound_stmts.html",
+          "title": "8. Compound statements",
+          "publisher": "Python Software Foundation",
+          "claim": "`*identifier` is initialized to a tuple receiving any excess positional parameters, `**identifier` to a new ordered mapping receiving any excess keyword arguments, and parameters after `*` or `*identifier` are keyword-only and may only be passed by keyword.",
+          "accessed": "2026-10-03"
         }
       ]
     }

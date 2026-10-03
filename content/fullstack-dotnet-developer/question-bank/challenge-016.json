@@ -134,7 +134,12 @@
           "accessed": "2026-10-02",
           "claim": "invalidateQueries marks matching queries stale (overriding staleTime) and refetches those currently rendered; `{ queryKey: ['todos'] }` matches every key starting with `todos`, and `exact: true` restricts it to that exact key."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c016-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c016-q04",
@@ -257,6 +262,60 @@
           "publisher": "TanStack",
           "accessed": "2026-10-02",
           "claim": "invalidateQueries marks matching queries stale (overriding staleTime) and refetches those currently rendered; `{ queryKey: ['todos'] }` matches every key starting with `todos`, and `exact: true` restricts it to that exact key."
+        }
+      ]
+    },
+    {
+      "id": "c016-q07",
+      "lesson": null,
+      "concept": "c016-tanstack-query-key-design",
+      "type": "multiple_select",
+      "prompt": "A React orders page uses TanStack Query with `queryKey: ['orders']` and a `queryFn` that fetches `/api/orders?status=${status}&page=${page}`. Users see the wrong page after changing filters, and the list stays stale after creating an order. Which statements are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`status` and `page` belong in the key, such as `['orders', { status, page }]`"
+        },
+        {
+          "id": "b",
+          "text": "`invalidateQueries({ queryKey: ['orders'] })` matches every key starting with `orders`"
+        },
+        {
+          "id": "c",
+          "text": "`{ status, page }` and `{ page, status }` hash to the same query key"
+        },
+        {
+          "id": "d",
+          "text": "`['orders', status, page]` and `['orders', page, status]` hash to the same key"
+        },
+        {
+          "id": "e",
+          "text": "Invalidation only marks queries stale; nothing refetches until the next mount"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "c"
+      ],
+      "explanation": "Every variable the query function uses must be in the key; with the fixed key `['orders']` all filters share one cache entry, so changing a filter doesn't refetch. Keys hash deterministically: the order of properties inside an object doesn't matter, but the order of array items does. After the mutation, `invalidateQueries` with `['orders']` prefix-matches keys such as `['orders', { status, page }]`, marks them stale and refetches the ones being rendered right away; `exact: true` would narrow it to one key.",
+      "materials": [
+        "tanstack-query"
+      ],
+      "sources": [
+        {
+          "url": "https://tanstack.com/query/latest/docs/framework/react/guides/query-keys",
+          "title": "Query Keys",
+          "publisher": "TanStack",
+          "accessed": "2026-10-03",
+          "claim": "Query keys must include every variable the query function uses that changes; keys are hashed deterministically, so the order of keys in an object doesn't matter but the order of array items does."
+        },
+        {
+          "url": "https://tanstack.com/query/latest/docs/framework/react/guides/query-invalidation",
+          "title": "Query Invalidation",
+          "publisher": "TanStack",
+          "accessed": "2026-10-03",
+          "claim": "invalidateQueries marks matching queries stale and refetches those currently rendered; a key such as ['todos'] matches every key that starts with it, and exact: true restricts it to an exact match."
         }
       ]
     }

@@ -116,7 +116,12 @@
           "accessed": "2026-10-02",
           "claim": "Small CLs are reviewed more quickly and thoroughly, have fewer bugs, waste less work and are easier to merge and roll back; a CL should be one self-contained change (100 lines reasonable, 1000 usually too large); separate refactorings from feature changes, keep tests in the same CL, split by stacking, files, horizontal or vertical slices, and keep the build working after each CL."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c026-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c026-q04",
@@ -143,7 +148,12 @@
           "accessed": "2026-10-02",
           "claim": "The `modifier` parameter is the first optional parameter with default `Modifier`, applied once first in the chain to the root-most layout; there should be only one, since it specifies the component's external behaviour rather than its subparts."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c026-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c026-q05",
@@ -218,6 +228,96 @@
           "publisher": "Google",
           "accessed": "2026-10-02",
           "claim": "It's usually best to do refactorings in a separate CL from feature changes or bug fixes, and related test code belongs in the same CL as the code it tests."
+        }
+      ]
+    },
+    {
+      "id": "c026-q07",
+      "lesson": null,
+      "concept": "c026-small-cls",
+      "type": "multiple_select",
+      "prompt": "A teammate opens a 1,800-line pull request that refactors the networking layer and adds offline sync at the same time. Which statements match Google's guidance on small changes? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Put the refactoring and the offline-sync feature in separate changes"
+        },
+        {
+          "id": "b",
+          "text": "Move the tests into a follow-up change, so each code change stays small"
+        },
+        {
+          "id": "c",
+          "text": "A reviewer may reject a change outright just because it is too large"
+        },
+        {
+          "id": "d",
+          "text": "A large change is fine if it is well tested and reviewed in one sitting"
+        },
+        {
+          "id": "e",
+          "text": "Small changes are reviewed more quickly and are easier to roll back"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "Google's guide says small changes are reviewed faster and more thoroughly, cause fewer bugs and are easier to merge and roll back, and a reviewer may reject a change for being too large alone. Refactorings go in a separate change from feature work. Tests stay in the same change as the code they test, and good tests don't make a huge change acceptable: several short reviews beat one long one.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://google.github.io/eng-practices/review/developer/small-cls.html",
+          "title": "Small CLs",
+          "publisher": "Google",
+          "accessed": "2026-10-03",
+          "claim": "Small CLs are reviewed more quickly and thoroughly, have fewer bugs and are easier to merge and roll back; reviewers may reject a CL just for being too large; separate refactorings from feature changes and keep tests in the same CL."
+        }
+      ]
+    },
+    {
+      "id": "c026-q08",
+      "lesson": null,
+      "concept": "c026-component-modifier-param",
+      "type": "multiple_select",
+      "prompt": "Review this design-system signature: `fun TagChip(text: String, modifier: Modifier, rowModifier: Modifier = Modifier, iconModifier: Modifier = Modifier)`. Which changes do the Compose component API guidelines call for? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Keep one `Modifier` parameter, named `modifier`, and drop the other two"
+        },
+        {
+          "id": "b",
+          "text": "Make `modifier` the first optional parameter, defaulting to `Modifier`"
+        },
+        {
+          "id": "c",
+          "text": "Apply `modifier` to the leading icon, the innermost layout of the chip"
+        },
+        {
+          "id": "d",
+          "text": "Rename the extra ones `contentModifier` and `leadingModifier` instead"
+        },
+        {
+          "id": "e",
+          "text": "Apply `modifier` once, first in the chain, on the chip's root-most layout"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "e"
+      ],
+      "explanation": "A component has exactly one `Modifier` parameter, named `modifier`: it describes the component's external behaviour, so subparts are customised with explicit parameters or slots, not more modifiers, whatever they are called. For a component with a non-zero default size it is the first optional parameter with the no-op default `Modifier`, applied once as the first modifier in the chain on the root-most layout, never on an inner part such as the icon.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://android.googlesource.com/platform/frameworks/support/+/androidx-main/compose/docs/compose-component-api-guidelines.md",
+          "title": "API Guidelines for Components in Jetpack Compose",
+          "publisher": "Android Open Source Project",
+          "accessed": "2026-10-03",
+          "claim": "The `modifier` parameter is the only `Modifier` parameter, the first optional one with the no-op default `Modifier`, applied once as the first modifier in the chain to the root-most layout; subparts are customised with specific parameters or slots instead."
         }
       ]
     }
