@@ -118,7 +118,12 @@
           "accessed": "2026-10-02",
           "claim": "Subagents call tools to store their work in external systems and pass lightweight references back to the coordinator, which prevents information loss in multi-stage processing and cuts the token overhead of copying large outputs through conversation history; the lead agent saves its plan to Memory because a context over 200,000 tokens is truncated."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c010-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c010-q04",
@@ -191,7 +196,12 @@
           "accessed": "2026-10-02",
           "claim": "`max_tokens` means the response was truncated: if the last block is an incomplete `tool_use`, retry with a higher `max_tokens`, otherwise you can continue it; `pause_turn` means a server-tool loop hit its iteration limit, and you send the assistant content back as-is; `refusal` arrives with HTTP 200 and `stop_details`, so retry on a fallback model; `model_context_window_exceeded` is truncated output; stop reasons are part of successful responses, unlike 4xx/5xx errors."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c010-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c010-q06",
@@ -229,6 +239,98 @@
           "publisher": "Anthropic",
           "accessed": "2026-10-02",
           "claim": "Subagents call tools to store their work in external systems and pass lightweight references back to the coordinator, which prevents information loss in multi-stage processing and cuts the token overhead of copying large outputs through conversation history; the lead agent saves its plan to Memory because a context over 200,000 tokens is truncated."
+        }
+      ]
+    },
+    {
+      "id": "c010-q07",
+      "lesson": null,
+      "concept": "c010-subagent-artifacts",
+      "type": "multiple_select",
+      "prompt": "In your multi-agent research system, subagents write long reports and the lead agent copies each one into its own context. Which of these match Anthropic's advice for this? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Subagents store their output in an external system, such as files, via a tool call"
+        },
+        {
+          "id": "b",
+          "text": "Subagents pass a lightweight reference back to the lead instead of the full report"
+        },
+        {
+          "id": "c",
+          "text": "Subagents retell their report as a summary for the lead, which keeps every detail"
+        },
+        {
+          "id": "d",
+          "text": "It avoids the token cost of copying large outputs through the conversation history"
+        },
+        {
+          "id": "e",
+          "text": "All output goes through the lead agent's context, so it can check every word of it"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "d"
+      ],
+      "explanation": "Anthropic recommends artifact systems: subagents call tools to store their work outside the conversation and hand the lead agent a lightweight reference. That keeps fidelity, since nothing is retold and lost along the way like a game of telephone, and it saves the tokens of copying large outputs through the conversation history. Routing everything through the lead's context, or summarising at each hop, is exactly what loses detail and wastes tokens.",
+      "materials": [
+        "anthropic-how-we-built-our-multi"
+      ],
+      "sources": [
+        {
+          "url": "https://www.anthropic.com/engineering/multi-agent-research-system",
+          "title": "How we built our multi-agent research system",
+          "publisher": "Anthropic",
+          "accessed": "2026-10-03",
+          "claim": "Rather than requiring subagents to communicate everything through the lead agent, artifact systems let subagents call tools to store their work in external systems and pass lightweight references back to the coordinator, which improves fidelity, prevents information loss during multi-stage processing and reduces the token overhead of copying large outputs through conversation history."
+        }
+      ]
+    },
+    {
+      "id": "c010-q08",
+      "lesson": null,
+      "concept": "c010-stop-reasons",
+      "type": "multiple_select",
+      "prompt": "Your agent loop only checks `stop_reason == \"tool_use\"` and shows anything else to the user as the final answer. Which statements about the other stop reasons are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`max_tokens`: output was cut off; if a `tool_use` block was cut, retry with more tokens"
+        },
+        {
+          "id": "b",
+          "text": "`refusal`: arrives as an HTTP 4xx error, so the loop's error handler already catches it"
+        },
+        {
+          "id": "c",
+          "text": "`pause_turn`: a server-tool loop hit its limit; send the assistant content back as-is"
+        },
+        {
+          "id": "d",
+          "text": "`end_turn`: the context window filled up, so treat the answer as cut off and continue"
+        },
+        {
+          "id": "e",
+          "text": "`model_context_window_exceeded`: the output is truncated, just like `max_tokens`"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "`max_tokens` means the response was truncated: retry with a higher `max_tokens` if the last block is an incomplete `tool_use`, otherwise continue it. `pause_turn` means a server-tool loop reached its iteration limit, and you continue by sending the assistant content back. `model_context_window_exceeded` is also truncated output. A `refusal` is a successful HTTP 200 response with `stop_details`, not an error, so an error handler never sees it. `end_turn` is the normal, complete finish.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://platform.claude.com/docs/en/build-with-claude/handling-stop-reasons",
+          "title": "Handling stop reasons",
+          "publisher": "Anthropic",
+          "accessed": "2026-10-03",
+          "claim": "`end_turn` is a natural finish; `max_tokens` means the response hit the limit, and an incomplete `tool_use` block calls for a retry with a higher `max_tokens`; `pause_turn` means a server-tool loop hit its iteration limit and you send the assistant response back to continue; `refusal` comes in a successful HTTP 200 response with `stop_details`; `model_context_window_exceeded` should be treated as truncated; stop reasons are part of successful responses, unlike 4xx/5xx errors."
         }
       ]
     }

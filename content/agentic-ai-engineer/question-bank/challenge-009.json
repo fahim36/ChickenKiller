@@ -123,7 +123,12 @@
           "accessed": "2026-10-02",
           "claim": "Faithfulness is the number of claims in the response supported by the retrieved context divided by the total claims in the response, from 0 to 1, and needs no reference answer."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c009-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c009-q04",
@@ -187,7 +192,12 @@
           "accessed": "2026-10-02",
           "claim": "Claude converts each PDF page into an image and extracts each page's text, providing both; text typically costs 1,500–3,000 tokens per page plus image tokens per page, at standard prices with no PDF fee; a request may be at most 32 MB and 600 pages (100 when the context window is under 1M tokens), and dense PDFs can fill the context window first."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c009-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c009-q06",
@@ -232,6 +242,105 @@
           "publisher": "Ragas",
           "accessed": "2026-10-02",
           "claim": "Faithfulness is the number of claims in the response supported by the retrieved context divided by the total claims in the response, from 0 to 1, and needs no reference answer."
+        }
+      ]
+    },
+    {
+      "id": "c009-q07",
+      "lesson": null,
+      "concept": "c009-rag-failure-diagnosis",
+      "type": "multiple_select",
+      "prompt": "Your RAG assistant gives wrong answers, and you have a golden set of questions with reference answers plus the chunks retrieved for each. Which statements about telling a retrieval failure from a generation failure are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Faithfulness needs a reference answer, so it only runs on the golden set"
+        },
+        {
+          "id": "b",
+          "text": "Context recall checks retrieval: how many reference claims the chunks support"
+        },
+        {
+          "id": "c",
+          "text": "Faithfulness checks generation: how many response claims the chunks support"
+        },
+        {
+          "id": "d",
+          "text": "High context recall with low faithfulness points to retrieval as the fault"
+        },
+        {
+          "id": "e",
+          "text": "Low context recall means the facts never reached the model: fix retrieval"
+        }
+      ],
+      "answers": [
+        "b",
+        "c",
+        "e"
+      ],
+      "explanation": "Context recall is the share of the reference answer's claims that the retrieved context supports, so it measures whether retrieval missed something; when it is low, the model never saw the facts. Faithfulness is the share of the response's claims that the retrieved context supports, so it measures whether generation stuck to what it was given, and it needs no reference answer. High recall with low faithfulness means the facts were retrieved but the answer strayed from them: a generation problem, not a retrieval one.",
+      "materials": [
+        "ragas-rag-evaluation"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.ragas.io/en/stable/concepts/metrics/available_metrics/context_recall/",
+          "title": "Context Recall",
+          "publisher": "Ragas",
+          "accessed": "2026-10-03",
+          "claim": "Context recall is the number of claims in the reference supported by the retrieved context divided by the total claims in the reference; it measures how many relevant pieces of information were retrieved, and it needs a reference."
+        },
+        {
+          "url": "https://docs.ragas.io/en/stable/concepts/metrics/available_metrics/faithfulness/",
+          "title": "Faithfulness",
+          "publisher": "Ragas",
+          "accessed": "2026-10-03",
+          "claim": "Faithfulness measures how factually consistent a response is with the retrieved context: claims in the response supported by the context divided by all claims in the response, from 0 to 1, with no reference answer needed."
+        }
+      ]
+    },
+    {
+      "id": "c009-q08",
+      "lesson": null,
+      "concept": "c009-pdf-input-tokens",
+      "type": "multiple_select",
+      "prompt": "You plan to run Claude over a million PDF pages and need a cost estimate and a request plan. Which statements about how Claude handles PDFs are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Each page becomes an image and its text is extracted, and Claude gets both"
+        },
+        {
+          "id": "b",
+          "text": "Only the text is billed: page images are free when the PDF has a text layer"
+        },
+        {
+          "id": "c",
+          "text": "Text usually costs 1,500–3,000 tokens a page, plus image tokens per page"
+        },
+        {
+          "id": "d",
+          "text": "A request takes up to 32 MB and 600 pages (100 under a 1M-token window)"
+        },
+        {
+          "id": "e",
+          "text": "PDFs carry a flat per-page fee on top of standard prices for their tokens"
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "d"
+      ],
+      "explanation": "Claude converts each page into an image and extracts its text, and uses both. So a page costs its text tokens (typically 1,500–3,000, depending on density) plus image tokens, at standard prices with no extra PDF fee; token counting on sample files gives a real estimate. A request is capped at 32 MB and 600 pages (100 when the context window is under 1M tokens), and dense PDFs can fill the context first, so split large documents. Images are billed for every page, text layer or not.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://platform.claude.com/docs/en/build-with-claude/pdf-support",
+          "title": "PDF support",
+          "publisher": "Anthropic",
+          "accessed": "2026-10-03",
+          "claim": "The system converts each page into an image and extracts each page's text, providing both; text typically uses 1,500–3,000 tokens per page at standard prices with no additional PDF fees, and image costs apply per page since each page is converted to an image; a request is limited to 32 MB and 600 pages (100 when the context window is under 1M tokens); token counting estimates the cost of specific PDFs."
         }
       ]
     }

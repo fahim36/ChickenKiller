@@ -128,7 +128,12 @@
           "accessed": "2026-10-02",
           "claim": "Chunks that are too small or too large lead to imprecise search results; text past the embedding model's context window may be truncated; pick the chunk size by testing a range of sizes on a representative dataset with queries you can evaluate, iteratively."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c008-q07",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c008-q04",
@@ -164,7 +169,12 @@
           "accessed": "2026-10-02",
           "claim": "Setting `temperature`, `top_p` or `top_k` to any non-default value on Claude Opus 4.7 and later models returns a 400 error; the safest migration is to omit them and use prompting to guide the model's behaviour."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "c008-q08",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "c008-q05",
@@ -239,6 +249,114 @@
           "publisher": "LangChain",
           "accessed": "2026-10-02",
           "claim": "RecursiveCharacterTextSplitter tries the separators `[\"\\n\\n\", \"\\n\", \" \", \"\"]` in order until chunks are small enough, keeping paragraphs, then sentences, then words together; `chunk_size` is measured by `length_function`, characters by default, and `chunk_overlap` repeats text between chunks to reduce information lost at a split."
+        }
+      ]
+    },
+    {
+      "id": "c008-q07",
+      "lesson": null,
+      "concept": "c008-chunk-size-overlap",
+      "type": "multiple_select",
+      "prompt": "You are chunking 100 pages of help-centre articles for RAG with LangChain's `RecursiveCharacterTextSplitter`. Which of these statements about choosing `chunk_size` and `chunk_overlap` are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`chunk_size` counts characters by default, unless you pass a token `length_function`"
+        },
+        {
+          "id": "b",
+          "text": "Overlap repeats some text between neighbouring chunks, so a fact cut at a split survives"
+        },
+        {
+          "id": "c",
+          "text": "One chunk size suits almost every corpus, so a tutorial's value needs no extra testing"
+        },
+        {
+          "id": "d",
+          "text": "The splitter tries sentence ends first, then falls back to paragraph and line breaks"
+        },
+        {
+          "id": "e",
+          "text": "Pick the size by scoring retrieval on representative queries over a range of sizes"
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "e"
+      ],
+      "explanation": "`chunk_size` is measured by `length_function`, which is `len` (characters) by default, so pass a tokenizer-based one if you think in tokens. `chunk_overlap` repeats text between neighbouring chunks so information split at a boundary isn't lost. There is no one-size-fits-all chunk size: test a range of sizes on your own data with queries you can score. The splitter goes from large units to small: paragraph breaks (`\\n\\n`) first, then line breaks, then spaces, not sentences first.",
+      "materials": [
+        "pinecone-chunking-strategies"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.langchain.com/oss/python/integrations/splitters/recursive_text_splitter",
+          "title": "Splitting recursively",
+          "publisher": "LangChain",
+          "accessed": "2026-10-03",
+          "claim": "RecursiveCharacterTextSplitter tries the separators `[\"\\n\\n\", \"\\n\", \" \", \"\"]` in that order, keeping paragraphs, then sentences, then words together; `chunk_size` is measured by `length_function`, which defaults to `len` (characters); `chunk_overlap` overlaps neighbouring chunks to reduce information lost when text is split."
+        },
+        {
+          "url": "https://www.pinecone.io/learn/chunking-strategies/",
+          "title": "Chunking Strategies for LLM Applications",
+          "publisher": "Pinecone",
+          "accessed": "2026-10-03",
+          "claim": "There is no one-size-fits-all chunking solution; choose the chunk size by testing a range of sizes on representative data and running queries whose quality you can evaluate, iteratively."
+        }
+      ]
+    },
+    {
+      "id": "c008-q08",
+      "lesson": null,
+      "concept": "c008-temperature-top-p",
+      "type": "multiple_select",
+      "prompt": "Your team wants steadier output from an extraction step on Claude Opus 4.7 or later, and plans to lower `temperature` and `top_p`. Which of these statements are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Top-p keeps a fixed number of the likeliest tokens, and `p` sets that number"
+        },
+        {
+          "id": "b",
+          "text": "Temperature divides the logits before the softmax; low values favour likely tokens"
+        },
+        {
+          "id": "c",
+          "text": "On these models, a non-default `temperature` or `top_p` returns a 400 error"
+        },
+        {
+          "id": "d",
+          "text": "`temperature: 0` has always guaranteed identical output for identical requests"
+        },
+        {
+          "id": "e",
+          "text": "On these models, omit the sampling parameters and steer the output by prompting"
+        }
+      ],
+      "answers": [
+        "b",
+        "c",
+        "e"
+      ],
+      "explanation": "Temperature rescales the logits before the softmax, and a value below 1 shifts probability towards the likeliest tokens. On Claude Opus 4.7 and later, any non-default `temperature`, `top_p` or `top_k` is rejected with a 400 error, so Anthropic's advice is to omit them and guide the model with the prompt. Top-p doesn't keep a fixed number of tokens (that's top-k): it samples from the smallest set whose probabilities add up to at least `p`. And `temperature: 0` never guaranteed identical outputs, even on earlier models.",
+      "materials": [
+        "transformer-explainer"
+      ],
+      "sources": [
+        {
+          "url": "https://arxiv.org/pdf/1904.09751",
+          "title": "The Curious Case of Neural Text Degeneration",
+          "publisher": "Holtzman et al. (ICLR 2020, arXiv)",
+          "accessed": "2026-10-03",
+          "claim": "With temperature t the softmax is computed over the logits divided by t, and t in [0, 1) skews the distribution towards high-probability tokens; nucleus (top-p) sampling draws from the smallest set of tokens whose cumulative probability is at least p, so the candidate pool expands and contracts, unlike a fixed top-k."
+        },
+        {
+          "url": "https://platform.claude.com/docs/en/models/opus-5-5/migration-guide",
+          "title": "Migrating to Claude Opus 5.5",
+          "publisher": "Anthropic",
+          "accessed": "2026-10-03",
+          "claim": "Setting `temperature`, `top_p` or `top_k` to any non-default value on Claude Opus 4.7 and later returns a 400 error; the safest path is to omit them and use prompting to guide behaviour; `temperature = 0` never guaranteed identical outputs on prior models."
         }
       ]
     }
