@@ -19,14 +19,20 @@ request's base, or on a push the commit before it), read by `app.content.baselin
 - a Question new since the baseline has every Source accessed in the current run: today or
   yesterday in UTC, by the `today` passed in, so a run that crosses 00:00 UTC still passes;
 - a new Question whose Concept already has committed Questions is a warning naming one of them;
+- a new Question is never written (ADR-0008): written Questions are legacy, kept only where
+  they were committed;
 - a new multiple-choice Question whose correct choice is clearly the longest (`LONGEST_ANSWER`)
-  is a warning: length gives the answer away. Committed Questions can't be edited, so only new
-  ones are warned about.
+  is a warning, and so is a new multiple-select Question whose correct choices are each longer
+  than every wrong one: length gives the answer away. Committed Questions can't be edited, so
+  only new ones are warned about.
 
 **The Daily Challenges** (`<stack>/challenges/`, #16) are numbered and dated from the Stack's
-launch Day, and each is three Questions of the bank. Against the baseline, a Challenge whose Day
-has begun (it is `today` or earlier) is released and frozen: never changed or deleted, and a
-Day that has begun gets no new one. Each Stack's line says how far ahead Challenges are
+launch Day, and each is three Questions of the bank: two multiple choice, then one multiple
+select (ADR-0008). A released Challenge keeps the legacy mix it was released with (a written
+Question in the multiple-select one's place); so, as a warning, does an Upcoming one committed
+before ADR-0008 and unchanged since. Against the baseline, a Challenge whose Day has begun (it is
+`today` or earlier) is released and frozen: never changed or deleted, and a Day that has begun
+gets no new one. Each Stack's line says how far ahead Challenges are
 written ("Challenges written through 2026-10-03 (7 Days left)"), with a warning below three Days.
 
 With no git baseline (content outside a git repository) those rules are skipped, with a warning
@@ -36,7 +42,7 @@ that says so.
 import argparse
 import sys
 from collections import Counter, defaultdict
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
@@ -61,7 +67,15 @@ from app.content.challenges import (
     challenges_ahead as days_ahead,
 )
 from app.content.diff import diff_contents
-from app.content.format import ItemKind, Lesson, Material, Milestone, MultipleChoiceQuestion
+from app.content.format import (
+    ItemKind,
+    Lesson,
+    Material,
+    Milestone,
+    MultipleChoiceQuestion,
+    MultipleSelectQuestion,
+    WrittenQuestion,
+)
 from app.content.loader import (
     CHALLENGES_DIR,
     CHANGELOG_FILE,
@@ -98,14 +112,18 @@ __all__ = [
     "version_folders",
 ]
 
-# A Lesson Quiz is 4 multiple-choice + 2 written Questions; Retakes and Review need spare
-# siblings, so each Lesson has at least 8 Questions that aren't retired. The bank only grows, so
-# there is no maximum.
+# A Lesson Quiz is 4 multiple-choice + 2 multiple-select Questions (a legacy written Question
+# can fill a multiple-select slot, ADR-0008); Retakes and Review need spare siblings, so each
+# Lesson has at least 8 Questions that aren't retired. The bank only grows, so there is no
+# maximum.
 LESSON_MIN = 8
-QUIZ_MULTIPLE_CHOICE, QUIZ_WRITTEN = 4, 2
+QUIZ_MULTIPLE_CHOICE, QUIZ_MULTIPLE_SELECT = 4, 2
 MIN_QUESTIONS_PER_CONCEPT = 2
-CHALLENGE_MIX = (2, 1)
-"""A Daily Challenge's multiple-choice and written Questions."""
+CHALLENGE_TYPES = ("multiple_choice", "multiple_choice", "multiple_select")
+"""A Daily Challenge's Questions, in order: two multiple choice, then one multiple select."""
+LEGACY_CHALLENGE_MIX = Counter({"multiple_choice": 2, "written": 1})
+"""What a Daily Challenge was before ADR-0008: two multiple choice and one written, in any
+order. A released Challenge keeps it for good."""
 
 # The correct choice is "clearly the longest" when it is more than 25% and at least 8 characters
 # longer than every wrong choice.
@@ -122,6 +140,33 @@ def correct_choice_stands_out(question: MultipleChoiceQuestion) -> bool:
         right[0] > LONGEST_ANSWER_RATIO * max(wrong)
         and right[0] - max(wrong) >= LONGEST_ANSWER_MARGIN
     )
+
+
+def correct_choices_stand_out(question: MultipleSelectQuestion) -> bool:
+    """True when every correct choice is longer than every wrong one: picking the longest
+    choices would score."""
+    right = [len(c.text) for c in question.choices if c.id in question.answers]
+    wrong = [len(c.text) for c in question.choices if c.id not in question.answers]
+    if not right or not wrong:
+        return False
+    return min(right) > max(wrong)
+
+
+def multiple_select_problems(question: MultipleSelectQuestion) -> list[str]:
+    """What is wrong with a multiple-select Question's choices and answers, beyond the format:
+    unique choice IDs, every answer one of them, and at least one choice incorrect."""
+    choice_ids = [c.id for c in question.choices]
+    problems = ["duplicate choice ids"] if _duplicates(choice_ids) else []
+    problems += [
+        f"answers/{i}: '{a}' is not one of the choices"
+        for i, a in enumerate(question.answers)
+        if a not in choice_ids
+    ]
+    if set(choice_ids) <= set(question.answers):
+        problems.append(
+            "every choice is correct: a multiple-select Question has at least one incorrect choice"
+        )
+    return problems
 
 
 def _duplicates(ids: Iterable[str]) -> list[str]:
@@ -329,7 +374,7 @@ def _check_shared(stack_dir: Path, bank: Bank, baseline: str | None, today: date
     return (
         _check_bank(stack_dir, bank, committed, today)
         + problems
-        + _check_challenges(challenges, bank, today)
+        + _check_challenges(challenges, bank, today, committed)
         + (_check_frozen_challenges(stack_dir, challenges, committed, today) if committed else [])
     )
 
@@ -427,6 +472,8 @@ def _check_bank_items(bank: Bank, newest: ContentFolder | None) -> list[Problem]
                 problems.append(Problem("error", file, q.id, "duplicate choice ids"))
             if q.answer not in choice_ids:
                 problems.append(Problem("error", file, q.id, "answer is not one of the choices"))
+        if isinstance(q, MultipleSelectQuestion):
+            problems += [Problem("error", file, q.id, m) for m in multiple_select_problems(q)]
         if q.retired is not None:
             replacement = q.retired.replaced_by
             if replacement == q.id:
@@ -501,16 +548,17 @@ def _check_bank_items(bank: Bank, newest: ContentFolder | None) -> list[Problem]
                 )
             )
         types = Counter(t for _, t in tagged)
-        mc, written = types["multiple_choice"], types["written"]
-        if mc < QUIZ_MULTIPLE_CHOICE or written < QUIZ_WRITTEN:
+        mc, ms = types["multiple_choice"], types["multiple_select"] + types["written"]
+        if mc < QUIZ_MULTIPLE_CHOICE or ms < QUIZ_MULTIPLE_SELECT:
             problems.append(
                 Problem(
                     "error",
                     file,
                     lesson.id,
                     f"a Lesson Quiz needs {QUIZ_MULTIPLE_CHOICE} multiple-choice and "
-                    f"{QUIZ_WRITTEN} written Questions; the Lesson has {mc} and {written} "
-                    "that aren't retired",
+                    f"{QUIZ_MULTIPLE_SELECT} multiple-select Questions (a legacy written "
+                    f"Question counts as multiple select); the Lesson has {mc} and {ms} that "
+                    "aren't retired",
                 )
             )
     if missing:
@@ -575,6 +623,16 @@ def _check_against_baseline(
                         "repeat is allowed, but make sure it is deliberate",
                     )
                 )
+            if isinstance(q, WrittenQuestion):
+                problems.append(
+                    Problem(
+                        "error",
+                        file,
+                        q.id,
+                        "a new Question is never written: written Questions are legacy "
+                        "(ADR-0008); write it as multiple_select",
+                    )
+                )
             if isinstance(q, MultipleChoiceQuestion) and correct_choice_stands_out(q):
                 problems.append(
                     Problem(
@@ -583,6 +641,17 @@ def _check_against_baseline(
                         q.id,
                         f"the correct choice ({q.answer}) is clearly the longest, which gives it "
                         "away: make a wrong choice as long, or the correct one shorter",
+                    )
+                )
+            if isinstance(q, MultipleSelectQuestion) and correct_choices_stand_out(q):
+                problems.append(
+                    Problem(
+                        "warning",
+                        file,
+                        q.id,
+                        f"the correct choices ({', '.join(q.answers)}) are clearly the longest: "
+                        "each is longer than every wrong choice, which gives them away; make a "
+                        "wrong choice as long as the shortest correct one",
                     )
                 )
             continue
@@ -632,10 +701,13 @@ def ahead_of(challenges: Challenges, today: date) -> ChallengesAhead:
     return days_ahead((c.date for c in challenges.challenges()), today)
 
 
-def _check_challenges(challenges: Challenges | None, bank: Bank, today: date) -> list[Problem]:
+def _check_challenges(
+    challenges: Challenges | None, bank: Bank, today: date, committed: Baseline | None = None
+) -> list[Problem]:
     """Each Daily Challenge: named by its number, dated from the Stack's launch, and three
-    Questions of the bank (two multiple choice, one written), none of them retired while it is
-    upcoming. Then how far ahead Challenges are written, a warning below MIN_DAYS_AHEAD Days."""
+    Questions of the bank (`_check_challenge_mix`), none of them retired while it is upcoming.
+    Then how far ahead Challenges are written, a warning below MIN_DAYS_AHEAD Days.
+    `committed` is the git baseline, if any, for the legacy mix of an Upcoming Challenge."""
     if challenges is None:
         return []
     problems: list[Problem] = []
@@ -690,18 +762,9 @@ def _check_challenges(challenges: Challenges | None, bank: Bank, today: date) ->
                 )
             else:
                 found.append(q)
-        types = Counter(q.type for q in found)
-        mc, written = types["multiple_choice"], types["written"]
-        if len(found) == len(c.questions) and (mc, written) != CHALLENGE_MIX:
-            problems.append(
-                Problem(
-                    "error",
-                    file,
-                    item,
-                    f"a Daily Challenge is {CHALLENGE_MIX[0]} multiple-choice Questions and "
-                    f"{CHALLENGE_MIX[1]} written; this one has {mc} and {written}",
-                )
-            )
+        if len(found) == len(c.questions):
+            types = [q.type for q in found]
+            problems += _check_challenge_mix(path, item, c.date, types, committed, today)
         if not is_frozen(c.date, today):
             problems += [
                 Problem(
@@ -727,6 +790,55 @@ def _check_challenges(challenges: Challenges | None, bank: Bank, today: date) ->
             )
         )
     return problems
+
+
+def _check_challenge_mix(
+    path: Path,
+    item: str,
+    day: date,
+    types: Sequence[str],
+    committed: Baseline | None,
+    today: date,
+) -> list[Problem]:
+    """A Daily Challenge is two multiple-choice Questions, then one multiple select
+    (ADR-0008). A released one keeps the legacy mix it may have been released with (two
+    multiple choice and one written, in any order). So, with a warning, does an Upcoming one
+    committed before then and unchanged since (or any, with no baseline to tell): changing it,
+    or retiring its written Question, means rewriting it in the new mix."""
+    if tuple(types) == CHALLENGE_TYPES:
+        return []
+    legacy = Counter(types) == LEGACY_CHALLENGE_MIX
+    if legacy and is_frozen(day, today):
+        return []
+    if legacy and _unchanged_since(path, committed):
+        return [
+            Problem(
+                "warning",
+                str(path),
+                item,
+                "an Upcoming Challenge with a written Question, committed before written "
+                "Questions became legacy (ADR-0008): rewrite it as 2 multiple-choice Questions, "
+                "then 1 multiple-select, before its Day",
+            )
+        ]
+    return [
+        Problem(
+            "error",
+            str(path),
+            item,
+            "a Daily Challenge is 2 multiple-choice Questions, then 1 multiple-select; this one "
+            f"is {', '.join(t.replace('_', '-') for t in types)}",
+        )
+    ]
+
+
+def _unchanged_since(path: Path, committed: Baseline | None) -> bool:
+    """True when the Challenge file is as `committed` (line endings aside), or there is no
+    baseline to compare it with."""
+    if committed is None:
+        return True
+    old = committed.challenges.get(path.name)
+    return old is not None and normalise_newlines(path.read_bytes()) == old.content
 
 
 def _check_frozen_challenges(

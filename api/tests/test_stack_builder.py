@@ -95,7 +95,7 @@ def test_questions_come_after_the_weekly_plan_and_are_tagged_to_its_lessons(
 ) -> None:
     request_one(api)
     token = new_token(api)["token"]
-    bank = make_bank("w01-l01")
+    bank = make_bank("w01-l01", legacy=False)
 
     early = call(mcp, token, "submit_questions", stack_id=NEW, **bank_args(bank))
     assert early["isError"] and "weekly plan" in text(early)
@@ -109,7 +109,7 @@ def test_questions_come_after_the_weekly_plan_and_are_tagged_to_its_lessons(
     draft = structured(call(mcp, token, "submit_syllabus", stack_id=NEW, syllabus=a_plan()))
     assert draft["kind"] == "syllabus"
 
-    stray = make_bank("w09-l01")
+    stray = make_bank("w09-l01", legacy=False)
     off_plan = call(mcp, token, "submit_questions", stack_id=NEW, **bank_args(stray))
     assert off_plan["isError"] and "No such Lessons" in text(off_plan)
 
@@ -142,7 +142,7 @@ def test_accepted_drafts_export_as_a_first_version_that_imports(
     token = new_token(api)["token"]
     structured(call(mcp, token, "submit_syllabus", stack_id=NEW, syllabus=a_plan()))
     for lesson, prefix in [("w01-l01", "concept"), ("w01-l02", "other")]:
-        bank = make_bank(lesson, prefix)
+        bank = make_bank(lesson, prefix, legacy=False)
         structured(call(mcp, token, "submit_questions", stack_id=NEW, **bank_args(bank)))
     [plan] = api.get("/stack-requests").json()
     assert (plan["step"], plan["lessons_ready"]) == ("review", 2)

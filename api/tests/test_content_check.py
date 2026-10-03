@@ -1,3 +1,4 @@
+import copy
 from pathlib import Path
 from typing import Any
 
@@ -7,7 +8,7 @@ import pytest
 from app.config import REPO_ROOT
 from app.content import check
 from app.content.check import Problem, check_folder, check_stack
-from tests.conftest import ContentFactory, make_bank
+from tests.conftest import MS_BANK, ContentFactory, make_bank
 
 
 def error_problems(folder: Path, **kwargs: Any) -> list[Problem]:
@@ -225,7 +226,92 @@ def test_lesson_must_support_a_lesson_quiz(make_content: ContentFactory) -> None
         bank["questions"][6]["answer"] = "a"
         del bank["questions"][6]["model_answer"]
 
-    assert any("needs 4 multiple-choice and 2 written" in e for e in errors(make_content(edit)))
+    assert (
+        "w01-l01: a Lesson Quiz needs 4 multiple-choice and 2 multiple-select Questions (a "
+        "legacy written Question counts as multiple select); the Lesson has 7 and 1 that aren't "
+        "retired"
+    ) in errors(make_content(edit))
+
+
+def test_a_lesson_quiz_takes_multiple_select_questions(make_content: ContentFactory) -> None:
+    def edit(syllabus: dict[str, Any], bank: dict[str, Any]) -> None:
+        bank.update(copy.deepcopy(MS_BANK))
+
+    assert errors(make_content(edit)) == []
+
+
+def test_a_lesson_quiz_takes_written_and_multiple_select_together(
+    make_content: ContentFactory,
+) -> None:
+    """A Lesson part way through replacing its written Questions still has a quiz."""
+
+    def edit(syllabus: dict[str, Any], bank: dict[str, Any]) -> None:
+        bank["questions"][7] = copy.deepcopy(MS_BANK["questions"][7])
+
+    assert errors(make_content(edit)) == []
+
+
+def _with_multiple_select(**fields: Any) -> Any:
+    def edit(syllabus: dict[str, Any], bank: dict[str, Any]) -> None:
+        bank.update(copy.deepcopy(MS_BANK))
+        bank["questions"][6].update(fields)
+
+    return edit
+
+
+@pytest.mark.parametrize(
+    ("fields", "message"),
+    [
+        (
+            {"answers": ["a", "e"]},
+            "w01-l01-q07: answers/1: 'e' is not one of the choices",
+        ),
+        (
+            {"answers": ["a", "b", "c", "d"]},
+            "w01-l01-q07: every choice is correct: a multiple-select Question has at least one "
+            "incorrect choice",
+        ),
+        (
+            {
+                "choices": [
+                    {"id": "a", "text": "One"},
+                    {"id": "a", "text": "Two"},
+                    {"id": "c", "text": "Three"},
+                    {"id": "d", "text": "Four"},
+                ]
+            },
+            "w01-l01-q07: duplicate choice ids",
+        ),
+    ],
+)
+def test_a_multiple_select_questions_answers_are_some_of_its_choices(
+    make_content: ContentFactory, fields: dict[str, Any], message: str
+) -> None:
+    assert errors(make_content(_with_multiple_select(**fields))) == [message]
+
+
+@pytest.mark.parametrize(
+    ("fields", "message"),
+    [
+        ({"answers": ["a"]}, "answers: List should have at least 2 items after validation"),
+        ({"answers": ["a", "a"]}, "answers: Value error, listed more than once: a"),
+        (
+            {"choices": [{"id": c, "text": c} for c in "abc"]},
+            "choices: List should have at least 4",
+        ),
+        (
+            {"choices": [{"id": c, "text": c} for c in "abcdefg"]},
+            "choices: List should have at most 6",
+        ),
+    ],
+)
+def test_a_multiple_select_question_has_4_to_6_choices_and_2_or_more_answers(
+    make_content: ContentFactory, fields: dict[str, Any], message: str
+) -> None:
+    [error] = errors(make_content(_with_multiple_select(**fields)))
+
+    assert error.startswith("w01-l01-q07: questions/6/multiple_select/")
+    assert message in error
 
 
 def test_question_tagged_to_an_unknown_lesson(make_content: ContentFactory) -> None:

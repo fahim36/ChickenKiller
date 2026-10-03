@@ -16,9 +16,14 @@ from typing import NamedTuple
 PASS_MARK = Fraction(80, 100)
 """The minimum score a Lesson Quiz (or Placement Quiz) needs: 80%, compared exactly."""
 
-QUIZ_COMPOSITION: dict[str, int] = {"multiple_choice": 4, "written": 2}
+QUIZ_COMPOSITION: dict[str, int] = {"multiple_choice": 4, "multiple_select": 2}
 """How many Questions of each type a Lesson Quiz asks, in the order they are asked: four
-multiple choice, then two written. See `draw_quiz` for a bank short of one type."""
+multiple choice, then two multiple select (ADR-0008). See `draw_quiz` for a bank short of one
+type."""
+
+QUIZ_STAND_INS: dict[str, str] = {"multiple_select": "written"}
+"""A legacy type that fills a type's slots when the bank has too few of that type: a Lesson
+whose multiple-select Questions aren't written yet still asks its written ones (ADR-0008)."""
 
 QUIZ_SIZE = sum(QUIZ_COMPOSITION.values())
 """Questions in a Lesson Quiz: six."""
@@ -99,22 +104,29 @@ def draw_quiz(
     composition: Mapping[str, int] = QUIZ_COMPOSITION,
     avoid: Collection[str] = (),
     seen: Collection[str] = (),
+    stand_ins: Mapping[str, str] = QUIZ_STAND_INS,
 ) -> list[str]:
     """Draw a Lesson Quiz (permanent IDs, in the order they are asked): each type's share of
     `composition` drawn with `draw_questions`, the types in `composition` order.
 
-    A bank short of one type still gives a full-size quiz when it can: the shortfall is made up
-    from the bank's other Questions (so a bank with no written Questions gives six multiple
-    choice). A bank with fewer Questions than the quiz size gives them all. Questions in
+    A type with too few Questions in the bank first takes its stand-in's (`stand_ins`: legacy
+    written Questions fill the multiple-select slots), and only then is the shortfall made up
+    from the bank's other Questions (so a bank with neither gives six multiple choice). A bank
+    with fewer Questions than the quiz size gives them all. Questions in
     `avoid` (a previous attempt's, #8), then those in `seen` (#6), are drawn only where a type
     has too few others: a type short of unseen Questions repeats seen ones of its own type
     before borrowing another type's, so the quiz keeps its mix.
     """
     by_type: dict[str, list[BankQuestion]] = {t: [] for t in composition}
+    by_type.update({s: [] for t, s in stand_ins.items() if t in composition})
     for question in bank:
         if question.type in by_type:
             by_type[question.type].append(question)
     drawn = {t: draw_questions(by_type[t], rng, n, avoid, seen) for t, n in composition.items()}
+    for kind, stand_in in stand_ins.items():
+        short = composition.get(kind, 0) - len(drawn.get(kind, []))
+        if short > 0 and stand_in not in composition:
+            drawn[kind] += draw_questions(by_type[stand_in], rng, short, avoid, seen)
 
     shortfall = sum(composition.values()) - sum(len(ids) for ids in drawn.values())
     if shortfall > 0:
@@ -123,8 +135,16 @@ def draw_quiz(
         extra = set(draw_questions(rest, rng, shortfall, avoid, seen))
         for question in rest:
             if question.id in extra:
-                drawn[question.type].append(question.id)
+                drawn[_slot(question.type, composition, stand_ins)].append(question.id)
     return [qid for t in composition for qid in drawn[t]]
+
+
+def _slot(kind: str, composition: Mapping[str, int], stand_ins: Mapping[str, str]) -> str:
+    """The type whose slots a Question of type `kind` is asked in: its own, or the type it
+    stands in for."""
+    if kind in composition:
+        return kind
+    return next(t for t, s in stand_ins.items() if s == kind)
 
 
 def pick_sibling(

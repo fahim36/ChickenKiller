@@ -1,8 +1,9 @@
 """The content check's rules for Upcoming Challenges (#16): each Daily Challenge file has a
 number, a UTC date consecutive from the Stack's launch, and three Questions of its Question Bank
-(two multiple choice, one written). Against the git baseline a released Challenge is frozen:
-never changed or deleted. Each Stack's line says how far ahead Challenges are written, and warns
-below three Days. The clock is the `today` passed to the check."""
+(two multiple choice, then one multiple select: ADR-0008). Against the git baseline a released
+Challenge is frozen: never changed or deleted, and keeps the legacy written Question it may have
+been released with. Each Stack's line says how far ahead Challenges are written, and warns below
+three Days. The clock is the `today` passed to the check."""
 
 import copy
 import json
@@ -20,9 +21,11 @@ from tests.conftest import (
     CHALLENGE_MIX,
     LAUNCH,
     LESSON,
+    MS_BANK,
     SYLLABUS,
     challenge,
     mc_question,
+    ms_question,
     source,
     write_challenges,
     write_folder,
@@ -54,8 +57,8 @@ def week(*numbers: int) -> list[dict[str, Any]]:
 
 @pytest.fixture
 def stack(tmp_path: Path) -> Path:
-    """The test Stack, outside git (no baseline)."""
-    return write_folder(tmp_path, copy.deepcopy(SYLLABUS), {LESSON: copy.deepcopy(BANK)}).parent
+    """The test Stack, outside git (no baseline), with multiple-select Questions."""
+    return write_folder(tmp_path, copy.deepcopy(SYLLABUS), {LESSON: copy.deepcopy(MS_BANK)}).parent
 
 
 def check_here(stack: Path, today: date = TODAY) -> list[Problem]:
@@ -110,11 +113,21 @@ def test_a_challenge_has_exactly_three_questions(stack: Path) -> None:
     assert "at least 3 items" in error
 
 
-def test_a_challenge_is_two_multiple_choice_and_one_written(stack: Path) -> None:
+def test_a_challenge_is_two_multiple_choice_and_one_multiple_select(stack: Path) -> None:
     write_challenges(stack, challenge(1, LAUNCH, ["w01-l01-q01", "w01-l01-q07", "w01-l01-q08"]))
 
     assert errors(check_here(stack)) == [
-        "#1: a Daily Challenge is 2 multiple-choice Questions and 1 written; this one has 1 and 2",
+        "#1: a Daily Challenge is 2 multiple-choice Questions, then 1 multiple-select; this one "
+        "is multiple-choice, multiple-select, multiple-select",
+    ]
+
+
+def test_a_challenges_multiple_select_question_comes_last(stack: Path) -> None:
+    write_challenges(stack, challenge(4, None, ["w01-l01-q07", "w01-l01-q01", "w01-l01-q03"]))
+
+    assert errors(check_here(stack)) == [
+        "#4: a Daily Challenge is 2 multiple-choice Questions, then 1 multiple-select; this one "
+        "is multiple-select, multiple-choice, multiple-choice",
     ]
 
 
@@ -208,6 +221,76 @@ def test_the_check_prints_each_stacks_line(stack: Path, capsys: pytest.CaptureFi
     )
 
 
+# --- Written Questions are legacy (ADR-0008) -----------------------------------------------------
+
+LEGACY_WARNING = (
+    "#4: an Upcoming Challenge with a written Question, committed before written Questions "
+    "became legacy (ADR-0008): rewrite it as 2 multiple-choice Questions, then 1 "
+    "multiple-select, before its Day"
+)
+
+
+def test_released_challenges_keep_their_written_question(legacy_repo: Path) -> None:
+    problems = check_repo(legacy_repo)
+
+    assert errors(problems) == []
+    assert [w for w in warnings(problems) if "written Question" in w] == [LEGACY_WARNING]
+
+
+def test_an_upcoming_challenge_committed_with_a_written_question_is_only_warned_about(
+    legacy_repo: Path,
+) -> None:
+    """Until it changes: then it is written in the new mix."""
+    write_challenges(
+        legacy_repo,
+        *week(1, 2, 3),
+        challenge(4, day_of(4), ["w01-l01-q02", "w01-l01-q04", "w01-l01-q08"]),
+    )
+
+    assert errors(check_repo(legacy_repo)) == [
+        "#4: a Daily Challenge is 2 multiple-choice Questions, then 1 multiple-select; this one "
+        "is multiple-choice, multiple-choice, written",
+    ]
+
+
+def test_a_new_upcoming_challenge_can_t_have_a_written_question(legacy_repo: Path) -> None:
+    write_challenges(legacy_repo, *week(1, 2, 3, 4, 5))
+
+    assert [e for e in errors(check_repo(legacy_repo)) if e.startswith("#5")] == [
+        "#5: a Daily Challenge is 2 multiple-choice Questions, then 1 multiple-select; this one "
+        "is multiple-choice, multiple-choice, written",
+    ]
+
+
+def test_retiring_an_upcoming_challenges_written_question_means_rewriting_it(
+    legacy_repo: Path,
+) -> None:
+    """The content agents' path: retire the written Question, replaced by a multiple-select one
+    on the same Concept, and give the Upcoming Challenge the replacement."""
+    bank = copy.deepcopy(BANK)
+    retire = {"reason": "Written Questions are legacy.", "on": "2026-01-03"}
+    for q in bank["questions"][6:]:
+        q["retired"] = retire | {"replaced_by": q["id"].replace("-q0", "-q1")}
+    bank["questions"] += [
+        ms_question(f"w01-l01-q1{n}", "concept-d") | {"sources": [source(n, "2026-01-03")]}
+        for n in (7, 8)
+    ]
+    write_json(legacy_repo / "question-bank" / f"{LESSON}.json", bank)
+
+    assert [e for e in errors(check_repo(legacy_repo)) if e.startswith("#4")] == [
+        "#4: w01-l01-q07 is a Retired Question, which can't be answered; an Upcoming Challenge "
+        "uses Questions that aren't retired",
+    ]
+
+    write_challenges(
+        legacy_repo, *week(1, 2, 3), challenge(4, day_of(4), [*CHALLENGE_MIX[:2], "w01-l01-q17"])
+    )
+
+    problems = check_repo(legacy_repo)
+    assert errors(problems) == []
+    assert [w for w in warnings(problems) if "written Question" in w] == []
+
+
 # --- Against the git baseline: released Challenges are frozen ------------------------------------
 
 
@@ -225,6 +308,21 @@ def git(root: Path, *args: str) -> str:
 def repo(tmp_path: Path) -> Path:
     """A git repository holding the test Stack with Challenges #1 to #4, committed."""
     root = tmp_path / "repo"
+    root.mkdir()
+    git(root, "init", "-q")
+    stack = write_folder(
+        root / "content", copy.deepcopy(SYLLABUS), {LESSON: copy.deepcopy(MS_BANK)}
+    ).parent
+    write_challenges(stack, *week(1, 2, 3, 4))
+    commit(root)
+    return stack
+
+
+@pytest.fixture
+def legacy_repo(tmp_path: Path) -> Path:
+    """A git repository holding the test Stack as it was before ADR-0008: written Questions, and
+    Challenges #1 to #4 committed with one each (#1 to #3 released by TODAY, #4 upcoming)."""
+    root = tmp_path / "legacy"
     root.mkdir()
     git(root, "init", "-q")
     stack = write_folder(

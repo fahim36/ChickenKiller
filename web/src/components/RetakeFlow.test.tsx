@@ -29,8 +29,10 @@ function answered(n: number, response: string): AnsweredQuestion {
   return {
     ...question(n),
     response,
+    selected: [],
     feedback: null,
     answer: "a",
+    answers: [],
     model_answer: null,
     explanation: `Because of sibling ${n}.`,
     materials: [],
@@ -60,7 +62,7 @@ function right(n: number): RetakeResult {
   };
 }
 
-type Answer = (retakeId: string, answer: string | null) => Promise<RetakeResult | GradingFailed>;
+type Answer = (retakeId: string, answer: string | string[] | null) => Promise<RetakeResult | GradingFailed>;
 
 function renderFlow(answerAction: Answer, retakes: Retake[] = [retake]) {
   render(
@@ -236,8 +238,10 @@ it("after a wrong written Retake shows the grader's feedback and the Model Answe
     question: {
       ...writtenSibling,
       response: "No idea.",
+      selected: [],
       feedback: "Missing: the loop.",
       answer: null,
+      answers: [],
       model_answer: { summary: "Agents loop.", key_points: ["loop", "tools"] },
       explanation: "Because of sibling 8.",
       materials: [],

@@ -88,6 +88,31 @@ def _mc(lesson: str, n: int, concept: str) -> dict[str, Any]:
     }
 
 
+def ms_question(qid: str, concept: str, lesson: str | None = LESSON) -> dict[str, Any]:
+    """A multiple-select Question whose right answers are "a" and "c"."""
+    return {
+        "id": qid,
+        "lesson": lesson,
+        "concept": concept,
+        "type": "multiple_select",
+        "prompt": f"Question {qid}? Select all that apply.",
+        "choices": [
+            {"id": "a", "text": "Right one"},
+            {"id": "b", "text": "Wrong one"},
+            {"id": "c", "text": "Right two"},
+            {"id": "d", "text": "Wrong two"},
+        ],
+        "answers": ["a", "c"],
+        "explanation": "Because.",
+        "materials": [],
+        "sources": [source()],
+    }
+
+
+def _ms(lesson: str, n: int, concept: str) -> dict[str, Any]:
+    return ms_question(f"{lesson}-q{n:02}", concept, lesson) | {"prompt": f"Pick {n}."}
+
+
 def _written(lesson: str, n: int, concept: str) -> dict[str, Any]:
     return {
         "id": f"{lesson}-q{n:02}",
@@ -162,10 +187,15 @@ SYLLABUS: dict[str, Any] = {
 }
 
 
-def make_bank(lesson: str = LESSON, concept_prefix: str = "concept") -> dict[str, Any]:
+def make_bank(
+    lesson: str = LESSON, concept_prefix: str = "concept", *, legacy: bool = True
+) -> dict[str, Any]:
     """A valid Question Bank file for `lesson`: 4 Concepts, 6 multiple-choice and 2 written
-    Questions, all tagged to the Lesson."""
+    Questions (q07, q08), all tagged to the Lesson. With `legacy` False, q07 and q08 are
+    multiple select instead: the bank as it is written since written Questions became legacy
+    (ADR-0008)."""
     c = [f"{concept_prefix}-{x}" for x in "abcd"]
+    second = _written if legacy else _ms
     return {
         "schema_version": 2,
         "concepts": [{"id": cid, "name": f"Concept {cid}"} for cid in c],
@@ -176,13 +206,17 @@ def make_bank(lesson: str = LESSON, concept_prefix: str = "concept") -> dict[str
             _mc(lesson, 4, c[1]),
             _mc(lesson, 5, c[2]),
             _mc(lesson, 6, c[2]),
-            _written(lesson, 7, c[3]),
-            _written(lesson, 8, c[3]),
+            second(lesson, 7, c[3]),
+            second(lesson, 8, c[3]),
         ],
     }
 
 
 BANK = make_bank()
+"""The test bank with legacy written Questions, as most committed content still has."""
+
+MS_BANK = make_bank(legacy=False)
+"""The test bank with multiple-select Questions in place of the written ones."""
 
 
 # --- Daily Challenges (#16) ----------------------------------------------------------------------
@@ -191,7 +225,8 @@ LAUNCH = "2026-01-01"
 """The test Stack's launch Day, when its Challenges have one."""
 
 CHALLENGE_MIX = ["w01-l01-q01", "w01-l01-q03", "w01-l01-q07"]
-"""Two multiple-choice Questions and one written, from the test bank."""
+"""Two multiple-choice Questions, then one written from BANK, or one multiple select from
+MS_BANK."""
 
 
 def challenge(

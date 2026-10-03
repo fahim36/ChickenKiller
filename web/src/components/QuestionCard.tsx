@@ -1,8 +1,11 @@
 "use client";
 
-import { CircleCheck, CircleX, LoaderCircle } from "lucide-react";
+import { Check, CircleCheck, CircleX, LoaderCircle } from "lucide-react";
 import type { ReactNode } from "react";
 import { Inline } from "@/components/Inline";
+import { WrittenAnswer } from "@/components/WrittenAnswer";
+import { toggleChoice } from "@/lib/answers";
+import type { Answer, QuizQuestion } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 /**
@@ -86,6 +89,105 @@ export function AnswerChoices({
         </label>
       ))}
     </div>
+  );
+}
+
+/**
+ * A multiple-select Question's choices ("select all that apply"), as native checkboxes dressed
+ * as cards: every ticked one is highlighted. `value` is the ticked choice IDs, in choice order.
+ */
+export function AnswerCheckboxes({
+  name,
+  choices,
+  value,
+  onChange,
+}: {
+  name: string;
+  choices: { id: string; text: string }[];
+  value: string[];
+  onChange: (ticked: string[]) => void;
+}) {
+  const ids = choices.map((c) => c.id);
+  return (
+    <div className="grid gap-2">
+      <p className="text-sm text-muted-foreground">Select all that apply.</p>
+      {choices.map((c, i) => (
+        <label
+          key={c.id}
+          className="group relative flex cursor-pointer items-start gap-3 rounded-xl border bg-background px-4 py-3 text-sm transition-colors hover:border-primary/50 hover:bg-accent/40 has-checked:border-primary has-checked:bg-accent has-focus-visible:ring-3 has-focus-visible:ring-ring/40 has-disabled:cursor-default has-disabled:opacity-70 sm:text-base"
+        >
+          <input
+            type="checkbox"
+            name={name}
+            value={c.id}
+            checked={value.includes(c.id)}
+            onChange={() => onChange(toggleChoice(value, c.id, ids))}
+            className="peer sr-only"
+          />
+          <span
+            aria-hidden
+            className="flex size-6 shrink-0 items-center justify-center rounded-md border bg-card text-xs font-semibold text-muted-foreground transition-colors peer-checked:border-primary peer-checked:bg-primary peer-checked:text-primary-foreground"
+          >
+            {value.includes(c.id) ? <Check className="size-4" /> : String.fromCharCode(65 + i)}
+          </span>
+          <span className="min-w-0 pt-px">
+            <Inline text={c.text} />
+          </span>
+        </label>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Whatever answers a Question: picking one choice (multiple choice), ticking every correct one
+ * (multiple select), or a text box (written, legacy). `name` names the choices' group;
+ * `idPrefix` prefixes the text box's id.
+ */
+export function QuestionAnswer({
+  question,
+  name,
+  idPrefix,
+  value,
+  maxLength,
+  onChange,
+}: {
+  question: QuizQuestion;
+  name: string;
+  idPrefix?: string;
+  value: Answer | undefined;
+  /** The longest written answer the API accepts. */
+  maxLength: number;
+  onChange: (answer: Answer) => void;
+}) {
+  if (question.type === "written") {
+    return (
+      <WrittenAnswer
+        question={question}
+        value={typeof value === "string" ? value : ""}
+        maxLength={maxLength}
+        onChange={onChange}
+        idPrefix={idPrefix}
+      />
+    );
+  }
+  if (question.type === "multiple_select") {
+    return (
+      <AnswerCheckboxes
+        name={name}
+        choices={question.choices}
+        value={Array.isArray(value) ? value : []}
+        onChange={onChange}
+      />
+    );
+  }
+  return (
+    <AnswerChoices
+      name={name}
+      choices={question.choices}
+      value={typeof value === "string" ? value : null}
+      onChange={onChange}
+    />
   );
 }
 

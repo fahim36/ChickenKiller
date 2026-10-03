@@ -21,10 +21,12 @@ stores what they decide.
 - **Missed Questions** are read back with `missed_questions` / `missed_question_ids`, the
   record Review uses (#9).
 
-A Lesson Quiz is four multiple-choice and two written Questions (`quiz.draw_quiz`). Answers are
-marked by `marking.mark_all`, which grades written ones with the injected `Grader` (#7). If
-grading fails, submitting raises `GradingFailed` and records nothing: the attempt stays open,
-so the Learner resubmits without penalty.
+A Lesson Quiz is four multiple-choice and two multiple-select Questions (`quiz.draw_quiz`; a
+Lesson short of multiple-select ones asks its legacy written ones instead, ADR-0008). Answers
+are marked by `marking.mark_all`: a multiple-select answer is the ticked choice IDs, correct only
+when they are exactly the correct ones, and a written one is graded with the injected `Grader`
+(#7). If grading fails, submitting raises `GradingFailed` and records nothing: the attempt stays
+open, so the Learner resubmits without penalty.
 """
 
 import random

@@ -62,8 +62,10 @@ function details(q: ChallengeQuestion, response: string | null, feedback: string
     prompt: q.prompt,
     choices: q.choices,
     response,
+    selected: [],
     feedback,
     answer: q.type === "written" ? null : "a",
+    answers: [],
     model_answer:
       q.type === "written" ? { summary: "One thread at a time.", key_points: ["One lock"] } : null,
     explanation: `Because of ${q.id}.`,
@@ -305,4 +307,54 @@ it("links a Retired Question to the Challenge that asks its replacement", () => 
   ).toBe("/stacks/agentic-ai-engineer/archive/9");
   const unlinked = screen.getByText(/Retired: Wrong\..*A newer Question replaces it\./);
   expect(within(unlinked).queryByRole("link")).toBeNull();
+});
+
+const SELECT: ChallengeQuestion = {
+  id: "c001-q04",
+  type: "multiple_select",
+  prompt: "Which hold the GIL? Select all that apply.",
+  choices: [
+    { id: "a", text: "CPython" },
+    { id: "b", text: "Jython" },
+    { id: "c", text: "PyPy" },
+    { id: "d", text: "IronPython" },
+  ],
+  retired: false,
+  retired_reason: null,
+  replaced_by: null,
+  outcome: null,
+  answered: null,
+};
+
+it("answers a multiple-select Question by ticking every choice that applies", async () => {
+  const challenge: DailyChallenge = { ...NEW, questions: [SELECT] };
+  const answered: AnsweredQuestion = {
+    ...details(SELECT, "a,b"),
+    answer: null,
+    selected: ["a", "b"],
+    answers: ["a", "c"],
+  };
+  const answerAction = vi.fn<AnswerChallengeAction>(async () => ({
+    counted: true,
+    outcome: "wrong",
+    question: answered,
+    challenge: { ...challenge, status: "finished", score: 0, out_of: 1 },
+  }));
+  renderFlow(answerAction, challenge);
+
+  const group = screen.getByRole("group", { name: /Which hold the GIL/ });
+  expect(within(group).getByText("Select all that apply.")).toBeTruthy();
+  expect(within(group).queryAllByRole("radio")).toHaveLength(0);
+  expect(screen.getByRole("button", { name: "Submit answer" }).hasAttribute("disabled")).toBe(true);
+  fireEvent.click(within(group).getByRole("checkbox", { name: "Jython" }));
+  fireEvent.click(within(group).getByRole("checkbox", { name: "CPython" }));
+  submit();
+
+  await vi.waitFor(() => expect(answerAction).toHaveBeenCalledWith("c001-q04", ["a", "b"]));
+  expect(await screen.findByText(/Not quite/)).toBeTruthy();
+  expect(
+    within(screen.getByRole("list", { name: "Correct answers" }))
+      .getAllByRole("listitem")
+      .map((li) => li.textContent),
+  ).toEqual(["CPython", "PyPy"]);
 });

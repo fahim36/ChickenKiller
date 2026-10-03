@@ -235,7 +235,39 @@ class MultipleChoiceQuestion(_Model):
     retired: MaybeRetired = None
 
 
+class MultipleSelectQuestion(_Model):
+    """Select all that apply: the Learner ticks every correct choice. It is correct only when
+    the choices ticked are exactly `answers`; there is no partial credit and no grading call.
+    The content check holds `answers` to the choices: each one of them, and not all of them."""
+
+    id: PermanentId
+    lesson: LessonTag = None
+    concept: PermanentId
+    type: Literal["multiple_select"]
+    prompt: Text
+    choices: Annotated[list[Choice], Field(min_length=4, max_length=6)]
+    answers: Annotated[
+        list[ChoiceId],
+        Field(
+            min_length=2,
+            json_schema_extra={"uniqueItems": True},
+            description=(
+                "The IDs of every correct choice: at least two, and at least one choice is "
+                "incorrect."
+            ),
+        ),
+        AfterValidator(_unique),
+    ]
+    explanation: Text
+    materials: MaterialRefs
+    sources: Sources
+    retired: MaybeRetired = None
+
+
 class WrittenQuestion(_Model):
+    """Legacy (ADR-0008): a written answer graded against its Model Answer. Released Daily
+    Challenges keep theirs, but no new Question is written."""
+
     id: PermanentId
     lesson: LessonTag = None
     concept: PermanentId
@@ -248,7 +280,9 @@ class WrittenQuestion(_Model):
     retired: MaybeRetired = None
 
 
-Question = Annotated[MultipleChoiceQuestion | WrittenQuestion, Field(discriminator="type")]
+Question = Annotated[
+    MultipleChoiceQuestion | MultipleSelectQuestion | WrittenQuestion, Field(discriminator="type")
+]
 
 
 class QuestionBank(_Model):
@@ -326,8 +360,9 @@ class DailyChallenge(_Model):
             max_length=3,
             json_schema_extra={"uniqueItems": True},
             description=(
-                "IDs of three Questions of the Stack's Question Bank: two multiple choice and "
-                "one written."
+                "IDs of three Questions of the Stack's Question Bank: two multiple choice, "
+                "then one multiple select (a released Challenge may have a legacy written "
+                "Question in its place)."
             ),
         ),
         AfterValidator(_unique),

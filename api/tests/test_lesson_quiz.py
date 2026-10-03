@@ -59,7 +59,7 @@ def start(client: TestClient, url: str = QUIZ) -> dict[str, Any]:
 
 
 def submit(
-    client: TestClient, quiz: dict[str, Any], answers: dict[str, str | None], url: str = QUIZ
+    client: TestClient, quiz: dict[str, Any], answers: dict[str, Any], url: str = QUIZ
 ) -> Response:
     return client.post(f"{url}/{quiz['attempt_id']}/answers", json={"answers": answers})
 

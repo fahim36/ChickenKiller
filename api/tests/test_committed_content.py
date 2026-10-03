@@ -11,7 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import REPO_ROOT
-from app.content.check import LESSON_MIN, QUIZ_MULTIPLE_CHOICE, QUIZ_WRITTEN
+from app.content.check import LESSON_MIN, QUIZ_MULTIPLE_CHOICE, QUIZ_MULTIPLE_SELECT
 from app.content.importer import import_folder
 from app.content.loader import read_bank, read_folder
 from app.content.versions import stack_versions
@@ -36,7 +36,8 @@ def test_every_lesson_of_the_newest_version_has_enough_questions(stack_dir: Path
         for lesson, types in live.items()
         if types.total() < LESSON_MIN
         or types["multiple_choice"] < QUIZ_MULTIPLE_CHOICE
-        or types["written"] < QUIZ_WRITTEN
+        # a legacy written Question still fills a multiple-select slot (ADR-0008)
+        or types["multiple_select"] + types["written"] < QUIZ_MULTIPLE_SELECT
     }
     assert short == {}
 

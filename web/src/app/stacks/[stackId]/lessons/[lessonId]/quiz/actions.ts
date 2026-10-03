@@ -1,6 +1,7 @@
 "use server";
 
 import {
+  type Answer,
   apiPostGraded,
   type GradingFailed,
   type LessonQuizResult,
@@ -31,14 +32,15 @@ export async function submitLessonQuiz(
 }
 
 /**
- * Answer a Retake's sibling Question: a choice ID, a written answer, or null for unanswered.
- * Resolves to `grading_failed` when a written answer can't be graded.
+ * Answer a Retake's sibling Question: a choice ID, the choice IDs ticked (multiple select), a
+ * written answer, or null for unanswered. Resolves to `grading_failed` when a written answer
+ * can't be graded.
  */
 export async function answerRetake(
   stackId: string,
   lessonId: string,
   retakeId: string,
-  answer: string | null,
+  answer: Answer,
 ): Promise<RetakeResult | GradingFailed> {
   const lesson = lessonPath(stackId, lessonId);
   return apiPostGraded<RetakeResult>(`${lesson}/retakes/${encodeURIComponent(retakeId)}/answers`, {

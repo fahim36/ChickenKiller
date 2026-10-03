@@ -7,8 +7,8 @@ import { Inline } from "@/components/Inline";
 import { AnsweredQuestionDetail } from "@/components/MissedQuestions";
 import { Notice } from "@/components/Notice";
 import {
-  AnswerChoices,
   Mark as MarkLine,
+  QuestionAnswer,
   QuestionCard,
   Spinner,
   StepProgress,
@@ -16,7 +16,9 @@ import {
 import { ResultCard } from "@/components/ResultCard";
 import { Button } from "@/components/ui/button";
 import { WrittenAnswer } from "@/components/WrittenAnswer";
+import { isAnswered } from "@/lib/answers";
 import type {
+  Answer,
   ChallengeAnswerResult,
   ChallengeOutcome,
   ChallengeQuestion,
@@ -28,7 +30,7 @@ import { cn } from "@/lib/utils";
 
 export type AnswerChallengeAction = (
   questionId: string,
-  answer: string | null,
+  answer: Answer,
 ) => Promise<ChallengeAnswerResult | GradingFailed>;
 
 const OUTCOME_LABELS: Record<ChallengeOutcome, string> = {
@@ -445,7 +447,7 @@ function QuestionForm({
   onAnswered: (result: ChallengeAnswerResult) => void;
   idPrefix?: string;
 }) {
-  const [answer, setAnswer] = useState("");
+  const [answer, setAnswer] = useState<Answer>(null);
   const [submitting, setSubmitting] = useState(false);
   const [failed, setFailed] = useState(false);
   const [gradingFailed, setGradingFailed] = useState<string | null>(null);
@@ -470,22 +472,14 @@ function QuestionForm({
   return (
     <form onSubmit={submit} className="space-y-4">
       <QuestionCard prompt={q.prompt}>
-        {written ? (
-          <WrittenAnswer
-            question={q}
-            value={answer}
-            maxLength={maxAnswerChars}
-            onChange={setAnswer}
-            idPrefix={idPrefix}
-          />
-        ) : (
-          <AnswerChoices
-            name={`${idPrefix}-${q.id}`}
-            choices={q.choices}
-            value={answer}
-            onChange={setAnswer}
-          />
-        )}
+        <QuestionAnswer
+          question={q}
+          name={`${idPrefix}-${q.id}`}
+          idPrefix={idPrefix}
+          value={answer}
+          maxLength={maxAnswerChars}
+          onChange={setAnswer}
+        />
       </QuestionCard>
       {failed && (
         <Notice tone="error" role="alert">
@@ -502,7 +496,7 @@ function QuestionForm({
           type="submit"
           size="lg"
           className="px-4"
-          disabled={submitting || answer.trim() === ""}
+          disabled={submitting || !isAnswered(answer)}
         >
           {submitting && <Spinner />}
           {submitting ? (written ? "Grading…" : "Checking…") : "Submit answer"}

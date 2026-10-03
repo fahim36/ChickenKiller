@@ -1,12 +1,13 @@
-import { BookOpenCheck, ExternalLink, Lightbulb } from "lucide-react";
+import { BookOpenCheck, Check, ExternalLink, Lightbulb, X } from "lucide-react";
 import { Inline } from "@/components/Inline";
 import { MaterialList } from "@/components/MaterialList";
 import type { AnsweredQuestion } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 /**
- * The results screen's Missed Questions: for each, the Learner's answer, the grader's
- * feedback (written), the correct answer or Model Answer, the Explanation, the Sources and the
+ * The results screen's Missed Questions: for each, the Learner's answer (the choices they
+ * ticked, for multiple select), the grader's feedback (written), the correct answer (every
+ * correct choice, for multiple select) or Model Answer, the Explanation, the Sources and the
  * Materials. The API only sends these after the answers are submitted.
  */
 export function MissedQuestions({ missed }: { missed: AnsweredQuestion[] }) {
@@ -25,8 +26,12 @@ export function MissedQuestions({ missed }: { missed: AnsweredQuestion[] }) {
 export function AnsweredQuestionDetail({ question: q }: { question: AnsweredQuestion }) {
   const promptId = `answered-${q.id}`;
   const choice = (id: string | null) => q.choices.find((c) => c.id === id)?.text ?? id ?? "";
+  const multipleSelect = q.type === "multiple_select";
   // A choice is right or wrong at a glance; a written answer is judged by the grader's feedback.
-  const rightChoice = q.type !== "written" && q.response !== null && q.response === q.answer;
+  // Multiple select is right only when the ticks are exactly the correct choices.
+  const rightChoice = multipleSelect
+    ? q.selected.length > 0 && sameChoices(q.selected, q.answers)
+    : q.type !== "written" && q.response !== null && q.response === q.answer;
   const tone =
     q.type === "written"
       ? { box: "border-border bg-muted/50", label: "text-muted-foreground" }
@@ -50,10 +55,18 @@ export function AnsweredQuestionDetail({ question: q }: { question: AnsweredQues
             </strong>{" "}
             {q.response === null ? (
               <em className="text-muted-foreground">Unanswered</em>
-            ) : (
+            ) : multipleSelect ? null : (
               <Inline text={q.type === "written" ? q.response : choice(q.response)} />
             )}
           </p>
+          {multipleSelect && q.response !== null && (
+            <ChoiceList
+              label="Your answer"
+              ids={q.selected}
+              choice={choice}
+              correct={(id) => q.answers.includes(id)}
+            />
+          )}
         </div>
         {q.model_answer ? (
           <div className="rounded-xl border border-success/25 bg-success/5 p-3">
@@ -76,10 +89,13 @@ export function AnsweredQuestionDetail({ question: q }: { question: AnsweredQues
             <div className="rounded-xl border border-success/25 bg-success/5 p-3">
               <p>
                 <strong className="block text-xs font-semibold tracking-wide text-success-foreground uppercase">
-                  Correct answer:
+                  {multipleSelect ? "Correct answers:" : "Correct answer:"}
                 </strong>{" "}
-                <Inline text={choice(q.answer)} />
+                {!multipleSelect && <Inline text={choice(q.answer)} />}
               </p>
+              {multipleSelect && (
+                <ChoiceList label="Correct answers" ids={q.answers} choice={choice} />
+              )}
             </div>
           )
         )}
@@ -121,5 +137,50 @@ export function AnsweredQuestionDetail({ question: q }: { question: AnsweredQues
       )}
       {q.materials.length > 0 && <MaterialList materials={q.materials} />}
     </article>
+  );
+}
+
+/** Whether two sets of choice IDs are the same, whatever their order. */
+function sameChoices(a: string[], b: string[]): boolean {
+  return a.length === b.length && a.every((id) => b.includes(id));
+}
+
+/**
+ * Some of a multiple-select Question's choices, as a list. With `correct`, each is marked right
+ * or wrong: a ticked choice that isn't correct is a mistake as much as a correct one left out.
+ */
+function ChoiceList({
+  label,
+  ids,
+  choice,
+  correct,
+}: {
+  label: string;
+  ids: string[];
+  choice: (id: string) => string;
+  correct?: (id: string) => boolean;
+}) {
+  return (
+    <ul aria-label={label} className="mt-1 space-y-1">
+      {ids.map((id) => {
+        const right = correct?.(id);
+        const Icon = right === false ? X : Check;
+        return (
+          <li key={id} className="flex items-start gap-2">
+            <Icon
+              aria-hidden
+              className={cn(
+                "mt-1 size-3.5 shrink-0",
+                right === false ? "text-destructive" : "text-success-foreground",
+              )}
+            />
+            <span>
+              <Inline text={choice(id)} />
+              {right === false && <span className="sr-only"> (not a correct choice)</span>}
+            </span>
+          </li>
+        );
+      })}
+    </ul>
   );
 }

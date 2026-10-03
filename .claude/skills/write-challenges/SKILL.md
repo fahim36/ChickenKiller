@@ -1,6 +1,6 @@
 ---
 name: write-challenges
-description: Write a Stack's next Upcoming Challenges. Reads the whole Question Bank, researches the field against primary sources, and writes one Daily Challenge file per Day (two multiple-choice Questions and one written), adding new Questions with Sources to the Question Bank.
+description: Write a Stack's next Upcoming Challenges. Reads the whole Question Bank, researches the field against primary sources, and writes one Daily Challenge file per Day (two multiple-choice Questions, then one multiple select), adding new Questions with Sources to the Question Bank.
 argument-hint: <stack-id> <days>
 arguments: [stack, days]
 disable-model-invocation: true
@@ -48,7 +48,7 @@ Done when every Day has three Concepts, each with the reason it was chosen.
 
 ## 4. Research and write the Questions
 
-Each Challenge is **two multiple-choice Questions and one written**, in that order in its file. Write new Questions for it (reusing one from the bank is allowed but rare; see [challenge-rules.md](challenge-rules.md)), following [question-bank-rules.md](../update-syllabus/question-bank-rules.md) and [challenge-rules.md](challenge-rules.md).
+Each Challenge is **two multiple-choice Questions, then one multiple select**, in that order in its file. Never a written Question: they are legacy ([ADR-0008](../../../docs/adr/0008-multiple-select-replaces-written-questions.md)). Write new Questions for it (reusing one from the bank is allowed but rare; see [challenge-rules.md](challenge-rules.md)), following [question-bank-rules.md](../update-syllabus/question-bank-rules.md) and [challenge-rules.md](challenge-rules.md).
 
 Fan out one sub-agent per Day (or per two Days). Give each one:
 - the Challenge numbers and Days, and each Day's three Concepts;
@@ -83,7 +83,7 @@ For each Day write `content/$stack/challenges/<number>.json` (zero-padded to thr
 uv run --project api content-check content/$stack
 ```
 
-Fix every error and run it again. Done when it reports **no errors**, **no "clearly the longest" warning** for a Question you wrote (for a Challenge Question it is blocking: rebalance the choices), and its line for the Stack says "Challenges written through <the last Day you wrote>". A Concept-repeat warning is fine only for a repeat you chose in step 3.
+Fix every error and run it again. Done when it reports **no errors**, **no "clearly the longest" warning** for a Question you wrote (multiple choice or multiple select; for a Challenge Question it is blocking: rebalance the choices), no "Upcoming Challenge with a written Question" warning for a Challenge you wrote, and its line for the Stack says "Challenges written through <the last Day you wrote>". A Concept-repeat warning is fine only for a repeat you chose in step 3.
 
 ## 7. Report
 

@@ -180,6 +180,122 @@
       "title": "MultipleChoiceQuestion",
       "type": "object"
     },
+    "MultipleSelectQuestion": {
+      "additionalProperties": false,
+      "description": "Select all that apply: the Learner ticks every correct choice. It is correct only when\nthe choices ticked are exactly `answers`; there is no partial credit and no grading call.\nThe content check holds `answers` to the choices: each one of them, and not all of them.",
+      "properties": {
+        "id": {
+          "description": "Permanent ID: lowercase words joined by hyphens. It never changes across Syllabus versions, so Learner progress can be keyed by it.",
+          "maxLength": 80,
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "lesson": {
+          "anyOf": [
+            {
+              "description": "Permanent ID: lowercase words joined by hyphens. It never changes across Syllabus versions, so Learner progress can be keyed by it.",
+              "maxLength": 80,
+              "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The Lesson the Question belongs to, in the Stack's newest Syllabus; null for none. It is the one field of a committed Question that may change (a re-tag).",
+          "title": "Lesson"
+        },
+        "concept": {
+          "description": "Permanent ID: lowercase words joined by hyphens. It never changes across Syllabus versions, so Learner progress can be keyed by it.",
+          "maxLength": 80,
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "title": "Concept",
+          "type": "string"
+        },
+        "type": {
+          "const": "multiple_select",
+          "title": "Type",
+          "type": "string"
+        },
+        "prompt": {
+          "minLength": 1,
+          "title": "Prompt",
+          "type": "string"
+        },
+        "choices": {
+          "items": {
+            "$ref": "#/$defs/Choice"
+          },
+          "maxItems": 6,
+          "minItems": 4,
+          "title": "Choices",
+          "type": "array"
+        },
+        "answers": {
+          "description": "The IDs of every correct choice: at least two, and at least one choice is incorrect.",
+          "items": {
+            "pattern": "^[a-h]$",
+            "type": "string"
+          },
+          "minItems": 2,
+          "title": "Answers",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "explanation": {
+          "minLength": 1,
+          "title": "Explanation",
+          "type": "string"
+        },
+        "materials": {
+          "description": "IDs of Materials in this Syllabus.",
+          "items": {
+            "description": "Permanent ID: lowercase words joined by hyphens. It never changes across Syllabus versions, so Learner progress can be keyed by it.",
+            "maxLength": 80,
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+            "type": "string"
+          },
+          "title": "Materials",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "sources": {
+          "items": {
+            "$ref": "#/$defs/Source"
+          },
+          "minItems": 1,
+          "title": "Sources",
+          "type": "array"
+        },
+        "retired": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Retirement"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Set once to retire the Question; a retirement is never undone."
+        }
+      },
+      "required": [
+        "id",
+        "concept",
+        "type",
+        "prompt",
+        "choices",
+        "answers",
+        "explanation",
+        "materials",
+        "sources"
+      ],
+      "title": "MultipleSelectQuestion",
+      "type": "object"
+    },
     "Retirement": {
       "additionalProperties": false,
       "description": "Why a Question was taken out of use. It stays in the Question Bank, and is never drawn.",
@@ -270,6 +386,7 @@
     },
     "WrittenQuestion": {
       "additionalProperties": false,
+      "description": "Legacy (ADR-0008): a written answer graded against its Model Answer. Released Daily\nChallenges keep theirs, but no new Question is written.",
       "properties": {
         "id": {
           "description": "Permanent ID: lowercase words joined by hyphens. It never changes across Syllabus versions, so Learner progress can be keyed by it.",
@@ -386,6 +503,7 @@
         "discriminator": {
           "mapping": {
             "multiple_choice": "#/$defs/MultipleChoiceQuestion",
+            "multiple_select": "#/$defs/MultipleSelectQuestion",
             "written": "#/$defs/WrittenQuestion"
           },
           "propertyName": "type"
@@ -393,6 +511,9 @@
         "oneOf": [
           {
             "$ref": "#/$defs/MultipleChoiceQuestion"
+          },
+          {
+            "$ref": "#/$defs/MultipleSelectQuestion"
           },
           {
             "$ref": "#/$defs/WrittenQuestion"

@@ -62,12 +62,14 @@ Each Lesson's verdict is one of:
 - *revise* (what changes, and the source);
 - *remove* (why, and the source);
 - *new* (a Lesson to add: why, and the source);
-- *short* (fewer than 8 live Questions, or fewer than 4 multiple choice and 2 written: it needs Questions, even if its content is kept).
+- *short* (fewer than 8 live Questions, fewer than 4 multiple choice, or fewer than 3 multiple select: it needs Questions, even if its content is kept).
 
 Each live Question's verdict is one of:
 - *keep*;
 - *retire* (the reason, and the source that shows it is wrong or out of date);
 - *re-tag* (the Lesson that now teaches its Concept).
+
+A live **written** Question's verdict is always *retire*: written Questions are legacy ([ADR-0008](../../../docs/adr/0008-multiple-select-replaces-written-questions.md)). It is replaced by a new multiple-select Question on the same Concept, tagged to the same Lesson (see [question-bank-rules.md](question-bank-rules.md#never-write-a-written-question)). Its source is the one the replacement is written from. Never write a new written Question.
 
 Every verdict except *keep* and *short* carries at least one primary-source URL fetched in this run.
 
@@ -101,7 +103,7 @@ Apply the verdicts, following [question-bank-rules.md](question-bank-rules.md):
 | Lesson *revise* | New Questions for what changed. Every live Question the revision makes wrong or out of date is retired, `replaced_by` the new Question on its Concept. The Lesson ends with at least 8 live Questions. |
 | Lesson *short* | New Questions until it meets the minimums in the rules. |
 | Lesson *remove* | Each live Question tagged to it is re-tagged to the Lesson that now teaches its Concept. One that is still correct but that no Lesson teaches now is tagged to none (`"lesson": null`): it stays in Review for Learners who missed it, but no Lesson Quiz draws it. One that is wrong or out of date is retired with the reason "Its Lesson was removed: …" and `replaced_by: null`. |
-| Question *retire* | `retired: {reason, replaced_by, on}`, and a new Question on the same Concept when the Concept is still taught. |
+| Question *retire* | `retired: {reason, replaced_by, on}`, and a new Question on the same Concept when the Concept is still taught. A retired written Question is always replaced, by a multiple-select Question. |
 | Question *re-tag* | Only its `lesson` changes. |
 
 Retire and re-tag committed Questions yourself, in the file where each one already is.
@@ -152,7 +154,8 @@ Fix every error and run the check again. A dead link gets the same page's curren
 
 Done when the check reports **no errors** and none of these warnings:
 - "no Questions yet";
-- "the correct choice … is clearly the longest": rewrite that new Question's choices.
+- "the correct choice … is clearly the longest" or "the correct choices … are clearly the longest": rewrite that new Question's choices;
+- "an Upcoming Challenge with a written Question": not this command's to fix, but report it (`/write-challenges` rewrites those Challenges).
 
 A warning that a new Question repeats a Concept is fine only if the repeat is deliberate (say, a replacement for a Retired Question); otherwise give the Question its own Concept.
 

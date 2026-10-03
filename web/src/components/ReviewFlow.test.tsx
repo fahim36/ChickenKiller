@@ -42,8 +42,10 @@ function answered(question: ReviewQuestion, response: string): AnsweredQuestion 
     prompt: question.prompt,
     choices: question.choices,
     response,
+    selected: [],
     feedback: isWritten ? "Missing: one lock per interpreter." : null,
     answer: isWritten ? null : "a",
+    answers: [],
     model_answer: isWritten
       ? { summary: "One thread runs Python bytecode at a time.", key_points: ["One lock"] }
       : null,
@@ -68,7 +70,7 @@ function result(question: ReviewQuestion, response: string, correct: boolean): R
 type Answer = (
   stackId: string,
   questionId: string,
-  answer: string | null,
+  answer: string | string[] | null,
 ) => Promise<ReviewAnswerResult | GradingFailed>;
 
 function renderFlow(answerAction: Answer, reviewSet: ReviewSet = set) {

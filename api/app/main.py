@@ -260,11 +260,17 @@ RETAKE_DONE = {
 }
 
 
+def _question_type(q: Question) -> schemas.QuestionType:
+    if q.type == "written":
+        return "written"
+    return "multiple_select" if q.type == "multiple_select" else "multiple_choice"
+
+
 def _quiz_question(q: Question) -> schemas.QuizQuestionOut:
-    """A Question to answer: never its answer, Model Answer or Explanation."""
+    """A Question to answer: never its answer(s), Model Answer or Explanation."""
     return schemas.QuizQuestionOut(
         id=q.id,
-        type="written" if q.type == "written" else "multiple_choice",
+        type=_question_type(q),
         prompt=q.prompt,
         choices=[schemas.ChoiceOut(id=c["id"], text=c["text"]) for c in q.choices or []],
     )
@@ -273,16 +279,20 @@ def _quiz_question(q: Question) -> schemas.QuizQuestionOut:
 def _answered_question(
     q: Question, response: str | None, feedback: str | None
 ) -> schemas.AnsweredQuestionOut:
-    """A Question after it was answered, with its answer, the grader's feedback (written),
-    Explanation, Materials and Sources."""
+    """A Question after it was answered, with its answer (or every correct choice, for multiple
+    select), the Learner's ticks, the grader's feedback (written), Explanation, Materials and
+    Sources."""
+    multiple_select = q.type == "multiple_select"
     return schemas.AnsweredQuestionOut(
         id=q.id,
-        type="written" if q.type == "written" else "multiple_choice",
+        type=_question_type(q),
         prompt=q.prompt,
         choices=[schemas.ChoiceOut(id=c["id"], text=c["text"]) for c in q.choices or []],
         response=response,
+        selected=marking.selected_choices(response) if multiple_select else [],
         feedback=feedback,
         answer=q.answer,
+        answers=list(q.answers or []) if multiple_select else [],
         model_answer=None if q.model_answer is None else schemas.ModelAnswerOut(**q.model_answer),
         explanation=q.explanation,
         materials=[schemas.MaterialOut.model_validate(m) for m in q.materials],
@@ -388,7 +398,13 @@ def submit_lesson_quiz(
     try:
         attempt_uuid = uuid.UUID(attempt_id)
         result = quizzes.submit_lesson_quiz(
-            session, active, lesson_id, attempt_uuid, body.answers, now, grader
+            session,
+            active,
+            lesson_id,
+            attempt_uuid,
+            {qid: marking.response_text(given) for qid, given in body.answers.items()},
+            now,
+            grader,
         )
     except (ValueError, quizzes.AttemptNotFound) as error:
         raise HTTPException(404, "Lesson Quiz not found") from error
@@ -477,7 +493,8 @@ def answer_retake(
     rng: QuizRandom,
     now: Now,
 ) -> schemas.RetakeResultOut:
-    """Answer a Retake's sibling Question: a choice ID, a written answer, or null. Wrong: its
+    """Answer a Retake's sibling Question: a choice ID, the list of choice IDs ticked (multiple
+    select), a written answer, or null. Wrong: its
     Explanation (and the grader's feedback, for a written one), and another sibling to try.
     Correct: the Retake is done; the last one done completes the Lesson and unlocks the next.
 
@@ -492,7 +509,7 @@ def answer_retake(
             active,
             lesson_id,
             uuid.UUID(retake_id),
-            body.answer,
+            marking.response_text(body.answer),
             grader,
             rng,
             now,
@@ -597,7 +614,7 @@ def _challenge_question(
     unanswerable = q.retired and first is None
     return schemas.ChallengeQuestionOut(
         id=q.id,
-        type="written" if q.type == "written" else "multiple_choice",
+        type=_question_type(q),
         prompt=q.prompt,
         choices=[]
         if unanswerable
@@ -696,7 +713,8 @@ def answer_challenge_question(
     now: Now,
 ) -> schemas.ChallengeAnswerOut:
     """Answer one Question of Daily Challenge #`number`, today's or any other released one in
-    the Archive (#19): a choice ID, a written answer, or null. Scoring is the server's. A past
+    the Archive (#19): a choice ID, the list of choice IDs ticked (multiple select), a written
+    answer, or null. Scoring is the server's. A past
     Challenge's play is scored the same, with its misses recorded, but never counts toward a
     Streak. Only the first answer to each Question counts (`counted`); a wrong
     one is a Missed Question. Any later answer, such as a replay after finishing, is marked and
@@ -713,7 +731,13 @@ def answer_challenge_question(
     """
     try:
         result = challenges.answer(
-            session, active, number, body.question_id, body.answer, grader, now
+            session,
+            active,
+            number,
+            body.question_id,
+            marking.response_text(body.answer),
+            grader,
+            now,
         )
     except challenges.ChallengeNotFound as error:
         raise HTTPException(404, "Daily Challenge not found") from error
@@ -784,9 +808,10 @@ def answer_review_question(
     grader: GraderDep,
     now: Now,
 ) -> schemas.ReviewAnswerOut:
-    """Answer one Question of the Learner's Review on its Active Stack: a choice ID, a written
-    answer, or null. The result carries the Question's correct answer or Model Answer, the
-    grader's feedback (written) and its Explanation, for the page to show after a miss.
+    """Answer one Question of the Learner's Review on its Active Stack: a choice ID, the list of
+    choice IDs ticked (multiple select), a written answer, or null. The result carries the
+    Question's correct answer(s) or Model Answer, the grader's feedback (written) and its
+    Explanation, for the page to show after a miss.
 
     409 `not_in_review` for a Question that isn't in the Learner's Review queue now (a Locked
     Lesson's, or one already answered correctly today); 409 `not_active_stack` or 404 for the
@@ -796,7 +821,7 @@ def answer_review_question(
     record = get_active_stack_in_path(body.stack_id, learner, session)
     try:
         result = reviews.answer_question(
-            session, record, body.question_id, body.answer, grader, now
+            session, record, body.question_id, marking.response_text(body.answer), grader, now
         )
     except reviews.NotInReview as error:
         raise HTTPException(409, NOT_IN_REVIEW) from error

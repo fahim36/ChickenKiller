@@ -71,8 +71,8 @@ const BUILDING: StackPlan = {
   syllabus_draft: 4,
   syllabus_status: "pending",
   lessons: [
-    { id: "w01-l01", title: "One", multiple_choice: 6, written: 2, ready: true },
-    { id: "w01-l02", title: "Two", multiple_choice: 1, written: 0, ready: false },
+    { id: "w01-l01", title: "One", multiple_choice: 6, multiple_select: 2, ready: true },
+    { id: "w01-l02", title: "Two", multiple_choice: 1, multiple_select: 0, ready: false },
   ],
   lessons_ready: 1,
   thin_concepts: [],

@@ -272,8 +272,10 @@ def test_a_wrong_answer_shows_its_explanation_and_correct_answer(learner: TestCl
         "prompt": "Question 1?",
         "choices": [{"id": "a", "text": "Right"}, {"id": "b", "text": "Wrong"}],
         "response": "b",
+        "selected": [],
         "feedback": None,
         "answer": "a",
+        "answers": [],
         "model_answer": None,
         "explanation": "Because.",
         "materials": [

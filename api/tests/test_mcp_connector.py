@@ -3,6 +3,7 @@
 A token signs a Claude client in as its Learner; drafts it submits are theirs. Only a hash is
 stored, and a revoked token stops working at once."""
 
+import copy
 from collections.abc import Iterator
 from datetime import timedelta
 from typing import Any
@@ -18,6 +19,7 @@ from app.content.importer import import_folder
 from app.models import AccessToken, ContentDraft
 from tests.conftest import (
     LEARNER_EMAIL,
+    MS_BANK,
     ContentFactory,
     FakeClock,
 )
@@ -114,7 +116,12 @@ def test_the_connector_refuses_a_request_without_a_valid_token(
 
 @pytest.fixture
 def imported(session: Session, make_content: ContentFactory, clock: FakeClock) -> None:
-    import_folder(session, make_content())
+    """The mini Stack, with multiple-select Questions (q07, q08) where it once had written."""
+
+    def multiple_select(syllabus: dict[str, Any], bank: dict[str, Any]) -> None:
+        bank.update(copy.deepcopy(MS_BANK))
+
+    import_folder(session, make_content(multiple_select))
 
 
 def test_whoami_and_the_stacks(api: TestClient, mcp: TestClient, imported: None) -> None:
@@ -136,7 +143,10 @@ def test_only_the_admin_reads_the_question_bank_and_never_its_answers(
         call(mcp, new_token(admin)["token"], "get_question_bank", stack_id="mini-stack")
     )
     assert bank["questions"][0]["id"] == "w01-l01-q01"
-    assert all("answer" not in q and "model_answer" not in q for q in bank["questions"])
+    assert all(
+        "answer" not in q and "answers" not in q and "model_answer" not in q
+        for q in bank["questions"]
+    )
 
 
 def a_question(question_id: str = "w01-l01-q90") -> dict[str, Any]:
@@ -160,6 +170,44 @@ def a_question(question_id: str = "w01-l01-q90") -> dict[str, Any]:
             }
         ],
     }
+
+
+def a_multiple_select_question(question_id: str = "w01-l01-q91") -> dict[str, Any]:
+    question = a_question(question_id)
+    del question["answer"]
+    return question | {
+        "type": "multiple_select",
+        "prompt": "Which are right? Select all that apply.",
+        "choices": [{"id": c, "text": f"Choice {c}"} for c in "abcd"],
+        "answers": ["a", "c"],
+    }
+
+
+def a_written_question(question_id: str = "w01-l01-q92") -> dict[str, Any]:
+    question = a_question(question_id)
+    del question["answer"], question["choices"]
+    return question | {
+        "type": "written",
+        "model_answer": {"summary": "S", "key_points": ["one", "two"]},
+    }
+
+
+def test_a_multiple_select_question_can_be_drafted(
+    api: TestClient, admin: TestClient, mcp: TestClient, imported: None
+) -> None:
+    draft = structured(
+        call(
+            mcp,
+            new_token(api)["token"],
+            "submit_questions",
+            stack_id="mini-stack",
+            questions=[a_multiple_select_question()],
+        )
+    )
+
+    assert draft["items"] == 1
+    [listed] = admin.get("/admin/drafts").json()
+    assert listed["payload"]["questions"][0]["answers"] == ["a", "c"]
 
 
 def test_submitted_questions_are_a_draft_under_the_authors_name(
@@ -191,6 +239,12 @@ def test_submitted_questions_are_a_draft_under_the_authors_name(
         (a_question("w01-l01-q01"), "already in the bank"),
         ({**a_question(), "concept": "concept-zz"}, "Unknown Concepts"),
         ({**a_question(), "sources": []}, "isn't valid"),
+        (a_written_question(), "Written Questions are no longer accepted"),
+        ({**a_multiple_select_question(), "answers": ["a", "e"]}, "'e' is not one of the choices"),
+        (
+            {**a_multiple_select_question(), "answers": ["a", "b", "c", "d"]},
+            "every choice is correct",
+        ),
     ],
 )
 def test_a_bad_question_is_refused(
@@ -221,6 +275,15 @@ def test_a_challenge_draft_needs_three_live_questions_on_a_free_future_day(
         mcp, token, "submit_challenge", stack_id="mini-stack", day=day, question_ids=three[:2]
     )
     assert two["isError"]
+    wrong_order = call(
+        mcp,
+        token,
+        "submit_challenge",
+        stack_id="mini-stack",
+        day=day,
+        question_ids=[three[2], three[0], three[1]],
+    )
+    assert wrong_order["isError"] and "then one multiple select" in text(wrong_order)
 
     draft = structured(
         call(mcp, token, "submit_challenge", stack_id="mini-stack", day=day, question_ids=three)

@@ -90,12 +90,18 @@ export interface Lesson {
 }
 
 /**
- * A Question as the Learner sees it while answering: never its answer, Model Answer or
+ * Multiple choice (pick one), multiple select (tick every correct choice: "select all that
+ * apply") or written (legacy: answered in the Learner's own words and graded).
+ */
+export type QuestionType = "multiple_choice" | "multiple_select" | "written";
+
+/**
+ * A Question as the Learner sees it while answering: never its answer(s), Model Answer or
  * Explanation. A written Question has no choices; it is answered in the Learner's own words.
  */
 export interface QuizQuestion {
   id: string;
-  type: "multiple_choice" | "written";
+  type: QuestionType;
   prompt: string;
   choices: { id: string; text: string }[];
 }
@@ -113,10 +119,13 @@ export interface LessonQuiz {
 }
 
 /**
- * The Learner's answers by Question ID: a choice ID, or a written answer. A Question left out
- * is unanswered, so missed.
+ * One answer: a choice ID (multiple choice), the choice IDs ticked (multiple select; none is
+ * unanswered), a written answer, or null for unanswered.
  */
-export type QuizAnswers = Record<string, string | null>;
+export type Answer = string | string[] | null;
+
+/** The Learner's answers by Question ID. A Question left out is unanswered, so missed. */
+export type QuizAnswers = Record<string, Answer>;
 
 /** Where a Question's content came from, for checking it. */
 export interface Source {
@@ -130,22 +139,29 @@ export interface Source {
 }
 
 /**
- * A Question after the Learner answered it: their response, the correct answer or Model
- * Answer, the Explanation, the Materials and the Sources. Only sent once the answer is
- * submitted.
+ * A Question after the Learner answered it: their response, the correct answer (or every
+ * correct choice) or Model Answer, the Explanation, the Materials and the Sources. Only sent
+ * once the answer is submitted.
  */
 export interface AnsweredQuestion {
   id: string;
-  type: "multiple_choice" | "written";
+  type: QuestionType;
   prompt: string;
   /** Empty for a written Question. */
   choices: { id: string; text: string }[];
-  /** The Learner's choice ID or written answer; null when left unanswered. */
+  /**
+   * The Learner's choice ID, ticked choice IDs comma-separated ("a,c"), or written answer;
+   * null when left unanswered.
+   */
   response: string | null;
+  /** The choice IDs the Learner ticked, for multiple select; empty otherwise. */
+  selected: string[];
   /** The grader's one line on a graded written answer; null otherwise. */
   feedback: string | null;
   /** The correct choice ID, for multiple choice. */
   answer: string | null;
+  /** Every correct choice ID, for multiple select; empty otherwise. */
+  answers: string[];
   model_answer: { summary: string; key_points: string[] } | null;
   explanation: string;
   materials: Material[];
@@ -245,7 +261,8 @@ export interface ReviewAnswerResult {
 
 /**
  * How a Daily Challenge Question went: the first try's outcome, or a later answer's mark.
- * "ungraded" means grading that written first answer failed: it earns no point, ever.
+ * "ungraded" means grading that written first answer failed: it earns no point, ever. A
+ * multiple-choice or multiple-select Question is never ungraded.
  */
 export type ChallengeOutcome = "correct" | "wrong" | "ungraded";
 
@@ -470,7 +487,7 @@ export interface LessonProgress {
   id: string;
   title: string;
   multiple_choice: number;
-  written: number;
+  multiple_select: number;
   ready: boolean;
 }
 

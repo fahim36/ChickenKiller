@@ -16,7 +16,8 @@ Tools:
 - the Admin only: `get_question_bank` and `get_challenges_status`. The bank includes the
   Upcoming Challenges' Questions, which no Learner may see before their Day.
 
-No tool ever returns a Question's answer or Model Answer.
+No tool ever returns a Question's answer or Model Answer. New Questions are multiple choice or
+multiple select: written ones are legacy (ADR-0008), and `submit_questions` refuses them.
 """
 
 import contextvars
@@ -35,6 +36,7 @@ from sqlalchemy.orm import Session
 
 from app import access_tokens, stack_builder
 from app.content import format as fmt
+from app.content.check import CHALLENGE_TYPES, multiple_select_problems
 from app.models import (
     Concept,
     ContentDraft,
@@ -78,12 +80,15 @@ three steps and check `get_stack_plan("{stack_id}")` between them.
 
 3. The quiz setup. For every Lesson of the plan, call `submit_questions` (up to 50 per call)
    until `get_stack_plan` shows each Lesson ready: at least 8 Questions per Lesson, at least
-   4 multiple choice and 2 written, and every Concept with at least 2 Questions (so a Retake
-   has a sibling). Declare new Concepts in `concepts`. Each Question has an id like
+   4 multiple choice and 2 multiple select, and every Concept with at least 2 Questions (so a
+   Retake has a sibling). Declare new Concepts in `concepts`. Each Question has an id like
    w01-l01-q01, its lesson and concept, a clear prompt, an explanation, materials, and one
    or more sources (url, title, publisher, accessed = today, claim) that you actually fetched
-   and that support the answer. Multiple choice: 4 choices, one right, the right one not
-   clearly the longest. Written: a model_answer with a summary and 2 or more key_points.
+   and that support the answer. Multiple choice (type multiple_choice): 4 choices, one right
+   (`answer`), the right one not clearly the longest. Multiple select (type multiple_select):
+   a prompt ending "Select all that apply.", 4 to 6 choices, `answers` listing every correct
+   one (at least 2, and at least 1 choice wrong), the correct ones not all longer than the
+   wrong ones. Never written: written Questions are no longer accepted.
 
 Everything is a draft under your name until the Admin accepts it. Don't invent Sources."""
 
@@ -244,9 +249,11 @@ def build_server(
     ) -> dict[str, Any]:
         """Propose new Questions for a Stack's Question Bank, as a draft for the Admin.
 
-        Each Question follows the Question Bank format (multiple_choice or written, with a
-        Concept, Sources and, for written, a Model Answer). New Concepts go in `concepts`
-        ({id, name}). IDs must be new. `note` says what the Questions cover and why."""
+        Each Question follows the Question Bank format: multiple_choice (choices, `answer`) or
+        multiple_select (4 to 6 choices, `answers`: every correct one, at least 2, not all),
+        with a Concept and Sources. Written Questions are legacy and refused. New Concepts go
+        in `concepts` ({id, name}). IDs must be new. `note` says what the Questions cover and
+        why."""
         caller = _me()
         if not questions or len(questions) > MAX_QUESTIONS_PER_DRAFT:
             raise ToolRefused(f"Send between 1 and {MAX_QUESTIONS_PER_DRAFT} Questions.")
@@ -256,6 +263,17 @@ def build_server(
         parsed_concepts = [
             _parse(_CONCEPT, c, f"concepts[{i}]") for i, c in enumerate(concepts or [])
         ]
+        written = [q.id for q in parsed_questions if isinstance(q, fmt.WrittenQuestion)]
+        if written:
+            raise ToolRefused(
+                f"Written Questions are no longer accepted: write {', '.join(written)} as "
+                "multiple_select (select all that apply) instead."
+            )
+        for i, q in enumerate(parsed_questions):
+            if isinstance(q, fmt.MultipleSelectQuestion):
+                problems = multiple_select_problems(q)
+                if problems:
+                    raise ToolRefused(f"questions[{i}] ({q.id}): {'; '.join(problems)}.")
         ids = [q.id for q in parsed_questions]
         if len(set(ids)) != len(ids):
             raise ToolRefused("Two of the Questions have the same id.")
@@ -301,8 +319,9 @@ def build_server(
     def submit_challenge(
         stack_id: str, day: str, question_ids: list[str], note: str = ""
     ) -> dict[str, Any]:
-        """Propose a Daily Challenge: three Question ids from the bank (not retired) for a
-        future UTC Day (YYYY-MM-DD) that has none yet. A draft for the Admin."""
+        """Propose a Daily Challenge: three Question ids from the bank (not retired), two
+        multiple choice then one multiple select, for a future UTC Day (YYYY-MM-DD) that has
+        none yet. A draft for the Admin."""
         caller = _me()
         try:
             on = date.fromisoformat(day)
@@ -320,18 +339,24 @@ def build_server(
                 )
             ):
                 raise ToolRefused(f"{day} already has a Daily Challenge.")
-            live = set(
-                session.scalars(
-                    select(Question.id).where(
+            live = {
+                qid: kind
+                for qid, kind in session.execute(
+                    select(Question.id, Question.type).where(
                         Question.stack_id == stack_id,
                         Question.id.in_(question_ids),
                         Question.retired_reason.is_(None),
                     )
                 )
-            )
+            }
             missing = [q for q in question_ids if q not in live]
             if missing:
                 raise ToolRefused(f"Not live Questions of this Stack: {', '.join(missing)}.")
+            if tuple(live[q] for q in question_ids) != CHALLENGE_TYPES:
+                raise ToolRefused(
+                    "A Daily Challenge is two multiple-choice Questions, then one multiple "
+                    "select, in that order."
+                )
             payload = {"day": on.isoformat(), "questions": question_ids}
             return _save_draft(session, caller, stack_id, "challenge", payload, note, now())
 

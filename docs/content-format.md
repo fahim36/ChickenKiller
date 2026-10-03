@@ -35,9 +35,10 @@ A version is named for the day it was made: `v2026-09-26`. More versions on the 
   - the folder names match the Stack's `id` and the `version`;
   - references to Materials, Lessons and Concepts that must resolve;
   - at least two Questions per Concept that aren't retired, so a Retake always has a sibling;
-  - at least 8 Questions per Lesson that aren't retired, with 4 multiple choice and 2 written, enough for a Lesson Quiz (no maximum: the bank only grows);
+  - at least 8 Questions per Lesson that aren't retired, with 4 multiple choice and 2 multiple select (a legacy written Question counts as one), enough for a Lesson Quiz (no maximum: the bank only grows);
+  - a multiple-select Question's `answers` are some of its choices, not all;
   - Sources, retirements and the append-only rules (see [the Question Bank](#question-bank-question-bankjson));
-  - Daily Challenges: numbered and dated from the launch, three Questions each, frozen once released (see [Daily Challenges](#daily-challenges-challenges));
+  - Daily Challenges: numbered and dated from the launch, three Questions each (two multiple choice, then one multiple select), frozen once released (see [Daily Challenges](#daily-challenges-challenges));
   - a changelog that matches what changed since the version before (see [the changelog](#changelog-changelogjson));
   - a permanent ID never comes back as a different kind of item in a later version;
   - Material links that load (with `--links`). A site that refuses automated requests (HTTP 401, 403 or 429) is only a warning.
@@ -102,7 +103,31 @@ Each file:
 The extra fields depend on `type`:
 
 - `multiple_choice`: `choices` (at least two `{id: "a".."h", text}`) and `answer` (the ID of one of the choices).
-- `written`: `model_answer` (`{summary, key_points[]}` with at least two key points), and no choices.
+- `multiple_select` ("select all that apply"): `choices` (4 to 6 `{id: "a".."h", text}`, unique IDs) and `answers` (the IDs of **every** correct choice, each listed once: at least two, and at least one choice is wrong). Its prompt ends "Select all that apply." A Learner's answer is correct only when the choices ticked are exactly `answers`: all or nothing, never graded.
+- `written` (**legacy**, [ADR-0008](adr/0008-multiple-select-replaces-written-questions.md)): `model_answer` (`{summary, key_points[]}` with at least two key points), and no choices. The committed ones stay (released Daily Challenges use some), but a new Question is never written: the check refuses one. Each is retired, `replaced_by` a multiple-select Question on the same Concept.
+
+For example:
+
+```json
+{
+  "id": "w01-l01-q13",
+  "lesson": "w01-l01",
+  "concept": "w01-l01-tool-loop",
+  "type": "multiple_select",
+  "prompt": "Which of these does an agent loop do on every turn? Select all that apply.",
+  "choices": [
+    {"id": "a", "text": "Send the conversation so far to the model"},
+    {"id": "b", "text": "Retrain the model on the last tool result"},
+    {"id": "c", "text": "Run any tool calls the model asked for"},
+    {"id": "d", "text": "Clear the earlier turns from the context window"}
+  ],
+  "answers": ["a", "c"],
+  "explanation": "...",
+  "materials": [],
+  "sources": [{"url": "https://...", "title": "...", "publisher": "...", "accessed": "2026-10-03", "claim": "..."}],
+  "retired": null
+}
+```
 
 In each Question:
 
@@ -121,7 +146,8 @@ The database stores the correct answers, but the API never sends them to the bro
 - **A committed Question never changes**, except by adding `retired` or changing its `lesson`. Anything else (its prompt, answer, Concept, Materials, Sources) is an error naming the fields. A retirement is final: it is never edited or undone.
 - **A new Question's Sources are from this run**: every `accessed` date is today or yesterday in UTC (by `--today`), so a run that crosses 00:00 UTC still passes. Committed Questions keep their dates.
 - **A new Question on a Concept that committed Questions already test is a warning**, naming one of them. A repeat is allowed; the warning makes it deliberate.
-- **A new multiple-choice Question whose correct choice is clearly the longest is a warning**: more than 25% and at least 8 characters longer than every wrong choice, since length gives the answer away. Committed Questions can't be edited, so they aren't warned about.
+- **A new Question is never written** ([ADR-0008](adr/0008-multiple-select-replaces-written-questions.md)): `a new Question is never written: written Questions are legacy (ADR-0008); write it as multiple_select`.
+- **A new multiple-choice Question whose correct choice is clearly the longest is a warning**: more than 25% and at least 8 characters longer than every wrong choice, since length gives the answer away. **So is a new multiple-select Question whose correct choices are each longer than every wrong choice** ("the correct choices (a, c) are clearly the longest"). Committed Questions can't be edited, so they aren't warned about.
 
 Outside a git repository (a test folder, say) there is no baseline: these rules are skipped, with a warning that says so. A Stack new since the baseline has an empty one, so all its Questions are new. A baseline in the old layout (before #15) is read from its version folders, newest version winning, with each Question tagged to its file's Lesson; those Questions may gain Sources once, and an edit to one is a warning rather than an error, since nothing had been released before the move.
 
@@ -164,13 +190,16 @@ Each Challenge is `<number>.json`, zero-padded to three digits (`001.json`, ...,
 | `schema_version` | Always `1` |
 | `number` | From 1, counting from the launch |
 | `date` | Its UTC Day, `YYYY-MM-DD`: the launch Day plus `number` − 1 Days |
-| `questions` | Three Question IDs of the Stack's Question Bank: two multiple choice and one written |
+| `questions` | Three Question IDs of the Stack's Question Bank: two multiple choice, then one multiple select |
 
 The check holds them to these rules (`--today` is the clock):
 
 - A file's name is its `number`, and its `date` follows from the launch Day. So numbers and dates are consecutive from the launch, and a Challenge can't move to another Day.
 - **A Day with no Challenge written has no Challenge.** Gaps are allowed: a Stack that runs out has no Challenge on those Days, and numbering carries on from the launch.
-- Every Question is in the bank, and the mix is two multiple choice and one written. A Question can be one written for the Challenge (`question-bank/challenge-<number>.json`, tagged to a Lesson or not) or an older one.
+- Every Question is in the bank, and the Questions are two multiple choice, then one multiple select, in that order ([ADR-0008](adr/0008-multiple-select-replaces-written-questions.md)): `a Daily Challenge is 2 multiple-choice Questions, then 1 multiple-select; this one is ...`. Before ADR-0008 a Challenge was two multiple choice and one written, so:
+  - a released Challenge (its Day is today or earlier) keeps that mix for good;
+  - an Upcoming Challenge committed with it and unchanged since (byte for byte, against the baseline; any, outside git) is only a warning, `an Upcoming Challenge with a written Question, committed before written Questions became legacy (ADR-0008): rewrite it as 2 multiple-choice Questions, then 1 multiple-select, before its Day`. Changing it, or retiring its written Question, means rewriting it in the new mix.
+- A Question can be one written for the Challenge (`question-bank/challenge-<number>.json`, tagged to a Lesson or not) or an older one.
 - An Upcoming Challenge (its Day is after today) uses no Retired Question, since one can't be answered. A released Challenge keeps a Question retired after its Day: the Archive shows it retired ([ADR-0004](adr/0004-append-only-question-bank-with-sources.md)).
 - Its new Questions follow the bank's rules like any other: Sources accessed in this run, a sibling for every Concept.
 - Fewer than three Days left is a warning: `Challenges written through 2026-10-03 (2 Days left): write more with /write-challenges; ...`. Days left count from today to the last Challenge's Day, both included, so a gap before it doesn't count against it; a launched Stack with none written has 0.

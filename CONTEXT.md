@@ -61,8 +61,12 @@ Where a Question's content came from: URL, title, publisher, the date it was acc
 _Avoid_: Citation, reference, Material
 
 **Question**:
-A single item a Learner answers: either multiple choice or a written answer. Each Question has a permanent ID, a correct answer, an Explanation, at least one Source, and optionally Materials. Once written it is never edited or deleted, only retired.
+A single item a Learner answers: multiple choice (pick the one correct choice) or Multiple select (tick every correct choice). Older Questions may be written instead, answered in the Learner's own words and graded against a Model Answer; written Questions are legacy and no new one is written. Each Question has a permanent ID, a correct answer, an Explanation, at least one Source, and optionally Materials. Once written it is never edited or deleted, only retired.
 _Avoid_: Item, problem, card
+
+**Multiple select**:
+A Question that asks the Learner to "select all that apply": 4 to 6 choices, at least 2 of them correct and at least 1 wrong. It is correct only when the choices ticked are exactly the correct ones; there is no partial credit, and it is never graded, so it can't fail to be marked. It takes the place written Questions had.
+_Avoid_: Multiple answer, checkbox question, multi-choice
 
 **Question Bank**:
 Every Question ever written for one Stack. It only grows. Most Questions are also tagged to a Lesson. Daily Challenges, Lesson Quizzes, Retakes and Review all draw from it.
@@ -77,7 +81,7 @@ The single idea a Question tests. Questions that test the same Concept are sibli
 _Avoid_: Topic, skill, tag
 
 **Model Answer**:
-The key points a written answer must contain to pass. Grading checks a Learner's answer against it.
+The key points a written answer must contain to pass. Grading checks a Learner's answer against it. Only legacy written Questions have one.
 _Avoid_: Rubric, reference answer, expected answer
 
 **Explanation**:
@@ -95,7 +99,7 @@ A calendar day in UTC. Every day boundary in the app, for Daily Challenges and S
 _Avoid_: Local day, calendar day
 
 **Daily Challenge**:
-A Stack's set of three Questions (two multiple choice, one written) for one Day, numbered from the Stack's launch: "Agentic AI Engineer #40". Every Learner gets the same one, released at 00:00 UTC. Only a Learner's first try is scored; the Explanation and Sources show after each answer. Replaying it afterwards is for learning only and changes nothing: not the score, the Streak or Missed Questions.
+A Stack's set of three Questions (two multiple choice, then one Multiple select) for one Day, numbered from the Stack's launch: "Agentic AI Engineer #40". Every Learner gets the same one, released at 00:00 UTC. Only a Learner's first try is scored; the Explanation and Sources show after each answer. Replaying it afterwards is for learning only and changes nothing: not the score, the Streak or Missed Questions. A Challenge released with a written Question keeps it.
 _Avoid_: Drop, daily quiz, puzzle
 
 **Upcoming Challenge**:
@@ -111,7 +115,7 @@ The Daily Challenges in the Archive a Learner hasn't played, across their Active
 _Avoid_: Backlog, missed challenges, debt
 
 **Result Card**:
-A shareable summary of a Learner's score on one Daily Challenge, showing how they did on each Question but not the Questions or answers: "Agentic AI Engineer #40 · 26 Sep · 2/3 ✅❌✅". A Question whose first try couldn't be graded has its own mark.
+A shareable summary of a Learner's score on one Daily Challenge, showing how they did on each Question but not the Questions or answers: "Agentic AI Engineer #40 · 26 Sep · 2/3 ✅❌✅". A legacy written Question whose first try couldn't be graded has its own mark.
 _Avoid_: Share image, score card
 
 **Streak**:
@@ -121,7 +125,7 @@ _Avoid_: Chain, run
 ### Progress
 
 **Lesson Quiz**:
-The six Questions (four multiple choice, two written) a Learner answers to complete a Lesson. It can be taken as soon as the Lesson unlocks, with or without studying first. It skips Questions the Learner has already seen.
+The six Questions (four multiple choice, two Multiple select) a Learner answers to complete a Lesson. A Lesson that still has too few Multiple select Questions asks its legacy written ones in their place. It can be taken as soon as the Lesson unlocks, with or without studying first. It skips Questions the Learner has already seen.
 _Avoid_: Test, exam, lesson test
 
 **Pass Mark**:

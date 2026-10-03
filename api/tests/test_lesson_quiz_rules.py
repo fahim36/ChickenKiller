@@ -219,20 +219,45 @@ def test_a_concept_with_no_sibling_has_no_retake() -> None:
 # --- Composing a Lesson Quiz (#7) ------------------------------------------------------------
 
 
-def typed(mc: int, written: int) -> list[BankQuestion]:
-    """A bank with `mc` multiple-choice Questions (m1, m2, ...) and `written` written ones (w1,
-    ...), each on its own Concept."""
-    return [BankQuestion(f"m{n}", f"cm{n}") for n in range(1, mc + 1)] + [
-        BankQuestion(f"w{n}", f"cw{n}", "written") for n in range(1, written + 1)
-    ]
+def typed(mc: int, written: int, multiple_select: int = 0) -> list[BankQuestion]:
+    """A bank with `mc` multiple-choice Questions (m1, m2, ...), `written` legacy written ones
+    (w1, ...) and `multiple_select` multiple-select ones (s1, ...), each on its own Concept."""
+    return (
+        [BankQuestion(f"m{n}", f"cm{n}") for n in range(1, mc + 1)]
+        + [BankQuestion(f"w{n}", f"cw{n}", "written") for n in range(1, written + 1)]
+        + [
+            BankQuestion(f"s{n}", f"cs{n}", "multiple_select")
+            for n in range(1, multiple_select + 1)
+        ]
+    )
 
 
-def test_a_lesson_quiz_asks_four_multiple_choice_then_two_written() -> None:
-    assert QUIZ_COMPOSITION == {"multiple_choice": 4, "written": 2}
+def test_a_lesson_quiz_asks_four_multiple_choice_then_two_multiple_select() -> None:
+    assert QUIZ_COMPOSITION == {"multiple_choice": 4, "multiple_select": 2}
     for seed in range(20):
-        drawn = draw_quiz(typed(6, 3), random.Random(seed))
-        assert [q[0] for q in drawn] == list("mmmmww"), drawn
+        drawn = draw_quiz(typed(6, 0, 3), random.Random(seed))
+        assert [q[0] for q in drawn] == list("mmmmss"), drawn
         assert len(set(drawn)) == 6
+
+
+def test_written_questions_stand_in_only_where_multiple_select_ones_run_out() -> None:
+    """Legacy content (ADR-0008): a Lesson with no multiple-select Questions still asks its
+    written ones in their place, and one with too few makes up the rest from them."""
+    for seed in range(20):
+        assert [q[0] for q in draw_quiz(typed(6, 3, 2), random.Random(seed))] == list("mmmmss")
+        assert [q[0] for q in draw_quiz(typed(6, 3, 0), random.Random(seed))] == list("mmmmww")
+        assert sorted(q[0] for q in draw_quiz(typed(6, 3, 1), random.Random(seed))[4:]) == [
+            "s",
+            "w",
+        ]
+
+
+def test_seen_multiple_select_questions_come_before_written_ones() -> None:
+    """A written Question fills a slot only when the bank has no multiple-select one for it, not
+    when the Learner has seen them all."""
+    for seed in range(20):
+        drawn = draw_quiz(typed(6, 3, 2), random.Random(seed), seen=["s1", "s2"])
+        assert sorted(drawn[4:]) == ["s1", "s2"], drawn
 
 
 def test_a_bank_short_of_written_questions_fills_up_with_multiple_choice() -> None:

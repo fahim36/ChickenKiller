@@ -31,7 +31,7 @@ You can change them any time from **Stacks** in the top bar. A Stack you untick 
 
 ## 2. Set up your Gemini key
 
-Written answers are graded by an AI model, which compares your answer with a Model Answer's key points. Set your own free Google Gemini API key so they're graded on your own account. Until you do, the app's key grades them. If grading fails altogether, nothing is counted and you can submit again.
+New Questions are all multiple choice or "select all that apply", which the app marks itself. Some older Questions, in early Daily Challenges and their replays, ask for a written answer instead. Written answers are graded by an AI model, which compares your answer with a Model Answer's key points. Set your own free Google Gemini API key so they're graded on your own account. Until you do, the app's key grades them. If grading fails altogether, nothing is counted and you can submit again.
 
 1. Sign in to [Google AI Studio](https://aistudio.google.com/app/apikey) with your Google account and choose **Create API key**.
 2. In the app, open **Settings**, paste the key under **Grading**, and choose **Save key**. The **Model** field is already filled in with `gemini-3.1-flash-lite`; leave it as it is.
@@ -66,9 +66,10 @@ Below the cards are **Review**, for practising the Questions you missed, and **C
 
 ## 5. Play the Daily Challenge
 
-Each Stack releases one numbered Daily Challenge a day: three Questions, two multiple choice and one written. Everyone gets the same one. Choose **Play** on the home screen.
+Each Stack releases one numbered Daily Challenge a day: three Questions, two multiple choice and then one "select all that apply". Everyone gets the same one. Choose **Play** on the home screen.
 
 - **Only your first answer to each Question counts.** After you answer, you see the Explanation and the Sources.
+- **"Select all that apply" is all or nothing.** Tick every right choice and no wrong one to get the point. Afterwards you see what you ticked next to the right choices.
 - **Play today's Challenge on its Day to keep your Streak going.**
 - **Share how you did.** When you finish, you get a Result Card. It shows your score on each Question but not the Questions or your answers, so it's safe to share.
 
@@ -94,7 +95,7 @@ Open a Lesson to see its topics, an exercise and its Materials: free courses, do
 
 When you're ready, choose **Start the Lesson Quiz**. You can take it straight away if you already know the topic.
 
-1. **Answer six Questions**, four multiple choice and two written.
+1. **Answer six Questions**, four multiple choice and two "select all that apply".
 2. **Score 80% or more to pass.** Below that, take a fresh Lesson Quiz; it skips the Questions you've already seen.
 3. **Retake what you missed.** After passing, read the Explanation of each Question you missed, then answer a Retake on the same idea. When every Retake is right, the Lesson is complete and the next one unlocks.
 

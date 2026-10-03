@@ -168,17 +168,26 @@ class ChallengesAheadOut(BaseModel):
 # --- Lesson Quiz -----------------------------------------------------------------------------
 
 
+QuestionType = Literal["multiple_choice", "multiple_select", "written"]
+"""Multiple choice (one choice), multiple select (tick every correct choice) or written (legacy,
+ADR-0008)."""
+
+Response = str | list[str] | None
+"""An answer to one Question: a choice ID (multiple choice), the list of choice IDs ticked
+(multiple select; an empty list is unanswered), the written answer, or null for unanswered."""
+
+
 class ChoiceOut(BaseModel):
     id: str
     text: str
 
 
 class QuizQuestionOut(BaseModel):
-    """A Question as the Learner sees it while answering: never its answer, Model Answer or
+    """A Question as the Learner sees it while answering: never its answer(s), Model Answer or
     Explanation. A written Question has no choices."""
 
     id: str
-    type: Literal["multiple_choice", "written"]
+    type: QuestionType
     prompt: str
     choices: list[ChoiceOut]
 
@@ -197,11 +206,11 @@ class LessonQuizOut(BaseModel):
 
 
 class LessonQuizAnswersIn(BaseModel):
-    """The Learner's answers, by Question ID: a choice ID, the written answer (at most
-    `max_answer_chars`), or null for unanswered. A Question left out, or a blank written answer,
-    is unanswered too."""
+    """The Learner's answers, by Question ID: a choice ID, the list of choice IDs ticked
+    (multiple select), the written answer (at most `max_answer_chars`), or null for unanswered.
+    A Question left out, no ticks, or a blank written answer is unanswered too."""
 
-    answers: dict[str, str | None]
+    answers: dict[str, Response]
 
 
 class QuestionResultOut(BaseModel):
@@ -229,20 +238,25 @@ class SourceOut(BaseModel):
 
 class AnsweredQuestionOut(BaseModel):
     """A Question the Learner has answered, with everything shown afterwards: their response,
-    the correct answer (a choice ID) or Model Answer, the Explanation, the Materials and the
-    Sources. Only ever sent after the answer is submitted."""
+    the correct answer (a choice ID), the correct choices (multiple select) or Model Answer, the
+    Explanation, the Materials and the Sources. Only ever sent after the answer is submitted."""
 
     id: str
-    type: Literal["multiple_choice", "written"]
+    type: QuestionType
     prompt: str
     choices: list[ChoiceOut]
     """Empty for a written Question."""
     response: str | None
-    """The Learner's choice ID or written answer; null for unanswered."""
+    """The Learner's choice ID, the choice IDs they ticked comma-separated ("a,c", multiple
+    select; see `selected`), or written answer; null for unanswered."""
+    selected: list[str]
+    """The choice IDs the Learner ticked, for multiple select; empty otherwise."""
     feedback: str | None
     """The grader's one line on a graded written answer; null otherwise."""
     answer: str | None
     """The correct choice ID, for multiple choice."""
+    answers: list[str]
+    """Every correct choice ID, for multiple select; empty otherwise."""
     model_answer: ModelAnswerOut | None
     """For a written Question."""
     explanation: str
@@ -301,9 +315,10 @@ class RetakesOut(BaseModel):
 
 
 class RetakeAnswerIn(BaseModel):
-    """A choice ID, or null for unanswered (which counts as wrong)."""
+    """A choice ID, the list of choice IDs ticked (multiple select), a written answer, or null
+    for unanswered (which counts as wrong)."""
 
-    answer: str | None
+    answer: Response
 
 
 class RetakeResultOut(BaseModel):
@@ -343,12 +358,13 @@ class ReviewSetOut(BaseModel):
 
 
 class ReviewAnswerIn(BaseModel):
-    """The answer to one Question of a Review set, on its Stack: a choice ID, a written answer,
-    or null for unanswered (which counts as wrong)."""
+    """The answer to one Question of a Review set, on its Stack: a choice ID, the list of choice
+    IDs ticked (multiple select), a written answer, or null for unanswered (which counts as
+    wrong)."""
 
     stack_id: str
     question_id: str
-    answer: str | None
+    answer: Response
 
 
 class ReviewAnswerOut(BaseModel):
@@ -380,10 +396,11 @@ class ChallengeQuestionOut(BaseModel):
     and comes with `retired_reason` and, if it has one, its replacement (`replaced_by`).
 
     `outcome` is the first try's: "ungraded" when grading that written answer failed, which
-    earns no point."""
+    earns no point. A multiple-select Question is marked without grading, so it is never
+    ungraded."""
 
     id: str
-    type: Literal["multiple_choice", "written"]
+    type: QuestionType
     prompt: str
     choices: list[ChoiceOut]
     retired: bool
@@ -482,11 +499,12 @@ class CatchUpOut(BaseModel):
 
 
 class ChallengeAnswerIn(BaseModel):
-    """The answer to one Question of a Daily Challenge: a choice ID, a written answer, or null
-    for unanswered (which counts as wrong)."""
+    """The answer to one Question of a Daily Challenge: a choice ID, the list of choice IDs
+    ticked (multiple select), a written answer, or null for unanswered (which counts as
+    wrong)."""
 
     question_id: str
-    answer: str | None
+    answer: Response
 
 
 class ChallengeAnswerOut(BaseModel):
@@ -584,7 +602,7 @@ class LessonProgressOut(BaseModel):
     id: str
     title: str
     multiple_choice: int
-    written: int
+    multiple_select: int
     ready: bool
 
 

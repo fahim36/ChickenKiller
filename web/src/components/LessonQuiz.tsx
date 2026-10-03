@@ -5,20 +5,27 @@ import Link from "next/link";
 import { type FormEvent, useState } from "react";
 import { MissedQuestions } from "@/components/MissedQuestions";
 import { Notice } from "@/components/Notice";
-import { AnswerChoices, Mark, QuestionCard, Spinner } from "@/components/QuestionCard";
+import { Mark, QuestionAnswer, QuestionCard, Spinner } from "@/components/QuestionCard";
 import { type AnswerRetakeAction, RetakeFlow } from "@/components/RetakeFlow";
 import { Button } from "@/components/ui/button";
-import { WrittenAnswer } from "@/components/WrittenAnswer";
-import type { GradingFailed, LessonQuiz as Quiz, LessonQuizResult, QuizAnswers } from "@/lib/api";
+import { isAnswered } from "@/lib/answers";
+import type {
+  Answer,
+  GradingFailed,
+  LessonQuiz as Quiz,
+  LessonQuizResult,
+  QuizAnswers,
+} from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 /**
- * A Lesson Quiz: multiple-choice Questions answered by picking one choice, and written ones
- * answered in a text box. Submitting sends the answers through `submitAction`; the API scores
- * them (grading written answers against their Model Answers), and this shows the score, whether
- * it met the Pass Mark, which Questions were missed, the grader's feedback on each written
- * answer and, for each Missed Question, the answers, the Explanation, the Sources and the
- * Materials.
+ * A Lesson Quiz: multiple-choice Questions answered by picking one choice, multiple-select ones
+ * by ticking every correct choice, and legacy written ones in a text box. Submitting sends the
+ * answers through `submitAction`; the API scores them (a multiple-select answer is right only
+ * when the ticks are exactly the correct choices; written answers are graded against their Model
+ * Answers), and this shows the score, whether it met the Pass Mark, which Questions were missed,
+ * the grader's feedback on each written answer and, for each Missed Question, the answers, the
+ * Explanation, the Sources and the Materials.
  * Unanswered Questions are left out, so they count as missed.
  *
  * If grading fails, nothing was counted: the answers stay as they are and the Learner can
@@ -42,9 +49,9 @@ export function LessonQuiz({
   const [failed, setFailed] = useState(false);
   const [gradingFailed, setGradingFailed] = useState<string | null>(null);
   const marks = new Map(result?.questions.map((q) => [q.id, q] as const));
-  const answeredCount = quiz.questions.filter((q) => (answers[q.id] ?? "").trim() !== "").length;
+  const answeredCount = quiz.questions.filter((q) => isAnswered(answers[q.id])).length;
 
-  function answer(questionId: string, value: string) {
+  function answer(questionId: string, value: Answer) {
     setAnswers((current) => ({ ...current, [questionId]: value }));
   }
 
@@ -53,9 +60,9 @@ export function LessonQuiz({
     setFailed(false);
     setGradingFailed(null);
     setSubmitting(true);
-    // A blank written answer is left out, like an unpicked choice.
+    // A blank written answer, or no ticks, is left out, like an unpicked choice.
     const given = Object.fromEntries(
-      Object.entries(answers).filter(([, value]) => value !== null && value.trim() !== ""),
+      Object.entries(answers).filter(([, value]) => isAnswered(value)),
     );
     try {
       const outcome = await submitAction(given);
@@ -87,21 +94,13 @@ export function LessonQuiz({
                     mark?.correct === false && "border-destructive/40",
                   )}
                 >
-                  {q.type === "written" ? (
-                    <WrittenAnswer
-                      question={q}
-                      value={answers[q.id] ?? ""}
-                      maxLength={quiz.max_answer_chars}
-                      onChange={(value) => answer(q.id, value)}
-                    />
-                  ) : (
-                    <AnswerChoices
-                      name={q.id}
-                      choices={q.choices}
-                      value={answers[q.id]}
-                      onChange={(choiceId) => answer(q.id, choiceId)}
-                    />
-                  )}
+                  <QuestionAnswer
+                    question={q}
+                    name={q.id}
+                    value={answers[q.id]}
+                    maxLength={quiz.max_answer_chars}
+                    onChange={(value) => answer(q.id, value)}
+                  />
                   {mark && (
                     <Mark correct={mark.correct} className="pt-1">
                       {mark.correct ? "Correct" : "Missed"}

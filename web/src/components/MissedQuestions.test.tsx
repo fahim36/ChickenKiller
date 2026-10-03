@@ -14,8 +14,10 @@ const wrong: AnsweredQuestion = {
     { id: "b", text: "Equality" },
   ],
   response: "b",
+  selected: [],
   feedback: null,
   answer: "a",
+  answers: [],
   model_answer: null,
   explanation: "`is` compares identity; `==` compares equality.",
   materials: [
@@ -100,4 +102,57 @@ it("shows nothing when no Question was missed", () => {
   const { container } = render(<MissedQuestions missed={[]} />);
 
   expect(container.textContent).toBe("");
+});
+
+const multipleSelect: AnsweredQuestion = {
+  ...wrong,
+  id: "w01-l01-q09",
+  type: "multiple_select",
+  prompt: "Which are immutable? Select all that apply.",
+  choices: [
+    { id: "a", text: "tuple" },
+    { id: "b", text: "list" },
+    { id: "c", text: "frozenset" },
+    { id: "d", text: "dict" },
+  ],
+  response: "a,b",
+  selected: ["a", "b"],
+  answer: null,
+  answers: ["a", "c"],
+  explanation: "Tuples and frozensets can't change.",
+  materials: [],
+};
+
+it("shows a multiple-select Question's ticks, each marked, against every correct choice", () => {
+  render(<AnsweredQuestionDetail question={multipleSelect} />);
+
+  const yours = screen.getByRole("list", { name: "Your answer" });
+  expect(within(yours).getAllByRole("listitem").map((li) => li.textContent)).toEqual([
+    "tuple",
+    "list (not a correct choice)",
+  ]);
+  const correct = screen.getByRole("list", { name: "Correct answers" });
+  expect(within(correct).getAllByRole("listitem").map((li) => li.textContent)).toEqual([
+    "tuple",
+    "frozenset",
+  ]);
+  expect(screen.getByText("Tuples and frozensets can't change.")).toBeTruthy();
+});
+
+it("shows no correct answers box when every right choice and only those were ticked", () => {
+  render(
+    <AnsweredQuestionDetail
+      question={{ ...multipleSelect, response: "a,c", selected: ["a", "c"] }}
+    />,
+  );
+
+  expect(screen.queryByRole("list", { name: "Correct answers" })).toBeNull();
+  expect(screen.getByRole("list", { name: "Your answer" })).toBeTruthy();
+});
+
+it("shows an unanswered multiple-select Question as unanswered", () => {
+  render(<AnsweredQuestionDetail question={{ ...multipleSelect, response: null, selected: [] }} />);
+
+  expect(screen.getByText("Unanswered")).toBeTruthy();
+  expect(screen.queryByRole("list", { name: "Your answer" })).toBeNull();
 });

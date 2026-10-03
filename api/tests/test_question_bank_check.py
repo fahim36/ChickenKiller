@@ -16,6 +16,7 @@ from app.content.check import Problem, check_folder, check_stack
 from tests.conftest import (
     BANK,
     LESSON,
+    MS_BANK,
     SOURCES_ACCESSED,
     SYLLABUS,
     ContentFactory,
@@ -24,6 +25,7 @@ from tests.conftest import (
     git,
     make_bank,
     mc_question,
+    ms_question,
     source,
     stack_dir,
     write_bank,
@@ -256,8 +258,8 @@ def test_retiring_and_retagging_are_allowed(repo: Path) -> None:
     assert errors(problems) == [
         "w01-l01: the Lesson has 7 Questions that aren't retired; needs at least 8",
         "w01-l02: the Lesson has 1 Questions that aren't retired; needs at least 8",
-        "w01-l02: a Lesson Quiz needs 4 multiple-choice and 2 written Questions; the Lesson has 1 "
-        "and 0 that aren't retired",
+        "w01-l02: a Lesson Quiz needs 4 multiple-choice and 2 multiple-select Questions (a legacy "
+        "written Question counts as multiple select); the Lesson has 1 and 0 that aren't retired",
     ]  # only the minimums: moving a Question is allowed, it just leaves w01-l01 short
 
 
@@ -341,7 +343,7 @@ def test_new_questions_on_a_new_concept_are_no_warning(tmp_path: Path) -> None:
     root = tmp_path / "repo"
     root.mkdir()
     git(root, "init", "-q")
-    bank = copy.deepcopy(BANK)
+    bank = copy.deepcopy(MS_BANK)
     for q in bank["questions"]:
         q["sources"] = [source(1, "2026-01-02")]
     write_bank(root, bank)
@@ -350,6 +352,80 @@ def test_new_questions_on_a_new_concept_are_no_warning(tmp_path: Path) -> None:
 
     assert errors(problems) == []
     assert not [w for w in warnings(problems) if "tests the Concept" in w]
+
+
+# --- Written Questions are legacy (ADR-0008) ---------------------------------------------------
+
+
+def test_a_new_question_is_never_written(repo: Path) -> None:
+    bank = bank_now(repo)
+    written = copy.deepcopy(bank["questions"][6])
+    bank["questions"].append(written | {"id": "w01-l01-q09", "sources": [source(1, "2026-01-02")]})
+    write_bank(repo, bank)
+
+    assert errors(check_repo(repo)) == [
+        "w01-l01-q09: a new Question is never written: written Questions are legacy (ADR-0008); "
+        "write it as multiple_select",
+    ]
+
+
+def test_committed_written_questions_stay_and_can_be_retired_for_multiple_select(
+    repo: Path,
+) -> None:
+    """The way out of written Questions: retire each, replaced by a multiple-select Question
+    on the same Concept."""
+    assert errors(check_repo(repo)) == []  # the committed written Questions are fine
+
+    bank = bank_now(repo)
+    for q in bank["questions"][6:]:
+        retire(q, replaced_by=q["id"].replace("-q0", "-q1"))
+    bank["questions"] += [
+        ms_question(f"w01-l01-q1{n}", "concept-d") | {"sources": [source(n, "2026-01-02")]}
+        for n in (7, 8)
+    ]
+    write_bank(repo, bank)
+
+    assert errors(check_repo(repo)) == []
+
+
+def test_a_retired_written_questions_replacement_must_be_in_the_bank(repo: Path) -> None:
+    bank = bank_now(repo)
+    retire(bank["questions"][6], replaced_by="w01-l01-q99")
+    write_bank(repo, bank)
+
+    assert (
+        "w01-l01-q07: retired/replaced_by: 'w01-l01-q99' is not a Question in the bank"
+    ) in errors(check_repo(repo))
+
+
+@pytest.mark.parametrize(
+    ("texts", "warned"),
+    [
+        (["A long right choice", "Wrong", "Another right one", "Nope"], True),
+        (["Right", "A long wrong choice", "Right too", "Nope"], False),
+        (["Right one", "Wrong one", "Right two", "Wrong two"], False),
+    ],
+)
+def test_a_new_multiple_select_question_whose_answers_are_the_longest_is_a_warning(
+    repo: Path, texts: list[str], warned: bool
+) -> None:
+    bank = bank_now(repo)
+    question = ms_question("w01-l01-q09", "concept-a") | {"sources": [source(1, "2026-01-02")]}
+    question["choices"] = [{"id": c, "text": t} for c, t in zip("abcd", texts, strict=True)]
+    bank["questions"].append(question)
+    write_bank(repo, bank)
+
+    found = [w for w in warnings(check_repo(repo)) if "clearly the longest" in w]
+
+    assert found == (
+        [
+            "w01-l01-q09: the correct choices (a, c) are clearly the longest: each is longer than "
+            "every wrong choice, which gives them away; make a wrong choice as long as the "
+            "shortest correct one"
+        ]
+        if warned
+        else []
+    )
 
 
 @pytest.mark.parametrize(

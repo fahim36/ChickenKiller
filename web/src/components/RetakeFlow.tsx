@@ -5,10 +5,11 @@ import Link from "next/link";
 import { type FormEvent, useState } from "react";
 import { AnsweredQuestionDetail } from "@/components/MissedQuestions";
 import { Notice } from "@/components/Notice";
-import { AnswerChoices, Mark, QuestionCard, Spinner } from "@/components/QuestionCard";
+import { Mark, QuestionAnswer, QuestionCard, Spinner } from "@/components/QuestionCard";
 import { Button } from "@/components/ui/button";
-import { WrittenAnswer } from "@/components/WrittenAnswer";
+import { submittedAnswer } from "@/lib/answers";
 import type {
+  Answer,
   AnsweredQuestion,
   GradingFailed,
   QuizQuestion,
@@ -28,12 +29,12 @@ interface RetakeState {
 
 export type AnswerRetakeAction = (
   retakeId: string,
-  answer: string | null,
+  answer: Answer,
 ) => Promise<RetakeResult | GradingFailed>;
 
 /**
  * The Retakes of a passed Lesson Quiz: for each Missed Question, a sibling Question on the same
- * Concept, multiple choice or written. A wrong answer shows that sibling's Explanation (and the
+ * Concept, of any type. A wrong answer shows that sibling's Explanation (and the
  * grader's feedback on a written one) and the API offers another sibling; once every Retake is
  * correct the Lesson is Completed and the next one is Unlocked. If grading fails, nothing was
  * counted and the Learner submits again.
@@ -130,7 +131,7 @@ function RetakeForm({
   answerAction: AnswerRetakeAction;
   onAnswered: (result: RetakeResult) => void;
 }) {
-  const [answer, setAnswer] = useState("");
+  const [answer, setAnswer] = useState<Answer>(null);
   const [submitting, setSubmitting] = useState(false);
   const [failed, setFailed] = useState(false);
   const [gradingFailed, setGradingFailed] = useState<string | null>(null);
@@ -142,7 +143,7 @@ function RetakeForm({
     setGradingFailed(null);
     setSubmitting(true);
     try {
-      const outcome = await answerAction(state.id, answer.trim() === "" ? null : answer);
+      const outcome = await answerAction(state.id, submittedAnswer(answer));
       if ("code" in outcome) setGradingFailed(outcome.message);
       else onAnswered(outcome);
     } catch {
@@ -163,22 +164,14 @@ function RetakeForm({
         </div>
       )}
       <QuestionCard prompt={q.prompt}>
-        {q.type === "written" ? (
-          <WrittenAnswer
-            question={q}
-            value={answer}
-            maxLength={maxAnswerChars}
-            onChange={setAnswer}
-            idPrefix={`retake-${state.id}`}
-          />
-        ) : (
-          <AnswerChoices
-            name={`retake-${state.id}`}
-            choices={q.choices}
-            value={answer}
-            onChange={setAnswer}
-          />
-        )}
+        <QuestionAnswer
+          question={q}
+          name={`retake-${state.id}`}
+          idPrefix={`retake-${state.id}`}
+          value={answer}
+          maxLength={maxAnswerChars}
+          onChange={setAnswer}
+        />
       </QuestionCard>
       {failed && (
         <Notice tone="error" role="alert">

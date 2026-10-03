@@ -5,20 +5,26 @@ import { type FormEvent, useState } from "react";
 import { AnsweredQuestionDetail } from "@/components/MissedQuestions";
 import { Notice } from "@/components/Notice";
 import {
-  AnswerChoices,
   Mark,
+  QuestionAnswer,
   QuestionCard,
   Spinner,
   StepProgress,
 } from "@/components/QuestionCard";
 import { Button } from "@/components/ui/button";
-import { WrittenAnswer } from "@/components/WrittenAnswer";
-import type { GradingFailed, ReviewAnswerResult, ReviewQuestion, ReviewSet } from "@/lib/api";
+import { submittedAnswer } from "@/lib/answers";
+import type {
+  Answer,
+  GradingFailed,
+  ReviewAnswerResult,
+  ReviewQuestion,
+  ReviewSet,
+} from "@/lib/api";
 
 export type AnswerReviewAction = (
   stackId: string,
   questionId: string,
-  answer: string | null,
+  answer: Answer,
 ) => Promise<ReviewAnswerResult | GradingFailed>;
 
 /**
@@ -133,7 +139,7 @@ function QuestionForm({
   onAnswered: (result: ReviewAnswerResult) => void;
   onSkip: () => void;
 }) {
-  const [answer, setAnswer] = useState("");
+  const [answer, setAnswer] = useState<Answer>(null);
   const [submitting, setSubmitting] = useState(false);
   const [failed, setFailed] = useState(false);
   const [gradingFailed, setGradingFailed] = useState<string | null>(null);
@@ -144,7 +150,7 @@ function QuestionForm({
     setGradingFailed(null);
     setSubmitting(true);
     try {
-      const outcome = await answerAction(q.stack_id, q.id, answer.trim() === "" ? null : answer);
+      const outcome = await answerAction(q.stack_id, q.id, submittedAnswer(answer));
       if ("code" in outcome) setGradingFailed(outcome.message);
       else onAnswered(outcome);
     } catch {
@@ -157,22 +163,14 @@ function QuestionForm({
   return (
     <form onSubmit={submit} className="space-y-4">
       <QuestionCard prompt={q.prompt}>
-        {q.type === "written" ? (
-          <WrittenAnswer
-            question={q}
-            value={answer}
-            maxLength={maxAnswerChars}
-            onChange={setAnswer}
-            idPrefix="review"
-          />
-        ) : (
-          <AnswerChoices
-            name={`review-${q.id}`}
-            choices={q.choices}
-            value={answer}
-            onChange={setAnswer}
-          />
-        )}
+        <QuestionAnswer
+          question={q}
+          name={`review-${q.id}`}
+          idPrefix="review"
+          value={answer}
+          maxLength={maxAnswerChars}
+          onChange={setAnswer}
+        />
       </QuestionCard>
       {failed && (
         <Notice tone="error" role="alert">

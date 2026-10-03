@@ -374,6 +374,9 @@ def _new_question(
     if isinstance(question, fmt.MultipleChoiceQuestion):
         row.choices = [choice.model_dump() for choice in question.choices]
         row.answer = question.answer
+    elif isinstance(question, fmt.MultipleSelectQuestion):
+        row.choices = [choice.model_dump() for choice in question.choices]
+        row.answers = list(question.answers)
     else:
         row.model_answer = question.model_answer.model_dump()
     return row

@@ -262,7 +262,8 @@ class QuestionSource(Base):
 class Question(Base):
     """A Question of a Stack's Question Bank, including its correct answer.
 
-    `answer` / `model_answer` must never be sent to the browser before the Learner answers.
+    `answer` (multiple choice), `answers` (multiple select) and `model_answer` (written, legacy)
+    must never be sent to the browser before the Learner answers.
     A Retired Question (`retired_reason` set) stays, but is never drawn for anything new.
     """
 
@@ -277,10 +278,15 @@ class Question(Base):
     )
     concept_pk: Mapped[int] = mapped_column(ForeignKey("concepts.pk", ondelete="CASCADE"))
     position: Mapped[int] = mapped_column(Integer, comment="Order within the Question Bank.")
-    type: Mapped[str] = mapped_column(String(20), comment="multiple_choice or written")
+    type: Mapped[str] = mapped_column(
+        String(20), comment="multiple_choice, multiple_select or written (legacy)"
+    )
     prompt: Mapped[str] = mapped_column(Text)
     choices: Mapped[list[dict[str, Any]] | None] = mapped_column(JSONB)
     answer: Mapped[str | None] = mapped_column(String(1))
+    answers: Mapped[list[str] | None] = mapped_column(
+        JSONB, comment="Every correct choice ID, for multiple select."
+    )
     model_answer: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     explanation: Mapped[str] = mapped_column(Text)
     material_ids: Mapped[list[str]] = mapped_column(
@@ -570,7 +576,8 @@ class Answer(Base):
       `lesson_quiz_attempt_id`, `retake` uses `retake_id`, `daily_challenge` uses
       `challenge_play_id` (one per Question of the play: its first answer). `review` links to
       nothing: Review sets aren't stored (app/reviews.py).
-    - `response` is the choice ID or the written answer; null means left unanswered.
+    - `response` is the choice ID, the ticked choice IDs comma-separated ("a,c", multiple
+      select), or the written answer; null means left unanswered.
     - `correct` is null for a Daily Challenge's first answer whose grading failed: that
       Question is ungraded for good, earns no point and is no Missed Question. Everywhere else
       grading comes before recording, and nothing is recorded if it fails, so it is set.

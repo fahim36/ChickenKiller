@@ -50,6 +50,7 @@ _FIELD_ORDER = (
     "prompt",
     "choices",
     "answer",
+    "answers",
     "model_answer",
     "explanation",
     "materials",

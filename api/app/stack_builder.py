@@ -8,7 +8,8 @@
    one not rejected is the plan.
 3. **Quiz setup** (`questions` drafts): then Questions for each Lesson of that plan. A Lesson
    Quiz needs at least 8 Questions per Lesson that aren't retired, 4 of them multiple choice and
-   2 written, and every Concept at least 2 (the content check's rules).
+   2 multiple select, and every Concept at least 2 (the content check's rules). A new Stack has
+   no written Questions: they are legacy (ADR-0008).
 
 `plan` reports where a Stack stands, so both the Stacks screen and Claude know the next step.
 Content still only enters through git (ADR-0004, ADR-0007): once the Admin accepts the drafts,
@@ -28,7 +29,7 @@ from sqlalchemy.orm import Session
 from app.models import ContentDraft, Learner, Stack
 
 LESSON_MIN = 8
-QUIZ_MULTIPLE_CHOICE, QUIZ_WRITTEN = 4, 2
+QUIZ_MULTIPLE_CHOICE, QUIZ_MULTIPLE_SELECT = 4, 2
 MIN_QUESTIONS_PER_CONCEPT = 2
 MAX_WEEKS = 52
 LIVE = ("pending", "accepted", "exported")
@@ -52,18 +53,18 @@ class LessonProgress:
     id: str
     title: str
     multiple_choice: int
-    written: int
+    multiple_select: int
 
     @property
     def total(self) -> int:
-        return self.multiple_choice + self.written
+        return self.multiple_choice + self.multiple_select
 
     @property
     def ready(self) -> bool:
         return (
             self.total >= LESSON_MIN
             and self.multiple_choice >= QUIZ_MULTIPLE_CHOICE
-            and self.written >= QUIZ_WRITTEN
+            and self.multiple_select >= QUIZ_MULTIPLE_SELECT
         )
 
 
@@ -107,7 +108,7 @@ class Plan:
                     "id": lesson.id,
                     "title": lesson.title,
                     "multiple_choice": lesson.multiple_choice,
-                    "written": lesson.written,
+                    "multiple_select": lesson.multiple_select,
                     "ready": lesson.ready,
                 }
                 for lesson in self.lessons
@@ -124,7 +125,8 @@ NEXT_STEP = {
     ),
     "questions": (
         f"Submit Questions for each Lesson with submit_questions: at least {LESSON_MIN} per "
-        f"Lesson, {QUIZ_MULTIPLE_CHOICE} multiple choice and {QUIZ_WRITTEN} written, every "
+        f"Lesson, {QUIZ_MULTIPLE_CHOICE} multiple choice and {QUIZ_MULTIPLE_SELECT} multiple "
+        "select (never written), every "
         f"Concept with at least {MIN_QUESTIONS_PER_CONCEPT}, each with the Sources you fetched."
     ),
     "review": (
@@ -267,7 +269,10 @@ def plan(session: Session, stack_id: str) -> Plan | None:
         syllabus=syllabus,
         lessons=[
             LessonProgress(
-                lesson_id, title, types[lesson_id]["multiple_choice"], types[lesson_id]["written"]
+                lesson_id,
+                title,
+                types[lesson_id]["multiple_choice"],
+                types[lesson_id]["multiple_select"],
             )
             for lesson_id, title in lessons.items()
         ],

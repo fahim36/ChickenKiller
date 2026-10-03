@@ -20,8 +20,8 @@ becomes a Completed Lesson only when every Retake is correct.
 Retakes are keyed by the Learner and the attempt, not guarded by `UnlockedLesson`, so Retakes
 already under way can always be finished.
 
-A sibling may be of either type, whatever the Missed Question's type: a missed multiple-choice
-Question can be retaken on a written sibling and vice versa.
+A sibling may be of any type, whatever the Missed Question's type: a missed multiple-choice
+Question can be retaken on a multiple-select sibling and vice versa.
 """
 
 import random
@@ -42,8 +42,9 @@ from app.models import Answer, LearnerStack, LessonQuizAttempt, Question, Retake
 RETAKE = "retake"
 """`Answer.context` for an answer given in a Retake."""
 
-RETAKE_TYPES = ("multiple_choice", "written")
-"""Question types a Retake may ask: both, since `marking.mark` grades written answers."""
+RETAKE_TYPES = ("multiple_choice", "multiple_select", "written")
+"""Question types a Retake may ask: every one, since `marking.mark` marks them all (written
+Questions are legacy, ADR-0008, and only asked while one on the Concept isn't retired)."""
 
 
 class RetakeNotFound(Exception):

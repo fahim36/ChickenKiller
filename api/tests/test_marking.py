@@ -7,7 +7,16 @@ from typing import Any
 import pytest
 
 from app.grading import Grade
-from app.marking import AnswerTooLong, GradingFailed, Marked, NotAChoice, mark, mark_all
+from app.marking import (
+    AnswerTooLong,
+    GradingFailed,
+    Marked,
+    NotAChoice,
+    mark,
+    mark_all,
+    response_text,
+    selected_choices,
+)
 from app.models import Question
 from tests.conftest import FakeGrader
 
@@ -34,6 +43,58 @@ def test_multiple_choice_is_right_only_for_its_answer() -> None:
     with pytest.raises(NotAChoice):
         mark(MULTIPLE_CHOICE, "z", grader)
     assert grader.calls == []
+
+
+MULTIPLE_SELECT = Question(
+    id="q-ms",
+    type="multiple_select",
+    prompt="Pick every right one. Select all that apply.",
+    choices=[{"id": c, "text": c.upper()} for c in "abcd"],
+    answers=["a", "c"],
+)
+
+
+@pytest.mark.parametrize(
+    ("ticked", "correct"),
+    [
+        ("a,c", True),
+        ("c,a", True),
+        (" a , c ", True),
+        ("a", False),  # one right, one missed: no partial credit
+        ("a,b,c", False),  # every right one, and a wrong one
+        ("b,d", False),
+        ("a,b,c,d", False),
+    ],
+)
+def test_multiple_select_is_right_only_for_exactly_its_answers(ticked: str, correct: bool) -> None:
+    grader = FakeGrader()
+    assert mark(MULTIPLE_SELECT, ticked, grader) == Marked(correct=correct)
+    assert grader.calls == []  # never graded, so it can never fail to grade
+
+
+def test_multiple_select_with_no_ticks_is_missed() -> None:
+    assert mark(MULTIPLE_SELECT, None, FakeGrader()) == Marked(correct=False)
+    assert mark(MULTIPLE_SELECT, "", FakeGrader()) == Marked(correct=False)
+
+
+def test_multiple_select_refuses_a_tick_that_is_not_a_choice() -> None:
+    with pytest.raises(NotAChoice):
+        mark(MULTIPLE_SELECT, "a,z", FakeGrader())
+
+
+def test_multiple_select_is_marked_even_while_grading_fails() -> None:
+    grader = FakeGrader()
+    grader.failing = True
+    assert mark_all([MULTIPLE_SELECT], {"q-ms": "a,c"}, grader) == {"q-ms": Marked(True)}
+
+
+def test_a_list_of_ticks_is_stored_sorted_and_comma_separated() -> None:
+    assert response_text(["c", "a", "c"]) == "a,c"
+    assert response_text([]) is None
+    assert response_text("b") == "b"
+    assert response_text(None) is None
+    assert selected_choices("c,a") == ["a", "c"]
+    assert selected_choices(None) == []
 
 
 def test_a_written_answer_is_graded_with_feedback() -> None:

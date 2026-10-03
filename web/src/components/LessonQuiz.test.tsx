@@ -41,8 +41,10 @@ function missed(n: number): AnsweredQuestion {
   return {
     ...quiz.questions[n - 1],
     response: written ? "Not sure." : "b",
+    selected: [],
     feedback: written ? "Missing: the loop." : null,
     answer: written ? null : "a",
+    answers: [],
     model_answer: written ? { summary: "Agents loop.", key_points: ["loop", "tools"] } : null,
     explanation: `Because of ${n}.`,
     materials: [],
@@ -81,7 +83,7 @@ afterEach(cleanup);
 type Submit = (answers: QuizAnswers) => Promise<LessonQuizResult | GradingFailed>;
 type AnswerRetake = (
   retakeId: string,
-  answer: string | null,
+  answer: string | string[] | null,
 ) => Promise<RetakeResult | GradingFailed>;
 
 function renderQuiz(submitAction: Submit, answerRetakeAction: AnswerRetake = vi.fn()) {
@@ -313,4 +315,38 @@ it("a pass with a Missed Question goes on to its Retake, and a correct one compl
   expect(
     (await screen.findByText(/Every Retake is correct/)).textContent,
   ).toContain("this Lesson is Completed and the next one is Unlocked");
+});
+
+it("answers a multiple-select Question with every choice ticked, in choice order", async () => {
+  const withSelect: Quiz = {
+    ...quiz,
+    questions: [
+      ...quiz.questions.slice(0, 4),
+      {
+        id: "w01-l01-q07",
+        type: "multiple_select",
+        prompt: "Question 7? Select all that apply.",
+        choices: ["a", "b", "c", "d"].map((id) => ({ id, text: `Choice ${id}` })),
+      },
+    ],
+  };
+  const submitAction = vi.fn(async () => result(5));
+  render(
+    <LessonQuiz
+      quiz={withSelect}
+      stackId="agentic-ai-engineer"
+      submitAction={submitAction}
+      answerRetakeAction={vi.fn()}
+    />,
+  );
+
+  const group = question(7);
+  fireEvent.click(within(group).getByRole("checkbox", { name: "Choice c" }));
+  fireEvent.click(within(group).getByRole("checkbox", { name: "Choice b" }));
+  fireEvent.click(within(group).getByRole("checkbox", { name: "Choice a" }));
+  fireEvent.click(within(group).getByRole("checkbox", { name: "Choice b" }));
+  expect(screen.getByText("1 of 5 answered")).toBeTruthy();
+  fireEvent.click(submitButton());
+
+  await vi.waitFor(() => expect(submitAction).toHaveBeenCalledWith({ "w01-l01-q07": ["a", "c"] }));
 });

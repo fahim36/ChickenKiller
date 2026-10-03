@@ -165,8 +165,10 @@ def test_the_results_show_each_missed_question_with_its_answers_explanation_sour
             "prompt": f"Question {int(qid[-2:])}?",
             "choices": [{"id": "a", "text": "Right"}, {"id": "b", "text": "Wrong"}],
             "response": response,
+            "selected": [],
             "feedback": None,
             "answer": "a",
+            "answers": [],
             "model_answer": None,
             "explanation": f"Because of {qid}.",
             "materials": [
