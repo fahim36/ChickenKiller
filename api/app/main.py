@@ -1,4 +1,5 @@
 import logging
+import random
 import uuid
 from collections.abc import AsyncIterator, Callable, Iterator
 from contextlib import asynccontextmanager, contextmanager
@@ -266,13 +267,21 @@ def _question_type(q: Question) -> schemas.QuestionType:
     return "multiple_select" if q.type == "multiple_select" else "multiple_choice"
 
 
+def _choices(q: Question) -> list[schemas.ChoiceOut]:
+    """A Question's choices in a shuffled order that is the same every time (seeded by its ID),
+    so the bank's order (the correct choices are often listed first) gives nothing away."""
+    choices = [schemas.ChoiceOut(id=c["id"], text=c["text"]) for c in q.choices or []]
+    random.Random(q.id).shuffle(choices)
+    return choices
+
+
 def _quiz_question(q: Question) -> schemas.QuizQuestionOut:
     """A Question to answer: never its answer(s), Model Answer or Explanation."""
     return schemas.QuizQuestionOut(
         id=q.id,
         type=_question_type(q),
         prompt=q.prompt,
-        choices=[schemas.ChoiceOut(id=c["id"], text=c["text"]) for c in q.choices or []],
+        choices=_choices(q),
     )
 
 
@@ -287,7 +296,7 @@ def _answered_question(
         id=q.id,
         type=_question_type(q),
         prompt=q.prompt,
-        choices=[schemas.ChoiceOut(id=c["id"], text=c["text"]) for c in q.choices or []],
+        choices=_choices(q),
         response=response,
         selected=marking.selected_choices(response) if multiple_select else [],
         feedback=feedback,
@@ -616,9 +625,7 @@ def _challenge_question(
         id=q.id,
         type=_question_type(q),
         prompt=q.prompt,
-        choices=[]
-        if unanswerable
-        else [schemas.ChoiceOut(id=c["id"], text=c["text"]) for c in q.choices or []],
+        choices=[] if unanswerable else _choices(q),
         retired=q.retired,
         retired_reason=q.retired_reason,
         replaced_by=_replacement(stack_name, asked.replacement),

@@ -75,8 +75,19 @@ def test_the_quiz_asks_four_multiple_choice_then_two_multiple_select(learner: Te
         "multiple_select"
     ] * 2
     assert sorted(q["id"] for q in quiz["questions"][4:]) == MULTIPLE_SELECT
-    assert quiz["questions"][4]["choices"][0] == {"id": "a", "text": "Right one"}
+    assert {"id": "a", "text": "Right one"} in quiz["questions"][4]["choices"]
     assert "answers" not in quiz["questions"][4]
+
+
+def test_choices_are_shuffled_the_same_way_every_time(learner: TestClient) -> None:
+    first = {q["id"]: q["choices"] for q in start(learner)["questions"]}
+    again = {q["id"]: q["choices"] for q in start(learner)["questions"]}
+
+    for question_id in first.keys() & again.keys():
+        assert first[question_id] == again[question_id]
+    assert any(
+        [c["id"] for c in choices] != sorted(c["id"] for c in choices) for choices in first.values()
+    )
 
 
 def test_ticking_exactly_the_right_choices_passes_and_anything_else_is_missed(
