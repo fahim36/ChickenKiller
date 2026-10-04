@@ -141,7 +141,12 @@
           "accessed": "2026-09-26",
           "claim": "An E2B sandbox takes a timeout at creation (timeout in seconds in Python, timeoutMs in JS), can have it changed at runtime, and can be destroyed immediately with kill()."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w13-l03-q12",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w13-l03-q04",
@@ -351,7 +356,12 @@
           "accessed": "2026-09-26",
           "claim": "Excessive Agency stems from excessive functionality, excessive permissions and excessive autonomy; mitigations include least privilege, minimal-scope credentials and human approval for high-impact actions."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w13-l03-q13",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w13-l03-q09",
@@ -497,7 +507,202 @@
           "accessed": "2026-09-26",
           "claim": "Excessive Agency stems from excessive functionality, excessive permissions and excessive autonomy; mitigations include least privilege, minimal-scope credentials and human approval for high-impact actions."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w13-l03-q14",
+        "on": "2026-10-03"
+      }
+    },
+    {
+      "id": "w13-l03-q12",
+      "lesson": "w13-l03",
+      "concept": "w13-l03-sandboxing",
+      "type": "multiple_select",
+      "prompt": "Which controls constrain an E2B sandbox running untrusted coding-agent code? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Use a separate isolated microVM rather than sharing another customer filesystem."
+        },
+        {
+          "id": "b",
+          "text": "Assume microVM isolation automatically forbids all outbound network traffic."
+        },
+        {
+          "id": "c",
+          "text": "Disable or restrict outbound access when the task does not need it."
+        },
+        {
+          "id": "d",
+          "text": "Bound sandbox lifetime and shut it down after the task completes."
+        },
+        {
+          "id": "e",
+          "text": "Assume pausing a sandbox erases its filesystem and memory state."
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "d"
+      ],
+      "explanation": "a: Correct: E2B isolates each sandbox with its own kernel, filesystem and memory. b: Incorrect: network egress has separate allow and deny controls. c: Correct: the SDK exposes internet-access and outbound allow/deny configuration. d: Correct: explicit timeouts and kill constrain how long untrusted code remains active. e: Incorrect: pause preserves filesystem and memory for later resumption.",
+      "materials": [
+        "e2b-sandboxed-code-execution",
+        "simon-willison-the-lethal-trifecta-for"
+      ],
+      "sources": [
+        {
+          "url": "https://e2b.dev/security",
+          "title": "Security and compliance",
+          "publisher": "E2B",
+          "accessed": "2026-10-03",
+          "claim": "Each sandbox has its own Firecracker microVM, kernel, filesystem and memory; pausing preserves state."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/e2b-dev/E2B/main/packages/js-sdk/src/sandbox/sandboxApi.ts",
+          "title": "E2B JavaScript SDK sandbox API source",
+          "publisher": "E2B",
+          "accessed": "2026-10-03",
+          "claim": "Sandbox options expose allowInternetAccess and network allowOut/denyOut controls separately from microVM isolation."
+        },
+        {
+          "url": "https://docs.e2b.dev/sandbox",
+          "title": "Sandbox lifecycle",
+          "publisher": "E2B",
+          "accessed": "2026-10-03",
+          "claim": "Explicit timeouts bound sandbox lifetime and kill shuts down a sandbox immediately; pause preserves full state."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w13-l03-q13",
+      "lesson": "w13-l03",
+      "concept": "w13-l03-test-loop-and-review",
+      "type": "multiple_select",
+      "prompt": "Which repository controls reduce damage from an automated coding agent? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Require pull request reviews before merging into protected branches."
+        },
+        {
+          "id": "b",
+          "text": "Give the agent administrator bypass permission to simplify merges."
+        },
+        {
+          "id": "c",
+          "text": "Require passing status checks on the protected branch."
+        },
+        {
+          "id": "d",
+          "text": "Enable secret push protection to block detected secrets before upload."
+        },
+        {
+          "id": "e",
+          "text": "Enable unrestricted force pushes on the protected main branch."
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "d"
+      ],
+      "explanation": "A: Correct: branch protection can enforce independent review. B: Incorrect: bypass permission undermines the protected workflow. C: Correct: protection can require successful checks before merge. D: Correct: push protection blocks supported detected secrets before they reach the repository. E: Incorrect: force pushes can replace approved history; protection disables them by default.",
+      "materials": [
+        "github-docs-about-protected-branches",
+        "e2b-sandboxed-code-execution",
+        "owasp-top-10-for-llm-applications"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches",
+          "title": "About protected branches",
+          "publisher": "GitHub",
+          "accessed": "2026-10-03",
+          "claim": "Branch protection can require pull request reviews and passing status checks before merging, blocks force pushes and branch deletion by default, and by default does not apply to repository admins unless bypassing is disallowed."
+        },
+        {
+          "url": "https://docs.github.com/en/code-security/secret-scanning/introduction/about-push-protection",
+          "title": "About push protection",
+          "publisher": "GitHub",
+          "accessed": "2026-10-03",
+          "claim": "Secret scanning push protection blocks pushes that contain secrets before they reach the repository."
+        },
+        {
+          "url": "https://genai.owasp.org/llmrisk/llm062025-excessive-agency/",
+          "title": "LLM06:2025 Excessive Agency",
+          "publisher": "OWASP Foundation (OWASP GenAI Security Project)",
+          "accessed": "2026-10-03",
+          "claim": "Excessive Agency stems from excessive functionality, excessive permissions and excessive autonomy; mitigations include least privilege, minimal-scope credentials and human approval for high-impact actions."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w13-l03-q14",
+      "lesson": "w13-l03",
+      "concept": "w13-l03-secrets-and-injection",
+      "type": "multiple_select",
+      "prompt": "Which statements describe coding-agent prompt-injection risk and mitigation? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Repository files can carry indirect prompt-injection instructions."
+        },
+        {
+          "id": "b",
+          "text": "Limit tool permissions and privileged operations independently of the model."
+        },
+        {
+          "id": "c",
+          "text": "Trusted-looking issue text guarantees its instructions are safe."
+        },
+        {
+          "id": "d",
+          "text": "Secret access and unrestricted outbound communication eliminate exfiltration risk."
+        },
+        {
+          "id": "e",
+          "text": "Require human review for high-impact operations."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "e"
+      ],
+      "explanation": "A: Correct: external content such as files can introduce indirect injection. B: Correct: downstream least-privilege enforcement limits consequences. C: Incorrect: issue or repository content remains an untrusted input surface. D: Incorrect: combining private data, untrusted content and external communication enables exfiltration. E: Correct: OWASP recommends human-in-the-loop control for privileged actions.",
+      "materials": [
+        "simon-willison-the-lethal-trifecta-for",
+        "owasp-top-10-for-llm-applications"
+      ],
+      "sources": [
+        {
+          "url": "https://simonwillison.net/2025/Jun/16/the-lethal-trifecta/",
+          "title": "The lethal trifecta for AI agents: private data, untrusted content, and external communication",
+          "publisher": "Simon Willison",
+          "accessed": "2026-10-03",
+          "claim": "Combining access to private data, exposure to untrusted content and the ability to communicate externally lets injected instructions exfiltrate data; guardrails claiming 95% detection are a failing grade, so the defence is to avoid combining all three."
+        },
+        {
+          "url": "https://genai.owasp.org/llmrisk/llm01-prompt-injection/",
+          "title": "LLM01:2025 Prompt Injection",
+          "publisher": "OWASP Foundation (OWASP GenAI Security Project)",
+          "accessed": "2026-10-03",
+          "claim": "Indirect prompt injection happens when an LLM takes input from external sources such as websites or files; mitigations include least-privilege access, human-in-the-loop controls for privileged operations and segregating untrusted content."
+        },
+        {
+          "url": "https://genai.owasp.org/llmrisk/llm062025-excessive-agency/",
+          "title": "LLM06:2025 Excessive Agency",
+          "publisher": "OWASP Foundation (OWASP GenAI Security Project)",
+          "accessed": "2026-10-03",
+          "claim": "Excessive Agency stems from excessive functionality, excessive permissions and excessive autonomy; mitigations include least privilege, minimal-scope credentials and human approval for high-impact actions."
+        }
+      ],
+      "retired": null
     }
   ]
 }

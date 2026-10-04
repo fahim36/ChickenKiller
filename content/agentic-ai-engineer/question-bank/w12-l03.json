@@ -198,7 +198,12 @@
           "accessed": "2026-09-26",
           "claim": "Grant least-privilege permissions: only the needed actions on specific resources."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w12-l03-q13",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w12-l03-q05",
@@ -393,7 +398,12 @@
           "accessed": "2026-09-26",
           "claim": "The Converse example creates boto3.client('bedrock-runtime', region_name=...) and calls converse with modelId and messages whose content is a list of text blocks."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w12-l03-q14",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w12-l03-q10",
@@ -431,7 +441,12 @@
           "accessed": "2026-09-26",
           "claim": "Claude in Amazon Bedrock runs inside the AWS security boundary with IAM authentication, logs to CloudWatch and CloudTrail, and also lacks Message Batches and the Files API."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w12-l03-q15",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w12-l03-q11",
@@ -518,6 +533,181 @@
           "claim": "The legacy integration is InvokeModel and Converse with ARN-versioned model IDs and AWS event-stream encoding."
         }
       ]
+    },
+    {
+      "id": "w12-l03-q13",
+      "lesson": "w12-l03",
+      "concept": "w12-l03-runtime-secrets",
+      "type": "multiple_select",
+      "prompt": "Which statements about ECS environment injection from Secrets Manager are accurate? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Place the secret value directly in the task definition valueFrom field."
+        },
+        {
+          "id": "b",
+          "text": "Use a secret ARN in the container secrets valueFrom field."
+        },
+        {
+          "id": "c",
+          "text": "Rotation automatically replaces the environment value in running tasks."
+        },
+        {
+          "id": "d",
+          "text": "Give the task execution role permission to retrieve the secret."
+        },
+        {
+          "id": "e",
+          "text": "Start a new task to obtain a newly rotated injected value."
+        }
+      ],
+      "answers": [
+        "b",
+        "d",
+        "e"
+      ],
+      "explanation": "A: Incorrect: valueFrom references the secret ARN rather than embedding its value. B: Correct: secrets maps an environment variable name to an ARN. C: Incorrect: ECS injects the value when the container starts. D: Correct: the execution role retrieves secrets for this injection mechanism. E: Correct: restart tasks or force a new deployment after rotation.",
+      "materials": [
+        "aws-secrets-manager-user-guide",
+        "aws-iam-user-guide"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.aws.amazon.com/AmazonECS/latest/developerguide/secrets-envvar-secrets-manager.html",
+          "title": "Pass Secrets Manager secrets through Amazon ECS environment variables",
+          "publisher": "AWS",
+          "accessed": "2026-10-03",
+          "claim": "A container definition's secrets field names the environment variable and gives the secret's ARN in valueFrom; the task execution role needs Secrets Manager permissions, and an injected value only updates when a new task starts."
+        },
+        {
+          "url": "https://docs.aws.amazon.com/secretsmanager/latest/userguide/intro.html",
+          "title": "What is AWS Secrets Manager?",
+          "publisher": "AWS",
+          "accessed": "2026-10-03",
+          "claim": "Apps retrieve credentials from Secrets Manager at runtime rather than storing them in code."
+        },
+        {
+          "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html",
+          "title": "Security best practices in IAM",
+          "publisher": "AWS",
+          "accessed": "2026-10-03",
+          "claim": "Grant least-privilege permissions: only the needed actions on specific resources."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w12-l03-q14",
+      "lesson": "w12-l03",
+      "concept": "w12-l03-converse-api",
+      "type": "multiple_select",
+      "prompt": "Which statements describe a normal Bedrock Converse conversation? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Create the boto3 client for the bedrock-runtime service."
+        },
+        {
+          "id": "b",
+          "text": "Read the assistant reply only from a top-level response text field."
+        },
+        {
+          "id": "c",
+          "text": "Supply message content as blocks such as a text block."
+        },
+        {
+          "id": "d",
+          "text": "Append the returned assistant message before the next user turn."
+        },
+        {
+          "id": "e",
+          "text": "Rely on Bedrock to remember omitted previous messages automatically."
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "d"
+      ],
+      "explanation": "A: Correct: the runtime client exposes the converse operation. B: Incorrect: the assistant message is at output.message. C: Correct: each message has a role and a list of content blocks. D: Correct: the documented example resends the accumulated message history. E: Incorrect: you supply the history needed for the next request.",
+      "materials": [
+        "amazon-bedrock-converse-api",
+        "amazon-bedrock-user-guide"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.aws.amazon.com/bedrock/latest/userguide/conversation-inference.html",
+          "title": "Inference using Converse API",
+          "publisher": "AWS",
+          "accessed": "2026-10-03",
+          "claim": "Converse needs bedrock:InvokeModel permission, takes modelId, messages, optional system and inferenceConfig, returns usage, and AWS's example appends response['output']['message'] then the next user message before calling again."
+        },
+        {
+          "url": "https://docs.aws.amazon.com/bedrock/latest/userguide/what-is-bedrock.html",
+          "title": "Overview - Amazon Bedrock",
+          "publisher": "AWS",
+          "accessed": "2026-10-03",
+          "claim": "The Converse example creates boto3.client('bedrock-runtime', region_name=...) and calls converse with modelId and messages whose content is a list of text blocks."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w12-l03-q15",
+      "lesson": "w12-l03",
+      "concept": "w12-l03-bedrock-vs-direct",
+      "type": "multiple_select",
+      "prompt": "Which integration differences are documented for Claude on Amazon Bedrock? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Bedrock integrations authenticate through AWS credentials and IAM."
+        },
+        {
+          "id": "b",
+          "text": "The legacy integration lacks the Claude Message Batches API."
+        },
+        {
+          "id": "c",
+          "text": "The legacy integration exposes the Claude Files API unchanged."
+        },
+        {
+          "id": "d",
+          "text": "Bedrock requires an Anthropic API key instead of AWS credentials."
+        },
+        {
+          "id": "e",
+          "text": "The newer Bedrock integration also lists Files API as unsupported."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "e"
+      ],
+      "explanation": "A: Correct: the integrations use AWS authentication and authorization. B: Correct: Message Batches is listed as an unsupported legacy feature. C: Incorrect: Files API is explicitly unsupported in that integration. D: Incorrect: AWS credentials authenticate Bedrock calls. E: Correct: the newer integration also documents this feature gap.",
+      "materials": [
+        "claude-on-amazon-bedrock",
+        "amazon-bedrock-user-guide"
+      ],
+      "sources": [
+        {
+          "url": "https://platform.claude.com/docs/en/build-with-claude/claude-on-amazon-bedrock-legacy",
+          "title": "Claude on Amazon Bedrock (Opus 4.6 and earlier)",
+          "publisher": "Anthropic",
+          "accessed": "2026-10-03",
+          "claim": "Bedrock uses AWS credentials, offers regional endpoints for data residency, and does not support the Message Batches API, Files API or server-side tools."
+        },
+        {
+          "url": "https://platform.claude.com/docs/en/build-with-claude/claude-in-amazon-bedrock",
+          "title": "Claude in Amazon Bedrock (Opus 4.7 and later)",
+          "publisher": "Anthropic",
+          "accessed": "2026-10-03",
+          "claim": "Claude in Amazon Bedrock runs inside the AWS security boundary with IAM authentication, logs to CloudWatch and CloudTrail, and also lacks Message Batches and the Files API."
+        }
+      ],
+      "retired": null
     }
   ]
 }

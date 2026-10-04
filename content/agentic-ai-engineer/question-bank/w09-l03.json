@@ -101,7 +101,12 @@
           "accessed": "2026-09-26",
           "claim": "202 Accepted means the request was accepted for processing that has not completed, and the response can include a URL the client uses to monitor the task's status."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w09-l03-q12",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w09-l03-q03",
@@ -348,7 +353,12 @@
           "accessed": "2026-09-26",
           "claim": "RQ jobs have IDs and statuses that can be fetched later, which a status endpoint can expose for polling."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w09-l03-q13",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w09-l03-q09",
@@ -464,7 +474,180 @@
           "accessed": "2026-09-26",
           "claim": "RQ stores a successful job's return value for result_ttl (500 seconds by default), so durable results should be saved elsewhere."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w09-l03-q14",
+        "on": "2026-10-03"
+      }
+    },
+    {
+      "id": "w09-l03-q12",
+      "lesson": "w09-l03",
+      "concept": "w09-l03-why-not-in-request",
+      "type": "multiple_select",
+      "prompt": "Which statements fit background processing with RQ and HTTP 202? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "HTTP 202 guarantees that the job has already completed successfully."
+        },
+        {
+          "id": "b",
+          "text": "The request process can enqueue work for a separate RQ worker."
+        },
+        {
+          "id": "c",
+          "text": "RQ requires every queued function to execute in the browser process."
+        },
+        {
+          "id": "d",
+          "text": "A 202 response can include a URL for checking later status."
+        },
+        {
+          "id": "e",
+          "text": "A worker executes the enqueued function outside the original request."
+        }
+      ],
+      "answers": [
+        "b",
+        "d",
+        "e"
+      ],
+      "explanation": "A: 202 indicates accepted but incomplete processing and is noncommittal. B: RQ stores jobs in Redis for workers to execute. C: Workers are server-side processes, not browser execution. D: MDN demonstrates a status-monitor URL in the response. E: Background workers decouple execution from the request.",
+      "materials": [
+        "rq-for-background-jobs",
+        "mdn-http-202-accepted"
+      ],
+      "sources": [
+        {
+          "url": "https://python-rq.org/docs/",
+          "title": "RQ: Documentation Overview",
+          "publisher": "RQ (python-rq project)",
+          "accessed": "2026-10-03",
+          "claim": "With RQ the web process enqueues a function call in Redis and a separate worker process executes it and keeps the result."
+        },
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status/202",
+          "title": "202 Accepted - HTTP | MDN",
+          "publisher": "Mozilla (MDN Web Docs)",
+          "accessed": "2026-10-03",
+          "claim": "202 Accepted means the request was accepted for processing that has not completed, and the response can include a URL the client uses to monitor the task's status."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w09-l03-q13",
+      "lesson": "w09-l03",
+      "concept": "w09-l03-job-status",
+      "type": "multiple_select",
+      "prompt": "Which facts support a polling endpoint for an RQ job accepted with HTTP 202? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "RQ jobs have identifiers that can be fetched later."
+        },
+        {
+          "id": "b",
+          "text": "Receiving 202 removes the need to inspect the job’s eventual outcome."
+        },
+        {
+          "id": "c",
+          "text": "A status-monitor URL can be returned in the acceptance response."
+        },
+        {
+          "id": "d",
+          "text": "RQ exposes job statuses such as finished and failed."
+        },
+        {
+          "id": "e",
+          "text": "A single 202 response will later change into a completion response automatically."
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "d"
+      ],
+      "explanation": "A: The job ID lets the client refer to the same queued work. B: Acceptance is not a guarantee of eventual success. C: The response can tell the client where to poll. D: Job state can be surfaced through the monitoring endpoint. E: 202 is a completed HTTP response; subsequent status needs another mechanism.",
+      "materials": [
+        "rq-for-background-jobs",
+        "mdn-http-202-accepted"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status/202",
+          "title": "202 Accepted - HTTP | MDN",
+          "publisher": "Mozilla (MDN Web Docs)",
+          "accessed": "2026-10-03",
+          "claim": "Because a 202 is non-committal, the response can include a status-monitor URL that the client checks later for the task's outcome."
+        },
+        {
+          "url": "https://python-rq.org/docs/jobs/",
+          "title": "RQ: Jobs",
+          "publisher": "RQ (python-rq project)",
+          "accessed": "2026-10-03",
+          "claim": "RQ jobs have IDs and statuses that can be fetched later, which a status endpoint can expose for polling."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w09-l03-q14",
+      "lesson": "w09-l03",
+      "concept": "w09-l03-at-least-once-idempotency",
+      "type": "multiple_select",
+      "prompt": "Which statements hold for Celery acknowledgements and background-job results? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Idempotent work can be repeated without adding duplicate effects."
+        },
+        {
+          "id": "b",
+          "text": "Late acknowledgement acknowledges after task execution."
+        },
+        {
+          "id": "c",
+          "text": "Early acknowledgement guarantees that a crashed task is always redelivered."
+        },
+        {
+          "id": "d",
+          "text": "RQ’s default result retention is permanent durable storage."
+        },
+        {
+          "id": "e",
+          "text": "RQ’s successful return values expire according to `result_ttl`."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "e"
+      ],
+      "explanation": "A: Idempotency is why repeating a task is safe. B: Celery permits acks_late for idempotent tasks. C: Early acknowledgement can lose work already acknowledged before a crash. D: The default retention is limited, so durable results need persistent storage. E: Result retention is configurable and finite by default.",
+      "materials": [
+        "celery-tasks-user-guide",
+        "rq-for-background-jobs"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.celeryq.dev/en/stable/userguide/tasks.html",
+          "title": "Tasks — Celery 5.6.3 documentation",
+          "publisher": "Celery Project",
+          "accessed": "2026-10-03",
+          "claim": "Early acknowledgement (the default) means a started task is never re-executed, while acks_late acknowledges after execution so a crash can re-run the task, which is why tasks should be idempotent."
+        },
+        {
+          "url": "https://python-rq.org/docs/results/",
+          "title": "RQ: Results",
+          "publisher": "RQ (python-rq project)",
+          "accessed": "2026-10-03",
+          "claim": "RQ stores a successful job's return value for result_ttl (500 seconds by default), so durable results should be saved elsewhere."
+        }
+      ],
+      "retired": null
     }
   ]
 }

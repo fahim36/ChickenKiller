@@ -90,7 +90,12 @@
           "accessed": "2026-09-26",
           "claim": "The platform adds context construction (RAG, query rewriting), input and output guardrails, a model router and gateway, caching, and complex logic with write actions, plus observability and orchestration."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w10-l05-q13",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w10-l05-q03",
@@ -292,7 +297,12 @@
           "accessed": "2026-09-26",
           "claim": "Input guardrails mask sensitive data and block jailbreaks, output guardrails check format and toxicity, and failed outputs are handled by retrying, making parallel calls, or escalating to humans."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w10-l05-q14",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w10-l05-q08",
@@ -486,7 +496,156 @@
           "accessed": "2026-09-26",
           "claim": "Pin model versions and trial new ones in a shadow pipeline, and review samples of production inputs and outputs daily to catch failure patterns and drift."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w10-l05-q15",
+        "on": "2026-10-03"
+      }
+    },
+    {
+      "id": "w10-l05-q13",
+      "lesson": "w10-l05",
+      "concept": "w10-l05-genai-platform-components",
+      "type": "multiple_select",
+      "prompt": "In Chip Huyen’s platform design, which roles are distinct? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Context construction retrieves information needed by the model."
+        },
+        {
+          "id": "b",
+          "text": "A model router is only a replacement for the database’s primary key."
+        },
+        {
+          "id": "c",
+          "text": "A gateway provides unified access and controls across model endpoints."
+        },
+        {
+          "id": "d",
+          "text": "Write actions allow the system to change external state."
+        },
+        {
+          "id": "e",
+          "text": "Response caching is the component that trains new model weights each request."
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "d"
+      ],
+      "explanation": "A: RAG, query rewriting and tools enhance context. B: The router selects the suitable model or pipeline for intent. C: Gateways unify provider integration, usage controls and observability. D: Write actions extend the system beyond reading and answering. E: Caching reuses computation or responses rather than retraining weights.",
+      "materials": [
+        "chip-huyen-building-a-generative-ai"
+      ],
+      "sources": [
+        {
+          "url": "https://huyenchip.com/2024/07/25/genai-platform.html",
+          "title": "Building A Generative AI Platform",
+          "publisher": "Chip Huyen",
+          "accessed": "2026-10-03",
+          "claim": "The platform adds context construction (RAG, query rewriting), input and output guardrails, a model router and gateway, caching, and complex logic with write actions, plus observability and orchestration."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w10-l05-q14",
+      "lesson": "w10-l05",
+      "concept": "w10-l05-input-output-guardrails",
+      "type": "multiple_select",
+      "prompt": "Which statements describe input/output guardrails and failure management? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Input guardrails can mask sensitive data before external calls."
+        },
+        {
+          "id": "b",
+          "text": "Output guardrails can check whether an answer is valid JSON."
+        },
+        {
+          "id": "c",
+          "text": "An output guardrail can prevent already-sent input from reaching its provider."
+        },
+        {
+          "id": "d",
+          "text": "Retrying failed outputs guarantees zero extra cost or latency."
+        },
+        {
+          "id": "e",
+          "text": "High-risk or difficult cases can be escalated to human operators."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "e"
+      ],
+      "explanation": "A: Masking reduces exposure of private information to external APIs. B: Format validation is a documented output check. C: Output checks happen after generation and cannot undo input transmission. D: Retries add calls and often latency. E: Human escalation is one of the documented recovery policies.",
+      "materials": [
+        "chip-huyen-building-a-generative-ai"
+      ],
+      "sources": [
+        {
+          "url": "https://huyenchip.com/2024/07/25/genai-platform.html",
+          "title": "Building A Generative AI Platform",
+          "publisher": "Chip Huyen",
+          "accessed": "2026-10-03",
+          "claim": "Input guardrails mask sensitive data and block jailbreaks, output guardrails check format and toxicity, and failed outputs are handled by retrying, making parallel calls, or escalating to humans."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w10-l05-q15",
+      "lesson": "w10-l05",
+      "concept": "w10-l05-evals-and-operations",
+      "type": "multiple_select",
+      "prompt": "Which operational practices help detect model-update regressions? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Use an unversioned alias so production behavior never changes."
+        },
+        {
+          "id": "b",
+          "text": "Pin a specific model version in production."
+        },
+        {
+          "id": "c",
+          "text": "Trial new versions in a shadow pipeline before switching."
+        },
+        {
+          "id": "d",
+          "text": "Review production input/output samples to find failure patterns."
+        },
+        {
+          "id": "e",
+          "text": "Assume prompt quality transfers unchanged between every model version."
+        }
+      ],
+      "answers": [
+        "b",
+        "c",
+        "d"
+      ],
+      "explanation": "A: Aliases may change; a specific version is needed for pinning. B: Pinning avoids unexpected provider-version changes. C: Shadow evaluation tests newer outputs without replacing production immediately. D: The operational guidance calls for daily data review. E: Model changes can alter behavior and require evaluation of prompts.",
+      "materials": [
+        "what-we-learned-from-a-year"
+      ],
+      "sources": [
+        {
+          "url": "https://applied-llms.org/",
+          "title": "What We've Learned From A Year of Building with LLMs – Applied LLMs",
+          "publisher": "Applied LLMs (Yan, Bischof, Frye, Husain, Liu, Shankar)",
+          "accessed": "2026-10-03",
+          "claim": "Pin model versions and trial new ones in a shadow pipeline, and review samples of production inputs and outputs daily to catch failure patterns and drift."
+        }
+      ],
+      "retired": null
     }
   ]
 }

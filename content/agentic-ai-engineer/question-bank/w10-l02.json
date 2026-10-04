@@ -136,7 +136,12 @@
           "accessed": "2026-09-26",
           "claim": "Postgres row security policies can restrict which rows each role sees in a shared table, enforcing a tenant filter in the database."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w10-l02-q13",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w10-l02-q04",
@@ -377,7 +382,12 @@
           "accessed": "2026-09-26",
           "claim": "The user's authenticated identity must flow through the request chain and be mapped to a tenant so downstream services enforce access."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w10-l02-q14",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w10-l02-q10",
@@ -454,7 +464,12 @@
           "accessed": "2026-09-26",
           "claim": "Microsoft recommends encapsulating tenant filtering in one API layer through which all data requests flow, which makes the solution easier to validate and test."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w10-l02-q15",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w10-l02-q12",
@@ -494,6 +509,174 @@
           "claim": "Tenant data access logic should sit in one API layer that all requests flow through, making it the thing to validate and test, and every retrieval must carry the tenant filter."
         }
       ]
+    },
+    {
+      "id": "w10-l02-q13",
+      "lesson": "w10-l02",
+      "concept": "w10-l02-isolation-models",
+      "type": "multiple_select",
+      "prompt": "Which tradeoffs apply to multitenant grounding-data storage? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Separate stores can improve data and performance isolation."
+        },
+        {
+          "id": "b",
+          "text": "Shared stores can reduce the number of instances to manage."
+        },
+        {
+          "id": "c",
+          "text": "Separate stores eliminate all provisioning and management overhead."
+        },
+        {
+          "id": "d",
+          "text": "Shared stores automatically prevent cross-tenant access without filters."
+        },
+        {
+          "id": "e",
+          "text": "Tenant count and data volume influence the isolation model."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "e"
+      ],
+      "explanation": "A: Microsoft lists these as store-per-tenant benefits. B: Multitenant stores can reduce management and cost. C: Dedicated stores increase management overhead and may hit service limits. D: Shared storage requires secure tenant and authorization filtering. E: The architecture guidance uses both to choose a model.",
+      "materials": [
+        "azure-secure-multitenant-rag",
+        "postgresql-docs-row-security-policies"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/ai-ml/guide/secure-multitenant-rag",
+          "title": "Design a Secure Multitenant RAG Inferencing Solution - Azure Architecture Center | Microsoft Learn",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-03",
+          "claim": "Store-per-tenant trades isolation and clear cost allocation for higher management overhead, multitenant stores are cheaper and scale to more tenants but need careful isolation, and the number of tenants and data per tenant drive the choice."
+        },
+        {
+          "url": "https://www.postgresql.org/docs/current/ddl-rowsecurity.html",
+          "title": "PostgreSQL: Documentation: 18: 5.9. Row Security Policies",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-03",
+          "claim": "Postgres row security policies can restrict which rows each role sees in a shared table, enforcing a tenant filter in the database."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w10-l02-q14",
+      "lesson": "w10-l02",
+      "concept": "w10-l02-access-controlled-retrieval",
+      "type": "multiple_select",
+      "prompt": "Which boundaries secure retrieval in a shared multitenant RAG store? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Retrieve all tenants’ documents and ask the model to hide unauthorized text."
+        },
+        {
+          "id": "b",
+          "text": "Apply tenant and user authorization filters before grounding reaches the model."
+        },
+        {
+          "id": "c",
+          "text": "Propagate the authenticated identity through downstream requests."
+        },
+        {
+          "id": "d",
+          "text": "Apply filtering to retrieval tools inside an agent execution loop."
+        },
+        {
+          "id": "e",
+          "text": "Trust a tenant name generated by the model as the authoritative identity."
+        }
+      ],
+      "answers": [
+        "b",
+        "c",
+        "d"
+      ],
+      "explanation": "A: Unauthorized data must not enter the model context in the first place. B: Microsoft explicitly requires filtering before passing grounding data. C: The authenticated identity lets downstream components enforce access. D: The same requirement applies to every retrieval path. E: Tenant context must be derived from authenticated identity rather than model claims.",
+      "materials": [
+        "azure-secure-multitenant-rag",
+        "what-we-learned-from-a-year"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/ai-ml/guide/secure-multitenant-rag",
+          "title": "Design a Secure Multitenant RAG Inferencing Solution - Azure Architecture Center | Microsoft Learn",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-03",
+          "claim": "Every retrieval request against a shared store must include the tenant discriminator and user authorization filters, applied before grounding data reaches the model and also when an agent retrieves during its loop, ideally behind a single API layer."
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/ai-ml/guide/secure-multitenant-rag",
+          "title": "Design a Secure Multitenant RAG Inferencing Solution - Azure Architecture Center | Microsoft Learn",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-03",
+          "claim": "The user's authenticated identity must flow through the request chain and be mapped to a tenant so downstream services enforce access."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w10-l02-q15",
+      "lesson": "w10-l02",
+      "concept": "w10-l02-isolation-test",
+      "type": "multiple_select",
+      "prompt": "Which practices make PostgreSQL tenant-isolation tests meaningful? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Exercise the application’s data-access path as its ordinary database role."
+        },
+        {
+          "id": "b",
+          "text": "Use a superuser so the test confirms normal row-security enforcement."
+        },
+        {
+          "id": "c",
+          "text": "Remember that table owners normally bypass row security."
+        },
+        {
+          "id": "d",
+          "text": "Assume a `BYPASSRLS` role is constrained by every tenant policy."
+        },
+        {
+          "id": "e",
+          "text": "Validate the centralized retrieval API’s filtering behavior."
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "A: The role and access path must represent production authorization. B: Superusers bypass RLS and do not test an ordinary role’s constraints. C: Owners normally bypass RLS unless forced to obey it. D: BYPASSRLS explicitly bypasses the security system. E: The recommended single API boundary is designed to simplify validation.",
+      "materials": [
+        "postgresql-docs-row-security-policies",
+        "azure-secure-multitenant-rag"
+      ],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/ddl-rowsecurity.html",
+          "title": "PostgreSQL: Documentation: 18: 5.9. Row Security Policies",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-03",
+          "claim": "Superusers, BYPASSRLS roles and table owners bypass row security, so an isolation test must run as the application's non-owner role."
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/ai-ml/guide/secure-multitenant-rag",
+          "title": "Design a Secure Multitenant RAG Inferencing Solution - Azure Architecture Center | Microsoft Learn",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-03",
+          "claim": "Microsoft recommends encapsulating tenant filtering in one API layer through which all data requests flow, which makes the solution easier to validate and test."
+        }
+      ],
+      "retired": null
     }
   ]
 }

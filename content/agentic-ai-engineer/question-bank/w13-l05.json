@@ -275,7 +275,12 @@
           "accessed": "2026-09-26",
           "claim": "With max_retries set, Instructor retries when Pydantic validation fails and feeds the validation error back to the model so it can correct its output."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w13-l05-q12",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w13-l05-q07",
@@ -399,7 +404,12 @@
           "accessed": "2026-09-26",
           "claim": "Amazon A2I routes low-confidence predictions (for example Textract document extractions) to human reviewers and can also send a random sample of predictions for review to audit the model on an ongoing basis."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w13-l05-q13",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w13-l05-q10",
@@ -477,7 +487,188 @@
           "accessed": "2026-09-26",
           "claim": "Each logged event should record when, where, who and what (timestamp, application, actor identity, event type and description), and logs should be protected with tamper detection and read-only storage."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w13-l05-q14",
+        "on": "2026-10-03"
+      }
+    },
+    {
+      "id": "w13-l05-q12",
+      "lesson": "w13-l05",
+      "concept": "w13-l05-queues-and-retries",
+      "type": "multiple_select",
+      "prompt": "Which retry-policy mechanisms are supported by the cited libraries? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Use randomized exponential backoff for selected transient exceptions."
+        },
+        {
+          "id": "b",
+          "text": "Retry every exception indefinitely until the model returns valid output."
+        },
+        {
+          "id": "c",
+          "text": "Use stop_after_attempt to cap the number of attempts."
+        },
+        {
+          "id": "d",
+          "text": "Feed validation errors back to the model for bounded correction retries."
+        },
+        {
+          "id": "e",
+          "text": "Treat invalid credentials as a reason for endless identical retries."
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "d"
+      ],
+      "explanation": "A: Correct: Tenacity combines randomized backoff with exception predicates. B: Incorrect: attempt limits and selective retries prevent unbounded repetition. C: Correct: this Tenacity stop policy bounds attempts. D: Correct: Instructor documents validation feedback with max_retries. E: Incorrect: permanent errors need remediation rather than repeated unchanged requests.",
+      "materials": [
+        "tenacity-retries-in-python",
+        "amazon-sqs-dead-letter-queues",
+        "instructor-structured-outputs-with-pydantic"
+      ],
+      "sources": [
+        {
+          "url": "https://tenacity.readthedocs.io/",
+          "title": "Tenacity",
+          "publisher": "Tenacity project (Read the Docs)",
+          "accessed": "2026-10-03",
+          "claim": "Tenacity provides wait_random_exponential for randomised exponential backoff, stop_after_attempt to cap the number of attempts, and retry_if_exception_type to retry only chosen exception types."
+        },
+        {
+          "url": "https://docs.aws.amazon.com/sdkref/latest/guide/feature-retry-behavior.html",
+          "title": "Retry behavior",
+          "publisher": "AWS",
+          "accessed": "2026-10-03",
+          "claim": "AWS SDKs retry only transient and throttling errors, using exponential backoff with full jitter so clients don't retry in step, cap total attempts (default 3), and return non-retryable errors such as validation failures immediately."
+        },
+        {
+          "url": "https://python.useinstructor.com/concepts/retrying/",
+          "title": "Retrying",
+          "publisher": "Instructor (567 Labs)",
+          "accessed": "2026-10-03",
+          "claim": "With max_retries set, Instructor retries when Pydantic validation fails and feeds the validation error back to the model so it can correct its output."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w13-l05-q13",
+      "lesson": "w13-l05",
+      "concept": "w13-l05-review-thresholds",
+      "type": "multiple_select",
+      "prompt": "Which facts guide a durable human-review pause in LangGraph? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Use a checkpointer to preserve graph state across an interrupt."
+        },
+        {
+          "id": "b",
+          "text": "Resume the same thread using Command with a resume value."
+        },
+        {
+          "id": "c",
+          "text": "Resume execution always begins at the exact interrupted line."
+        },
+        {
+          "id": "d",
+          "text": "Change thread_id to retrieve the original interrupted state."
+        },
+        {
+          "id": "e",
+          "text": "Make side effects before interrupt safe to repeat."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "e"
+      ],
+      "explanation": "A: Correct: interrupt workflows require checkpointed persistence. B: Correct: the matching thread ID identifies the paused state. C: Incorrect: the interrupted node starts again from its beginning. D: Incorrect: resumption must use the original thread ID. E: Correct: code before interrupt executes again on resume.",
+      "materials": [
+        "langgraph-documentation",
+        "what-we-learned-from-a-year"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.langchain.com/oss/python/langgraph/interrupts",
+          "title": "Interrupts",
+          "publisher": "LangChain",
+          "accessed": "2026-10-03",
+          "claim": "interrupt() needs a checkpointer and a thread_id in the config, execution resumes by invoking the graph with Command(resume=...), and on resume the node restarts from its beginning so code before interrupt runs again."
+        },
+        {
+          "url": "https://docs.aws.amazon.com/sagemaker/latest/dg/a2i-use-augmented-ai-a2i-human-review-loops.html",
+          "title": "Using Amazon Augmented AI for Human Review",
+          "publisher": "AWS",
+          "accessed": "2026-10-03",
+          "claim": "Amazon A2I routes low-confidence predictions (for example Textract document extractions) to human reviewers and can also send a random sample of predictions for review to audit the model on an ongoing basis."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w13-l05-q14",
+      "lesson": "w13-l05",
+      "concept": "w13-l05-audit-trail",
+      "type": "multiple_select",
+      "prompt": "Which controls support an audit trail backed by S3 Object Lock? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Disable S3 Versioning before enabling Object Lock protection."
+        },
+        {
+          "id": "b",
+          "text": "Record event time, actor and action in audit entries."
+        },
+        {
+          "id": "c",
+          "text": "Protect stored log records against tampering."
+        },
+        {
+          "id": "d",
+          "text": "Use retention periods or legal holds to protect object versions."
+        },
+        {
+          "id": "e",
+          "text": "Assume locking one version prevents creation of all newer versions."
+        }
+      ],
+      "answers": [
+        "b",
+        "c",
+        "d"
+      ],
+      "explanation": "A: Incorrect: Object Lock requires an S3 Versioning-enabled bucket. B: Correct: OWASP specifies when, who and what event information. C: Correct: integrity protections and restrictive storage protect evidence. D: Correct: Object Lock protects selected versions for configured retention. E: Incorrect: new versions and delete markers can still be created.",
+      "materials": [
+        "designing-data-intensive-applications",
+        "amazon-s3-user-guide"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock.html",
+          "title": "Locking objects with Object Lock",
+          "publisher": "AWS",
+          "accessed": "2026-10-03",
+          "claim": "S3 Object Lock uses a write-once-read-many model to stop object versions being deleted or overwritten for a fixed period or indefinitely (legal hold), and works only in buckets with S3 Versioning enabled."
+        },
+        {
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/Logging_Cheat_Sheet.html",
+          "title": "Logging Cheat Sheet",
+          "publisher": "OWASP Foundation",
+          "accessed": "2026-10-03",
+          "claim": "Each logged event should record when, where, who and what (timestamp, application, actor identity, event type and description), and logs should be protected with tamper detection and read-only storage."
+        }
+      ],
+      "retired": null
     }
   ]
 }

@@ -184,7 +184,12 @@
           "accessed": "2026-09-26",
           "claim": "Tasks schedule coroutines to run concurrently on the event loop, and asyncio.sleep suspends the current task, letting others run."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w02-l03-q12",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w02-l03-q05",
@@ -299,7 +304,12 @@
           "accessed": "2026-09-26",
           "claim": "Blocking code called directly on the event loop delays all concurrent Tasks and I/O for its duration, so a blocking client removes the concurrency."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w02-l03-q13",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w02-l03-q08",
@@ -384,7 +394,12 @@
           "accessed": "2026-09-26",
           "claim": "asyncio.to_thread runs a blocking function in a separate thread; because of the GIL it can typically only make I/O-bound functions non-blocking."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w02-l03-q14",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w02-l03-q10",
@@ -471,6 +486,171 @@
           "claim": "HTTPX streams a response asynchronously with async for chunk in response.aiter_bytes()."
         }
       ]
+    },
+    {
+      "id": "w02-l03-q12",
+      "lesson": "w02-l03",
+      "concept": "w02-l03-await-yields-to-loop",
+      "type": "multiple_select",
+      "prompt": "What can happen when an asyncio task awaits sleep(1)? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "All other tasks execute simultaneously on the same event-loop thread."
+        },
+        {
+          "id": "b",
+          "text": "The scheduler preempts arbitrary Python code between awaits."
+        },
+        {
+          "id": "c",
+          "text": "The sleeping task suspends so ready tasks can run."
+        },
+        {
+          "id": "d",
+          "text": "The event loop resumes the task after the timer becomes ready."
+        },
+        {
+          "id": "e",
+          "text": "The event-loop thread blocks for one second before any task can run."
+        }
+      ],
+      "answers": [
+        "c",
+        "d"
+      ],
+      "explanation": "a is incorrect: Only one task executes at a time on that thread. b is incorrect: Scheduling is cooperative at suspension points. c is correct: sleep yields control to the loop. d is correct: Awaiting sleep schedules timer-based resumption. e is incorrect: asyncio.sleep suspends rather than blocks.",
+      "materials": [
+        "python-docs-coroutines-and-tasks",
+        "real-python-async-io-in-python"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/library/asyncio-dev.html",
+          "title": "Developing with asyncio — Python 3.14.8 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-10-03",
+          "claim": "An event loop runs all Tasks in one thread; while one Task runs no other can, and when a Task executes an await it is suspended and the loop runs the next Task."
+        },
+        {
+          "url": "https://docs.python.org/3/library/asyncio-task.html",
+          "title": "Coroutines and tasks — Python 3.14.8 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-10-03",
+          "claim": "Tasks schedule coroutines to run concurrently on the event loop, and asyncio.sleep suspends the current task, letting others run."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w02-l03-q13",
+      "lesson": "w02-l03",
+      "concept": "w02-l03-gather-and-create-task",
+      "type": "multiple_select",
+      "prompt": "Which facts explain asyncio.gather concurrency? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "gather guarantees ten network calls finish in the duration of one."
+        },
+        {
+          "id": "b",
+          "text": "gather schedules coroutine arguments to run concurrently."
+        },
+        {
+          "id": "c",
+          "text": "A blocking call on the loop delays other tasks."
+        },
+        {
+          "id": "d",
+          "text": "Awaiting each request in sequence starts them all concurrently."
+        },
+        {
+          "id": "e",
+          "text": "gather converts blocking HTTP clients into asynchronous clients."
+        }
+      ],
+      "answers": [
+        "b",
+        "c"
+      ],
+      "explanation": "a is incorrect: Network behavior and actual scheduling can prevent this estimate. b is correct: Their waits can overlap. c is correct: Blocking holds the shared event-loop thread. d is incorrect: Each await finishes before the next sequential call. e is incorrect: It cannot make synchronous blocking code yield.",
+      "materials": [
+        "python-docs-coroutines-and-tasks",
+        "real-python-async-io-in-python"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/library/asyncio-task.html",
+          "title": "Coroutines and tasks — Python 3.14.8 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-10-03",
+          "claim": "Awaiting coroutines in sequence takes the sum of their durations, while gather runs them concurrently as Tasks."
+        },
+        {
+          "url": "https://docs.python.org/3/library/asyncio-dev.html",
+          "title": "Developing with asyncio — Python 3.14.8 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-10-03",
+          "claim": "Blocking code called directly on the event loop delays all concurrent Tasks and I/O for its duration, so a blocking client removes the concurrency."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w02-l03-q14",
+      "lesson": "w02-l03",
+      "concept": "w02-l03-blocking-calls",
+      "type": "multiple_select",
+      "prompt": "Which statements describe blocking calls in asyncio? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Blocking the loop thread delays every task using that loop."
+        },
+        {
+          "id": "b",
+          "text": "asyncio.to_thread can move blocking I/O to another thread."
+        },
+        {
+          "id": "c",
+          "text": "Wrapping time.sleep in async def makes it non-blocking."
+        },
+        {
+          "id": "d",
+          "text": "to_thread runs its function directly on the event-loop thread."
+        },
+        {
+          "id": "e",
+          "text": "On ordinary GIL-enabled CPython, to_thread guarantees CPU-parallel pure Python."
+        }
+      ],
+      "answers": [
+        "a",
+        "b"
+      ],
+      "explanation": "a is correct: No other task can execute on the blocked thread. b is correct: The awaitable avoids blocking the loop. c is incorrect: An async function can still execute blocking code. d is incorrect: It submits the function to a separate worker thread. e is incorrect: The GIL usually prevents that CPU parallelism.",
+      "materials": [
+        "python-docs-developing-with-asyncio",
+        "python-docs-coroutines-and-tasks"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/library/asyncio-dev.html",
+          "title": "Developing with asyncio — Python 3.14.8 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-10-03",
+          "claim": "The event loop runs all Tasks in one thread, blocking code delays every Task, and the docs recommend running such code in an executor."
+        },
+        {
+          "url": "https://docs.python.org/3/library/asyncio-task.html",
+          "title": "Coroutines and tasks — Python 3.14.8 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-10-03",
+          "claim": "asyncio.to_thread runs a blocking function in a separate thread; because of the GIL it can typically only make I/O-bound functions non-blocking."
+        }
+      ],
+      "retired": null
     }
   ]
 }

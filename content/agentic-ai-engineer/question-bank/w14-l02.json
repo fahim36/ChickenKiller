@@ -207,7 +207,12 @@
           "accessed": "2026-09-26",
           "claim": "A tool is defined with @tool (name, description Claude reads, input schema) on an async handler returning a content list, wrapped in create_sdk_mcp_server (in-process), passed via mcp_servers, pre-approved via allowed_tools, and can return is_error True with a composed message."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w14-l02-q12",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w14-l02-q06",
@@ -369,7 +374,12 @@
           "accessed": "2026-09-26",
           "claim": "PreToolUse hooks use a matcher on tool names (e.g. 'Write|Edit'), read tool_input, and can return permissionDecision 'deny' with permissionDecisionReason, which tells the model why."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w14-l02-q13",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w14-l02-q10",
@@ -437,7 +447,164 @@
           "accessed": "2026-09-26",
           "claim": "Subagents give context isolation (only the final message returns), parallelization, specialized instructions and tool restrictions; the Agent tool prompt is the only parent-to-subagent input, tools limits the subagent's tools, description guides when Claude uses it, subagents can nest, and max_budget_usd counts their spend."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w14-l02-q14",
+        "on": "2026-10-03"
+      }
+    },
+    {
+      "id": "w14-l02-q12",
+      "lesson": "w14-l02",
+      "concept": "w14-l02-custom-tools-mcp",
+      "type": "multiple_select",
+      "prompt": "Which Python Claude Agent SDK custom-tool practices are documented? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Define an async handler with the tool decorator and input schema."
+        },
+        {
+          "id": "b",
+          "text": "Wrap custom tools using create_sdk_mcp_server."
+        },
+        {
+          "id": "c",
+          "text": "Return a plain string instead of the documented content list."
+        },
+        {
+          "id": "d",
+          "text": "Mark a failed tool result with is_error set to False."
+        },
+        {
+          "id": "e",
+          "text": "Pre-approve a custom tool using its fully qualified MCP tool name."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "e"
+      ],
+      "explanation": "A: Correct: the decorator supplies the name, description and schema. B: Correct: this creates an in-process SDK MCP server. C: Incorrect: the handler returns a dictionary containing content blocks. D: Incorrect: a failed result should use is_error True with useful context. E: Correct: allowed_tools accepts the mcp__server__tool name.",
+      "materials": [
+        "claude-agent-sdk-custom-tools"
+      ],
+      "sources": [
+        {
+          "url": "https://code.claude.com/docs/en/agent-sdk/custom-tools",
+          "title": "Give Claude custom tools",
+          "publisher": "Anthropic",
+          "accessed": "2026-10-03",
+          "claim": "A tool is defined with @tool (name, description Claude reads, input schema) on an async handler returning a content list, wrapped in create_sdk_mcp_server (in-process), passed via mcp_servers, pre-approved via allowed_tools, and can return is_error True with a composed message."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w14-l02-q13",
+      "lesson": "w14-l02",
+      "concept": "w14-l02-hooks",
+      "type": "multiple_select",
+      "prompt": "Which controls enforce argument checks on every Claude SDK tool call? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "allowed_tools verifies that every file path stays inside an approved folder."
+        },
+        {
+          "id": "b",
+          "text": "Use a PreToolUse hook to inspect tool_input before execution."
+        },
+        {
+          "id": "c",
+          "text": "Return permissionDecision deny when the normalized path is forbidden."
+        },
+        {
+          "id": "d",
+          "text": "A hook denial applies even under bypassPermissions."
+        },
+        {
+          "id": "e",
+          "text": "canUseTool runs even when an allow rule has already approved the call."
+        }
+      ],
+      "answers": [
+        "b",
+        "c",
+        "d"
+      ],
+      "explanation": "A: Incorrect: allowed_tools pre-approves tool names, not their arguments. B: Correct: the hook can validate the proposed path for each invocation. C: Correct: a denial and reason reject the offending call. D: Correct: hooks are evaluated before other permission mechanisms. E: Incorrect: pre-approved calls do not reach the callback.",
+      "materials": [
+        "claude-agent-sdk-hooks",
+        "claude-agent-sdk-permissions"
+      ],
+      "sources": [
+        {
+          "url": "https://code.claude.com/docs/en/agent-sdk/permissions",
+          "title": "Configure permissions",
+          "publisher": "Anthropic",
+          "accessed": "2026-10-03",
+          "claim": "Hooks run first in the evaluation order, a hook deny applies even in bypassPermissions, allow rules only pre-approve, and calls auto-approved by a mode or allow rule never reach canUseTool, so the page recommends a PreToolUse hook for checks on every call."
+        },
+        {
+          "url": "https://code.claude.com/docs/en/agent-sdk/hooks",
+          "title": "Intercept and control agent behavior with hooks",
+          "publisher": "Anthropic",
+          "accessed": "2026-10-03",
+          "claim": "PreToolUse hooks use a matcher on tool names (e.g. 'Write|Edit'), read tool_input, and can return permissionDecision 'deny' with permissionDecisionReason, which tells the model why."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w14-l02-q14",
+      "lesson": "w14-l02",
+      "concept": "w14-l02-subagents",
+      "type": "multiple_select",
+      "prompt": "Which choices define a focused read-only scanning subagent? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Specify Read, Glob and Grep as the subagent tools."
+        },
+        {
+          "id": "b",
+          "text": "Omit tools to guarantee the subagent receives no tools."
+        },
+        {
+          "id": "c",
+          "text": "Include folder paths and classification rules in the delegation prompt."
+        },
+        {
+          "id": "d",
+          "text": "Assume parent conversation details always replace the delegation prompt."
+        },
+        {
+          "id": "e",
+          "text": "Use a specific description explaining when the specialist should run."
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "A: Correct: an explicit list restricts the available tool set. B: Incorrect: omitting tools inherits the tools available to subagents. C: Correct: the prompt must carry relevant task context. D: Incorrect: required parent details must be communicated explicitly. E: Correct: the description guides delegation decisions.",
+      "materials": [
+        "claude-agent-sdk-subagents"
+      ],
+      "sources": [
+        {
+          "url": "https://code.claude.com/docs/en/agent-sdk/subagents",
+          "title": "Subagents in the SDK",
+          "publisher": "Anthropic",
+          "accessed": "2026-10-03",
+          "claim": "Subagents give context isolation (only the final message returns), parallelization, specialized instructions and tool restrictions; the Agent tool prompt is the only parent-to-subagent input, tools limits the subagent's tools, description guides when Claude uses it, subagents can nest, and max_budget_usd counts their spend."
+        }
+      ],
+      "retired": null
     }
   ]
 }

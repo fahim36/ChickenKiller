@@ -142,7 +142,12 @@
           "accessed": "2026-09-26",
           "claim": "PostgreSQL 18's B-tree skip scan applies later-column constraints via repeated index searches, generally only when the leading column has so few distinct values that most of the index can be skipped."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w04-l04-q12",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w04-l04-q04",
@@ -406,7 +411,12 @@
           "accessed": "2026-09-26",
           "claim": "Applications using the Serializable level must be prepared to retry transactions due to serialization failures."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w04-l04-q13",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w04-l04-q10",
@@ -483,7 +493,163 @@
           "accessed": "2026-09-26",
           "claim": "SQLModel is powered by Pydantic and SQLAlchemy, and its models are also SQLAlchemy models."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w04-l04-q14",
+        "on": "2026-10-03"
+      }
+    },
+    {
+      "id": "w04-l04-q12",
+      "lesson": "w04-l04",
+      "concept": "w04-l04-btree-composite-indexes",
+      "type": "multiple_select",
+      "prompt": "In PostgreSQL 18, which facts describe a B-tree on (user_id, created_at)? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Every created_at-only query is guaranteed a cheap skip scan regardless of user count."
+        },
+        {
+          "id": "b",
+          "text": "Equality on user_id plus a created_at range can narrow the scan."
+        },
+        {
+          "id": "c",
+          "text": "A later-column-only predicate can sometimes benefit from skip scan."
+        },
+        {
+          "id": "d",
+          "text": "The index is primarily ordered by created_at across all users."
+        },
+        {
+          "id": "e",
+          "text": "A user_id equality cannot use the index unless created_at is also constrained."
+        }
+      ],
+      "answers": [
+        "b",
+        "c"
+      ],
+      "explanation": "a is incorrect: Many leading values can make skip scan unattractive. b is correct: Leading equality followed by range is effective. c is correct: This depends on the leading-column distribution and planner cost. d is incorrect: user_id is the leading ordering key. e is incorrect: Leading equality alone can use it.",
+      "materials": [
+        "postgresql-docs-indexes",
+        "use-the-index-luke"
+      ],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/indexes-multicolumn.html",
+          "title": "PostgreSQL: Documentation: 18: 11.3. Multicolumn Indexes",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-03",
+          "claim": "For a multicolumn B-tree, equality constraints on leading columns plus an inequality on the first column without an equality limit the scanned portion of the index; constraints on later columns are checked in the index but don't necessarily shrink it."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w04-l04-q13",
+      "lesson": "w04-l04",
+      "concept": "w04-l04-transactions-and-isolation",
+      "type": "multiple_select",
+      "prompt": "Which ACID and Serializable transaction statements are correct? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Atomicity makes a transaction all-or-nothing."
+        },
+        {
+          "id": "b",
+          "text": "Serializable applications must be prepared to retry whole failed transactions."
+        },
+        {
+          "id": "c",
+          "text": "Durability means committed changes are discarded on a server crash."
+        },
+        {
+          "id": "d",
+          "text": "Consistency permits committed data to violate declared integrity constraints."
+        },
+        {
+          "id": "e",
+          "text": "Serializable prevents every possible serialization failure from reaching applications."
+        }
+      ],
+      "answers": [
+        "a",
+        "b"
+      ],
+      "explanation": "a is correct: Its operations commit as a unit. b is correct: Serialization failures can occur at this level. c is incorrect: Durability preserves committed changes. d is incorrect: Constraints must remain satisfied. e is incorrect: Applications need retry handling.",
+      "materials": [
+        "postgresql-docs-transaction-isolation",
+        "postgresql-tutorial"
+      ],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/glossary.html",
+          "title": "PostgreSQL: Documentation: 18: Appendix M. Glossary",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-03",
+          "claim": "The glossary defines atomicity (all or none), consistency (data always complies with integrity constraints), isolation (effects invisible to concurrent transactions before commit) and durability (committed changes survive a crash)."
+        },
+        {
+          "url": "https://www.postgresql.org/docs/current/transaction-iso.html",
+          "title": "PostgreSQL: Documentation: 18: 13.2. Transaction Isolation",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-03",
+          "claim": "Applications using the Serializable level must be prepared to retry transactions due to serialization failures."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w04-l04-q14",
+      "lesson": "w04-l04",
+      "concept": "w04-l04-n-plus-one",
+      "type": "multiple_select",
+      "prompt": "Which SQLAlchemy 2.0 loading facts help address N+1 queries? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "selectinload fetches related objects using parent keys in an IN query."
+        },
+        {
+          "id": "b",
+          "text": "Lazy loading every relationship inside a parent loop always needs one query total."
+        },
+        {
+          "id": "c",
+          "text": "raiseload automatically fetches every unloaded relation with one JOIN."
+        },
+        {
+          "id": "d",
+          "text": "selectinload guarantees exactly two queries for every parent count and schema."
+        },
+        {
+          "id": "e",
+          "text": "joinedload can fetch related objects through a JOIN in the initial SELECT."
+        }
+      ],
+      "answers": [
+        "a",
+        "e"
+      ],
+      "explanation": "a is correct: It batches related loads, potentially across key batches. b is incorrect: It can issue one additional query per parent. c is incorrect: It raises instead of performing lazy loading. d is incorrect: Batches and relationship paths can require additional queries. e is correct: It eagerly loads the relationship.",
+      "materials": [
+        "sqlalchemy-relationship-loading-techniques",
+        "sqlmodel-documentation"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.sqlalchemy.org/en/20/orm/queryguide/relationships.html",
+          "title": "Relationship Loading Techniques — SQLAlchemy 2.0 Documentation",
+          "publisher": "SQLAlchemy",
+          "accessed": "2026-10-03",
+          "claim": "Lazy loading causes the N plus one problem; joinedload adds a JOIN to the initial SELECT, selectinload emits a second SELECT with the parents' keys in an IN clause, and raiseload raises instead of lazy loading."
+        }
+      ],
+      "retired": null
     }
   ]
 }

@@ -229,7 +229,12 @@
           "accessed": "2026-09-26",
           "claim": "A restriction in the ON clause is processed before the join and one in WHERE after it, which matters a lot for outer joins."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w04-l03-q12",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w04-l03-q06",
@@ -360,7 +365,12 @@
           "accessed": "2026-09-26",
           "claim": "SELECT is processed in the order WITH, FROM, WHERE, GROUP BY/HAVING, output expressions, DISTINCT, ORDER BY, LIMIT/OFFSET."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w04-l03-q13",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w04-l03-q09",
@@ -492,7 +502,163 @@
           "accessed": "2026-09-26",
           "claim": "PostgreSQL 12 introduced automatic CTE inlining and the MATERIALIZED / NOT MATERIALIZED keywords; previously CTEs were never inlined."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w04-l03-q14",
+        "on": "2026-10-03"
+      }
+    },
+    {
+      "id": "w04-l03-q12",
+      "lesson": "w04-l03",
+      "concept": "w04-l03-inner-vs-left-join",
+      "type": "multiple_select",
+      "prompt": "Which LEFT JOIN and filtering rules hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A WHERE condition requiring a right-column value can remove unmatched rows."
+        },
+        {
+          "id": "b",
+          "text": "LEFT JOIN always drops every left row without a matching right row."
+        },
+        {
+          "id": "c",
+          "text": "A right-table filter in ON always has the same outer-join effect as WHERE."
+        },
+        {
+          "id": "d",
+          "text": "NULL equals every value when an outer-join WHERE clause compares it."
+        },
+        {
+          "id": "e",
+          "text": "An unmatched left row receives nulls for right-table columns."
+        }
+      ],
+      "answers": [
+        "a",
+        "e"
+      ],
+      "explanation": "a is correct: The null comparison is not true. b is incorrect: That describes inner-join exclusion. c is incorrect: ON controls matches before null-extension. d is incorrect: Such equality evaluates unknown, not true. e is correct: Left outer joins preserve unmatched left rows.",
+      "materials": [
+        "postgresql-docs-queries",
+        "sqlbolt-interactive-sql-lessons"
+      ],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/queries-table-expressions.html",
+          "title": "PostgreSQL: Documentation: 18: 7.2. Table Expressions",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-03",
+          "claim": "A LEFT OUTER JOIN first performs the inner join, then adds a null-padded row for each T1 row with no match, so every T1 row appears at least once."
+        },
+        {
+          "url": "https://www.postgresql.org/docs/current/queries-table-expressions.html",
+          "title": "PostgreSQL: Documentation: 18: 7.2. Table Expressions",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-03",
+          "claim": "A restriction in the ON clause is processed before the join and one in WHERE after it, which matters a lot for outer joins."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w04-l03-q13",
+      "lesson": "w04-l03",
+      "concept": "w04-l03-group-by-having",
+      "type": "multiple_select",
+      "prompt": "Which distinctions between WHERE and HAVING are correct? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "WHERE COUNT(*) > 5 filters completed groups in the same query level."
+        },
+        {
+          "id": "b",
+          "text": "HAVING runs before WHERE so it reduces the raw input first."
+        },
+        {
+          "id": "c",
+          "text": "GROUP BY makes WHERE and HAVING interchangeable for any predicate."
+        },
+        {
+          "id": "d",
+          "text": "WHERE filters individual rows before grouping."
+        },
+        {
+          "id": "e",
+          "text": "HAVING filters groups after aggregates are calculated."
+        }
+      ],
+      "answers": [
+        "d",
+        "e"
+      ],
+      "explanation": "a is incorrect: Aggregate conditions belong in HAVING. b is incorrect: WHERE processes input before grouping and HAVING. c is incorrect: Their timing and inputs differ. d is correct: It determines the rows entering aggregates. e is correct: It can test aggregate results.",
+      "materials": [
+        "postgresql-docs-queries",
+        "sqlbolt-interactive-sql-lessons"
+      ],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/tutorial-agg.html",
+          "title": "PostgreSQL: Documentation: 18: 2.7. Aggregate Functions",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-03",
+          "claim": "WHERE filters input rows before groups and aggregates are computed; HAVING filters group rows afterwards and contains aggregates."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w04-l03-q14",
+      "lesson": "w04-l03",
+      "concept": "w04-l03-subqueries-and-ctes",
+      "type": "multiple_select",
+      "prompt": "In PostgreSQL 12+, which CTE optimization rules hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "All CTEs must always be materialized regardless of references or options."
+        },
+        {
+          "id": "b",
+          "text": "WITH RECURSIVE forbids the CTE from referring to its own output."
+        },
+        {
+          "id": "c",
+          "text": "A side-effect-free nonrecursive CTE used once is normally folded into its parent."
+        },
+        {
+          "id": "d",
+          "text": "MATERIALIZED can force separate evaluation of an eligible CTE."
+        },
+        {
+          "id": "e",
+          "text": "Every CTE is permanently stored as a table after the statement."
+        }
+      ],
+      "answers": [
+        "c",
+        "d"
+      ],
+      "explanation": "a is incorrect: Eligible once-used CTEs may be folded. b is incorrect: Self-reference enables recursive queries. c is correct: This permits joint optimization. d is correct: It overrides default folding. e is incorrect: A CTE exists for that statement only.",
+      "materials": [
+        "postgresql-docs-queries",
+        "postgresql-tutorial"
+      ],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/queries-with.html",
+          "title": "PostgreSQL: Documentation: 18: 7.8. WITH Queries (Common Table Expressions)",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-03",
+          "claim": "A non-recursive, side-effect-free WITH query referenced once is folded into the parent query by default; referenced more than once it is materialized, and MATERIALIZED / NOT MATERIALIZED override this; RECURSIVE lets a CTE refer to its own output."
+        }
+      ],
+      "retired": null
     }
   ]
 }

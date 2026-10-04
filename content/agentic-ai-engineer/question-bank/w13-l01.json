@@ -140,7 +140,12 @@
           "accessed": "2026-09-26",
           "claim": "Model usage is billed separately per million input tokens and per million output tokens (e.g. Claude Haiku 4.5 at $1/MTok input and $5/MTok output), so a request's cost is input tokens x input price plus output tokens x output price."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w13-l01-q12",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w13-l01-q04",
@@ -265,7 +270,12 @@
           "accessed": "2026-09-26",
           "claim": "OWASP recommends human-in-the-loop control requiring a human to approve high-impact actions, executing actions in the context of the specific user, and minimising extension permissions."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w13-l01-q13",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w13-l01-q07",
@@ -503,7 +513,195 @@
           "accessed": "2026-09-26",
           "claim": "Langfuse traces LLM and non-LLM calls, tracks cost and latency in dashboards, versions prompts, and runs evaluations including LLM-as-a-judge on production traffic."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w13-l01-q14",
+        "on": "2026-10-03"
+      }
+    },
+    {
+      "id": "w13-l01-q12",
+      "lesson": "w13-l01",
+      "concept": "w13-l01-traffic-and-cost",
+      "type": "multiple_select",
+      "prompt": "Which levers can reduce a support conversation model bill? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Cache a stable request prefix shared by repeated calls."
+        },
+        {
+          "id": "b",
+          "text": "Price cache reads as if they were ordinary uncached input."
+        },
+        {
+          "id": "c",
+          "text": "Route simpler requests to cheaper models when quality permits."
+        },
+        {
+          "id": "d",
+          "text": "Exclude output-token usage from the conversation cost estimate."
+        },
+        {
+          "id": "e",
+          "text": "Reduce unnecessary history and retrieved context sent to the model."
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "A: Correct: prompt caching reduces repeated prefix processing costs. B: Incorrect: cache reads have a lower documented rate. C: Correct: routing can reduce cost for suitable simpler queries. D: Incorrect: input and output usage both contribute to the bill. E: Correct: fewer unnecessary input tokens reduce token-based charges.",
+      "materials": [
+        "chip-huyen-building-a-generative-ai",
+        "anthropic-docs-prompt-caching"
+      ],
+      "sources": [
+        {
+          "url": "https://huyenchip.com/2024/07/25/genai-platform.html",
+          "title": "Building A Generative AI Platform",
+          "publisher": "Chip Huyen",
+          "accessed": "2026-10-03",
+          "claim": "Prompt caching of overlapping segments such as a system prompt avoids reprocessing repeated input tokens, and routing sends simpler queries to cheaper models."
+        },
+        {
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching",
+          "title": "Prompt caching",
+          "publisher": "Anthropic",
+          "accessed": "2026-10-03",
+          "claim": "Prompt caching caches the request prefix in the order tools, system, messages, and cache reads are billed at a fraction (standard 0.1x) of the base input price."
+        },
+        {
+          "url": "https://platform.claude.com/docs/en/about-claude/pricing",
+          "title": "Pricing",
+          "publisher": "Anthropic",
+          "accessed": "2026-10-03",
+          "claim": "Model usage is billed separately per million input tokens and per million output tokens (e.g. Claude Haiku 4.5 at $1/MTok input and $5/MTok output), so a request's cost is input tokens x input price plus output tokens x output price."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w13-l01-q13",
+      "lesson": "w13-l01",
+      "concept": "w13-l01-rag-tools-handoff",
+      "type": "multiple_select",
+      "prompt": "Which controls fit a support agent with retrieval and action tools? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Run every customer action under a shared administrator identity."
+        },
+        {
+          "id": "b",
+          "text": "Retrieve knowledge-base content and use tools for account operations."
+        },
+        {
+          "id": "c",
+          "text": "Let the model alone determine downstream authorization."
+        },
+        {
+          "id": "d",
+          "text": "Execute tools within the specific user authorization scope."
+        },
+        {
+          "id": "e",
+          "text": "Require human approval before high-impact tool actions."
+        }
+      ],
+      "answers": [
+        "b",
+        "d",
+        "e"
+      ],
+      "explanation": "A: Incorrect: a shared privileged identity exceeds individual user permissions. B: Correct: Anthropic describes this retrieval-and-tools support pattern. C: Incorrect: downstream systems should enforce authorization independently. D: Correct: OWASP recommends user-context execution with minimum privileges. E: Correct: OWASP recommends human approval for high-impact actions.",
+      "materials": [
+        "anthropic-building-effective-agents",
+        "chip-huyen-building-a-generative-ai",
+        "what-we-learned-from-a-year"
+      ],
+      "sources": [
+        {
+          "url": "https://www.anthropic.com/engineering/building-effective-agents",
+          "title": "Building Effective AI Agents",
+          "publisher": "Anthropic",
+          "accessed": "2026-10-03",
+          "claim": "For customer support agents, tools can be integrated to pull customer data, order history and knowledge base articles, and actions such as issuing refunds or updating tickets can be handled programmatically."
+        },
+        {
+          "url": "https://genai.owasp.org/llmrisk/llm062025-excessive-agency/",
+          "title": "LLM06:2025 Excessive Agency",
+          "publisher": "OWASP Gen AI Security Project",
+          "accessed": "2026-10-03",
+          "claim": "OWASP recommends human-in-the-loop control requiring a human to approve high-impact actions, executing actions in the context of the specific user, and minimising extension permissions."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w13-l01-q14",
+      "lesson": "w13-l01",
+      "concept": "w13-l01-monitoring-and-rollout",
+      "type": "multiple_select",
+      "prompt": "Which practices help detect and contain a faulty agent release? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Inspect a sample of production inputs and outputs regularly."
+        },
+        {
+          "id": "b",
+          "text": "Roll out to all traffic before checking any alarms."
+        },
+        {
+          "id": "c",
+          "text": "Track conversation cost and latency using traces."
+        },
+        {
+          "id": "d",
+          "text": "Use canary traffic and alarm-triggered rollback during a baking period."
+        },
+        {
+          "id": "e",
+          "text": "Treat development evaluation scores as sufficient production monitoring."
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "d"
+      ],
+      "explanation": "A: Correct: production samples reveal failure modes and data drift. B: Incorrect: canary guardrails begin with a smaller traffic share. C: Correct: observability tools such as Langfuse track these metrics. D: Correct: SageMaker documents this deployment guardrail pattern. E: Incorrect: production traffic can differ from development data.",
+      "materials": [
+        "what-we-learned-from-a-year",
+        "langfuse-tracing-evals-self-hosting"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.aws.amazon.com/sagemaker/latest/dg/deployment-guardrails.html",
+          "title": "Deployment guardrails for updating models in production",
+          "publisher": "AWS",
+          "accessed": "2026-10-03",
+          "claim": "Canary and linear traffic shifting move a small share of traffic to the new model first, watch CloudWatch alarms during a baking period, and roll back automatically if an alarm trips."
+        },
+        {
+          "url": "https://applied-llms.org/",
+          "title": "What We've Learned From A Year of Building with LLMs",
+          "publisher": "applied-llms.org (Yan, Bischof, Frye, Husain, Liu, Shankar)",
+          "accessed": "2026-10-03",
+          "claim": "The guide recommends examining a sample of production inputs and outputs daily to catch new failure modes, and watching for drift between development and production data."
+        },
+        {
+          "url": "https://langfuse.com/docs",
+          "title": "Langfuse Documentation",
+          "publisher": "Langfuse",
+          "accessed": "2026-10-03",
+          "claim": "Langfuse traces LLM and non-LLM calls, tracks cost and latency in dashboards, versions prompts, and runs evaluations including LLM-as-a-judge on production traffic."
+        }
+      ],
+      "retired": null
     }
   ]
 }

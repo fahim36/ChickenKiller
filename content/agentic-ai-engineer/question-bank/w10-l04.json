@@ -136,7 +136,12 @@
           "accessed": "2026-09-26",
           "claim": "Logs are timestamped messages that lack context unless correlated with a trace, metrics are numeric aggregations over time, and traces record a single request's path as spans."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w10-l04-q13",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w10-l04-q04",
@@ -321,7 +326,12 @@
           "accessed": "2026-09-26",
           "claim": "Propagation serializes context into requests; traceparent has the form version-traceid-parentid-traceflags, the receiver uses it as the parent of its spans, and baggage should not carry sensitive data."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w10-l04-q14",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w10-l04-q09",
@@ -397,7 +407,12 @@
           "accessed": "2026-09-26",
           "claim": "Most metrics are better treated as distributions than averages, since an average hides tail latency, and users typically prefer a slightly slower system to one with high variance."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w10-l04-q15",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w10-l04-q11",
@@ -476,6 +491,150 @@
           "claim": "statistics.quantiles(data, n=100) returns the 99 cut points separating 100 equal groups (so index 94 is the 95th percentile), with method 'exclusive' as the default and 'inclusive' for population data."
         }
       ]
+    },
+    {
+      "id": "w10-l04-q13",
+      "lesson": "w10-l04",
+      "concept": "w10-l04-logs-metrics-traces",
+      "type": "multiple_select",
+      "prompt": "Which statements distinguish OpenTelemetry logs, metrics and traces? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Metrics are the full text of every individual request’s events."
+        },
+        {
+          "id": "b",
+          "text": "Logs record timestamped events."
+        },
+        {
+          "id": "c",
+          "text": "Metrics aggregate numeric measurements over time."
+        },
+        {
+          "id": "d",
+          "text": "Traces describe a request’s path through spans."
+        },
+        {
+          "id": "e",
+          "text": "A log message alone necessarily supplies full cross-service request context."
+        }
+      ],
+      "answers": [
+        "b",
+        "c",
+        "d"
+      ],
+      "explanation": "A: Metrics summarize numeric measurements rather than replacing event logs. B: Logs preserve event-level messages and context. C: Metrics support aggregate rates, durations and dashboards. D: Spans describe operations belonging to a single trace. E: Logs need correlation with traces to supply that context.",
+      "materials": [
+        "opentelemetry-observability-primer"
+      ],
+      "sources": [
+        {
+          "url": "https://opentelemetry.io/docs/concepts/observability-primer/",
+          "title": "Observability primer",
+          "publisher": "OpenTelemetry (CNCF)",
+          "accessed": "2026-10-03",
+          "claim": "Logs are timestamped messages that lack context unless correlated with a trace, metrics are numeric aggregations over time, and traces record a single request's path as spans."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w10-l04-q14",
+      "lesson": "w10-l04",
+      "concept": "w10-l04-context-propagation",
+      "type": "multiple_select",
+      "prompt": "Which statements describe trace-context propagation? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Inject trace context into the outgoing request."
+        },
+        {
+          "id": "b",
+          "text": "Generate an unrelated trace ID at every service boundary by default."
+        },
+        {
+          "id": "c",
+          "text": "`traceparent` includes a trace ID and parent span ID."
+        },
+        {
+          "id": "d",
+          "text": "Put API credentials in propagated baggage to authenticate tracing."
+        },
+        {
+          "id": "e",
+          "text": "Extract incoming context to connect child spans to the caller."
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "A: Propagation serializes context across process boundaries. B: Preserving the propagated trace ID links the distributed request. C: The W3C header also includes version and trace flags. D: Baggage can propagate to unexpected destinations and must not contain sensitive credentials. E: Extraction establishes the parent relationship in the receiving service.",
+      "materials": [
+        "opentelemetry-context-propagation"
+      ],
+      "sources": [
+        {
+          "url": "https://opentelemetry.io/docs/concepts/context-propagation/",
+          "title": "Context propagation",
+          "publisher": "OpenTelemetry (CNCF)",
+          "accessed": "2026-10-03",
+          "claim": "Propagation serializes context into requests; traceparent has the form version-traceid-parentid-traceflags, the receiver uses it as the parent of its spans, and baggage should not carry sensitive data."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w10-l04-q15",
+      "lesson": "w10-l04",
+      "concept": "w10-l04-percentiles-vs-averages",
+      "type": "multiple_select",
+      "prompt": "Which statements support latency distributions rather than averages alone? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A low average proves there are no very slow requests."
+        },
+        {
+          "id": "b",
+          "text": "Averages can hide the long latency tail."
+        },
+        {
+          "id": "c",
+          "text": "p95 is the latency of the single slowest request."
+        },
+        {
+          "id": "d",
+          "text": "p95 describes a threshold met by approximately 95% of observed requests."
+        },
+        {
+          "id": "e",
+          "text": "High variance can harm user experience despite an acceptable mean."
+        }
+      ],
+      "answers": [
+        "b",
+        "d",
+        "e"
+      ],
+      "explanation": "A: A few slow requests can be hidden within an acceptable average. B: Google recommends treating metrics as distributions. C: The maximum is the slowest; p95 is a percentile. D: The remaining tail represents approximately 5% slower requests. E: Users often prefer consistent latency to high variance.",
+      "materials": [
+        "google-sre-book-service-level-objectives"
+      ],
+      "sources": [
+        {
+          "url": "https://sre.google/sre-book/service-level-objectives/",
+          "title": "Google SRE - Chapter 4: Service Level Objectives",
+          "publisher": "Google",
+          "accessed": "2026-10-03",
+          "claim": "Most metrics are better treated as distributions than averages, since an average hides tail latency, and users typically prefer a slightly slower system to one with high variance."
+        }
+      ],
+      "retired": null
     }
   ]
 }

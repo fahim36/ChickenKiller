@@ -222,7 +222,12 @@
           "accessed": "2026-09-26",
           "claim": "Before validators run on raw input ahead of parsing, after validators (the default) receive the parsed value, after model validators see the whole validated instance, and validators signal failure with ValueError or AssertionError."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w02-l02-q12",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w02-l02-q06",
@@ -393,7 +398,12 @@
           "accessed": "2026-09-26",
           "claim": "An OpenAI function tool describes its arguments in a parameters field written as JSON Schema."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w02-l02-q13",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w02-l02-q10",
@@ -477,7 +487,163 @@
           "accessed": "2026-09-26",
           "claim": "str(e) gives a human-readable message and e.errors() a structured list of every validation error, including each field's location and message."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w02-l02-q14",
+        "on": "2026-10-03"
+      }
+    },
+    {
+      "id": "w02-l02-q12",
+      "lesson": "w02-l02",
+      "concept": "w02-l02-field-and-model-validators",
+      "type": "multiple_select",
+      "prompt": "Which Pydantic v2 validator rules are correct? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Before field validators receive raw input before parsing."
+        },
+        {
+          "id": "b",
+          "text": "After model validators can check relationships across fields."
+        },
+        {
+          "id": "c",
+          "text": "After field validators run before Pydantic parses the field."
+        },
+        {
+          "id": "d",
+          "text": "After model validators should return None on successful validation."
+        },
+        {
+          "id": "e",
+          "text": "Raising ValueError in a validator is silently treated as success."
+        }
+      ],
+      "answers": [
+        "a",
+        "b"
+      ],
+      "explanation": "a is correct: This stage can normalize raw data. b is correct: They receive the validated instance. c is incorrect: After validators receive parsed values. d is incorrect: They must return the validated instance. e is incorrect: Pydantic collects it into a ValidationError.",
+      "materials": [
+        "pydantic-docs-validators"
+      ],
+      "sources": [
+        {
+          "url": "https://pydantic.dev/docs/validation/latest/concepts/validators/",
+          "title": "Validators | Pydantic Docs",
+          "publisher": "Pydantic",
+          "accessed": "2026-10-03",
+          "claim": "Before validators run on raw input ahead of parsing, after validators (the default) receive the parsed value, after model validators see the whole validated instance, and validators signal failure with ValueError or AssertionError."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w02-l02-q13",
+      "lesson": "w02-l02",
+      "concept": "w02-l02-json-schema-for-tools",
+      "type": "multiple_select",
+      "prompt": "Which rules describe Pydantic v2 model_json_schema output? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Nested model definitions can be referenced with $ref under $defs."
+        },
+        {
+          "id": "b",
+          "text": "Field descriptions are removed from the generated JSON Schema."
+        },
+        {
+          "id": "c",
+          "text": "Aliases are never used as schema property names by default."
+        },
+        {
+          "id": "d",
+          "text": "The schema performs runtime validation merely by being sent to a model."
+        },
+        {
+          "id": "e",
+          "text": "Fields without defaults appear in the required list."
+        }
+      ],
+      "answers": [
+        "a",
+        "e"
+      ],
+      "explanation": "a is correct: Definitions avoid duplicating nested schemas. b is incorrect: Field descriptions are included. c is incorrect: Aliases are used by default. d is incorrect: It describes input; code must still validate returned data. e is correct: They must be supplied by input.",
+      "materials": [
+        "pydantic-docs-json-schema",
+        "anthropic-docs-tool-use-with-claude",
+        "openai-docs-function-calling"
+      ],
+      "sources": [
+        {
+          "url": "https://pydantic.dev/docs/validation/latest/concepts/json_schema/",
+          "title": "JSON Schema | Pydantic Docs",
+          "publisher": "Pydantic",
+          "accessed": "2026-10-03",
+          "claim": "The generated schema uses aliases as property names by default, puts sub-models under $defs referenced by $ref, lists fields without defaults in required, and takes descriptions from docstrings and Field(description=...)."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w02-l02-q14",
+      "lesson": "w02-l02",
+      "concept": "w02-l02-validation-error-feedback",
+      "type": "multiple_select",
+      "prompt": "Which facts support returning tool-argument validation feedback? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A failed result should omit the ID of the tool call it answers."
+        },
+        {
+          "id": "b",
+          "text": "A ValidationError contains no details about which field failed."
+        },
+        {
+          "id": "c",
+          "text": "is_error: true means the tool result was successful."
+        },
+        {
+          "id": "d",
+          "text": "Pydantic ValidationError.errors() provides field locations and messages."
+        },
+        {
+          "id": "e",
+          "text": "A failed Claude tool_result can carry is_error: true."
+        }
+      ],
+      "answers": [
+        "d",
+        "e"
+      ],
+      "explanation": "a is incorrect: tool_use_id links the result to the request. b is incorrect: Both human-readable and structured error details exist. c is incorrect: It explicitly marks a tool execution error. d is correct: The structured list identifies each failure. e is correct: The tool result reports failure to the model.",
+      "materials": [
+        "anthropic-docs-handle-tool-calls",
+        "pydantic-docs-error-handling"
+      ],
+      "sources": [
+        {
+          "url": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/handle-tool-calls",
+          "title": "Handle tool calls - Claude Platform Docs",
+          "publisher": "Anthropic",
+          "accessed": "2026-10-03",
+          "claim": "A tool_result carries the tool_use_id, the content and is_error: true for failures, and when a tool request is invalid or missing parameters Claude will retry 2-3 times with corrections before apologizing."
+        },
+        {
+          "url": "https://pydantic.dev/docs/validation/latest/errors/errors/",
+          "title": "Error Handling | Pydantic Docs",
+          "publisher": "Pydantic",
+          "accessed": "2026-10-03",
+          "claim": "str(e) gives a human-readable message and e.errors() a structured list of every validation error, including each field's location and message."
+        }
+      ],
+      "retired": null
     }
   ]
 }

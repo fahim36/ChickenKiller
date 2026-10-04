@@ -134,7 +134,12 @@
           "accessed": "2026-09-26",
           "claim": "BM25 builds on TF-IDF, considering document length and applying a saturation function to term frequency, and works by exact lexical matching rather than semantic meaning."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w07-l05-q13",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w07-l05-q04",
@@ -359,7 +364,12 @@
           "accessed": "2026-09-26",
           "claim": "RRF sums 1/(k + r(d)) over rankings; k = 60 was fixed in a pilot investigation, found near-optimal but not critical, and the constant k mitigates the impact of high rankings by outlier systems."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w07-l05-q14",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w07-l05-q10",
@@ -492,7 +502,170 @@
           "accessed": "2026-09-26",
           "claim": "RRF fuses multiple rankings by summing 1/(k + rank) with k = 60, needing no training data."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w07-l05-q15",
+        "on": "2026-10-03"
+      }
+    },
+    {
+      "id": "w07-l05-q13",
+      "lesson": "w07-l05",
+      "concept": "w07-l05-bm25",
+      "type": "multiple_select",
+      "prompt": "Which BM25 scoring statements hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "BM25 inherently replaces every unmatched synonym with a semantic match."
+        },
+        {
+          "id": "b",
+          "text": "Repeating a query term adds an unlimited constant gain for every repetition."
+        },
+        {
+          "id": "c",
+          "text": "The b parameter selects a vector embedding dimension."
+        },
+        {
+          "id": "d",
+          "text": "Term-frequency gains saturate rather than grow without bound linearly."
+        },
+        {
+          "id": "e",
+          "text": "Document-length normalization is controlled by b."
+        }
+      ],
+      "answers": [
+        "d",
+        "e"
+      ],
+      "explanation": "a is incorrect: It uses lexical matching, not embedding meaning. b is incorrect: Term-frequency effects saturate. c is incorrect: It controls length normalization. d is correct: k1 controls frequency saturation. e is correct: BM25 adjusts for document length.",
+      "materials": [
+        "elasticsearch-bm25-similarity",
+        "anthropic-contextual-retrieval"
+      ],
+      "sources": [
+        {
+          "url": "https://www.elastic.co/docs/reference/elasticsearch/index-settings/similarity",
+          "title": "Similarity settings",
+          "publisher": "Elastic",
+          "accessed": "2026-10-03",
+          "claim": "BM25 is a TF/IDF-based similarity with built-in tf normalisation, where k1 controls term-frequency saturation and b controls document-length normalisation."
+        },
+        {
+          "url": "https://www.anthropic.com/news/contextual-retrieval",
+          "title": "Introducing Contextual Retrieval",
+          "publisher": "Anthropic",
+          "accessed": "2026-10-03",
+          "claim": "BM25 builds on TF-IDF, considering document length and applying a saturation function to term frequency, and works by exact lexical matching rather than semantic meaning."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w07-l05-q14",
+      "lesson": "w07-l05",
+      "concept": "w07-l05-reciprocal-rank-fusion",
+      "type": "multiple_select",
+      "prompt": "Which rules describe Reciprocal Rank Fusion? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "RRF requires identical raw relevance-score scales across retrievers."
+        },
+        {
+          "id": "b",
+          "text": "The paper proves k=60 is the only value that yields valid rankings."
+        },
+        {
+          "id": "c",
+          "text": "Sum contributions of 1 divided by k plus rank across ranked lists."
+        },
+        {
+          "id": "d",
+          "text": "The constant reduces the relative impact of extreme top ranks."
+        },
+        {
+          "id": "e",
+          "text": "A document absent from a ranking automatically receives first-place contribution."
+        }
+      ],
+      "answers": [
+        "c",
+        "d"
+      ],
+      "explanation": "a is incorrect: It combines ranks rather than raw scores. b is incorrect: It was near-optimal in a pilot and not critical. c is correct: The paper defines this rank-based score. d is correct: It mitigates domination by outlier rankings. e is incorrect: It contributes nothing from that list.",
+      "materials": [
+        "rrf-paper"
+      ],
+      "sources": [
+        {
+          "url": "https://cormack.uwaterloo.ca/cormacksigir09-rrf.pdf",
+          "title": "Reciprocal Rank Fusion outperforms Condorcet and individual Rank Learning Methods (SIGIR 2009)",
+          "publisher": "ACM",
+          "accessed": "2026-10-03",
+          "claim": "RRF sums 1/(k + r(d)) over rankings; k = 60 was fixed in a pilot investigation, found near-optimal but not critical, and the constant k mitigates the impact of high rankings by outlier systems."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w07-l05-q15",
+      "lesson": "w07-l05",
+      "concept": "w07-l05-cross-encoder-reranking",
+      "type": "multiple_select",
+      "prompt": "Which facts justify retrieve-then-rerank pipelines? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Reranking guarantees every application exactly the failure reduction measured by Anthropic."
+        },
+        {
+          "id": "b",
+          "text": "A cross-encoder scores each query-document pair jointly."
+        },
+        {
+          "id": "c",
+          "text": "Retrieve a candidate set before reranking to limit expensive pair scoring."
+        },
+        {
+          "id": "d",
+          "text": "A cross-encoder independently precomputes one reusable embedding for each document."
+        },
+        {
+          "id": "e",
+          "text": "Scoring more candidate pairs always has no latency or compute cost."
+        }
+      ],
+      "answers": [
+        "b",
+        "c"
+      ],
+      "explanation": "a is incorrect: Those results belong to its evaluated setup. b is correct: This differs from separately encoded embeddings. c is correct: Cross-encoders are more accurate but less scalable. d is incorrect: It jointly evaluates each pair. e is incorrect: More pairs require additional work.",
+      "materials": [
+        "anthropic-contextual-retrieval",
+        "sbert-cross-encoder-applications",
+        "rrf-paper"
+      ],
+      "sources": [
+        {
+          "url": "https://www.anthropic.com/news/contextual-retrieval",
+          "title": "Introducing Contextual Retrieval",
+          "publisher": "Anthropic",
+          "accessed": "2026-10-03",
+          "claim": "Top-20 retrieval failure rate fell 49% with contextual embeddings plus contextual BM25 and 67% when reranking was added, with reranking of the top 150 chunks down to 20."
+        },
+        {
+          "url": "https://sbert.net/examples/cross_encoder/applications/README.html",
+          "title": "Cross-Encoders (Applications)",
+          "publisher": "Sentence Transformers (UKP Lab / Hugging Face)",
+          "accessed": "2026-10-03",
+          "claim": "Cross-encoders are more accurate than bi-encoders but do not scale, so a bi-encoder retrieves candidates that a cross-encoder then re-ranks."
+        }
+      ],
+      "retired": null
     }
   ]
 }

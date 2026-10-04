@@ -110,7 +110,12 @@
           "accessed": "2026-09-26",
           "claim": "Multiple containers can share one image because each has its own writable layer, which is deleted along with the container."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w07-l01-q12",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w07-l01-q03",
@@ -358,7 +363,12 @@
           "accessed": "2026-09-26",
           "claim": "Pinning exact dependency versions with == in a requirements file (for example from pip freeze) makes installs repeatable."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w07-l01-q13",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w07-l01-q09",
@@ -490,7 +500,184 @@
           "accessed": "2026-09-26",
           "claim": "docker image ls shows each image's size, the cumulative space of the image and its parent layers."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w07-l01-q14",
+        "on": "2026-10-03"
+      }
+    },
+    {
+      "id": "w07-l01-q12",
+      "lesson": "w07-l01",
+      "concept": "w07-l01-images-vs-containers",
+      "type": "multiple_select",
+      "prompt": "Which facts distinguish a Docker image and container storage? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "An image is an immutable package of filesystem layers."
+        },
+        {
+          "id": "b",
+          "text": "Each container has its own writable layer above the image."
+        },
+        {
+          "id": "c",
+          "text": "Writing a file in one container modifies the original image for all containers."
+        },
+        {
+          "id": "d",
+          "text": "Removing a container permanently preserves all files from its writable layer."
+        },
+        {
+          "id": "e",
+          "text": "An image can have only one running container at a time."
+        }
+      ],
+      "answers": [
+        "a",
+        "b"
+      ],
+      "explanation": "a is correct: Changes require a new image or added layers. b is correct: Containers can share immutable image layers. c is incorrect: It writes into that container writable layer. d is incorrect: That layer is deleted with the container. e is incorrect: Many containers can use one image.",
+      "materials": [
+        "docker-get-started",
+        "docker-docs-image-layers"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.docker.com/get-started/docker-concepts/the-basics/what-is-an-image/",
+          "title": "What is an image?",
+          "publisher": "Docker Inc.",
+          "accessed": "2026-10-03",
+          "claim": "An image is an immutable package of the files, binaries, libraries and configuration needed to run a container, built from layers of filesystem changes."
+        },
+        {
+          "url": "https://docs.docker.com/get-started/docker-concepts/the-basics/what-is-a-container/",
+          "title": "What is a container?",
+          "publisher": "Docker Inc.",
+          "accessed": "2026-10-03",
+          "claim": "A container is an isolated process with all the files it needs to run."
+        },
+        {
+          "url": "https://docs.docker.com/engine/storage/drivers/",
+          "title": "Storage drivers",
+          "publisher": "Docker Inc.",
+          "accessed": "2026-10-03",
+          "claim": "Multiple containers can share one image because each has its own writable layer, which is deleted along with the container."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w07-l01-q13",
+      "lesson": "w07-l01",
+      "concept": "w07-l01-dockerfile-hygiene",
+      "type": "multiple_select",
+      "prompt": "Which Docker build choices improve reproducibility and privilege control? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Use USER to run a service that does not need root as a non-root user."
+        },
+        {
+          "id": "b",
+          "text": "A version tag always points to identical contents forever."
+        },
+        {
+          "id": "c",
+          "text": "Pinning a digest automatically applies every later security update."
+        },
+        {
+          "id": "d",
+          "text": "Installing unpinned dependency versions guarantees identical rebuilds."
+        },
+        {
+          "id": "e",
+          "text": "Pin a base image digest to identify exact image contents."
+        }
+      ],
+      "answers": [
+        "a",
+        "e"
+      ],
+      "explanation": "a is correct: This avoids unnecessary privileges. b is incorrect: Publishers can move tags. c is incorrect: The digest must be updated deliberately. d is incorrect: Exact versions or a lock constrain dependency selection. e is correct: Unlike a mutable tag, the digest fixes contents.",
+      "materials": [
+        "docker-docs-building-best-practices"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.docker.com/build/building/best-practices/",
+          "title": "Building best practices",
+          "publisher": "Docker Inc.",
+          "accessed": "2026-10-03",
+          "claim": "Docker recommends pinning base images (to a digest for exact reproducibility, updated with tools like Dependabot), using USER to run services without root, and avoiding sudo because of unpredictable TTY and signal-forwarding behaviour."
+        },
+        {
+          "url": "https://pip.pypa.io/en/stable/topics/repeatable-installs/",
+          "title": "Repeatable Installs",
+          "publisher": "Python Packaging Authority",
+          "accessed": "2026-10-03",
+          "claim": "Pinning exact dependency versions with == in a requirements file (for example from pip freeze) makes installs repeatable."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w07-l01-q14",
+      "lesson": "w07-l01",
+      "concept": "w07-l01-multi-stage-and-dockerignore",
+      "type": "multiple_select",
+      "prompt": "Which changes can shrink a Docker runtime image? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Copy the complete builder filesystem into the final stage to exclude build tools."
+        },
+        {
+          "id": "b",
+          "text": "Delete a large file in a later layer to erase its bytes from earlier image layers."
+        },
+        {
+          "id": "c",
+          "text": "Include every local virtual environment in the image to minimize its size."
+        },
+        {
+          "id": "d",
+          "text": "Copy only needed artifacts from a separate build stage."
+        },
+        {
+          "id": "e",
+          "text": "Remove temporary package files in the RUN instruction that creates them."
+        }
+      ],
+      "answers": [
+        "d",
+        "e"
+      ],
+      "explanation": "a is incorrect: That brings the tools along. b is incorrect: The earlier layer still contains the file. c is incorrect: Unneeded artifacts increase image size. d is correct: Build tools can remain outside the final image. e is correct: Later deletion does not remove bytes from earlier layers.",
+      "materials": [
+        "docker-docs-multi-stage-builds",
+        "docker-docs-building-best-practices",
+        "docker-docs-optimize-build-cache"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.docker.com/build/building/best-practices/",
+          "title": "Building best practices",
+          "publisher": "Docker Inc.",
+          "accessed": "2026-10-03",
+          "claim": "A smaller base image shrinks the image and reduces vulnerabilities, and cleanup such as removing apt lists should happen in the same RUN that creates the files."
+        },
+        {
+          "url": "https://docs.docker.com/build/building/multi-stage/",
+          "title": "Multi-stage builds",
+          "publisher": "Docker Inc.",
+          "accessed": "2026-10-03",
+          "claim": "Multi-stage builds copy only the needed artifacts into the final stage, leaving build tools behind."
+        }
+      ],
+      "retired": null
     }
   ]
 }

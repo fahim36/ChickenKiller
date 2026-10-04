@@ -149,7 +149,12 @@
           "accessed": "2026-09-26",
           "claim": "The needs keyword makes a job wait for the listed jobs to succeed, and if a needed job fails or is skipped the dependent job is skipped unless a condition such as always() is used."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w08-l01-q13",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w08-l01-q04",
@@ -501,7 +506,12 @@
           "accessed": "2026-09-26",
           "claim": "GitHub Actions automatically redacts the contents of stored secrets printed to workflow logs."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w08-l01-q14",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w08-l01-q12",
@@ -538,7 +548,167 @@
           "accessed": "2026-09-26",
           "claim": "Existing caches cannot be changed; on a miss a new cache is saved under the key when the job succeeds, so new content needs a new key."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w08-l01-q15",
+        "on": "2026-10-03"
+      }
+    },
+    {
+      "id": "w08-l01-q13",
+      "lesson": "w08-l01",
+      "concept": "w08-l01-workflow-anatomy",
+      "type": "multiple_select",
+      "prompt": "Which default GitHub Actions ordering rules hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Jobs without dependencies can run in parallel."
+        },
+        {
+          "id": "b",
+          "text": "needs can make deploy wait for successful lint and test jobs."
+        },
+        {
+          "id": "c",
+          "text": "The written order of jobs in YAML automatically makes them sequential."
+        },
+        {
+          "id": "d",
+          "text": "A failed required dependency makes deploy run immediately by default."
+        },
+        {
+          "id": "e",
+          "text": "All steps in one job must run on separate unrelated runners."
+        }
+      ],
+      "answers": [
+        "a",
+        "b"
+      ],
+      "explanation": "a is correct: No automatic ordering exists between independent jobs. b is correct: Listed dependencies gate the job. c is incorrect: needs defines dependencies. d is incorrect: The dependent job is skipped by default. e is incorrect: A job steps share its runner.",
+      "materials": [
+        "github-actions-documentation"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.github.com/en/actions/get-started/understand-github-actions",
+          "title": "Understanding GitHub Actions",
+          "publisher": "GitHub",
+          "accessed": "2026-10-03",
+          "claim": "Jobs have no dependencies and run in parallel by default, each on its own runner VM or container, while a job's steps run in order on the same runner and can share data."
+        },
+        {
+          "url": "https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-jobs",
+          "title": "Using jobs in a workflow",
+          "publisher": "GitHub",
+          "accessed": "2026-10-03",
+          "claim": "The needs keyword makes a job wait for the listed jobs to succeed, and if a needed job fails or is skipped the dependent job is skipped unless a condition such as always() is used."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w08-l01-q14",
+      "lesson": "w08-l01",
+      "concept": "w08-l01-secrets-environments",
+      "type": "multiple_select",
+      "prompt": "Which GitHub Actions environment controls protect a deployment? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Required reviewers can gate access to that environment secrets."
+        },
+        {
+          "id": "b",
+          "text": "Committing the cloud key directly in workflow YAML gives it environment-secret protection."
+        },
+        {
+          "id": "c",
+          "text": "Environment deployment branch rules cannot restrict deployment sources."
+        },
+        {
+          "id": "d",
+          "text": "A job receives environment secrets before required approval so it can deploy while waiting."
+        },
+        {
+          "id": "e",
+          "text": "An environment secret is available only to jobs referencing that environment."
+        }
+      ],
+      "answers": [
+        "a",
+        "e"
+      ],
+      "explanation": "a is correct: Protection rules must pass before the job proceeds. b is incorrect: A committed literal is not a protected secret. c is incorrect: Rules can limit eligible branches. d is incorrect: It cannot access them until protection rules pass. e is correct: Other jobs do not automatically receive it.",
+      "materials": [
+        "github-actions-documentation"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.github.com/en/actions/reference/workflows-and-actions/deployments-and-environments",
+          "title": "Deployments and environments",
+          "publisher": "GitHub",
+          "accessed": "2026-10-03",
+          "claim": "Environment secrets are only available to jobs that reference the environment, a job can't access them until required reviewers approve, and deployment branch rules limit which branches can deploy."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w08-l01-q15",
+      "lesson": "w08-l01",
+      "concept": "w08-l01-dependency-caching",
+      "type": "multiple_select",
+      "prompt": "Which GitHub Actions dependency-cache rules hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "An existing cache can be overwritten in place with different contents."
+        },
+        {
+          "id": "b",
+          "text": "A fallback prefix match makes cache-hit true just like an exact match."
+        },
+        {
+          "id": "c",
+          "text": "Changing the dependency set never warrants changing a cache key."
+        },
+        {
+          "id": "d",
+          "text": "The cache action first looks for an exact key match."
+        },
+        {
+          "id": "e",
+          "text": "restore-keys are tried in order to find fallback matching caches."
+        }
+      ],
+      "answers": [
+        "d",
+        "e"
+      ],
+      "explanation": "a is incorrect: Cache entries are immutable. b is incorrect: cache-hit is true only for exact matches. c is incorrect: New dependency content needs an appropriately changed key. d is correct: An exact match is a cache hit. e is correct: Prefixes enable restoring recent compatible entries.",
+      "materials": [
+        "github-actions-documentation"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching",
+          "title": "Dependency caching reference",
+          "publisher": "GitHub",
+          "accessed": "2026-10-03",
+          "claim": "The cache action looks for an exact key match first, then checks each restore-keys prefix in order and restores the most recently created matching cache; cache-hit is true only for an exact match."
+        },
+        {
+          "url": "https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching",
+          "title": "Dependency caching reference",
+          "publisher": "GitHub",
+          "accessed": "2026-10-03",
+          "claim": "Existing caches cannot be changed; on a miss a new cache is saved under the key when the job succeeds, so new content needs a new key."
+        }
+      ],
+      "retired": null
     }
   ]
 }

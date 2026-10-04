@@ -257,7 +257,12 @@
           "accessed": "2026-09-26",
           "claim": "output_type is the structured datatype the model must return at the end of a run, and Pydantic performs the output validation."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w14-l03-q13",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w14-l03-q07",
@@ -420,7 +425,12 @@
           "accessed": "2026-09-26",
           "claim": "Crews run their tasks under a sequential or a hierarchical process."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w14-l03-q14",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w14-l03-q11",
@@ -466,7 +476,12 @@
           "accessed": "2026-09-26",
           "claim": "LangGraph is a low-level orchestration framework and runtime for long-running, stateful agents with durable execution, persistence and human-in-the-loop, built with StateGraph nodes and edges."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w14-l03-q15",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w14-l03-q12",
@@ -522,6 +537,182 @@
           "claim": "LangGraph builds a StateGraph of nodes and edges that is compiled and then invoked."
         }
       ]
+    },
+    {
+      "id": "w14-l03-q13",
+      "lesson": "w14-l03",
+      "concept": "w14-l03-pydantic-ai-retries",
+      "type": "multiple_select",
+      "prompt": "Which Pydantic AI output-retry statements are accurate? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Schema validation failures immediately bypass all configured retries."
+        },
+        {
+          "id": "b",
+          "text": "Validation errors can trigger a correction request to the model."
+        },
+        {
+          "id": "c",
+          "text": "An output validator must silently accept all schema-valid business errors."
+        },
+        {
+          "id": "d",
+          "text": "An output validator can raise ModelRetry for a business-rule failure."
+        },
+        {
+          "id": "e",
+          "text": "Exhausting the output retry budget raises UnexpectedModelBehavior."
+        }
+      ],
+      "answers": [
+        "b",
+        "d",
+        "e"
+      ],
+      "explanation": "A: Incorrect: output validation failures are a documented retry trigger. B: Correct: the model receives validation feedback to repair the answer. C: Incorrect: business-rule validators can request a corrected response. D: Correct: ModelRetry explicitly requests an output retry. E: Correct: the run fails with this exception when the budget is exhausted.",
+      "materials": [
+        "pydantic-ai-retries",
+        "pydantic-ai-agents"
+      ],
+      "sources": [
+        {
+          "url": "https://pydantic.dev/docs/ai/core-concepts/retries/",
+          "title": "Retries",
+          "publisher": "Pydantic",
+          "accessed": "2026-10-03",
+          "claim": "Output retries are triggered by validation failures or an output function/validator raising ModelRetry; the default budget is 1, a bare int for retries sets both tool and output budgets, and exhaustion raises UnexpectedModelBehavior."
+        },
+        {
+          "url": "https://pydantic.dev/docs/ai/core-concepts/agent/",
+          "title": "Agents",
+          "publisher": "Pydantic",
+          "accessed": "2026-10-03",
+          "claim": "output_type is the structured datatype the model must return at the end of a run, and Pydantic performs the output validation."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w14-l03-q14",
+      "lesson": "w14-l03",
+      "concept": "w14-l03-crewai-processes-and-flows",
+      "type": "multiple_select",
+      "prompt": "Which statements distinguish CrewAI Crews and Flows? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Crews can use sequential or hierarchical task processes."
+        },
+        {
+          "id": "b",
+          "text": "Every Flow method runs at startup regardless of its decorators."
+        },
+        {
+          "id": "c",
+          "text": "Flow listen methods respond to completion events from other methods."
+        },
+        {
+          "id": "d",
+          "text": "Flow router methods provide conditional branching."
+        },
+        {
+          "id": "e",
+          "text": "Flow state cannot use a Pydantic model."
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "d"
+      ],
+      "explanation": "A: Correct: these are the documented crew process modes. B: Incorrect: start defines entry points and listen defines dependencies. C: Correct: listen wires event-driven execution. D: Correct: router chooses branches from method results. E: Incorrect: Flow supports both structured Pydantic and unstructured state.",
+      "materials": [
+        "crewai-flows",
+        "crewai-processes"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.crewai.com/en/concepts/flows",
+          "title": "Flows",
+          "publisher": "CrewAI",
+          "accessed": "2026-10-03",
+          "claim": "Flows are event-driven workflows using @start entry points, @listen methods that fire when another method finishes, @router for conditional branching, structured (Pydantic) or unstructured state, and can run crews inside methods."
+        },
+        {
+          "url": "https://docs.crewai.com/en/concepts/processes",
+          "title": "Processes",
+          "publisher": "CrewAI",
+          "accessed": "2026-10-03",
+          "claim": "Crews run their tasks under a sequential or a hierarchical process."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w14-l03-q15",
+      "lesson": "w14-l03",
+      "concept": "w14-l03-framework-comparison",
+      "type": "multiple_select",
+      "prompt": "Which framework descriptions match their documented abstractions? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Pydantic AI agents are typed by dependency and output types."
+        },
+        {
+          "id": "b",
+          "text": "CrewAI agent attributes include role, goal and backstory."
+        },
+        {
+          "id": "c",
+          "text": "LangGraph defines every agent exclusively through a role and backstory."
+        },
+        {
+          "id": "d",
+          "text": "Pydantic AI output_type disables validation of structured results."
+        },
+        {
+          "id": "e",
+          "text": "LangGraph supports explicit stateful graphs and durable execution."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "e"
+      ],
+      "explanation": "A: Correct: Agent is generic in dependency and output types. B: Correct: these attributes shape CrewAI agent behavior. C: Incorrect: LangGraph uses graph nodes, edges and state. D: Incorrect: output_type defines the validated final result type. E: Correct: long-running resumable graph execution is a core capability.",
+      "materials": [
+        "pydantic-ai-agents",
+        "crewai-agents",
+        "langgraph-documentation"
+      ],
+      "sources": [
+        {
+          "url": "https://pydantic.dev/docs/ai/core-concepts/agent/",
+          "title": "Agents",
+          "publisher": "Pydantic",
+          "accessed": "2026-10-03",
+          "claim": "Agents are generic in their dependency and output types, so an agent with deps of type Foobar and output list[str] has type Agent[Foobar, list[str]]."
+        },
+        {
+          "url": "https://docs.crewai.com/en/concepts/agents",
+          "title": "Agents",
+          "publisher": "CrewAI",
+          "accessed": "2026-10-03",
+          "claim": "CrewAI says role, goal and backstory are required agent attributes that shape the agent's behaviour."
+        },
+        {
+          "url": "https://docs.langchain.com/oss/python/langgraph/overview",
+          "title": "LangGraph overview",
+          "publisher": "LangChain",
+          "accessed": "2026-10-03",
+          "claim": "LangGraph is a low-level orchestration framework and runtime for long-running, stateful agents with durable execution, persistence and human-in-the-loop, built with StateGraph nodes and edges."
+        }
+      ],
+      "retired": null
     }
   ]
 }

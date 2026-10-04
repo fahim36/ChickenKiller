@@ -187,7 +187,12 @@
           "accessed": "2026-09-26",
           "claim": "generateObject and streamObject are deprecated as of AI SDK 6."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w11-l03-q13",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w11-l03-q05",
@@ -396,7 +401,12 @@
           "accessed": "2026-09-26",
           "claim": "The loop continues after tool calls until a stop condition such as isStepCount(n) is met or the model stops calling tools."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w11-l03-q14",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w11-l03-q10",
@@ -533,7 +543,195 @@
           "accessed": "2026-09-26",
           "claim": "Migrating prompts across models is painful and can shift results, so automated evals should measure performance before and after a switch."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w11-l03-q15",
+        "on": "2026-10-03"
+      }
+    },
+    {
+      "id": "w11-l03-q13",
+      "lesson": "w11-l03",
+      "concept": "w11-l03-core-functions",
+      "type": "multiple_select",
+      "prompt": "In AI SDK 6+, which text and structured-output choices are correct? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`generateText` emits each token directly to the browser before completion."
+        },
+        {
+          "id": "b",
+          "text": "`streamText` supports incremental generation for interactive interfaces."
+        },
+        {
+          "id": "c",
+          "text": "`Output.object` accepts invalid data without using its supplied schema."
+        },
+        {
+          "id": "d",
+          "text": "`Output.object({ schema })` configures schema-validated structured output."
+        },
+        {
+          "id": "e",
+          "text": "`generateText` suits noninteractive jobs that need a completed response."
+        }
+      ],
+      "answers": [
+        "b",
+        "d",
+        "e"
+      ],
+      "explanation": "A: GenerateText provides a completed result rather than the streaming interface. B: StreamText is the streaming text API. C: The supplied schema defines and validates the structured data. D: The output setting returns data conforming to the schema. E: Background jobs can wait for the complete generation.",
+      "materials": [
+        "vercel-ai-sdk-documentation",
+        "ai-sdk-generating-structured-data",
+        "ai-sdk-migration-guide-6-0"
+      ],
+      "sources": [
+        {
+          "url": "https://ai-sdk.dev/docs/ai-sdk-core/generating-text",
+          "title": "AI SDK Core: Generating Text",
+          "publisher": "Vercel",
+          "accessed": "2026-10-03",
+          "claim": "generateText fits non-interactive jobs and agents with tools, streamText fits interactive use and puts errors into the stream."
+        },
+        {
+          "url": "https://ai-sdk.dev/docs/ai-sdk-core/generating-structured-data",
+          "title": "AI SDK Core: Generating Structured Data",
+          "publisher": "Vercel",
+          "accessed": "2026-10-03",
+          "claim": "An output: Output.object({ schema }) setting on generateText or streamText returns schema-validated data."
+        },
+        {
+          "url": "https://ai-sdk.dev/docs/migration-guides/migration-guide-6-0",
+          "title": "Migration Guides: Migrate AI SDK 5.x to 6.0",
+          "publisher": "Vercel",
+          "accessed": "2026-10-03",
+          "claim": "generateObject and streamObject are deprecated as of AI SDK 6."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w11-l03-q14",
+      "lesson": "w11-l03",
+      "concept": "w11-l03-multi-step-calls",
+      "type": "multiple_select",
+      "prompt": "Which behaviors apply to AI SDK multi-step calls with executable tools? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Tool results can be passed into a subsequent generation."
+        },
+        {
+          "id": "b",
+          "text": "`stopWhen: isStepCount(5)` requires exactly five tool calls in one response."
+        },
+        {
+          "id": "c",
+          "text": "The loop can stop when the model stops calling tools."
+        },
+        {
+          "id": "d",
+          "text": "`result.steps` exposes intermediate calls and results."
+        },
+        {
+          "id": "e",
+          "text": "`inputSchema` is only a UI label and never validates tool input."
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "d"
+      ],
+      "explanation": "A: Multi-step calls feed results into the next step. B: Step count bounds generation steps, not five simultaneous calls. C: No further tool calls is a natural stopping condition. D: The steps property preserves intermediate information. E: The schema is used to validate generated tool inputs.",
+      "materials": [
+        "ai-sdk-tool-calling",
+        "ai-sdk-loop-control"
+      ],
+      "sources": [
+        {
+          "url": "https://ai-sdk.dev/docs/ai-sdk-core/tools-and-tool-calling",
+          "title": "AI SDK Core: Tool Calling",
+          "publisher": "Vercel",
+          "accessed": "2026-10-03",
+          "claim": "With stopWhen, each generation (tool call or text) is a step, tool inputs are validated against inputSchema, and result.steps holds every step's tool calls and results."
+        },
+        {
+          "url": "https://ai-sdk.dev/docs/agents/loop-control",
+          "title": "Agents: Loop Control",
+          "publisher": "Vercel",
+          "accessed": "2026-10-03",
+          "claim": "The loop continues after tool calls until a stop condition such as isStepCount(n) is met or the model stops calling tools."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w11-l03-q15",
+      "lesson": "w11-l03",
+      "concept": "w11-l03-switching-providers",
+      "type": "multiple_select",
+      "prompt": "Which practices support portable AI SDK model configuration? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Define model aliases through `customProvider`."
+        },
+        {
+          "id": "b",
+          "text": "Use a provider registry to reference different providers through IDs."
+        },
+        {
+          "id": "c",
+          "text": "Assume identical prompts always have identical quality after a provider switch."
+        },
+        {
+          "id": "d",
+          "text": "Hard-code a separate application API for every model vendor as required by the SDK."
+        },
+        {
+          "id": "e",
+          "text": "Keep provider-specific options in `providerOptions`."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "e"
+      ],
+      "explanation": "A: Aliases separate a feature’s role from a concrete model. B: A registry centralizes providers behind identifiers. C: Behavior can shift and must be evaluated after switching. D: Providers implement a common language-model specification. E: Provider options hold vendor-specific settings in the shared interface.",
+      "materials": [
+        "ai-sdk-provider-management",
+        "what-we-learned-from-a-year"
+      ],
+      "sources": [
+        {
+          "url": "https://ai-sdk.dev/docs/ai-sdk-core/provider-management",
+          "title": "AI SDK Core: Provider & Model Management",
+          "publisher": "Vercel",
+          "accessed": "2026-10-03",
+          "claim": "customProvider creates model aliases with preconfigured providerOptions, and createProviderRegistry mixes providers behind string IDs."
+        },
+        {
+          "url": "https://ai-sdk.dev/docs/foundations/providers-and-models",
+          "title": "Foundations: Providers and Models",
+          "publisher": "Vercel",
+          "accessed": "2026-10-03",
+          "claim": "All providers implement one language model specification, so the same API works across providers."
+        },
+        {
+          "url": "https://applied-llms.org/",
+          "title": "What We've Learned From A Year of Building with LLMs - Applied LLMs",
+          "publisher": "Applied LLMs (Yan, Bischof, Frye, Husain, Liu, Shankar)",
+          "accessed": "2026-10-03",
+          "claim": "Migrating prompts across models is painful and can shift results, so automated evals should measure performance before and after a switch."
+        }
+      ],
+      "retired": null
     }
   ]
 }

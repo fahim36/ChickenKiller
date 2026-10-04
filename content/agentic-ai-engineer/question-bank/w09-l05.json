@@ -90,7 +90,12 @@
           "accessed": "2026-09-26",
           "claim": "Scaling horizontally requires stateless servers with sessions in a centralized data store, and a cost is that downstream caches and databases must handle more simultaneous connections."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w09-l05-q11",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w09-l05-q03",
@@ -325,7 +330,12 @@
           "accessed": "2026-09-26",
           "claim": "When scaling out, downstream caches and databases must handle more simultaneous connections."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w09-l05-q12",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w09-l05-q09",
@@ -396,7 +406,165 @@
           "accessed": "2026-09-26",
           "claim": "The Primer's reasons for NoSQL are semi-structured data, dynamic or flexible schema, non-relational data, no need for complex joins, and very high throughput or very large data volumes."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w09-l05-q13",
+        "on": "2026-10-03"
+      }
+    },
+    {
+      "id": "w09-l05-q11",
+      "lesson": "w09-l05",
+      "concept": "w09-l05-stateless-horizontal-scaling",
+      "type": "multiple_select",
+      "prompt": "Which properties support horizontal scaling of a stateless service? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Keep shared session data in a centralized store."
+        },
+        {
+          "id": "b",
+          "text": "Keep each user’s only conversation history in one process’s memory."
+        },
+        {
+          "id": "c",
+          "text": "Add service instances behind a load balancer."
+        },
+        {
+          "id": "d",
+          "text": "Account for increased downstream database connections."
+        },
+        {
+          "id": "e",
+          "text": "Assume horizontal scaling means replacing the server with a larger machine."
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "d"
+      ],
+      "explanation": "A: Any instance can access centrally stored state. B: Process-local exclusive state makes requests depend on that instance. C: Horizontal scaling adds instances to serve traffic. D: More instances can increase simultaneous downstream connections. E: A larger machine is vertical scaling.",
+      "materials": [
+        "system-design-primer"
+      ],
+      "sources": [
+        {
+          "url": "https://github.com/donnemartin/system-design-primer",
+          "title": "GitHub - donnemartin/system-design-primer: Learn how to design large-scale systems. Prep for the system design interview.",
+          "publisher": "Donne Martin (GitHub)",
+          "accessed": "2026-10-03",
+          "claim": "Scaling horizontally requires stateless servers with sessions in a centralized data store, and a cost is that downstream caches and databases must handle more simultaneous connections."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w09-l05-q12",
+      "lesson": "w09-l05",
+      "concept": "w09-l05-connection-pooling",
+      "type": "multiple_select",
+      "prompt": "Which statements describe SQLAlchemy 2.0 connection pooling? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A pool reuses existing database connections."
+        },
+        {
+          "id": "b",
+          "text": "`pool_pre_ping` checks a connection during checkout."
+        },
+        {
+          "id": "c",
+          "text": "A single QueuePool is automatically shared across all independent processes."
+        },
+        {
+          "id": "d",
+          "text": "`max_overflow` is the size of the result returned by a query."
+        },
+        {
+          "id": "e",
+          "text": "QueuePool limits include its configured size and overflow."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "e"
+      ],
+      "explanation": "A: Reusing connections avoids repeatedly establishing them. B: Pre-ping detects disconnected pooled connections before use. C: Processes have their own pools and connections must not be shared across forks. D: Max_overflow is a limit on extra connections beyond the persistent pool. E: Pool size plus overflow bounds simultaneous connections for that pool.",
+      "materials": [
+        "sqlalchemy-connection-pooling",
+        "system-design-primer"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.sqlalchemy.org/en/20/core/pooling.html",
+          "title": "Connection Pooling — SQLAlchemy 2.0 Documentation",
+          "publisher": "SQLAlchemy",
+          "accessed": "2026-10-03",
+          "claim": "SQLAlchemy's engine keeps a QueuePool (default pool_size 5, max_overflow 10) per process, and pool_pre_ping tests a connection on checkout and replaces ones the database dropped."
+        },
+        {
+          "url": "https://github.com/donnemartin/system-design-primer",
+          "title": "GitHub - donnemartin/system-design-primer: Learn how to design large-scale systems. Prep for the system design interview.",
+          "publisher": "Donne Martin (GitHub)",
+          "accessed": "2026-10-03",
+          "claim": "When scaling out, downstream caches and databases must handle more simultaneous connections."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w09-l05-q13",
+      "lesson": "w09-l05",
+      "concept": "w09-l05-sql-vs-nosql",
+      "type": "multiple_select",
+      "prompt": "Which requirements can motivate a NoSQL store according to the Primer? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A mandatory need for complex relational joins in every query."
+        },
+        {
+          "id": "b",
+          "text": "Semi-structured data with a flexible schema."
+        },
+        {
+          "id": "c",
+          "text": "Very large data volumes or high throughput."
+        },
+        {
+          "id": "d",
+          "text": "Non-relational data accessed without complex joins."
+        },
+        {
+          "id": "e",
+          "text": "The assumption that every database must support identical access patterns."
+        }
+      ],
+      "answers": [
+        "b",
+        "c",
+        "d"
+      ],
+      "explanation": "A: Complex joins favor a relational model rather than this NoSQL rationale. B: Dynamic schemas are a documented reason to choose NoSQL. C: The Primer lists both throughput and volume as potential reasons. D: Non-relational access is a documented fit. E: Different storage models serve different needs and involve tradeoffs.",
+      "materials": [
+        "system-design-primer",
+        "designing-data-intensive-applications"
+      ],
+      "sources": [
+        {
+          "url": "https://github.com/donnemartin/system-design-primer",
+          "title": "GitHub - donnemartin/system-design-primer: Learn how to design large-scale systems. Prep for the system design interview.",
+          "publisher": "Donne Martin (GitHub)",
+          "accessed": "2026-10-03",
+          "claim": "The Primer's reasons for NoSQL are semi-structured data, dynamic or flexible schema, non-relational data, no need for complex joins, and very high throughput or very large data volumes."
+        }
+      ],
+      "retired": null
     }
   ]
 }

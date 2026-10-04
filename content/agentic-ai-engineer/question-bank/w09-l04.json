@@ -138,7 +138,12 @@
           "accessed": "2026-09-26",
           "claim": "The Claude API uses a token bucket that replenishes continuously up to the limit, and short bursts can exceed the limit and trigger rate limit errors."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w09-l04-q13",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w09-l04-q04",
@@ -425,7 +430,12 @@
           "accessed": "2026-09-26",
           "claim": "The official Anthropic SDKs retry transient failures twice by default, honouring retry-after, and max_retries configures or disables this."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w09-l04-q14",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w09-l04-q11",
@@ -502,7 +512,187 @@
           "accessed": "2026-09-26",
           "claim": "RFC 9110 defines PUT, DELETE and the safe methods as idempotent, while POST is not."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w09-l04-q15",
+        "on": "2026-10-03"
+      }
+    },
+    {
+      "id": "w09-l04-q13",
+      "lesson": "w09-l04",
+      "concept": "w09-l04-rate-limiter-algorithms",
+      "type": "multiple_select",
+      "prompt": "Which statements describe sliding-window and token-bucket rate limiting? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Fixed-window boundaries prevent adjacent-window bursts automatically."
+        },
+        {
+          "id": "b",
+          "text": "A sliding-window approximation weights the previous counter by overlap."
+        },
+        {
+          "id": "c",
+          "text": "A token bucket refills continuously up to its capacity."
+        },
+        {
+          "id": "d",
+          "text": "A bucket can permit a burst while tokens remain available."
+        },
+        {
+          "id": "e",
+          "text": "A per-minute average below the limit guarantees every short burst is accepted."
+        }
+      ],
+      "answers": [
+        "b",
+        "c",
+        "d"
+      ],
+      "explanation": "A: Requests around a boundary can consume two window allowances quickly. B: Cloudflare combines the previous and current counters this way. C: Anthropic documents continuous replenishment rather than minute-boundary resetting. D: Available tokens allow bounded bursts. E: Short bursts can exhaust tokens and receive rate-limit errors.",
+      "materials": [
+        "cloudflare-sliding-window-rate-limiting",
+        "anthropic-docs-rate-limits"
+      ],
+      "sources": [
+        {
+          "url": "https://blog.cloudflare.com/counting-things-a-lot-of-different-things/",
+          "title": "How we built rate limiting capable of scaling to millions of domains",
+          "publisher": "Cloudflare",
+          "accessed": "2026-10-03",
+          "claim": "Cloudflare's sliding-window approximation weights the previous window's count by its remaining overlap, stores two numbers per counter, and was wrong on only 0.003% of 400 million requests."
+        },
+        {
+          "url": "https://platform.claude.com/docs/en/api/rate-limits",
+          "title": "Rate limits",
+          "publisher": "Anthropic",
+          "accessed": "2026-10-03",
+          "claim": "The Claude API uses a token bucket that replenishes continuously up to the limit, and short bursts can exceed the limit and trigger rate limit errors."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w09-l04-q14",
+      "lesson": "w09-l04",
+      "concept": "w09-l04-tenacity-retries",
+      "type": "multiple_select",
+      "prompt": "Which Tenacity settings support bounded selective retries? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Use an exception predicate to select retryable failures."
+        },
+        {
+          "id": "b",
+          "text": "Use an unbounded stop policy to guarantee a bounded total retry count."
+        },
+        {
+          "id": "c",
+          "text": "Use `wait_random_exponential` for jittered backoff."
+        },
+        {
+          "id": "d",
+          "text": "Set `reraise=True` to turn every failure into a successful return."
+        },
+        {
+          "id": "e",
+          "text": "Use `stop_after_attempt` to limit attempts."
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "A: Retry_if_exception evaluates a predicate against the exception. B: An unbounded policy provides no such count bound. C: This wait strategy provides randomized exponential intervals. D: Reraise surfaces the original exception when retrying stops. E: The stop strategy caps the number of attempts.",
+      "materials": [
+        "tenacity-retries-in-python",
+        "anthropic-docs-api-errors"
+      ],
+      "sources": [
+        {
+          "url": "https://tenacity.readthedocs.io/en/latest/api.html",
+          "title": "API Reference — Tenacity documentation",
+          "publisher": "Tenacity project (Julien Danjou)",
+          "accessed": "2026-10-03",
+          "claim": "Tenacity provides retry_if_exception(predicate), wait_random_exponential (full jitter), stop_after_attempt, and a reraise option that surfaces the original exception instead of RetryError."
+        },
+        {
+          "url": "https://tenacity.readthedocs.io/en/latest/",
+          "title": "Tenacity",
+          "publisher": "Tenacity project (Julien Danjou)",
+          "accessed": "2026-10-03",
+          "claim": "Custom wait callables receive a retry_state object whose outcome gives access to the last attempt's result or exception."
+        },
+        {
+          "url": "https://platform.claude.com/docs/en/api/errors",
+          "title": "Claude API errors",
+          "publisher": "Anthropic",
+          "accessed": "2026-10-03",
+          "claim": "The official Anthropic SDKs retry transient failures twice by default, honouring retry-after, and max_retries configures or disables this."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w09-l04-q15",
+      "lesson": "w09-l04",
+      "concept": "w09-l04-idempotency-keys",
+      "type": "multiple_select",
+      "prompt": "Which rules follow Stripe’s idempotency-key contract? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Generate a new key on every retry of the same logical operation."
+        },
+        {
+          "id": "b",
+          "text": "Reuse the same key for retries of one logical operation."
+        },
+        {
+          "id": "c",
+          "text": "Reuse one key across requests with different parameters."
+        },
+        {
+          "id": "d",
+          "text": "Use a UUID or another random value to avoid accidental key collisions."
+        },
+        {
+          "id": "e",
+          "text": "GET and DELETE are already idempotent, so keys have no effect on them."
+        }
+      ],
+      "answers": [
+        "b",
+        "d",
+        "e"
+      ],
+      "explanation": "A: A new key identifies a new operation and defeats deduplication. B: The key identifies the logical operation across retry attempts. C: Stripe checks parameters and rejects incompatible reuse. D: Stripe recommends random keys such as V4 UUIDs. E: Stripe explicitly documents this behavior for these methods.",
+      "materials": [
+        "stripe-docs-idempotent-requests",
+        "rfc-9110-http-semantics"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.stripe.com/api/idempotent_requests",
+          "title": "Idempotent requests",
+          "publisher": "Stripe",
+          "accessed": "2026-10-03",
+          "claim": "Clients should generate idempotency keys as V4 UUIDs or similar random strings, keys can be pruned once at least 24 hours old, and GET and DELETE are idempotent by definition so keys have no effect on them."
+        },
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc9110.html",
+          "title": "RFC 9110: HTTP Semantics",
+          "publisher": "IETF (RFC Editor)",
+          "accessed": "2026-10-03",
+          "claim": "RFC 9110 defines PUT, DELETE and the safe methods as idempotent, while POST is not."
+        }
+      ],
+      "retired": null
     }
   ]
 }

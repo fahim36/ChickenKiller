@@ -168,7 +168,12 @@
           "accessed": "2026-09-26",
           "claim": "The Primer lists as cache disadvantages the need to keep the cache consistent with the source of truth through invalidation, and that a new cache node starts empty so latency rises until it is warmed."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w09-l02-q13",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w09-l02-q05",
@@ -369,7 +374,12 @@
           "accessed": "2026-09-26",
           "claim": "Prompt caching reuses the prompt prefix and does not change the generated response."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w09-l02-q14",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w09-l02-q10",
@@ -485,7 +495,172 @@
           "accessed": "2026-09-26",
           "claim": "In cache-aside the application checks the cache, loads from the database on a miss, stores the result in the cache and returns it."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w09-l02-q15",
+        "on": "2026-10-03"
+      }
+    },
+    {
+      "id": "w09-l02-q13",
+      "lesson": "w09-l02",
+      "concept": "w09-l02-ttl-and-invalidation",
+      "type": "multiple_select",
+      "prompt": "Which statements describe cache invalidation and warming? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Cached data must be kept consistent with the source of truth."
+        },
+        {
+          "id": "b",
+          "text": "A new empty cache node can increase latency until warmed."
+        },
+        {
+          "id": "c",
+          "text": "A database write automatically refreshes every independent application cache."
+        },
+        {
+          "id": "d",
+          "text": "An empty replacement cache guarantees a higher hit rate immediately."
+        },
+        {
+          "id": "e",
+          "text": "Invalidation adds complexity about when cached values change."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "e"
+      ],
+      "explanation": "A: A cache is a copy requiring consistency management. B: Requests miss while the node has no useful entries. C: The caching design must implement update or invalidation. D: An empty node starts with misses, not a guaranteed high hit rate. E: The Primer identifies cache invalidation as a difficult added responsibility.",
+      "materials": [
+        "system-design-primer"
+      ],
+      "sources": [
+        {
+          "url": "https://github.com/donnemartin/system-design-primer",
+          "title": "GitHub - donnemartin/system-design-primer: Learn how to design large-scale systems. Prep for the system design interview.",
+          "publisher": "Donne Martin (GitHub)",
+          "accessed": "2026-10-03",
+          "claim": "The Primer lists as cache disadvantages the need to keep the cache consistent with the source of truth through invalidation, and that a new cache node starts empty so latency rises until it is warmed."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w09-l02-q14",
+      "lesson": "w09-l02",
+      "concept": "w09-l02-llm-response-caches",
+      "type": "multiple_select",
+      "prompt": "Which statements distinguish LLM caching approaches? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Provider prompt caching returns a previously generated answer without inference."
+        },
+        {
+          "id": "b",
+          "text": "Exact-match response caching reuses an answer for an identical request."
+        },
+        {
+          "id": "c",
+          "text": "Semantic caching can match paraphrases through embedding similarity."
+        },
+        {
+          "id": "d",
+          "text": "Provider prompt caching reuses a processed prefix while generation still runs."
+        },
+        {
+          "id": "e",
+          "text": "Semantic similarity guarantees the cached answer matches the new question’s intent."
+        }
+      ],
+      "answers": [
+        "b",
+        "c",
+        "d"
+      ],
+      "explanation": "A: Prompt caching reuses input processing, not a complete output response. B: Exact matching compares the request rather than semantic meaning. C: Embeddings and thresholds permit reuse across similar wording. D: The model still generates an output after the cached prefix. E: Loose thresholds can accept meaningfully different requests.",
+      "materials": [
+        "redis-semantic-cache",
+        "anthropic-docs-prompt-caching"
+      ],
+      "sources": [
+        {
+          "url": "https://redis.io/docs/latest/develop/use-cases/semantic-cache/",
+          "title": "Redis semantic cache",
+          "publisher": "Redis",
+          "accessed": "2026-10-03",
+          "claim": "A semantic cache stores complete LLM responses and skips the LLM on a hit, exact-match caches only hit on byte-identical queries, and provider prompt caching discounts repeated prefixes but still runs the model on every call."
+        },
+        {
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching",
+          "title": "Prompt caching",
+          "publisher": "Anthropic",
+          "accessed": "2026-10-03",
+          "claim": "Prompt caching reuses the prompt prefix and does not change the generated response."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w09-l02-q15",
+      "lesson": "w09-l02",
+      "concept": "w09-l02-redis-response-cache",
+      "type": "multiple_select",
+      "prompt": "Which statements describe Redis cache-aside with expiring responses? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Read the cache before performing the expensive backing operation."
+        },
+        {
+          "id": "b",
+          "text": "Use plain `SET` to preserve an existing expiry automatically."
+        },
+        {
+          "id": "c",
+          "text": "Fill the cache after a miss returns its backing result."
+        },
+        {
+          "id": "d",
+          "text": "Treat every cache miss as an error without consulting the backing service."
+        },
+        {
+          "id": "e",
+          "text": "Use `SET key value EX seconds` to store a value with an expiry."
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "A: The application checks the cache first. B: Plain SET discards the previous TTL unless expiry preservation is requested. C: The cache-aside application owns the fill after loading the result. D: A miss is normal and triggers a load from the backing service. E: EX sets an expiration in seconds.",
+      "materials": [
+        "redis-set-command",
+        "system-design-primer"
+      ],
+      "sources": [
+        {
+          "url": "https://redis.io/docs/latest/commands/set/",
+          "title": "SET",
+          "publisher": "Redis",
+          "accessed": "2026-10-03",
+          "claim": "SET key value EX seconds writes a value with an expiry in seconds, and a plain SET discards any previous TTL."
+        },
+        {
+          "url": "https://github.com/donnemartin/system-design-primer",
+          "title": "GitHub - donnemartin/system-design-primer: Learn how to design large-scale systems. Prep for the system design interview.",
+          "publisher": "Donne Martin (GitHub)",
+          "accessed": "2026-10-03",
+          "claim": "In cache-aside the application checks the cache, loads from the database on a miss, stores the result in the cache and returns it."
+        }
+      ],
+      "retired": null
     }
   ]
 }

@@ -110,7 +110,12 @@
           "accessed": "2026-09-26",
           "claim": "The proxy config supports fallbacks to other model groups after num_retries, plus context_window_fallbacks and content_policy_fallbacks."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w10-l01-q11",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w10-l01-q03",
@@ -226,7 +231,12 @@
           "accessed": "2026-09-26",
           "claim": "The primary model is retried num_retries times before fallbacks are tried, and context-window and content-policy errors have their own dedicated fallback settings."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w10-l01-q12",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w10-l01-q06",
@@ -427,7 +437,181 @@
           "accessed": "2026-09-26",
           "claim": "Huyen lists usage limits and cost management as core responsibilities of the model gateway."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w10-l01-q13",
+        "on": "2026-10-03"
+      }
+    },
+    {
+      "id": "w10-l01-q11",
+      "lesson": "w10-l01",
+      "concept": "w10-l01-gateway-role",
+      "type": "multiple_select",
+      "prompt": "Which LiteLLM gateway capabilities support several teams with separate budgets? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Assign virtual keys and track spending by team."
+        },
+        {
+          "id": "b",
+          "text": "Give all teams an unrestricted master key to enforce separate limits."
+        },
+        {
+          "id": "c",
+          "text": "Set team budgets with scheduled budget resets."
+        },
+        {
+          "id": "d",
+          "text": "Treat every provider timeout as a completed successful response."
+        },
+        {
+          "id": "e",
+          "text": "Configure backups through model-group fallbacks."
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "A: Virtual keys and teams provide separate accounting. B: An unrestricted shared credential does not establish per-team controls. C: Max_budget and budget_duration implement periodic spending limits. D: Timeouts are failures to handle through configured reliability policies. E: Fallbacks route failed calls to another model group.",
+      "materials": [
+        "chip-huyen-building-a-generative-ai",
+        "litellm-proxy-budgets-rate-limits",
+        "litellm-proxy-reliability-fallbacks"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.litellm.ai/docs/",
+          "title": "Getting Started | LiteLLM",
+          "publisher": "LiteLLM (BerriAI)",
+          "accessed": "2026-10-03",
+          "claim": "LiteLLM's proxy exposes an OpenAI-compatible interface to 100+ providers with virtual keys, per-project spend tracking, rate limits, budgets and fallbacks."
+        },
+        {
+          "url": "https://docs.litellm.ai/docs/proxy/users",
+          "title": "Budgets, Rate Limits | liteLLM",
+          "publisher": "LiteLLM (BerriAI)",
+          "accessed": "2026-10-03",
+          "claim": "Budgets are set with max_budget and reset after budget_duration, can apply to teams, users, keys and end users, and tpm_limit, rpm_limit and max_parallel_requests limit rate."
+        },
+        {
+          "url": "https://docs.litellm.ai/docs/proxy/reliability",
+          "title": "Fallbacks (Provider Failover) | LiteLLM",
+          "publisher": "LiteLLM (BerriAI)",
+          "accessed": "2026-10-03",
+          "claim": "The proxy config supports fallbacks to other model groups after num_retries, plus context_window_fallbacks and content_policy_fallbacks."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w10-l01-q12",
+      "lesson": "w10-l01",
+      "concept": "w10-l01-retries-then-fallbacks",
+      "type": "multiple_select",
+      "prompt": "Which settings describe LiteLLM retry and fallback behavior? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A fallback repeats only the same failing model group indefinitely."
+        },
+        {
+          "id": "b",
+          "text": "`num_retries` controls retries before ordinary fallback."
+        },
+        {
+          "id": "c",
+          "text": "`context_window_fallbacks` increases the primary model’s actual context limit."
+        },
+        {
+          "id": "d",
+          "text": "An ordinary fallback can select another model group."
+        },
+        {
+          "id": "e",
+          "text": "Content-policy failures have a dedicated fallback configuration."
+        }
+      ],
+      "answers": [
+        "b",
+        "d",
+        "e"
+      ],
+      "explanation": "A: Fallback selects another group rather than an endless same-group repeat. B: The documented sequence exhausts retries before failover. C: It selects a suitable alternative rather than changing the model’s capacity. D: Fallback mappings name alternate model groups. E: Content_policy_fallbacks handles this specific class of failure.",
+      "materials": [
+        "litellm-proxy-reliability-fallbacks",
+        "litellm-llm-gateway-routing-fallbacks"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.litellm.ai/docs/proxy/reliability",
+          "title": "Fallbacks (Provider Failover) | LiteLLM",
+          "publisher": "LiteLLM (BerriAI)",
+          "accessed": "2026-10-03",
+          "claim": "The primary model is retried num_retries times before fallbacks are tried, and context-window and content-policy errors have their own dedicated fallback settings."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w10-l01-q13",
+      "lesson": "w10-l01",
+      "concept": "w10-l01-tenant-budgets-rate-limits",
+      "type": "multiple_select",
+      "prompt": "Which LiteLLM controls address different dimensions of runaway tenant usage? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`max_budget` caps spend within the configured budget period."
+        },
+        {
+          "id": "b",
+          "text": "`rpm_limit` sets a dollar allowance for the whole month."
+        },
+        {
+          "id": "c",
+          "text": "`tpm_limit` limits token throughput."
+        },
+        {
+          "id": "d",
+          "text": "`max_parallel_requests` limits concurrent requests."
+        },
+        {
+          "id": "e",
+          "text": "`budget_duration` alone defines the tenant’s model context window."
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "d"
+      ],
+      "explanation": "A: The budget caps accumulated cost. B: RPM limits requests per minute rather than money. C: TPM limits tokens per minute. D: The concurrency limit bounds simultaneous in-flight requests. E: Budget duration sets reset timing, not context capacity.",
+      "materials": [
+        "litellm-proxy-budgets-rate-limits",
+        "chip-huyen-building-a-generative-ai"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.litellm.ai/docs/proxy/users",
+          "title": "Budgets, Rate Limits | liteLLM",
+          "publisher": "LiteLLM (BerriAI)",
+          "accessed": "2026-10-03",
+          "claim": "LiteLLM supports per-entity max_budget with budget_duration, tpm_limit, rpm_limit and max_parallel_requests, and refuses requests once a budget is exceeded."
+        },
+        {
+          "url": "https://huyenchip.com/2024/07/25/genai-platform.html",
+          "title": "Building A Generative AI Platform",
+          "publisher": "Chip Huyen",
+          "accessed": "2026-10-03",
+          "claim": "Huyen lists usage limits and cost management as core responsibilities of the model gateway."
+        }
+      ],
+      "retired": null
     }
   ]
 }

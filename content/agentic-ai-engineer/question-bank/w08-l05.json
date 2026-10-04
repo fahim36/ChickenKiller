@@ -230,7 +230,12 @@
           "accessed": "2026-09-26",
           "claim": "Clients must send the RFC 8707 resource parameter with the MCP server's canonical URI in both authorization and token requests, and servers must validate that tokens were issued specifically for them and must not accept or transit other tokens."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w08-l05-q13",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w08-l05-q06",
@@ -360,7 +365,12 @@
           "accessed": "2026-09-26",
           "claim": "Local MCP servers can run arbitrary commands with the client's privileges (e.g. exfiltrating ~/.ssh/id_rsa); clients must show the exact command before executing and should sandbox servers with minimal privileges."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w08-l05-q14",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w08-l05-q09",
@@ -430,7 +440,12 @@
           "accessed": "2026-09-26",
           "claim": "Willison cites the GitHub MCP exploit, where a public issue carried the injection, the tool could read private repositories, and creating a public pull request exfiltrated the data, as an instance of the trifecta, and notes MCP's mixing of tools makes such combinations easy."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w08-l05-q15",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w08-l05-q11",
@@ -517,6 +532,164 @@
           "claim": "The tools/list result must not vary per connection or as a side effect of other requests, but may vary by the authorization presented on the request, such as the caller's granted scopes."
         }
       ]
+    },
+    {
+      "id": "w08-l05-q13",
+      "lesson": "w08-l05",
+      "concept": "w08-l05-token-audience",
+      "type": "multiple_select",
+      "prompt": "Which MCP authorization rules prevent token passthrough? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Accept a token intended only for another downstream API without checking audience."
+        },
+        {
+          "id": "b",
+          "text": "Forward every client bearer token downstream as the server own authorization."
+        },
+        {
+          "id": "c",
+          "text": "A token received over HTTPS is automatically valid for every service."
+        },
+        {
+          "id": "d",
+          "text": "Validate that the token was issued specifically for the MCP server."
+        },
+        {
+          "id": "e",
+          "text": "Clients supply the canonical server URI as the resource parameter."
+        }
+      ],
+      "answers": [
+        "d",
+        "e"
+      ],
+      "explanation": "a is incorrect: Tokens must be issued for this server. b is incorrect: Token passthrough is forbidden. c is incorrect: Transport encryption does not establish token audience. d is correct: Audience validation binds the token to the service. e is correct: It is sent in authorization and token requests.",
+      "materials": [
+        "mcp-security-best-practices",
+        "mcp-specification"
+      ],
+      "sources": [
+        {
+          "url": "https://modelcontextprotocol.io/docs/2026-07-28/tutorials/security/security_best_practices",
+          "title": "Security Best Practices (MCP, revision 2026-07-28)",
+          "publisher": "Model Context Protocol",
+          "accessed": "2026-10-03",
+          "claim": "Token passthrough is accepting tokens not issued to the MCP server and forwarding them downstream; it circumvents controls like rate limiting and request validation, breaks accountability and audit trails, and lets tokens be reused across services."
+        },
+        {
+          "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization",
+          "title": "Authorization (MCP specification, revision 2026-07-28)",
+          "publisher": "Model Context Protocol",
+          "accessed": "2026-10-03",
+          "claim": "Clients must send the RFC 8707 resource parameter with the MCP server's canonical URI in both authorization and token requests, and servers must validate that tokens were issued specifically for them and must not accept or transit other tokens."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w08-l05-q14",
+      "lesson": "w08-l05",
+      "concept": "w08-l05-tool-poisoning-rug-pull",
+      "type": "multiple_select",
+      "prompt": "Which MCP risks are described by the cited security research? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Tool descriptions are inherently trusted and cannot carry prompt injection."
+        },
+        {
+          "id": "b",
+          "text": "Launching a local MCP process automatically confines it to a universal safe sandbox."
+        },
+        {
+          "id": "c",
+          "text": "A malicious tool description can contain instructions to extract private data."
+        },
+        {
+          "id": "d",
+          "text": "A local server can execute code with the privileges of the launching client."
+        },
+        {
+          "id": "e",
+          "text": "A previously approved tool definition can never change on the server."
+        }
+      ],
+      "answers": [
+        "c",
+        "d"
+      ],
+      "explanation": "a is incorrect: The attack uses descriptions as an injection channel. b is incorrect: Clients must explicitly provide appropriate isolation. c is correct: Tool poisoning hides instructions in tool metadata. d is correct: The official guidance recommends showing the command and sandboxing. e is incorrect: Rug pulls change definitions after approval.",
+      "materials": [
+        "invariant-labs-mcp-tool-poisoning-attacks",
+        "mcp-security-best-practices"
+      ],
+      "sources": [
+        {
+          "url": "https://invariantlabs.ai/blog/mcp-security-notification-tool-poisoning-attacks",
+          "title": "MCP Security Notification: Tool Poisoning Attacks",
+          "publisher": "Invariant Labs",
+          "accessed": "2026-10-03",
+          "claim": "Invariant Labs describes tool poisoning, rug pulls and tool shadowing, with defences such as showing full descriptions to users, pinning tool versions by hash, and boundaries between servers."
+        },
+        {
+          "url": "https://modelcontextprotocol.io/docs/2026-07-28/tutorials/security/security_best_practices",
+          "title": "Security Best Practices (MCP, revision 2026-07-28)",
+          "publisher": "Model Context Protocol",
+          "accessed": "2026-10-03",
+          "claim": "Local MCP servers can run arbitrary commands with the client's privileges (e.g. exfiltrating ~/.ssh/id_rsa); clients must show the exact command before executing and should sandbox servers with minimal privileges."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w08-l05-q15",
+      "lesson": "w08-l05",
+      "concept": "w08-l05-lethal-trifecta",
+      "type": "multiple_select",
+      "prompt": "Which capabilities complete the cited lethal-trifecta risk? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Removing private-repository access leaves this exact three-leg combination intact."
+        },
+        {
+          "id": "b",
+          "text": "Reading private repositories provides access to private data."
+        },
+        {
+          "id": "c",
+          "text": "Reading public issues and posting public comments adds untrusted input and an exfiltration channel."
+        },
+        {
+          "id": "d",
+          "text": "A public issue is trusted merely because it is hosted on GitHub."
+        },
+        {
+          "id": "e",
+          "text": "Posting private repository text as a public comment cannot expose it outside the agent."
+        }
+      ],
+      "answers": [
+        "b",
+        "c"
+      ],
+      "explanation": "a is incorrect: It removes the private-data capability. b is correct: It is one leg of the trifecta. c is correct: The two remaining capabilities permit injected data leakage. d is incorrect: An attacker can supply its contents. e is incorrect: The public channel exposes the information.",
+      "materials": [
+        "simon-willison-the-lethal-trifecta-for",
+        "simon-willison-prompt-injection-series"
+      ],
+      "sources": [
+        {
+          "url": "https://simonwillison.net/2025/Jun/16/the-lethal-trifecta/",
+          "title": "The lethal trifecta for AI agents: private data, untrusted content, and external communication",
+          "publisher": "Simon Willison",
+          "accessed": "2026-10-03",
+          "claim": "Willison cites the GitHub MCP exploit, where a public issue carried the injection, the tool could read private repositories, and creating a public pull request exfiltrated the data, as an instance of the trifecta, and notes MCP's mixing of tools makes such combinations easy."
+        }
+      ],
+      "retired": null
     }
   ]
 }

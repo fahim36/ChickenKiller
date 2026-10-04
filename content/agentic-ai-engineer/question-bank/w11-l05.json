@@ -149,7 +149,12 @@
           "accessed": "2026-09-26",
           "claim": "For each tool_use, run the tool and send a tool_result (with is_error: true on failure) back in a user message."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w11-l05-q12",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w11-l05-q04",
@@ -333,7 +338,12 @@
           "accessed": "2026-09-26",
           "claim": "Agents' autonomy brings higher costs and compounding errors, so they need stopping conditions and guardrails."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w11-l05-q13",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w11-l05-q08",
@@ -504,7 +514,180 @@
           "accessed": "2026-09-26",
           "claim": "safeParse returns success/data or an error with issues, and z.infer gives the static type."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w11-l05-q14",
+        "on": "2026-10-03"
+      }
+    },
+    {
+      "id": "w11-l05-q12",
+      "lesson": "w11-l05",
+      "concept": "w11-l05-loop-structure",
+      "type": "multiple_select",
+      "prompt": "Which steps belong to a tool-using agent loop in TypeScript or Python? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Return tool results to the model after tool execution."
+        },
+        {
+          "id": "b",
+          "text": "Treat a requested tool call as the final user-facing answer automatically."
+        },
+        {
+          "id": "c",
+          "text": "Use stopping conditions such as a maximum iteration count."
+        },
+        {
+          "id": "d",
+          "text": "Return an error tool result when execution fails."
+        },
+        {
+          "id": "e",
+          "text": "Let the programming language’s static types guarantee every external tool succeeds."
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "d"
+      ],
+      "explanation": "A: The model uses environmental feedback in the next turn. B: A tool request requires execution and feedback before an answer. C: Limits protect against runaway autonomous loops. D: Error results communicate the failure for subsequent reasoning. E: Types cannot guarantee external execution outcomes.",
+      "materials": [
+        "anthropic-building-effective-agents",
+        "anthropic-docs-handle-tool-calls"
+      ],
+      "sources": [
+        {
+          "url": "https://www.anthropic.com/engineering/building-effective-agents",
+          "title": "Building Effective AI Agents",
+          "publisher": "Anthropic",
+          "accessed": "2026-10-03",
+          "claim": "Agents are LLMs using tools in a loop, gaining ground truth from the environment at each step, with stopping conditions such as a maximum number of iterations."
+        },
+        {
+          "url": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/handle-tool-calls",
+          "title": "Handle tool calls",
+          "publisher": "Anthropic",
+          "accessed": "2026-10-03",
+          "claim": "For each tool_use, run the tool and send a tool_result (with is_error: true on failure) back in a user message."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w11-l05-q13",
+      "lesson": "w11-l05",
+      "concept": "w11-l05-budget-guard",
+      "type": "multiple_select",
+      "prompt": "Which facts motivate a cost guard in addition to an agent’s step limit? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Tool definitions add input tokens to a model request."
+        },
+        {
+          "id": "b",
+          "text": "Usage reports input and output token counts."
+        },
+        {
+          "id": "c",
+          "text": "A fixed number of steps guarantees identical token cost for every run."
+        },
+        {
+          "id": "d",
+          "text": "Returning a large tool result makes future requests token-free."
+        },
+        {
+          "id": "e",
+          "text": "Autonomous loops can incur higher costs and require stopping conditions."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "e"
+      ],
+      "explanation": "A: The tool-use documentation describes additional prompt tokens. B: Usage permits tracking the actual work of model calls. C: Different requests and results contain different amounts of text. D: Tool content contributes tokens when included in subsequent requests. E: Anthropic identifies cost and compounding errors as risks of autonomy.",
+      "materials": [
+        "anthropic-docs-tool-use-with-claude",
+        "anthropic-building-effective-agents"
+      ],
+      "sources": [
+        {
+          "url": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/overview",
+          "title": "Tool use with Claude",
+          "publisher": "Anthropic",
+          "accessed": "2026-10-03",
+          "claim": "Each request is priced on all input tokens sent, including prior tool_use and tool_result blocks, so resending a growing history raises cost per call; usage reports the counts."
+        },
+        {
+          "url": "https://www.anthropic.com/engineering/building-effective-agents",
+          "title": "Building Effective AI Agents",
+          "publisher": "Anthropic",
+          "accessed": "2026-10-03",
+          "claim": "Agents' autonomy brings higher costs and compounding errors, so they need stopping conditions and guardrails."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w11-l05-q14",
+      "lesson": "w11-l05",
+      "concept": "w11-l05-validation-errors",
+      "type": "multiple_select",
+      "prompt": "Which boundaries handle invalid generated tool inputs? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Trust `z.infer` alone to validate incoming runtime data."
+        },
+        {
+          "id": "b",
+          "text": "Validate runtime inputs using the tool’s schema."
+        },
+        {
+          "id": "c",
+          "text": "Read validation issues from a failed Zod `safeParse` result."
+        },
+        {
+          "id": "d",
+          "text": "Report a tool failure using `is_error: true` in its tool result."
+        },
+        {
+          "id": "e",
+          "text": "Execute malformed arguments before checking the schema to improve reliability."
+        }
+      ],
+      "answers": [
+        "b",
+        "c",
+        "d"
+      ],
+      "explanation": "A: Infer supplies a compile-time type, not a runtime check. B: Generated inputs need actual validation before execution. C: The failure branch includes an error with issues. D: Claude’s tool-result protocol explicitly supports error feedback. E: Validation must occur before passing arguments into the real operation.",
+      "materials": [
+        "anthropic-docs-handle-tool-calls",
+        "zod-basic-usage"
+      ],
+      "sources": [
+        {
+          "url": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/handle-tool-calls",
+          "title": "Handle tool calls",
+          "publisher": "Anthropic",
+          "accessed": "2026-10-03",
+          "claim": "Invalid or missing parameters can be reported as an is_error: true tool_result, and Claude retries 2-3 times with corrections."
+        },
+        {
+          "url": "https://zod.dev/basics",
+          "title": "Basic usage | Zod",
+          "publisher": "Zod",
+          "accessed": "2026-10-03",
+          "claim": "safeParse returns success/data or an error with issues, and z.infer gives the static type."
+        }
+      ],
+      "retired": null
     }
   ]
 }

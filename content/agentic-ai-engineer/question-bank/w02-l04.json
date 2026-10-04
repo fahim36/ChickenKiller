@@ -272,7 +272,12 @@
           "accessed": "2026-09-26",
           "claim": "CancelledError can be caught to run custom operations on cancellation, but in almost all situations it must be re-raised."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w02-l04-q13",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w02-l04-q07",
@@ -340,7 +345,12 @@
           "accessed": "2026-09-26",
           "claim": "gather with return_exceptions=False propagates the first exception while the other awaitables keep running, return_exceptions=True returns exceptions in the results, and a TaskGroup cancels the remaining tasks and raises an ExceptionGroup."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w02-l04-q14",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w02-l04-q09",
@@ -510,7 +520,162 @@
           "accessed": "2026-09-26",
           "claim": "RFC 9110 defines 4xx as the client seeming to have erred and 5xx as the server having erred or being incapable of performing the method, and 503 may carry Retry-After."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w02-l04-q15",
+        "on": "2026-10-03"
+      }
+    },
+    {
+      "id": "w02-l04-q13",
+      "lesson": "w02-l04",
+      "concept": "w02-l04-cancellation-cleanup",
+      "type": "multiple_select",
+      "prompt": "Which rules preserve asyncio cancellation after cleanup? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Use finally for cleanup during coroutine cancellation."
+        },
+        {
+          "id": "b",
+          "text": "Swallow CancelledError to ensure TaskGroup shutdown remains correct."
+        },
+        {
+          "id": "c",
+          "text": "CancelledError is a normal success result returned by Task.cancel()."
+        },
+        {
+          "id": "d",
+          "text": "Clearing a connection automatically clears the task cancellation state."
+        },
+        {
+          "id": "e",
+          "text": "Propagate a caught CancelledError once cleanup is complete."
+        }
+      ],
+      "answers": [
+        "a",
+        "e"
+      ],
+      "explanation": "a is correct: It allows resource release on termination. b is incorrect: TaskGroup uses cancellation internally and may misbehave. c is incorrect: Cancellation injects the exception at an opportunity. d is incorrect: Resource cleanup does not change cancellation state. e is correct: Structured concurrency depends on cancellation.",
+      "materials": [
+        "python-docs-coroutines-and-tasks"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/library/asyncio-task.html",
+          "title": "Coroutines and tasks — Python 3.14.8 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-10-03",
+          "claim": "A caught CancelledError should generally be propagated once clean-up is done, because TaskGroup and asyncio.timeout() use cancellation internally and can misbehave if it is swallowed; truly suppressing it also requires uncancel()."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w02-l04-q14",
+      "lesson": "w02-l04",
+      "concept": "w02-l04-taskgroup",
+      "type": "multiple_select",
+      "prompt": "In Python 3.11+, which gather and TaskGroup failure rules hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "gather(return_exceptions=True) raises every exception immediately."
+        },
+        {
+          "id": "b",
+          "text": "TaskGroup exits while its managed children continue unsupervised."
+        },
+        {
+          "id": "c",
+          "text": "Default gather automatically cancels every sibling after a child fails."
+        },
+        {
+          "id": "d",
+          "text": "Default gather propagates the first exception without cancelling peers."
+        },
+        {
+          "id": "e",
+          "text": "TaskGroup cancels remaining tasks after a non-cancellation child failure."
+        }
+      ],
+      "answers": [
+        "d",
+        "e"
+      ],
+      "explanation": "a is incorrect: It includes exceptions in the results. b is incorrect: It waits for all managed tasks. c is incorrect: That is stronger TaskGroup behavior, not default gather. d is correct: Other awaitables keep running. e is correct: It then waits for them before exiting.",
+      "materials": [
+        "python-docs-coroutines-and-tasks"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/library/asyncio-task.html",
+          "title": "Coroutines and tasks — Python 3.14.8 documentation",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-10-03",
+          "claim": "gather with return_exceptions=False propagates the first exception while the other awaitables keep running, return_exceptions=True returns exceptions in the results, and a TaskGroup cancels the remaining tasks and raises an ExceptionGroup."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w02-l04-q15",
+      "lesson": "w02-l04",
+      "concept": "w02-l04-retry-backoff",
+      "type": "multiple_select",
+      "prompt": "Which retry controls help avoid repeated request bursts? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Identical fixed waits prevent clients from retrying together."
+        },
+        {
+          "id": "b",
+          "text": "Retry-After is forbidden on Too Many Requests responses."
+        },
+        {
+          "id": "c",
+          "text": "Random exponential backoff spreads competing clients retries."
+        },
+        {
+          "id": "d",
+          "text": "A 429 response may include Retry-After to specify a wait."
+        },
+        {
+          "id": "e",
+          "text": "A 429 response always requires clients to retry immediately."
+        }
+      ],
+      "answers": [
+        "c",
+        "d"
+      ],
+      "explanation": "a is incorrect: Clients failing together can remain synchronized. b is incorrect: RFC6585 explicitly permits it. c is correct: Jitter minimizes synchronized collisions. d is correct: RFC6585 defines that optional header. e is incorrect: It may advise a waiting interval.",
+      "materials": [
+        "tenacity-retries-in-python",
+        "rfc-6585-additional-http-status-codes",
+        "rfc-9110-http-semantics"
+      ],
+      "sources": [
+        {
+          "url": "https://tenacity.readthedocs.io/en/latest/",
+          "title": "Tenacity — Tenacity  documentation",
+          "publisher": "Tenacity project",
+          "accessed": "2026-10-03",
+          "claim": "Randomised exponential backoff (wait_random_exponential) helps minimise collisions when multiple processes contend for a shared resource."
+        },
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc6585.html",
+          "title": "RFC 6585: Additional HTTP Status Codes",
+          "publisher": "IETF (RFC Editor)",
+          "accessed": "2026-10-03",
+          "claim": "A 429 Too Many Requests response may include a Retry-After header saying how long to wait before a new request."
+        }
+      ],
+      "retired": null
     }
   ]
 }

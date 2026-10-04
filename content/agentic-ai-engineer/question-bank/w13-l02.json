@@ -129,7 +129,12 @@
           "accessed": "2026-09-26",
           "claim": "The README gives `4 * dimensions + 8` bytes per vector, `2 * dimensions + 8` for halfvec, and binary quantization indexes with re-ranking by the original vectors for recall."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w13-l02-q12",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w13-l02-q04",
@@ -275,7 +280,12 @@
           "accessed": "2026-09-26",
           "claim": "pgvector runs inside Postgres with ACID compliance, so chunk rows can be deleted and reinserted with ordinary SQL in one transaction."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w13-l02-q13",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w13-l02-q07",
@@ -486,7 +496,179 @@
           "accessed": "2026-09-26",
           "claim": "Filtering is applied after an approximate index scan, so a selective filter can return fewer rows than LIMIT unless iterative scans, partial indexes or partitioning are used."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w13-l02-q14",
+        "on": "2026-10-03"
+      }
+    },
+    {
+      "id": "w13-l02-q12",
+      "lesson": "w13-l02",
+      "concept": "w13-l02-storage-estimate",
+      "type": "multiple_select",
+      "prompt": "Which pgvector storage statements are accurate? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A vector value occupies 4 times its dimensions plus 8 bytes."
+        },
+        {
+          "id": "b",
+          "text": "A halfvec value uses 2 bytes per dimension plus overhead."
+        },
+        {
+          "id": "c",
+          "text": "Raw vector bytes already include chunk text and every index."
+        },
+        {
+          "id": "d",
+          "text": "Binary quantization requires deleting the original full vectors."
+        },
+        {
+          "id": "e",
+          "text": "Binary search candidates can be reranked using original vectors."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "e"
+      ],
+      "explanation": "A: Correct: this is the documented vector storage formula. B: Correct: halfvec uses 2 times dimensions plus 8 bytes. C: Incorrect: those are separate table and index storage costs. D: Incorrect: the documented approach retains originals for reranking. E: Correct: pgvector documents reranking to improve recall.",
+      "materials": [
+        "pgvector-vector-search-in-postgres"
+      ],
+      "sources": [
+        {
+          "url": "https://github.com/pgvector/pgvector",
+          "title": "pgvector: Open-source vector similarity search for Postgres",
+          "publisher": "pgvector (GitHub)",
+          "accessed": "2026-10-03",
+          "claim": "The README gives `4 * dimensions + 8` bytes per vector, `2 * dimensions + 8` for halfvec, and binary quantization indexes with re-ranking by the original vectors for recall."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w13-l02-q13",
+      "lesson": "w13-l02",
+      "concept": "w13-l02-incremental-ingestion",
+      "type": "multiple_select",
+      "prompt": "Which practices support consistent incremental document ingestion? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Re-embed every known document even when its hash is unchanged."
+        },
+        {
+          "id": "b",
+          "text": "Track a stable document ID and its stored content hash."
+        },
+        {
+          "id": "c",
+          "text": "Reprocess an existing document when its content hash changes."
+        },
+        {
+          "id": "d",
+          "text": "Replace related chunk rows inside one database transaction."
+        },
+        {
+          "id": "e",
+          "text": "Expose partially completed chunk replacements to concurrent readers."
+        }
+      ],
+      "answers": [
+        "b",
+        "c",
+        "d"
+      ],
+      "explanation": "A: Incorrect: LlamaIndex skips unchanged known documents. B: Correct: its docstore maps document IDs to hashes. C: Correct: changed hashes trigger reprocessing and upsert. D: Correct: transactions make related updates an all-or-nothing operation. E: Incorrect: transaction intermediate states are not visible to other transactions.",
+      "materials": [
+        "pgvector-vector-search-in-postgres",
+        "chip-huyen-building-a-generative-ai"
+      ],
+      "sources": [
+        {
+          "url": "https://developers.llamaindex.ai/python/framework/module_guides/loading/ingestion_pipeline/",
+          "title": "Ingestion Pipeline | LlamaIndex",
+          "publisher": "LlamaIndex",
+          "accessed": "2026-10-03",
+          "claim": "With a docstore attached, a document whose doc_id is already known is re-processed and upserted only if its hash changed, and skipped if the hash is unchanged."
+        },
+        {
+          "url": "https://www.postgresql.org/docs/current/tutorial-transactions.html",
+          "title": "PostgreSQL Documentation: 3.4. Transactions",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-03",
+          "claim": "A transaction bundles several steps into one all-or-nothing operation whose intermediate states are invisible to other concurrent transactions."
+        },
+        {
+          "url": "https://github.com/pgvector/pgvector",
+          "title": "pgvector: Open-source vector similarity search for Postgres",
+          "publisher": "pgvector (GitHub)",
+          "accessed": "2026-10-03",
+          "claim": "pgvector runs inside Postgres with ACID compliance, so chunk rows can be deleted and reinserted with ordinary SQL in one transaction."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w13-l02-q14",
+      "lesson": "w13-l02",
+      "concept": "w13-l02-access-control",
+      "type": "multiple_select",
+      "prompt": "Which controls and caveats matter for multi-tenant vector retrieval? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Enforce permission-aware access and tenant partitioning in retrieval."
+        },
+        {
+          "id": "b",
+          "text": "Rely only on a prompt telling the model not to reveal other teams data."
+        },
+        {
+          "id": "c",
+          "text": "Account for selective filters returning fewer approximate-search results."
+        },
+        {
+          "id": "d",
+          "text": "Assume an approximate index always fills LIMIT after an ACL filter."
+        },
+        {
+          "id": "e",
+          "text": "Consider iterative scans or partitioning for filtered vector queries."
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "A: Correct: OWASP recommends fine-grained permission-aware stores. B: Incorrect: prompts do not enforce database access boundaries. C: Correct: pgvector filters after approximate index scanning. D: Incorrect: selective filters can leave fewer matching rows. E: Correct: pgvector documents these approaches for filtered queries.",
+      "materials": [
+        "owasp-top-10-for-llm-applications",
+        "pgvector-vector-search-in-postgres"
+      ],
+      "sources": [
+        {
+          "url": "https://genai.owasp.org/llmrisk/llm082025-vector-and-embedding-weaknesses/",
+          "title": "LLM08:2025 Vector and Embedding Weaknesses",
+          "publisher": "OWASP Gen AI Security Project",
+          "accessed": "2026-10-03",
+          "claim": "OWASP warns of unauthorised access and cross-tenant leakage from shared vector stores and recommends fine-grained, permission-aware vector stores with strict logical and access partitioning."
+        },
+        {
+          "url": "https://github.com/pgvector/pgvector",
+          "title": "pgvector: Open-source vector similarity search for Postgres",
+          "publisher": "pgvector (GitHub)",
+          "accessed": "2026-10-03",
+          "claim": "Filtering is applied after an approximate index scan, so a selective filter can return fewer rows than LIMIT unless iterative scans, partial indexes or partitioning are used."
+        }
+      ],
+      "retired": null
     }
   ]
 }

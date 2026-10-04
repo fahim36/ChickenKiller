@@ -468,7 +468,12 @@
           "accessed": "2026-09-26",
           "claim": "PING with no argument returns PONG and is intended for testing that a connection to the server is alive."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w07-l02-q13",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w07-l02-q11",
@@ -514,7 +519,12 @@
           "accessed": "2026-09-26",
           "claim": "The services reference says variables declared in the environment section override values loaded from env_file."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w07-l02-q14",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w07-l02-q12",
@@ -544,7 +554,171 @@
           "accessed": "2026-09-26",
           "claim": "Compose creates a default network on which services find each other by service name, service-to-service traffic uses the container port while the host port is for outside access, and container IPs change so services should be referenced by name."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w07-l02-q15",
+        "on": "2026-10-03"
+      }
+    },
+    {
+      "id": "w07-l02-q13",
+      "lesson": "w07-l02",
+      "concept": "w07-l02-healthchecks-depends-on",
+      "type": "multiple_select",
+      "prompt": "Which Compose rules support healthy dependency startup? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A healthcheck can be omitted while service_healthy still verifies application readiness."
+        },
+        {
+          "id": "b",
+          "text": "A started dependency container can never still be initializing."
+        },
+        {
+          "id": "c",
+          "text": "Use a healthcheck to define when a dependency is ready."
+        },
+        {
+          "id": "d",
+          "text": "depends_on with service_healthy waits for that dependency healthcheck."
+        },
+        {
+          "id": "e",
+          "text": "Short-form depends_on guarantees database readiness before API startup."
+        }
+      ],
+      "answers": [
+        "c",
+        "d"
+      ],
+      "explanation": "a is incorrect: Readiness requires an actual health signal. b is incorrect: It may be running but not ready. c is correct: Running alone is not readiness. d is correct: The long-form condition gates creation on health. e is incorrect: It only waits for the container to start.",
+      "materials": [
+        "docker-compose-startup-order",
+        "docker-compose-networking",
+        "pgvector-vector-search-in-postgres"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.docker.com/compose/how-tos/startup-order/",
+          "title": "Control startup and shutdown order in Compose",
+          "publisher": "Docker Inc.",
+          "accessed": "2026-10-03",
+          "claim": "Compose waits only until a dependency container is running, not ready; the example uses a pg_isready healthcheck with $$-escaped variables and depends_on condition service_healthy."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w07-l02-q14",
+      "lesson": "w07-l02",
+      "concept": "w07-l02-env-and-secrets",
+      "type": "multiple_select",
+      "prompt": "Which Compose environment and secret statements hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "env_file overrides every conflicting environment entry by default."
+        },
+        {
+          "id": "b",
+          "text": "environment entries override the same variables from env_file."
+        },
+        {
+          "id": "c",
+          "text": "Compose secrets are supplied as files under /run/secrets."
+        },
+        {
+          "id": "d",
+          "text": "A project .env automatically places every variable in every service container."
+        },
+        {
+          "id": "e",
+          "text": "A Compose secret is necessarily an environment variable exposed to all processes."
+        }
+      ],
+      "answers": [
+        "b",
+        "c"
+      ],
+      "explanation": "a is incorrect: environment takes precedence. b is correct: The services reference defines this precedence. c is correct: Granted services receive mounted secret files. d is incorrect: Explicit service environment configuration is needed. e is incorrect: The secret is a file rather than environment injection.",
+      "materials": [
+        "docker-compose-interpolation",
+        "docker-compose-secrets",
+        "docker-compose-services-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.docker.com/compose/how-tos/environment-variables/set-environment-variables/",
+          "title": "Set environment variables within your container's environment",
+          "publisher": "Docker Inc.",
+          "accessed": "2026-10-03",
+          "claim": "A container's environment is not set until the service configuration has an explicit entry, such as environment or env_file, that sets it."
+        },
+        {
+          "url": "https://docs.docker.com/compose/how-tos/use-secrets/",
+          "title": "Manage secrets securely in Docker Compose",
+          "publisher": "Docker Inc.",
+          "accessed": "2026-10-03",
+          "claim": "Compose mounts secrets as files at /run/secrets/<secret_name> and recommends them over environment variables, which are visible to all processes and can leak into logs; images like postgres support _FILE variables."
+        },
+        {
+          "url": "https://docs.docker.com/reference/compose-file/services/",
+          "title": "Define services in Docker Compose",
+          "publisher": "Docker Inc.",
+          "accessed": "2026-10-03",
+          "claim": "The services reference says variables declared in the environment section override values loaded from env_file."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w07-l02-q15",
+      "lesson": "w07-l02",
+      "concept": "w07-l02-service-networking",
+      "type": "multiple_select",
+      "prompt": "Which network choices connect Compose services correctly? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Use the database service name on the shared project network."
+        },
+        {
+          "id": "b",
+          "text": "Use the database container port for service-to-service traffic."
+        },
+        {
+          "id": "c",
+          "text": "localhost in the API container identifies the separate database container."
+        },
+        {
+          "id": "d",
+          "text": "Hardcode a current database container IP because it never changes on recreation."
+        },
+        {
+          "id": "e",
+          "text": "Use the published host port as the mandatory database port on the Compose network."
+        }
+      ],
+      "answers": [
+        "a",
+        "b"
+      ],
+      "explanation": "a is correct: Compose DNS resolves service names. b is correct: Published host ports are for access outside that network. c is incorrect: It identifies the API container itself. d is incorrect: Container IPs can change. e is incorrect: Peers use the container port.",
+      "materials": [
+        "docker-compose-networking"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.docker.com/compose/how-tos/networking/",
+          "title": "Networking in Compose",
+          "publisher": "Docker Inc.",
+          "accessed": "2026-10-03",
+          "claim": "Compose creates a default network on which services find each other by service name, service-to-service traffic uses the container port while the host port is for outside access, and container IPs change so services should be referenced by name."
+        }
+      ],
+      "retired": null
     }
   ]
 }

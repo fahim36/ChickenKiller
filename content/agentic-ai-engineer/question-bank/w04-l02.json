@@ -148,7 +148,12 @@
           "accessed": "2026-09-26",
           "claim": "JWTs lack built-in revocation, so a denylist (keyed by jti and iss) or short lifetimes are needed."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w04-l02-q13",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w04-l02-q04",
@@ -286,7 +291,12 @@
           "accessed": "2026-09-26",
           "claim": "A JWT is a self-contained token whose signature lets a holder of the key verify it."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w04-l02-q14",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w04-l02-q07",
@@ -425,7 +435,12 @@
           "accessed": "2026-09-26",
           "claim": "The MCP 2025-06-18 authorization spec says MCP clients MUST implement PKCE."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w04-l02-q15",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w04-l02-q10",
@@ -543,6 +558,178 @@
           "claim": "If the sensitive data is a secret, the first step is to revoke and/or rotate it, which may be sufficient without rewriting history."
         }
       ]
+    },
+    {
+      "id": "w04-l02-q13",
+      "lesson": "w04-l02",
+      "concept": "w04-l02-jwt-structure-and-revocation",
+      "type": "multiple_select",
+      "prompt": "Which statements describe a signed JWT? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Deleting browser local storage invalidates every copied token at the server."
+        },
+        {
+          "id": "b",
+          "text": "An algorithm name in the header proves the signature is valid."
+        },
+        {
+          "id": "c",
+          "text": "Its payload contains claims and is encoded rather than inherently encrypted."
+        },
+        {
+          "id": "d",
+          "text": "A denylist can support revocation before the token expiry."
+        },
+        {
+          "id": "e",
+          "text": "The signature encrypts every payload claim so only the issuer can read it."
+        }
+      ],
+      "answers": [
+        "c",
+        "d"
+      ],
+      "explanation": "a is incorrect: A copied token may remain valid until expiry or revocation. b is incorrect: The server must verify the signature with an accepted algorithm. c is correct: A signature provides integrity, not payload secrecy. d is correct: JWTs have no built-in per-token revocation mechanism. e is incorrect: Signed payloads are readable after decoding.",
+      "materials": [
+        "jwt-io-introduction-to-json-web",
+        "owasp-json-web-token-cheat-sheet"
+      ],
+      "sources": [
+        {
+          "url": "https://jwt.io/introduction",
+          "title": "Introduction to JSON Web Tokens",
+          "publisher": "Okta (Auth0) / jwt.io",
+          "accessed": "2026-10-03",
+          "claim": "The header holds the token type and signing algorithm, the payload holds claims such as iss, exp and sub, and the signature over header and payload verifies the message wasn't altered."
+        },
+        {
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/JSON_Web_Token_Cheat_Sheet.html",
+          "title": "JSON Web Token Cheat Sheet - OWASP Cheat Sheet Series",
+          "publisher": "OWASP Foundation",
+          "accessed": "2026-10-03",
+          "claim": "JWTs lack built-in revocation, so a denylist (keyed by jti and iss) or short lifetimes are needed."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w04-l02-q14",
+      "lesson": "w04-l02",
+      "concept": "w04-l02-api-keys-sessions-jwts",
+      "type": "multiple_select",
+      "prompt": "Which facts distinguish sessions and JWTs? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "JWT payload encoding provides confidentiality for its claims."
+        },
+        {
+          "id": "b",
+          "text": "A server-side session stores state behind an opaque session ID."
+        },
+        {
+          "id": "c",
+          "text": "A signed JWT can carry claims verified using the appropriate key."
+        },
+        {
+          "id": "d",
+          "text": "A server-side session remains valid after the server invalidates its record."
+        },
+        {
+          "id": "e",
+          "text": "JWTs include built-in instantaneous revocation without server state."
+        }
+      ],
+      "answers": [
+        "b",
+        "c"
+      ],
+      "explanation": "a is incorrect: Encoding does not encrypt the claims. b is correct: The ID should contain no meaningful private state. c is correct: JWTs are self-contained signed representations. d is incorrect: Invalidation ends the server session. e is incorrect: Revocation requires additional mechanisms.",
+      "materials": [
+        "jwt-io-introduction-to-json-web",
+        "oauth-2-0-simplified"
+      ],
+      "sources": [
+        {
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html",
+          "title": "Session Management Cheat Sheet - OWASP Cheat Sheet Series",
+          "publisher": "OWASP Foundation",
+          "accessed": "2026-10-03",
+          "claim": "Session state lives on the server behind a meaningless session ID, and logout requires invalidating the session server-side."
+        },
+        {
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/JSON_Web_Token_Cheat_Sheet.html",
+          "title": "JSON Web Token Cheat Sheet - OWASP Cheat Sheet Series",
+          "publisher": "OWASP Foundation",
+          "accessed": "2026-10-03",
+          "claim": "JWTs cannot be revoked by default; short expiry or a jti-keyed denylist are the mitigations."
+        },
+        {
+          "url": "https://jwt.io/introduction",
+          "title": "Introduction to JSON Web Tokens",
+          "publisher": "Okta (Auth0) / jwt.io",
+          "accessed": "2026-10-03",
+          "claim": "A JWT is a self-contained token whose signature lets a holder of the key verify it."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w04-l02-q15",
+      "lesson": "w04-l02",
+      "concept": "w04-l02-oauth-code-flow-pkce",
+      "type": "multiple_select",
+      "prompt": "Which steps belong to OAuth authorization-code flow with PKCE? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Send a code challenge in the authorization request."
+        },
+        {
+          "id": "b",
+          "text": "Send the corresponding code verifier in the token exchange."
+        },
+        {
+          "id": "c",
+          "text": "Send the access token as the initial PKCE code verifier."
+        },
+        {
+          "id": "d",
+          "text": "For S256, the challenge is the unhashed verifier sent verbatim."
+        },
+        {
+          "id": "e",
+          "text": "Exchange the authorization code without checking its supplied verifier."
+        }
+      ],
+      "answers": [
+        "a",
+        "b"
+      ],
+      "explanation": "a is correct: The authorization server associates it with the code. b is correct: The server verifies it against the challenge. c is incorrect: The verifier is generated before token issuance. d is incorrect: S256 uses a base64url-encoded SHA256 hash. e is incorrect: The server must compare the verifier transformation.",
+      "materials": [
+        "rfc-7636-pkce",
+        "oauth-2-0-simplified"
+      ],
+      "sources": [
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc7636.html",
+          "title": "RFC 7636: Proof Key for Code Exchange by OAuth Public Clients",
+          "publisher": "Internet Engineering Task Force (IETF)",
+          "accessed": "2026-10-03",
+          "claim": "The code_verifier is 43 to 128 unreserved characters, S256 sets code_challenge = BASE64URL(SHA256(ASCII(code_verifier))), and plain SHOULD NOT be used in new implementations."
+        },
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc6749.html",
+          "title": "RFC 6749: The OAuth 2.0 Authorization Framework",
+          "publisher": "Internet Engineering Task Force (IETF)",
+          "accessed": "2026-10-03",
+          "claim": "The authorization request carries response_type=code, client_id, redirect_uri, scope and state; the response returns code and the same state; the token request sends grant_type, code and redirect_uri."
+        }
+      ],
+      "retired": null
     }
   ]
 }

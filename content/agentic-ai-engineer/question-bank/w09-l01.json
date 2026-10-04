@@ -97,7 +97,12 @@
           "accessed": "2026-09-26",
           "claim": "The Pastebin/Bit.ly solution lists use cases including expiring links and constraints such as a 10:1 read-to-write ratio, and its data model stores an expiration length per link."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w09-l01-q11",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w09-l01-q03",
@@ -251,7 +256,12 @@
           "accessed": "2026-09-26",
           "claim": "Steps 2 and 3 of the Primer's approach are a high-level design of the main components followed by a detailed design of the core components."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w09-l01-q12",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w09-l01-q07",
@@ -405,7 +415,170 @@
           "accessed": "2026-09-26",
           "claim": "The hash-based approach truncates an MD5/Base62 value to 7 characters, so the solution must check for duplicates and regenerate on collision."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w09-l01-q13",
+        "on": "2026-10-03"
+      }
+    },
+    {
+      "id": "w09-l01-q11",
+      "lesson": "w09-l01",
+      "concept": "w09-l01-requirements-first",
+      "type": "multiple_select",
+      "prompt": "Which requirements influence a URL shortener’s design? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Whether links expire."
+        },
+        {
+          "id": "b",
+          "text": "Only the name of the chosen database."
+        },
+        {
+          "id": "c",
+          "text": "The expected read-to-write ratio."
+        },
+        {
+          "id": "d",
+          "text": "The editor used to write the service."
+        },
+        {
+          "id": "e",
+          "text": "The target redirect latency."
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "A: Expiry changes link storage and expiration handling. B: Technology selection follows requirements; its name is not a product requirement. C: Read-heavy traffic motivates caching and capacity planning. D: An editor does not determine the service’s requirements or architecture. E: Latency targets influence caching and replication.",
+      "materials": [
+        "system-design-primer"
+      ],
+      "sources": [
+        {
+          "url": "https://github.com/donnemartin/system-design-primer",
+          "title": "GitHub - donnemartin/system-design-primer: Learn how to design large-scale systems. Prep for the system design interview.",
+          "publisher": "Donne Martin (GitHub)",
+          "accessed": "2026-10-03",
+          "claim": "The Primer's first step gathers requirements such as users, scale, data volume and read-to-write ratio, which then drive the high-level design and scaling choices."
+        },
+        {
+          "url": "https://github.com/donnemartin/system-design-primer/blob/master/solutions/system_design/pastebin/README.md",
+          "title": "Design Pastebin.com (or Bit.ly)",
+          "publisher": "Donne Martin (GitHub)",
+          "accessed": "2026-10-03",
+          "claim": "The Pastebin/Bit.ly solution lists use cases including expiring links and constraints such as a 10:1 read-to-write ratio, and its data model stores an expiration length per link."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w09-l01-q12",
+      "lesson": "w09-l01",
+      "concept": "w09-l01-api-and-data-model",
+      "type": "multiple_select",
+      "prompt": "Which components fit the Primer’s shortlink design? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A create API that requires the client to write the database directly."
+        },
+        {
+          "id": "b",
+          "text": "A table mapping each short code to its long URL."
+        },
+        {
+          "id": "c",
+          "text": "A redirect path that creates a new short code on every read."
+        },
+        {
+          "id": "d",
+          "text": "A write API that returns a shortlink."
+        },
+        {
+          "id": "e",
+          "text": "A cache lookup before the persistent lookup on a read miss."
+        }
+      ],
+      "answers": [
+        "b",
+        "d",
+        "e"
+      ],
+      "explanation": "A: The service owns its write API and persistence. B: The shortlink is the lookup key. C: Reading resolves an existing shortlink rather than issuing another. D: The documented write API creates and returns the link. E: Cache-aside uses the database on a miss.",
+      "materials": [
+        "system-design-primer"
+      ],
+      "sources": [
+        {
+          "url": "https://github.com/donnemartin/system-design-primer/blob/master/solutions/system_design/pastebin/README.md",
+          "title": "Design Pastebin.com (or Bit.ly)",
+          "publisher": "Donne Martin (GitHub)",
+          "accessed": "2026-10-03",
+          "claim": "The solution's design has a write API that returns a shortlink, a read API that looks up the shortlink, a table keyed by shortlink with creation time and expiration, and a memory cache plus read replicas behind load-balanced web servers."
+        },
+        {
+          "url": "https://github.com/donnemartin/system-design-primer",
+          "title": "GitHub - donnemartin/system-design-primer: Learn how to design large-scale systems. Prep for the system design interview.",
+          "publisher": "Donne Martin (GitHub)",
+          "accessed": "2026-10-03",
+          "claim": "Steps 2 and 3 of the Primer's approach are a high-level design of the main components followed by a detailed design of the core components."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w09-l01-q13",
+      "lesson": "w09-l01",
+      "concept": "w09-l01-bottlenecks-tradeoffs",
+      "type": "multiple_select",
+      "prompt": "In the Primer’s truncated-hash shortlink design, which steps address collisions? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Check whether a generated shortlink already exists."
+        },
+        {
+          "id": "b",
+          "text": "Assume seven Base62 characters guarantee collision-free hashing."
+        },
+        {
+          "id": "c",
+          "text": "Generate another candidate when a collision occurs."
+        },
+        {
+          "id": "d",
+          "text": "Treat truncation as reducing the available code space."
+        },
+        {
+          "id": "e",
+          "text": "Overwrite an existing mapping whenever the hash repeats."
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "d"
+      ],
+      "explanation": "A: The documented algorithm checks duplicates. B: A finite truncated hash space can produce collisions. C: The solution retries with another generated value. D: Shortening the hash reduces the number of possible distinct codes. E: Overwriting would redirect the earlier link to the wrong resource.",
+      "materials": [
+        "system-design-primer"
+      ],
+      "sources": [
+        {
+          "url": "https://github.com/donnemartin/system-design-primer/blob/master/solutions/system_design/pastebin/README.md",
+          "title": "Design Pastebin.com (or Bit.ly)",
+          "publisher": "Donne Martin (GitHub)",
+          "accessed": "2026-10-03",
+          "claim": "The hash-based approach truncates an MD5/Base62 value to 7 characters, so the solution must check for duplicates and regenerate on collision."
+        }
+      ],
+      "retired": null
     }
   ]
 }

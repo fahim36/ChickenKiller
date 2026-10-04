@@ -191,7 +191,12 @@
           "accessed": "2026-09-26",
           "claim": "Fly.io sends SIGINT by default and waits kill_timeout, 5 seconds by default (maximum 300), before forcing shutdown."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w12-l05-q13",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w12-l05-q05",
@@ -307,7 +312,12 @@
           "accessed": "2026-09-26",
           "claim": "Build args and environment variables persist in the final image, so they must not carry secrets."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w12-l05-q14",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w12-l05-q08",
@@ -430,7 +440,12 @@
           "accessed": "2026-09-26",
           "claim": "Images are immutable once created, so a previous tagged image can be redeployed exactly."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w12-l05-q15",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w12-l05-q11",
@@ -509,6 +524,181 @@
           "claim": "By default Modal Functions scale to zero when there are no inputs, so you pay only for compute used; min_containers keeps a warm pool at a cost."
         }
       ]
+    },
+    {
+      "id": "w12-l05-q13",
+      "lesson": "w12-l05",
+      "concept": "w12-l05-graceful-shutdown",
+      "type": "multiple_select",
+      "prompt": "Which container shutdown facts should guide a grace-period design? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Docker stop normally sends SIGTERM before forcefully stopping the container."
+        },
+        {
+          "id": "b",
+          "text": "Docker stop guarantees that an unfinished request can run indefinitely."
+        },
+        {
+          "id": "c",
+          "text": "ECS Fargate stopTimeout defaults to 30 seconds."
+        },
+        {
+          "id": "d",
+          "text": "ECS Fargate allows stopTimeout values up to 120 seconds."
+        },
+        {
+          "id": "e",
+          "text": "Fly.io defaults to the same SIGTERM signal and timeout as Docker."
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "d"
+      ],
+      "explanation": "A: Correct: Docker allows a grace period before sending SIGKILL. B: Incorrect: Docker sends SIGKILL after the configured timeout. C: Correct: the documented default gives a finite cleanup interval. D: Correct: 120 seconds is the documented Fargate maximum. E: Incorrect: Fly defaults to SIGINT and a five-second kill_timeout.",
+      "materials": [
+        "docker-docs-dockerfile-reference",
+        "fly-io-app-configuration"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.docker.com/reference/cli/docker/container/stop/",
+          "title": "docker container stop | Docker Docs",
+          "publisher": "Docker",
+          "accessed": "2026-10-03",
+          "claim": "docker stop sends SIGTERM, then SIGKILL after a default 10-second grace period on Linux."
+        },
+        {
+          "url": "https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_definition_parameters.html",
+          "title": "Amazon ECS task definition parameters for Fargate",
+          "publisher": "AWS",
+          "accessed": "2026-10-03",
+          "claim": "stopTimeout is how long ECS waits before forcefully killing a container; the default is 30 seconds and the maximum is 120 seconds on Fargate."
+        },
+        {
+          "url": "https://docs.fly.io/reference/configuration/",
+          "title": "App configuration (fly.toml)",
+          "publisher": "Fly.io",
+          "accessed": "2026-10-03",
+          "claim": "Fly.io sends SIGINT by default and waits kill_timeout, 5 seconds by default (maximum 300), before forcing shutdown."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w12-l05-q14",
+      "lesson": "w12-l05",
+      "concept": "w12-l05-config-and-secrets",
+      "type": "multiple_select",
+      "prompt": "Which practices keep deployment configuration and credentials out of images? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Separate deploy-specific configuration from application code."
+        },
+        {
+          "id": "b",
+          "text": "Provide runtime configuration through environment variables."
+        },
+        {
+          "id": "c",
+          "text": "Store a production secret in Docker ARG to keep it out of the image."
+        },
+        {
+          "id": "d",
+          "text": "Store a production secret in Docker ENV because it is temporary."
+        },
+        {
+          "id": "e",
+          "text": "Keep the codebase publishable without exposing credentials."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "e"
+      ],
+      "explanation": "A: Correct: twelve-factor configuration varies by deployment and is separated. B: Correct: environment variables are the twelve-factor configuration mechanism. C: Incorrect: build arguments can persist in the final image. D: Incorrect: Docker environment settings persist in the image. E: Correct: this is the twelve-factor litmus test for config separation.",
+      "materials": [
+        "the-twelve-factor-app",
+        "docker-docs-build-secrets"
+      ],
+      "sources": [
+        {
+          "url": "https://12factor.net/config",
+          "title": "The Twelve-Factor App - III. Config",
+          "publisher": "The Twelve-Factor App (Adam Wiggins)",
+          "accessed": "2026-10-03",
+          "claim": "Config is everything that varies between deploys, strictly separated from code and stored in environment variables, with the litmus test that the codebase could be open-sourced without compromising credentials."
+        },
+        {
+          "url": "https://docs.docker.com/build/building/secrets/",
+          "title": "Build secrets | Docker Docs",
+          "publisher": "Docker",
+          "accessed": "2026-10-03",
+          "claim": "Build args and environment variables persist in the final image, so they must not carry secrets."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w12-l05-q15",
+      "lesson": "w12-l05",
+      "concept": "w12-l05-logs-and-rollback",
+      "type": "multiple_select",
+      "prompt": "Which facts should a Railway rollback procedure account for? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A rollback automatically reverses database writes and migrations."
+        },
+        {
+          "id": "b",
+          "text": "Rollback restores the previous deployment image and custom variables."
+        },
+        {
+          "id": "c",
+          "text": "Rollback is limited to deployments retained under the plan policy."
+        },
+        {
+          "id": "d",
+          "text": "An existing immutable image can be redeployed without rebuilding it."
+        },
+        {
+          "id": "e",
+          "text": "Rollback always works for deployments older than the retention period."
+        }
+      ],
+      "answers": [
+        "b",
+        "c",
+        "d"
+      ],
+      "explanation": "A: Incorrect: rollback restores deployment artifacts and variables, not database state. B: Correct: these are the documented restored components. C: Correct: removed deployments outside retention cannot be rolled back. D: Correct: an immutable image preserves the previous build contents. E: Incorrect: retention limits the available rollback targets.",
+      "materials": [
+        "railway-documentation",
+        "the-twelve-factor-app"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.railway.com/deployments/deployment-actions",
+          "title": "Deployment Actions | Railway Docs",
+          "publisher": "Railway",
+          "accessed": "2026-10-03",
+          "claim": "Rollback restores only the Docker image and custom variables of a retained earlier deployment, so data changes are not rolled back."
+        },
+        {
+          "url": "https://docs.docker.com/get-started/docker-concepts/the-basics/what-is-an-image/",
+          "title": "What is an image? | Docker Docs",
+          "publisher": "Docker",
+          "accessed": "2026-10-03",
+          "claim": "Images are immutable once created, so a previous tagged image can be redeployed exactly."
+        }
+      ],
+      "retired": null
     }
   ]
 }

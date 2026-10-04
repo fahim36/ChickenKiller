@@ -152,7 +152,12 @@
           "accessed": "2026-09-26",
           "claim": "The WebSocket API is a two-way session, and the classic WebSocket interface does not support backpressure, so fast incoming messages are buffered in memory."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w10-l03-q12",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w10-l03-q04",
@@ -436,7 +441,12 @@
           "accessed": "2026-09-26",
           "claim": "Starlette's StreamingResponse cancels the streaming task when it receives http.disconnect, so cleanup must happen in the generator (e.g. finally)."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w10-l03-q13",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w10-l03-q10",
@@ -513,7 +523,172 @@
           "accessed": "2026-09-26",
           "claim": "The AI SDK UI message stream protocol defines text-start/text-delta/text-end, tool-input-start, tool-input-available, tool-output-available, finish and error parts, with tool parts carrying a toolCallId."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w10-l03-q14",
+        "on": "2026-10-03"
+      }
+    },
+    {
+      "id": "w10-l03-q12",
+      "lesson": "w10-l03",
+      "concept": "w10-l03-sse-vs-websockets",
+      "type": "multiple_select",
+      "prompt": "Which browser transport statements distinguish SSE from WebSockets? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "SSE provides a bidirectional message channel identical to WebSocket."
+        },
+        {
+          "id": "b",
+          "text": "SSE delivers server-to-client events over HTTP."
+        },
+        {
+          "id": "c",
+          "text": "The classic WebSocket interface automatically applies receive backpressure."
+        },
+        {
+          "id": "d",
+          "text": "WebSockets support two-way interactive communication."
+        },
+        {
+          "id": "e",
+          "text": "The EventSource constructor offers no custom request-body parameter."
+        }
+      ],
+      "answers": [
+        "b",
+        "d",
+        "e"
+      ],
+      "explanation": "A: SSE is one-way, while WebSocket is bidirectional. B: SSE uses an event-stream response over HTTP. C: MDN warns that classic WebSocket lacks backpressure. D: Either side can send messages over the WebSocket session. E: Its constructor accepts a URL and credentials option, not a body.",
+      "materials": [
+        "mdn-server-sent-events",
+        "mdn-websockets-api"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events",
+          "title": "Using server-sent events - Web APIs | MDN",
+          "publisher": "Mozilla (MDN Web Docs)",
+          "accessed": "2026-10-03",
+          "claim": "SSE is one-way over HTTP with text/event-stream, and the id field is sent back as Last-Event-ID when EventSource reconnects."
+        },
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/API/EventSource/EventSource",
+          "title": "EventSource: EventSource() constructor - Web APIs | MDN",
+          "publisher": "Mozilla (MDN Web Docs)",
+          "accessed": "2026-10-03",
+          "claim": "The EventSource() constructor takes only a URL and an optional withCredentials option, with no custom headers or timeout."
+        },
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API",
+          "title": "WebSocket API (WebSockets) - Web APIs | MDN",
+          "publisher": "Mozilla (MDN Web Docs)",
+          "accessed": "2026-10-03",
+          "claim": "The WebSocket API is a two-way session, and the classic WebSocket interface does not support backpressure, so fast incoming messages are buffered in memory."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w10-l03-q13",
+      "lesson": "w10-l03",
+      "concept": "w10-l03-client-disconnects",
+      "type": "multiple_select",
+      "prompt": "Which ASGI facts should a streaming endpoint account for after disconnect? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "An `http.disconnect` receive event indicates the HTTP connection has closed."
+        },
+        {
+          "id": "b",
+          "text": "Every server must continue accepting sends forever after disconnect."
+        },
+        {
+          "id": "c",
+          "text": "Sending on a closed connection may raise a server-specific `OSError`."
+        },
+        {
+          "id": "d",
+          "text": "Concurrent code can encounter send failure before it receives the disconnect event."
+        },
+        {
+          "id": "e",
+          "text": "A disconnect event guarantees the response body reached the client completely."
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "d"
+      ],
+      "explanation": "A: The receive event signals closure or an ended response. B: The ASGI specification expects closed-connection sends to fail. C: ASGI 2.4 specifies an OSError subclass for a closed connection. D: The specification explicitly describes this possible race. E: Closure can occur before the streamed response completes.",
+      "materials": [
+        "fastapi-server-sent-events"
+      ],
+      "sources": [
+        {
+          "url": "https://asgi.readthedocs.io/en/latest/specs/www.html",
+          "title": "HTTP & WebSocket ASGI Message Format",
+          "publisher": "ASGI project (Django Software Foundation)",
+          "accessed": "2026-10-03",
+          "claim": "ASGI emits http.disconnect when the connection closes; ASGI 2.4 expects send on a closed connection to raise an OSError subclass, possibly before concurrent code receives the disconnect event."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w10-l03-q14",
+      "lesson": "w10-l03",
+      "concept": "w10-l03-tool-progress-events",
+      "type": "multiple_select",
+      "prompt": "Which parts belong to the AI SDK UI message stream protocol? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Text deltas carry incremental text."
+        },
+        {
+          "id": "b",
+          "text": "Tool input and output parts carry a `toolCallId`."
+        },
+        {
+          "id": "c",
+          "text": "The finish part contains the complete database schema of every tool."
+        },
+        {
+          "id": "d",
+          "text": "Tool output parts must use unrelated identifiers from their tool inputs."
+        },
+        {
+          "id": "e",
+          "text": "A finish part indicates completion of the message."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "e"
+      ],
+      "explanation": "A: The text-delta part includes a delta and text-block ID. B: The shared identifier correlates a tool call’s parts. C: Finish is a message-completion signal, not a tool schema dump. D: Using the same call identifier associates output with the call. E: This is the documented meaning of the finish part.",
+      "materials": [
+        "ai-sdk-stream-protocols",
+        "mdn-server-sent-events"
+      ],
+      "sources": [
+        {
+          "url": "https://ai-sdk.dev/docs/ai-sdk-ui/stream-protocol",
+          "title": "AI SDK UI: Stream Protocols",
+          "publisher": "Vercel",
+          "accessed": "2026-10-03",
+          "claim": "The AI SDK UI message stream protocol defines text-start/text-delta/text-end, tool-input-start, tool-input-available, tool-output-available, finish and error parts, with tool parts carrying a toolCallId."
+        }
+      ],
+      "retired": null
     }
   ]
 }

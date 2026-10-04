@@ -106,7 +106,12 @@
           "accessed": "2026-09-26",
           "claim": "The evals FAQ prefers binary pass/fail over Likert scales, uses train/dev/test splits for judges, and says generic metrics like ROUGE and BERTScore don't reflect your product's failures."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w16-l02-q13",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w16-l02-q03",
@@ -277,7 +282,12 @@
           "accessed": "2026-09-26",
           "claim": "Stripe recommends a client-generated V4 UUID key per operation, replays the first saved result for repeats, errors on mismatched parameters, and allows keys to be pruned once at least 24 hours old."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w16-l02-q14",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w16-l02-q07",
@@ -345,7 +355,12 @@
           "accessed": "2026-09-26",
           "claim": "The SRE book says averages hide a long tail, gives an example where a typical request is about 50 ms but 5% are 20 times slower, and recommends percentiles such as the median and 99th percentile."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w16-l02-q15",
+        "on": "2026-10-03"
+      }
     },
     {
       "id": "w16-l02-q09",
@@ -516,7 +531,229 @@
           "accessed": "2026-09-26",
           "claim": "Willison's prompt injection series documents that simple mitigations such as delimiters and AI-based detection fail to reliably stop prompt injection."
         }
-      ]
+      ],
+      "retired": {
+        "reason": "Written Questions are legacy (ADR-0008): replaced by a multiple-select Question on the same Concept.",
+        "replaced_by": "w16-l02-q16",
+        "on": "2026-10-03"
+      }
+    },
+    {
+      "id": "w16-l02-q13",
+      "lesson": "w16-l02",
+      "concept": "w16-l02-trustworthy-llm-judge",
+      "type": "multiple_select",
+      "prompt": "Which practices validate an LLM judge against expert judgment? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Put the held-out test examples into the judge prompt before scoring them."
+        },
+        {
+          "id": "b",
+          "text": "Use domain-expert labels as the comparison ground truth."
+        },
+        {
+          "id": "c",
+          "text": "Keep separate prompt examples, development data and held-out test data."
+        },
+        {
+          "id": "d",
+          "text": "Measure failure detection and good-output acceptance separately."
+        },
+        {
+          "id": "e",
+          "text": "Use raw agreement alone even when failures are extremely rare."
+        }
+      ],
+      "answers": [
+        "b",
+        "c",
+        "d"
+      ],
+      "explanation": "A: Incorrect: exposing test examples contaminates the final evaluation. B: Correct: the judge must be checked against trusted domain judgments. C: Correct: different splits support fitting, iteration and final assessment. D: Correct: TPR and TNR reveal different error behaviors. E: Incorrect: a judge that always passes can have high agreement on imbalanced data.",
+      "materials": [
+        "hamel-husain-using-llm-as-a",
+        "hamel-husain-shreya-shankar-llm-evals"
+      ],
+      "sources": [
+        {
+          "url": "https://hamel.dev/blog/posts/llm-judge/",
+          "title": "Using LLM-as-a-Judge For Evaluation: A Complete Guide - Hamel's Blog",
+          "publisher": "Hamel Husain",
+          "accessed": "2026-10-03",
+          "claim": "Husain describes using a domain expert's pass/fail labels with critiques as ground truth, splitting labelled data into few-shot, dev and held-out test sets, and measuring TPR and TNR rather than raw agreement."
+        },
+        {
+          "url": "https://hamel.dev/blog/posts/evals-faq/",
+          "title": "AI Evals: Everything You Need to Know - Hamel's Blog",
+          "publisher": "Hamel Husain and Shreya Shankar",
+          "accessed": "2026-10-03",
+          "claim": "The evals FAQ prefers binary pass/fail over Likert scales, uses train/dev/test splits for judges, and says generic metrics like ROUGE and BERTScore don't reflect your product's failures."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w16-l02-q14",
+      "lesson": "w16-l02",
+      "concept": "w16-l02-idempotency-keys",
+      "type": "multiple_select",
+      "prompt": "Which Stripe-style idempotency practices prevent duplicate invoice operations? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Generate one operation key and reuse it for every retry."
+        },
+        {
+          "id": "b",
+          "text": "Generate a different key for each retry of the same invoice request."
+        },
+        {
+          "id": "c",
+          "text": "Return the saved first result when the same key is repeated."
+        },
+        {
+          "id": "d",
+          "text": "Reuse the same key with changed parameters to create a new operation."
+        },
+        {
+          "id": "e",
+          "text": "Account for keys being pruned once at least 24 hours old."
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "A: Correct: retries must identify the same intended operation. B: Incorrect: different keys no longer identify a retry of one operation. C: Correct: Stripe replays the saved result, including its status and body. D: Incorrect: mismatched parameters are rejected to prevent accidental reuse. E: Correct: deduplication is not guaranteed after the retention window.",
+      "materials": [
+        "stripe-docs-idempotent-requests",
+        "rfc-9110-http-semantics"
+      ],
+      "sources": [
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc9110.html",
+          "title": "RFC 9110: HTTP Semantics",
+          "publisher": "IETF (RFC Editor)",
+          "accessed": "2026-10-03",
+          "claim": "RFC 9110 lists PUT, DELETE and the safe methods (GET, HEAD, OPTIONS, TRACE) as idempotent, which excludes POST."
+        },
+        {
+          "url": "https://docs.stripe.com/api/idempotent_requests",
+          "title": "Idempotent requests | Stripe API Reference",
+          "publisher": "Stripe",
+          "accessed": "2026-10-03",
+          "claim": "Stripe recommends a client-generated V4 UUID key per operation, replays the first saved result for repeats, errors on mismatched parameters, and allows keys to be pruned once at least 24 hours old."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w16-l02-q15",
+      "lesson": "w16-l02",
+      "concept": "w16-l02-latency-percentiles",
+      "type": "multiple_select",
+      "prompt": "Which statements correctly interpret latency percentiles? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The mean always reveals changes affecting the slowest users."
+        },
+        {
+          "id": "b",
+          "text": "The median summarizes the typical request latency."
+        },
+        {
+          "id": "c",
+          "text": "A p95 value is a strict maximum that no request can exceed."
+        },
+        {
+          "id": "d",
+          "text": "High percentiles help describe long-tail response latency."
+        },
+        {
+          "id": "e",
+          "text": "An average can hide important changes in tail latency."
+        }
+      ],
+      "answers": [
+        "b",
+        "d",
+        "e"
+      ],
+      "explanation": "A: Incorrect: tail changes can be obscured by a simple average. B: Correct: p50 is the median, emphasizing the typical case. C: Incorrect: roughly five percent of measurements lie above p95. D: Correct: p95 or p99 characterizes slower portions of the distribution. E: Correct: this is why the SRE book favors percentile views.",
+      "materials": [
+        "google-sre-book-service-level-objectives"
+      ],
+      "sources": [
+        {
+          "url": "https://sre.google/sre-book/service-level-objectives/",
+          "title": "Chapter 4 - Service Level Objectives",
+          "publisher": "Google",
+          "accessed": "2026-10-03",
+          "claim": "The SRE book says averages hide a long tail, gives an example where a typical request is about 50 ms but 5% are 20 times slower, and recommends percentiles such as the median and 99th percentile."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w16-l02-q16",
+      "lesson": "w16-l02",
+      "concept": "w16-l02-indirect-prompt-injection",
+      "type": "multiple_select",
+      "prompt": "Which defenses limit an email agent indirect-prompt-injection risk? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Treat email content as untrusted external data."
+        },
+        {
+          "id": "b",
+          "text": "Assume delimiters guarantee malicious email instructions cannot affect the model."
+        },
+        {
+          "id": "c",
+          "text": "Limit tools and scopes to the capabilities the task needs."
+        },
+        {
+          "id": "d",
+          "text": "Require approval for high-risk actions such as sending or deleting."
+        },
+        {
+          "id": "e",
+          "text": "Provide private-data access and unrestricted sending to make injection harmless."
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "d"
+      ],
+      "explanation": "A: Correct: injection can arrive through external content rather than the user prompt. B: Incorrect: separating content helps but does not guarantee prevention. C: Correct: least privilege limits the impact of a hijacked agent. D: Correct: human control adds a boundary around consequential actions. E: Incorrect: private data plus untrusted content and external communication enables exfiltration.",
+      "materials": [
+        "owasp-top-10-for-llm-applications",
+        "simon-willison-the-lethal-trifecta-for",
+        "simon-willison-prompt-injection-series"
+      ],
+      "sources": [
+        {
+          "url": "https://genai.owasp.org/llmrisk/llm01-prompt-injection/",
+          "title": "LLM01:2025 Prompt Injection - OWASP Gen AI Security Project",
+          "publisher": "OWASP Foundation",
+          "accessed": "2026-10-03",
+          "claim": "OWASP LLM01:2025 defines indirect injection as input from external sources, says fool-proof prevention is unclear and RAG or fine-tuning don't fully mitigate it, and lists least privilege, human approval for high-risk actions, segregating external content and adversarial testing."
+        },
+        {
+          "url": "https://simonwillison.net/2025/Jun/16/the-lethal-trifecta/",
+          "title": "The lethal trifecta for AI agents: private data, untrusted content, and external communication",
+          "publisher": "Simon Willison",
+          "accessed": "2026-10-03",
+          "claim": "Willison says breaking the combination of private data, untrusted content and external communication is the way to stay safe."
+        }
+      ],
+      "retired": null
     }
   ]
 }
