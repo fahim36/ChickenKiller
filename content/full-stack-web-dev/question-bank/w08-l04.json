@@ -1,0 +1,453 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "w08-l04-unique-order",
+      "name": "Unique pagination ordering"
+    },
+    {
+      "id": "w08-l04-offset-skip",
+      "name": "OFFSET work and shifting pages"
+    },
+    {
+      "id": "w08-l04-cursor-boundary",
+      "name": "Composite keyset boundaries"
+    },
+    {
+      "id": "w08-l04-page-snapshot",
+      "name": "Cross-page snapshot consistency"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w08-l04-q01",
+      "lesson": "w08-l04",
+      "concept": "w08-l04-unique-order",
+      "type": "multiple_choice",
+      "prompt": "Rows share created_at timestamps. Which ordering gives pagination a deterministic tie-breaker when id is unique?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "ORDER BY a constant expression for every row."
+        },
+        {
+          "id": "b",
+          "text": "ORDER BY created_at, id."
+        },
+        {
+          "id": "c",
+          "text": "ORDER BY created_at alone."
+        },
+        {
+          "id": "d",
+          "text": "No ORDER BY because an index fixes output order."
+        }
+      ],
+      "answer": "b",
+      "explanation": "A unique final key resolves timestamp ties. Physical or index order is not a substitute for a requested total ordering.",
+      "materials": [
+        "postgres-limit-offset"
+      ],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/queries-limit.html",
+          "title": "LIMIT and OFFSET",
+          "publisher": "PostgreSQL",
+          "accessed": "2026-10-09",
+          "claim": "LIMIT without a uniquely constraining ORDER BY can return unpredictable subsets; OFFSET skips rows that still must be computed, and differing LIMIT/OFFSET values can lead to different plans."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w08-l04-q02",
+      "lesson": "w08-l04",
+      "concept": "w08-l04-unique-order",
+      "type": "multiple_choice",
+      "prompt": "A SELECT uses LIMIT 20 without ORDER BY. What output order should its API promise?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "No deterministic order without an appropriate ORDER BY."
+        },
+        {
+          "id": "b",
+          "text": "A stable order whenever the previous page was cached."
+        },
+        {
+          "id": "c",
+          "text": "The same insertion order across every execution plan."
+        },
+        {
+          "id": "d",
+          "text": "The primary-key order even when it was not requested."
+        }
+      ],
+      "answer": "a",
+      "explanation": "SQL does not promise a stable subset for unordered LIMIT. Define a unique order before promising pagination semantics.",
+      "materials": [
+        "postgres-limit-offset"
+      ],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/queries-limit.html",
+          "title": "LIMIT and OFFSET",
+          "publisher": "PostgreSQL",
+          "accessed": "2026-10-09",
+          "claim": "LIMIT without a uniquely constraining ORDER BY can return unpredictable subsets; OFFSET skips rows that still must be computed, and differing LIMIT/OFFSET values can lead to different plans."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w08-l04-q03",
+      "lesson": "w08-l04",
+      "concept": "w08-l04-offset-skip",
+      "type": "multiple_choice",
+      "prompt": "Why can a very large OFFSET make a query expensive even when LIMIT is small?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Skipped rows still must be computed before returning the requested rows."
+        },
+        {
+          "id": "b",
+          "text": "LIMIT causes skipped rows to be processed only when the API fetches the previous page."
+        },
+        {
+          "id": "c",
+          "text": "OFFSET is expensive only because it changes the stored ordering of table rows."
+        },
+        {
+          "id": "d",
+          "text": "OFFSET can seek directly to a numeric position without computing any preceding rows."
+        }
+      ],
+      "answer": "a",
+      "explanation": "The database must compute and skip the preceding rows. A small result size alone does not imply small work.",
+      "materials": [
+        "postgres-limit-offset"
+      ],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/queries-limit.html",
+          "title": "LIMIT and OFFSET",
+          "publisher": "PostgreSQL",
+          "accessed": "2026-10-09",
+          "claim": "LIMIT without a uniquely constraining ORDER BY can return unpredictable subsets; OFFSET skips rows that still must be computed, and differing LIMIT/OFFSET values can lead to different plans."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w08-l04-q04",
+      "lesson": "w08-l04",
+      "concept": "w08-l04-offset-skip",
+      "type": "multiple_choice",
+      "prompt": "A newly inserted row sorts before page one after that page is read. What can happen to page two obtained by OFFSET?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Every previously returned row is automatically removed from the dataset."
+        },
+        {
+          "id": "b",
+          "text": "OFFSET retains a snapshot cursor from the earlier HTTP request."
+        },
+        {
+          "id": "c",
+          "text": "A boundary row can repeat because its numerical position shifted."
+        },
+        {
+          "id": "d",
+          "text": "The unique ORDER BY prevents all shifts caused by new insertions."
+        }
+      ],
+      "answer": "c",
+      "explanation": "OFFSET identifies positions in the current result. An insertion before the boundary can shift an already seen row into the next page.",
+      "materials": [
+        "postgres-limit-offset"
+      ],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/queries-limit.html",
+          "title": "LIMIT and OFFSET",
+          "publisher": "PostgreSQL",
+          "accessed": "2026-10-09",
+          "claim": "OFFSET skips a numerical count of ordered rows; each independently evaluated query uses its current result rather than a retained cursor."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w08-l04-q05",
+      "lesson": "w08-l04",
+      "concept": "w08-l04-cursor-boundary",
+      "type": "multiple_choice",
+      "prompt": "An ascending page uses non-NULL (created_at, id). Which continuation predicate matches a cursor (:time, :id)?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "created_at = :time AND id = :id."
+        },
+        {
+          "id": "b",
+          "text": "(created_at, id) > (:time, :id)."
+        },
+        {
+          "id": "c",
+          "text": "id < :id regardless of the created_at ordering."
+        },
+        {
+          "id": "d",
+          "text": "created_at >= :time without an id condition."
+        }
+      ],
+      "answer": "b",
+      "explanation": "The lexicographic greater-than boundary matches ascending timestamp then id ordering and excludes the cursor row.",
+      "materials": [
+        "postgres-row-comparisons"
+      ],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/functions-comparisons.html",
+          "title": "Row and Array Comparisons",
+          "publisher": "PostgreSQL",
+          "accessed": "2026-10-09",
+          "claim": "Row comparisons compare corresponding fields left-to-right until unequal non-NULL fields determine ordering; composite comparisons can express an ascending keyset boundary when keys are non-NULL."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w08-l04-q06",
+      "lesson": "w08-l04",
+      "concept": "w08-l04-page-snapshot",
+      "type": "multiple_choice",
+      "prompt": "Two independent Read Committed requests use keyset pagination. What does the cursor alone guarantee?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A continuation boundary, without guaranteeing one fixed snapshot."
+        },
+        {
+          "id": "b",
+          "text": "Updates to ordering keys can never affect later page membership."
+        },
+        {
+          "id": "c",
+          "text": "All later requests reuse the first transaction automatically."
+        },
+        {
+          "id": "d",
+          "text": "The entire dataset is frozen at the first request time."
+        }
+      ],
+      "answer": "a",
+      "explanation": "A cursor expresses where to continue in an ordering. Snapshot consistency requires an additional transaction or application design.",
+      "materials": [
+        "postgres-transaction-isolation"
+      ],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/transaction-iso.html",
+          "title": "Transaction Isolation",
+          "publisher": "PostgreSQL",
+          "accessed": "2026-10-09",
+          "claim": "Read Committed obtains new statement snapshots, while Repeatable Read maintains a transaction snapshot; a keyset predicate alone does not create a fixed dataset snapshot across requests."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w08-l04-q07",
+      "lesson": "w08-l04",
+      "concept": "w08-l04-unique-order",
+      "type": "multiple_select",
+      "prompt": "Which ordering claims support deterministic pages? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A primary key guarantees SELECT output order without ORDER BY."
+        },
+        {
+          "id": "b",
+          "text": "Timestamp ties need a unique tie-breaker for a total order."
+        },
+        {
+          "id": "c",
+          "text": "Physical row order remains contractual after changing the query plan."
+        },
+        {
+          "id": "d",
+          "text": "ORDER BY created_at, id resolves ties when id is unique."
+        },
+        {
+          "id": "e",
+          "text": "LIMIT alone determines which rows are logically first."
+        }
+      ],
+      "answers": [
+        "b",
+        "d"
+      ],
+      "explanation": "A: Incorrect: uniqueness does not request sorting. B: Correct: otherwise ties leave relative order unresolved. C: Incorrect: physical order is not an output guarantee. D: Correct: the pair gives distinct ordered positions. E: Incorrect: the ordering must be defined.",
+      "materials": [
+        "postgres-limit-offset"
+      ],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/queries-limit.html",
+          "title": "LIMIT and OFFSET",
+          "publisher": "PostgreSQL",
+          "accessed": "2026-10-09",
+          "claim": "LIMIT requires ORDER BY that constrains rows into a unique order for predictable subsets."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w08-l04-q08",
+      "lesson": "w08-l04",
+      "concept": "w08-l04-offset-skip",
+      "type": "multiple_select",
+      "prompt": "Which OFFSET considerations are accurate? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Skipped rows can still contribute query work."
+        },
+        {
+          "id": "b",
+          "text": "A small LIMIT guarantees that few rows need to be computed."
+        },
+        {
+          "id": "c",
+          "text": "Changing data can shift which rows occupy a later offset."
+        },
+        {
+          "id": "d",
+          "text": "An insertion before the boundary cannot change numeric row positions."
+        },
+        {
+          "id": "e",
+          "text": "OFFSET retains the first request snapshot automatically."
+        }
+      ],
+      "answers": [
+        "a",
+        "c"
+      ],
+      "explanation": "A: Correct: PostgreSQL computes rows it skips. B: Incorrect: a large offset can require substantial skipped work. C: Correct: offsets are positions in the evaluated result. D: Incorrect: earlier insertions can shift later positions. E: Incorrect: it contains no snapshot identity.",
+      "materials": [
+        "postgres-limit-offset"
+      ],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/queries-limit.html",
+          "title": "LIMIT and OFFSET",
+          "publisher": "PostgreSQL",
+          "accessed": "2026-10-09",
+          "claim": "OFFSET rows must still be computed and LIMIT/OFFSET operate on the ordered result evaluated for that query."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w08-l04-q09",
+      "lesson": "w08-l04",
+      "concept": "w08-l04-cursor-boundary",
+      "type": "multiple_select",
+      "prompt": "Which composite keyset decisions match ascending non-NULL (created_at, id) ordering? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Store both ordered key values in the continuation cursor."
+        },
+        {
+          "id": "b",
+          "text": "Use the same key ordering in the predicate and ORDER BY."
+        },
+        {
+          "id": "c",
+          "text": "Compare only the timestamp even when many rows share it."
+        },
+        {
+          "id": "d",
+          "text": "Use greater-than-or-equal to include the cursor row on the next page."
+        },
+        {
+          "id": "e",
+          "text": "Use a greater-than row comparison against the cursor pair."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "e"
+      ],
+      "explanation": "A: Correct: both values locate the position. B: Correct: mismatched ordering defines a different boundary. C: Incorrect: timestamp ties need the id boundary. D: Incorrect: a strict boundary excludes the already returned row. E: Correct: lexicographic comparison matches ascending continuation.",
+      "materials": [
+        "postgres-row-comparisons"
+      ],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/functions-comparisons.html",
+          "title": "Row and Array Comparisons",
+          "publisher": "PostgreSQL",
+          "accessed": "2026-10-09",
+          "claim": "Row comparisons use left-to-right lexicographic ordering; strict greater-than on non-NULL key pairs excludes the cursor and selects later ordered pairs."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w08-l04-q10",
+      "lesson": "w08-l04",
+      "concept": "w08-l04-page-snapshot",
+      "type": "multiple_select",
+      "prompt": "Which cross-page consistency claims are accurate? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A continuation boundary and a fixed snapshot are separate requirements."
+        },
+        {
+          "id": "b",
+          "text": "A keyset cursor automatically opens one transaction spanning all requests."
+        },
+        {
+          "id": "c",
+          "text": "Keyset boundaries alone prohibit later updates to ordering keys."
+        },
+        {
+          "id": "d",
+          "text": "A Repeatable Read transaction can provide a stable view for its reads."
+        },
+        {
+          "id": "e",
+          "text": "Independent Read Committed queries can see different committed states."
+        }
+      ],
+      "answers": [
+        "a",
+        "d",
+        "e"
+      ],
+      "explanation": "A: Correct: ordered continuation alone is not temporal consistency. B: Incorrect: cursor data does not manage transaction lifetime. C: Incorrect: a cursor does not lock or freeze ordering values. D: Correct: reads share that transaction snapshot. E: Correct: their statement snapshots may differ.",
+      "materials": [
+        "postgres-transaction-isolation"
+      ],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/transaction-iso.html",
+          "title": "Transaction Isolation",
+          "publisher": "PostgreSQL",
+          "accessed": "2026-10-09",
+          "claim": "Read Committed obtains new statement snapshots, while Repeatable Read maintains a transaction snapshot; a keyset predicate alone does not create a fixed dataset snapshot across requests."
+        }
+      ],
+      "retired": null
+    }
+  ]
+}

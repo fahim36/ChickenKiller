@@ -1,0 +1,455 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "w07-l02-pool-api",
+      "name": "libuv worker-pool APIs"
+    },
+    {
+      "id": "w07-l02-async-cpu",
+      "name": "Asynchronous syntax versus CPU work"
+    },
+    {
+      "id": "w07-l02-worker-thread",
+      "name": "Worker-thread CPU execution"
+    },
+    {
+      "id": "w07-l02-pool-fairness",
+      "name": "Bounded worker tasks"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w07-l02-q01",
+      "lesson": "w07-l02",
+      "concept": "w07-l02-pool-api",
+      "type": "multiple_choice",
+      "prompt": "Which kind of work is among the documented users of the libuv worker pool?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "All JavaScript array loops whenever they appear inside async functions."
+        },
+        {
+          "id": "b",
+          "text": "Every object property lookup during a JSON response conversion."
+        },
+        {
+          "id": "c",
+          "text": "Asynchronous filesystem operations such as a file read."
+        },
+        {
+          "id": "d",
+          "text": "Every HTTP route callback body regardless of its contents."
+        }
+      ],
+      "answer": "c",
+      "explanation": "The worker pool serves selected native APIs. It is not an automatic executor for arbitrary JavaScript.",
+      "materials": [
+        "node-avoid-blocking"
+      ],
+      "sources": [
+        {
+          "url": "https://nodejs.org/en/learn/asynchronous-work/dont-block-the-event-loop",
+          "title": "Do Not Block the Event Loop or Worker Pool",
+          "publisher": "Node.js",
+          "accessed": "2026-10-09",
+          "claim": "Node offloads selected filesystem, dns.lookup, crypto and zlib operations to its worker pool; arbitrary JavaScript stays on its execution thread, and long worker tasks delay other queued jobs."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w07-l02-q02",
+      "lesson": "w07-l02",
+      "concept": "w07-l02-pool-api",
+      "type": "multiple_choice",
+      "prompt": "Why can filesystem latency rise when expensive cryptographic jobs saturate the worker pool?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Cryptographic jobs always block the OS network stack globally."
+        },
+        {
+          "id": "b",
+          "text": "Promises must complete in their creation order before files can be read."
+        },
+        {
+          "id": "c",
+          "text": "Selected crypto and filesystem operations compete for pooled workers."
+        },
+        {
+          "id": "d",
+          "text": "Filesystem APIs are serialized through each HTTP client private thread."
+        }
+      ],
+      "answer": "c",
+      "explanation": "These API families use the finite pool. Long jobs can occupy workers needed by shorter jobs.",
+      "materials": [
+        "node-avoid-blocking"
+      ],
+      "sources": [
+        {
+          "url": "https://nodejs.org/en/learn/asynchronous-work/dont-block-the-event-loop",
+          "title": "Do Not Block the Event Loop or Worker Pool",
+          "publisher": "Node.js",
+          "accessed": "2026-10-09",
+          "claim": "Node offloads selected filesystem, dns.lookup, crypto and zlib operations to its worker pool; arbitrary JavaScript stays on its execution thread, and long worker tasks delay other queued jobs."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w07-l02-q03",
+      "lesson": "w07-l02",
+      "concept": "w07-l02-async-cpu",
+      "type": "multiple_choice",
+      "prompt": "A developer wraps a ten-second JavaScript calculation in Promise.resolve().then(calculate). What problem remains?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The calculation still monopolizes its JS thread while it executes."
+        },
+        {
+          "id": "b",
+          "text": "A Promise prevents any synchronous code in calculate from executing."
+        },
+        {
+          "id": "c",
+          "text": "The Promise automatically runs calculate in an isolated worker thread."
+        },
+        {
+          "id": "d",
+          "text": "The callback is automatically split into one-millisecond scheduled chunks."
+        }
+      ],
+      "answer": "a",
+      "explanation": "Scheduling a callback later does not change where its synchronous computation runs.",
+      "materials": [
+        "node-avoid-blocking"
+      ],
+      "sources": [
+        {
+          "url": "https://nodejs.org/en/learn/asynchronous-work/dont-block-the-event-loop",
+          "title": "Do Not Block the Event Loop or Worker Pool",
+          "publisher": "Node.js",
+          "accessed": "2026-10-09",
+          "claim": "Node offloads selected filesystem, dns.lookup, crypto and zlib operations to its worker pool; arbitrary JavaScript stays on its execution thread, and long worker tasks delay other queued jobs."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w07-l02-q04",
+      "lesson": "w07-l02",
+      "concept": "w07-l02-async-cpu",
+      "type": "multiple_choice",
+      "prompt": "Which improvement directly addresses a large synchronous calculation on the main loop?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Rename the callback async without modifying the computation."
+        },
+        {
+          "id": "b",
+          "text": "Wrap the result in a Promise only after the loop has finished."
+        },
+        {
+          "id": "c",
+          "text": "Partition into yielding chunks or explicitly offload suitable computation."
+        },
+        {
+          "id": "d",
+          "text": "Increase a request timeout so the loop is permitted to block longer."
+        }
+      ],
+      "answer": "c",
+      "explanation": "Partitioning or offloading changes resource use; timeout changes and naming do not.",
+      "materials": [
+        "node-avoid-blocking"
+      ],
+      "sources": [
+        {
+          "url": "https://nodejs.org/en/learn/asynchronous-work/dont-block-the-event-loop",
+          "title": "Do Not Block the Event Loop or Worker Pool",
+          "publisher": "Node.js",
+          "accessed": "2026-10-09",
+          "claim": "Node offloads selected filesystem, dns.lookup, crypto and zlib operations to its worker pool; arbitrary JavaScript stays on its execution thread, and long worker tasks delay other queued jobs."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w07-l02-q05",
+      "lesson": "w07-l02",
+      "concept": "w07-l02-worker-thread",
+      "type": "multiple_choice",
+      "prompt": "Which workload is a good candidate for Node worker_threads?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Every JSON request regardless of actual processing cost."
+        },
+        {
+          "id": "b",
+          "text": "A small property read that needs no noticeable CPU time."
+        },
+        {
+          "id": "c",
+          "text": "CPU-intensive JavaScript with enough work to justify worker overhead."
+        },
+        {
+          "id": "d",
+          "text": "An ordinary asynchronous socket read already handled efficiently by Node."
+        }
+      ],
+      "answer": "c",
+      "explanation": "Workers can run JavaScript in parallel and benefit CPU workloads. Built-in asynchronous I/O is usually more efficient than workers.",
+      "materials": [
+        "node-worker-threads"
+      ],
+      "sources": [
+        {
+          "url": "https://nodejs.org/api/worker_threads.html",
+          "title": "Worker threads",
+          "publisher": "Node.js",
+          "accessed": "2026-10-09",
+          "claim": "Worker threads execute JavaScript in parallel and are useful for CPU-intensive work rather than ordinary asynchronous I/O."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w07-l02-q06",
+      "lesson": "w07-l02",
+      "concept": "w07-l02-pool-fairness",
+      "type": "multiple_choice",
+      "prompt": "Why split an unusually large worker job into comparable-cost pieces?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "To ensure every piece bypasses the worker queue and executes immediately."
+        },
+        {
+          "id": "b",
+          "text": "To make short queued jobs wait until all pieces of that large job finish."
+        },
+        {
+          "id": "c",
+          "text": "To let pooled workers interleave shorter work instead of being occupied too long."
+        },
+        {
+          "id": "d",
+          "text": "To avoid measuring task sizes because equal input lengths always cost equally."
+        }
+      ],
+      "answer": "c",
+      "explanation": "Long tasks reduce effective available capacity. Partitioning can improve fairness while still carrying overhead.",
+      "materials": [
+        "node-avoid-blocking"
+      ],
+      "sources": [
+        {
+          "url": "https://nodejs.org/en/learn/asynchronous-work/dont-block-the-event-loop",
+          "title": "Do Not Block the Event Loop or Worker Pool",
+          "publisher": "Node.js",
+          "accessed": "2026-10-09",
+          "claim": "Node offloads selected filesystem, dns.lookup, crypto and zlib operations to its worker pool; arbitrary JavaScript stays on its execution thread, and long worker tasks delay other queued jobs."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w07-l02-q07",
+      "lesson": "w07-l02",
+      "concept": "w07-l02-pool-api",
+      "type": "multiple_select",
+      "prompt": "Which operations use the documented libuv worker pool? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Selected asynchronous crypto operations."
+        },
+        {
+          "id": "b",
+          "text": "Selected asynchronous filesystem operations."
+        },
+        {
+          "id": "c",
+          "text": "All pure JavaScript loops solely because they return a Promise."
+        },
+        {
+          "id": "d",
+          "text": "Every socket readiness event consumes a dedicated pooled worker."
+        },
+        {
+          "id": "e",
+          "text": "Selected zlib operations."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "e"
+      ],
+      "explanation": "A: Correct: expensive native crypto can use workers. B: Correct: filesystem APIs are documented pool users. C: Incorrect: JavaScript syntax does not offload CPU work. D: Incorrect: the event loop uses nonblocking network mechanisms. E: Correct: compression APIs also use the pool.",
+      "materials": [
+        "node-avoid-blocking"
+      ],
+      "sources": [
+        {
+          "url": "https://nodejs.org/en/learn/asynchronous-work/dont-block-the-event-loop",
+          "title": "Do Not Block the Event Loop or Worker Pool",
+          "publisher": "Node.js",
+          "accessed": "2026-10-09",
+          "claim": "Node offloads selected filesystem, dns.lookup, crypto and zlib operations to its worker pool; arbitrary JavaScript stays on its execution thread, and long worker tasks delay other queued jobs."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w07-l02-q08",
+      "lesson": "w07-l02",
+      "concept": "w07-l02-async-cpu",
+      "type": "multiple_select",
+      "prompt": "Which claims separate asynchronous scheduling from offloading? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A zero-delay timer preempts a currently running CPU loop."
+        },
+        {
+          "id": "b",
+          "text": "Explicit worker execution can run CPU-heavy JavaScript away from the main loop."
+        },
+        {
+          "id": "c",
+          "text": "Moving execution later does not itself move it to another thread."
+        },
+        {
+          "id": "d",
+          "text": "An async function can contain blocking synchronous JavaScript."
+        },
+        {
+          "id": "e",
+          "text": "A Promise callback automatically executes on a different processor."
+        }
+      ],
+      "answers": [
+        "b",
+        "c",
+        "d"
+      ],
+      "explanation": "A: Incorrect: timers wait for callback execution to yield. B: Correct: worker_threads is an explicit parallel mechanism. C: Correct: thread choice remains unchanged. D: Correct: synchronous work still occupies the execution thread. E: Incorrect: callback scheduling is not a thread boundary.",
+      "materials": [
+        "node-avoid-blocking"
+      ],
+      "sources": [
+        {
+          "url": "https://nodejs.org/en/learn/asynchronous-work/dont-block-the-event-loop",
+          "title": "Do Not Block the Event Loop or Worker Pool",
+          "publisher": "Node.js",
+          "accessed": "2026-10-09",
+          "claim": "Node offloads selected filesystem, dns.lookup, crypto and zlib operations to its worker pool; arbitrary JavaScript stays on its execution thread, and long worker tasks delay other queued jobs."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w07-l02-q09",
+      "lesson": "w07-l02",
+      "concept": "w07-l02-worker-thread",
+      "type": "multiple_select",
+      "prompt": "Which worker-thread design claims are supported? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Worker startup and communication have no performance costs at all."
+        },
+        {
+          "id": "b",
+          "text": "A pool can avoid creating a new worker for every small task."
+        },
+        {
+          "id": "c",
+          "text": "Workers can execute CPU-intensive JavaScript in parallel."
+        },
+        {
+          "id": "d",
+          "text": "Workers necessarily outperform built-in asynchronous I/O for every file read."
+        },
+        {
+          "id": "e",
+          "text": "A worker can communicate by passing messages."
+        }
+      ],
+      "answers": [
+        "b",
+        "c",
+        "e"
+      ],
+      "explanation": "A: Incorrect: overhead must be considered. B: Correct: the documentation recommends pooling for repeated work. C: Correct: parallel JS is their purpose. D: Incorrect: Node asynchronous I/O is generally more efficient. E: Correct: message passing connects workers and their parent.",
+      "materials": [
+        "node-worker-threads"
+      ],
+      "sources": [
+        {
+          "url": "https://nodejs.org/api/worker_threads.html",
+          "title": "Worker threads",
+          "publisher": "Node.js",
+          "accessed": "2026-10-09",
+          "claim": "Workers run parallel JavaScript, communicate by messages, have overhead and should be pooled for recurring tasks."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w07-l02-q10",
+      "lesson": "w07-l02",
+      "concept": "w07-l02-pool-fairness",
+      "type": "multiple_select",
+      "prompt": "Which decisions improve fairness with limited worker capacity? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Consider dividing highly variable jobs into bounded pieces."
+        },
+        {
+          "id": "b",
+          "text": "Assume one occupied worker leaves exactly the same pool capacity available."
+        },
+        {
+          "id": "c",
+          "text": "Recognize that expensive tasks can delay shorter queued jobs."
+        },
+        {
+          "id": "d",
+          "text": "Accept arbitrarily long tasks because offloading removes all latency risks."
+        },
+        {
+          "id": "e",
+          "text": "Account for partitioning overhead when choosing task size."
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "A: Correct: bounded tasks allow interleaving. B: Incorrect: the occupied worker is unavailable for other tasks. C: Correct: long tasks reduce effective pool capacity. D: Incorrect: pooled capacity can still saturate. E: Correct: smaller pieces add scheduling and representation overhead.",
+      "materials": [
+        "node-avoid-blocking"
+      ],
+      "sources": [
+        {
+          "url": "https://nodejs.org/en/learn/asynchronous-work/dont-block-the-event-loop",
+          "title": "Do Not Block the Event Loop or Worker Pool",
+          "publisher": "Node.js",
+          "accessed": "2026-10-09",
+          "claim": "Node offloads selected filesystem, dns.lookup, crypto and zlib operations to its worker pool; arbitrary JavaScript stays on its execution thread, and long worker tasks delay other queued jobs."
+        }
+      ],
+      "retired": null
+    }
+  ]
+}

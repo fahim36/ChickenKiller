@@ -1,0 +1,455 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "w07-l04-http-body",
+      "name": "HTTP body streaming and parsing"
+    },
+    {
+      "id": "w07-l04-input-validation",
+      "name": "Untrusted bounded request inputs"
+    },
+    {
+      "id": "w07-l04-async-errors",
+      "name": "Express 5 Promise rejection handling"
+    },
+    {
+      "id": "w07-l04-error-middleware",
+      "name": "Error middleware lifecycle"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w07-l04-q01",
+      "lesson": "w07-l04",
+      "concept": "w07-l04-http-body",
+      "type": "multiple_choice",
+      "prompt": "A bare Node HTTP server receives application/json. What does it receive before application parsing?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A readable body stream that application code or middleware must interpret."
+        },
+        {
+          "id": "b",
+          "text": "A complete string in a single data event guaranteed by the JSON media type."
+        },
+        {
+          "id": "c",
+          "text": "An already parsed JavaScript object because the Content-Type header is application/json."
+        },
+        {
+          "id": "d",
+          "text": "A validated domain object with every required field guaranteed."
+        }
+      ],
+      "answer": "a",
+      "explanation": "Node handles protocol framing and streams body content. Application JSON parsing and validation are separate work.",
+      "materials": [
+        "node-http-api"
+      ],
+      "sources": [
+        {
+          "url": "https://nodejs.org/api/http.html",
+          "title": "HTTP",
+          "publisher": "Node.js",
+          "accessed": "2026-10-09",
+          "claim": "Node HTTP exposes incoming bodies through readable streams and outgoing responses through writable operations; it parses message framing rather than JSON application payloads."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w07-l04-q02",
+      "lesson": "w07-l04",
+      "concept": "w07-l04-http-body",
+      "type": "multiple_choice",
+      "prompt": "A Node response writes several chunks and then ends. What must the application still reason about?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "HTTP headers can be changed at any time after the full body was written."
+        },
+        {
+          "id": "b",
+          "text": "Response lifecycle and buffering rather than assuming each write is final delivery."
+        },
+        {
+          "id": "c",
+          "text": "Every write maps to one complete application message for every client."
+        },
+        {
+          "id": "d",
+          "text": "Every write has already reached the client application when it returns."
+        }
+      ],
+      "answer": "b",
+      "explanation": "Response writes participate in a stream. Headers, completion and backpressure have distinct lifecycle semantics.",
+      "materials": [
+        "node-http-api"
+      ],
+      "sources": [
+        {
+          "url": "https://nodejs.org/api/http.html",
+          "title": "HTTP",
+          "publisher": "Node.js",
+          "accessed": "2026-10-09",
+          "claim": "Node HTTP exposes incoming bodies through readable streams and outgoing responses through writable operations; it parses message framing rather than JSON application payloads."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w07-l04-q03",
+      "lesson": "w07-l04",
+      "concept": "w07-l04-input-validation",
+      "type": "multiple_choice",
+      "prompt": "The JSON parser accepts a body containing `{\"quantity\": \"many\"}`. What remains required?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Validate the parsed shape and domain constraints before using quantity."
+        },
+        {
+          "id": "b",
+          "text": "Call quantity.toString without checking whether that member is callable."
+        },
+        {
+          "id": "c",
+          "text": "Trust quantity because the handler has a TypeScript interface for this body."
+        },
+        {
+          "id": "d",
+          "text": "Trust quantity because syntactically valid JSON proves a valid integer."
+        }
+      ],
+      "answer": "a",
+      "explanation": "Parsing establishes JSON syntax, not business-valid data. req.body remains user-controlled.",
+      "materials": [
+        "express-body-parser"
+      ],
+      "sources": [
+        {
+          "url": "https://expressjs.com/en/resources/middleware/body-parser.html",
+          "title": "body-parser",
+          "publisher": "Express",
+          "accessed": "2026-10-09",
+          "claim": "Body parsers match configured media types, limit request sizes and populate req.body, but user-controlled properties and values remain untrusted and need validation."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w07-l04-q04",
+      "lesson": "w07-l04",
+      "concept": "w07-l04-input-validation",
+      "type": "multiple_choice",
+      "prompt": "What does a parser size limit principally constrain?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The numeric range allowed for every quantity value in the parsed body."
+        },
+        {
+          "id": "b",
+          "text": "The allowed numeric value of every JSON quantity field."
+        },
+        {
+          "id": "c",
+          "text": "The maximum size of the handler response after parsing."
+        },
+        {
+          "id": "d",
+          "text": "The maximum accepted request body size."
+        }
+      ],
+      "answer": "d",
+      "explanation": "A body limit bounds parser input size. Field constraints and authorization are separate validation concerns.",
+      "materials": [
+        "express-body-parser"
+      ],
+      "sources": [
+        {
+          "url": "https://expressjs.com/en/resources/middleware/body-parser.html",
+          "title": "body-parser",
+          "publisher": "Express",
+          "accessed": "2026-10-09",
+          "claim": "Body parsers match configured media types, limit request sizes and populate req.body, but user-controlled properties and values remain untrusted and need validation."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w07-l04-q05",
+      "lesson": "w07-l04",
+      "concept": "w07-l04-async-errors",
+      "type": "multiple_choice",
+      "prompt": "In Express 5, an async handler returned Promise rejects. What does the router do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It handles only explicitly caught rejections passed to next by application code."
+        },
+        {
+          "id": "b",
+          "text": "It forwards the rejection to the error path as a next call."
+        },
+        {
+          "id": "c",
+          "text": "It treats a rejection as an ordinary next() and skips error middleware."
+        },
+        {
+          "id": "d",
+          "text": "It always waits for a separate manual next call before noticing rejection."
+        }
+      ],
+      "answer": "b",
+      "explanation": "Express 5 forwards errors from returned Promises. This does not cover unrelated asynchronous callbacks automatically.",
+      "materials": [
+        "express-error-handling"
+      ],
+      "sources": [
+        {
+          "url": "https://expressjs.com/en/guide/error-handling.html",
+          "title": "Error Handling",
+          "publisher": "Express",
+          "accessed": "2026-10-09",
+          "claim": "Express 5 automatically forwards rejected returned Promises to next; error middleware has four parameters, follows routes, and should delegate errors when headers have already been sent."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w07-l04-q06",
+      "lesson": "w07-l04",
+      "concept": "w07-l04-error-middleware",
+      "type": "multiple_choice",
+      "prompt": "A streamed response already sent headers when an error occurs. What should custom error middleware do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Replace the status and write a second JSON response as if nothing was sent."
+        },
+        {
+          "id": "b",
+          "text": "Delegate with next(err) rather than attempting a second response."
+        },
+        {
+          "id": "c",
+          "text": "Continue writing the old stream without observing any failure."
+        },
+        {
+          "id": "d",
+          "text": "Mark the request successful because errors after headers never matter."
+        }
+      ],
+      "answer": "b",
+      "explanation": "Once headers are sent, custom handlers should delegate. A valid replacement response may no longer be possible.",
+      "materials": [
+        "express-error-handling"
+      ],
+      "sources": [
+        {
+          "url": "https://expressjs.com/en/guide/error-handling.html",
+          "title": "Error Handling",
+          "publisher": "Express",
+          "accessed": "2026-10-09",
+          "claim": "Express 5 automatically forwards rejected returned Promises to next; error middleware has four parameters, follows routes, and should delegate errors when headers have already been sent."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w07-l04-q07",
+      "lesson": "w07-l04",
+      "concept": "w07-l04-http-body",
+      "type": "multiple_select",
+      "prompt": "Which bare Node HTTP body statements are accurate? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "HTTP message framing and application payload interpretation are distinct."
+        },
+        {
+          "id": "b",
+          "text": "A JSON content type automatically validates every business field."
+        },
+        {
+          "id": "c",
+          "text": "Application code must interpret JSON payload content."
+        },
+        {
+          "id": "d",
+          "text": "Incoming request bodies can be consumed as a stream."
+        },
+        {
+          "id": "e",
+          "text": "A data chunk is guaranteed to equal one complete JSON document."
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "d"
+      ],
+      "explanation": "A: Correct: Node protocol parsing is not domain validation. B: Incorrect: headers do not validate payload semantics. C: Correct: explicit parsing is needed. D: Correct: IncomingMessage is readable. E: Incorrect: chunks can split or combine content arbitrarily.",
+      "materials": [
+        "node-http-api"
+      ],
+      "sources": [
+        {
+          "url": "https://nodejs.org/api/http.html",
+          "title": "HTTP",
+          "publisher": "Node.js",
+          "accessed": "2026-10-09",
+          "claim": "The HTTP API streams message bodies and is deliberately low-level, not automatically interpreting application payload contents."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w07-l04-q08",
+      "lesson": "w07-l04",
+      "concept": "w07-l04-input-validation",
+      "type": "multiple_select",
+      "prompt": "Which boundary decisions make parsed requests safer to use? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Recognize that successful parsing does not establish domain validity."
+        },
+        {
+          "id": "b",
+          "text": "Validate properties and types before invoking methods on them."
+        },
+        {
+          "id": "c",
+          "text": "Configure a bounded input size for the parser."
+        },
+        {
+          "id": "d",
+          "text": "Assume Content-Type proves the requester followed the required schema."
+        },
+        {
+          "id": "e",
+          "text": "Treat every req.body property as trusted after parsing completes."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "c"
+      ],
+      "explanation": "A: Correct: syntax and domain constraints are separate. B: Correct: missing or malicious properties can fail. C: Correct: limits bound accepted payloads. D: Incorrect: media type is not schema enforcement. E: Incorrect: parsed values remain user-controlled.",
+      "materials": [
+        "express-body-parser"
+      ],
+      "sources": [
+        {
+          "url": "https://expressjs.com/en/resources/middleware/body-parser.html",
+          "title": "body-parser",
+          "publisher": "Express",
+          "accessed": "2026-10-09",
+          "claim": "req.body is untrusted; body parsers select configured content types and bound sizes but do not validate domain fields."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w07-l04-q09",
+      "lesson": "w07-l04",
+      "concept": "w07-l04-async-errors",
+      "type": "multiple_select",
+      "prompt": "Which Express 5 async-error claims are accurate? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A route rejection always results in automatic retry instead of error handling."
+        },
+        {
+          "id": "b",
+          "text": "Errors in independent callback-based work still need to reach next explicitly."
+        },
+        {
+          "id": "c",
+          "text": "A rejected Promise returned by a route enters the error-handling path."
+        },
+        {
+          "id": "d",
+          "text": "A Promise rejection can be forwarded without a manual catch(next) wrapper."
+        },
+        {
+          "id": "e",
+          "text": "Every later timer callback exception is automatically caught by its earlier route."
+        }
+      ],
+      "answers": [
+        "b",
+        "c",
+        "d"
+      ],
+      "explanation": "A: Incorrect: forwarding is not retrying. B: Correct: callback errors must be passed into the error path. C: Correct: Express 5 forwards returned Promise failures. D: Correct: this is built-in for returned Promises. E: Incorrect: separate callbacks are outside that synchronous catch boundary.",
+      "materials": [
+        "express-error-handling"
+      ],
+      "sources": [
+        {
+          "url": "https://expressjs.com/en/guide/error-handling.html",
+          "title": "Error Handling",
+          "publisher": "Express",
+          "accessed": "2026-10-09",
+          "claim": "Express 5 automatically forwards rejected returned Promises to next; error middleware has four parameters, follows routes, and should delegate errors when headers have already been sent."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w07-l04-q10",
+      "lesson": "w07-l04",
+      "concept": "w07-l04-error-middleware",
+      "type": "multiple_select",
+      "prompt": "Which custom error-middleware claims are correct? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Define it as (err, req, res), since Express infers error handlers from parameter names."
+        },
+        {
+          "id": "b",
+          "text": "Delegate an error when res.headersSent indicates a response has begun."
+        },
+        {
+          "id": "c",
+          "text": "Place it after the routes and other middleware it handles."
+        },
+        {
+          "id": "d",
+          "text": "Register it before every route to guarantee it receives downstream errors."
+        },
+        {
+          "id": "e",
+          "text": "Its signature includes (err, req, res, next)."
+        }
+      ],
+      "answers": [
+        "b",
+        "c",
+        "e"
+      ],
+      "explanation": "A: Incorrect: Express uses the four-argument error-middleware signature. B: Correct: another normal response cannot safely replace sent headers. C: Correct: downstream forwarding reaches the error handler. D: Incorrect: the documented order puts error handlers last. E: Correct: this distinguishes the error handler.",
+      "materials": [
+        "express-error-handling"
+      ],
+      "sources": [
+        {
+          "url": "https://expressjs.com/en/guide/error-handling.html",
+          "title": "Error Handling",
+          "publisher": "Express",
+          "accessed": "2026-10-09",
+          "claim": "Express 5 automatically forwards rejected returned Promises to next; error middleware has four parameters, follows routes, and should delegate errors when headers have already been sent."
+        }
+      ],
+      "retired": null
+    }
+  ]
+}

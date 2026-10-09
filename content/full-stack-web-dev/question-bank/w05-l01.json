@@ -1,0 +1,460 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "w05-l01-render-trigger",
+      "name": "Render triggers"
+    },
+    {
+      "id": "w05-l01-render-purity",
+      "name": "Pure component execution"
+    },
+    {
+      "id": "w05-l01-commit-diff",
+      "name": "Commit and reconciliation"
+    },
+    {
+      "id": "w05-l01-browser-paint",
+      "name": "Browser paint after commit"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w05-l01-q01",
+      "lesson": "w05-l01",
+      "concept": "w05-l01-render-trigger",
+      "type": "multiple_choice",
+      "prompt": "A parent state update queues a render. What normally happens to its un-memoized child?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "React waits for the browser to repaint before evaluating the child."
+        },
+        {
+          "id": "b",
+          "text": "React replaces the child DOM subtree before calling its function."
+        },
+        {
+          "id": "c",
+          "text": "React skips the child unless the child state also changed."
+        },
+        {
+          "id": "d",
+          "text": "React calls the child while calculating the next output."
+        }
+      ],
+      "answer": "d",
+      "explanation": "Rendering recursively calls returned components. A child does not need its own state update to be evaluated.",
+      "materials": [
+        "react-render-and-commit"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/learn/render-and-commit",
+          "title": "Render and Commit",
+          "publisher": "React",
+          "accessed": "2026-10-09",
+          "claim": "React triggers rendering initially or after state updates, calls components to calculate output, commits necessary DOM changes and then the browser paints; rendering must be pure."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w05-l01-q02",
+      "lesson": "w05-l01",
+      "concept": "w05-l01-render-trigger",
+      "type": "multiple_choice",
+      "prompt": "Which operation queues another render after initial mounting?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Assigning a new value to ref.current without setting state."
+        },
+        {
+          "id": "b",
+          "text": "Assigning to an ordinary local variable in a component."
+        },
+        {
+          "id": "c",
+          "text": "Calling the component state setter with a changed value."
+        },
+        {
+          "id": "d",
+          "text": "Reading an existing DOM attribute without updating state."
+        }
+      ],
+      "answer": "c",
+      "explanation": "Calling the setter with changed state queues rendering. Local assignments, ref.current assignments and DOM reads do not notify React to render.",
+      "materials": [
+        "react-render-and-commit"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/learn/render-and-commit",
+          "title": "Render and Commit",
+          "publisher": "React",
+          "accessed": "2026-10-09",
+          "claim": "React triggers rendering initially or after state updates, calls components to calculate output, commits necessary DOM changes and then the browser paints; rendering must be pure."
+        },
+        {
+          "url": "https://react.dev/reference/react/useRef",
+          "title": "useRef",
+          "publisher": "React",
+          "accessed": "2026-10-09",
+          "claim": "Changing ref.current does not trigger a component re-render."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w05-l01-q03",
+      "lesson": "w05-l01",
+      "concept": "w05-l01-render-purity",
+      "type": "multiple_choice",
+      "prompt": "A component increments a shared module counter during rendering. Why is this unsafe?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Only mutations of DOM nodes can make a component impure."
+        },
+        {
+          "id": "b",
+          "text": "A shared counter is safe whenever the return value is valid JSX."
+        },
+        {
+          "id": "c",
+          "text": "React guarantees exactly one render call per DOM mutation."
+        },
+        {
+          "id": "d",
+          "text": "Rendering must not mutate values that existed before that render."
+        }
+      ],
+      "answer": "d",
+      "explanation": "Rendering should be pure. Repeated or abandoned calculations must not accumulate external changes.",
+      "materials": [
+        "react-render-and-commit"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/learn/render-and-commit",
+          "title": "Render and Commit",
+          "publisher": "React",
+          "accessed": "2026-10-09",
+          "claim": "React triggers rendering initially or after state updates, calls components to calculate output, commits necessary DOM changes and then the browser paints; rendering must be pure."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w05-l01-q04",
+      "lesson": "w05-l01",
+      "concept": "w05-l01-render-purity",
+      "type": "multiple_choice",
+      "prompt": "Why may Strict Mode call a component twice during development?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "To guarantee two browser paints for every state change."
+        },
+        {
+          "id": "b",
+          "text": "To expose bugs caused by impure rendering calculations."
+        },
+        {
+          "id": "c",
+          "text": "To make every network request execute twice in production."
+        },
+        {
+          "id": "d",
+          "text": "To apply each state replacement twice before committing."
+        }
+      ],
+      "answer": "b",
+      "explanation": "Development checks help find impurity. They do not promise doubled production updates or paints.",
+      "materials": [
+        "react-render-and-commit"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/learn/render-and-commit",
+          "title": "Render and Commit",
+          "publisher": "React",
+          "accessed": "2026-10-09",
+          "claim": "React triggers rendering initially or after state updates, calls components to calculate output, commits necessary DOM changes and then the browser paints; rendering must be pure."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w05-l01-q05",
+      "lesson": "w05-l01",
+      "concept": "w05-l01-commit-diff",
+      "type": "multiple_choice",
+      "prompt": "A state update re-renders a clock whose JSX text is unchanged. What must the commit do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Replace every DOM node because component execution occurred."
+        },
+        {
+          "id": "b",
+          "text": "Apply only necessary changes, potentially no DOM mutation."
+        },
+        {
+          "id": "c",
+          "text": "Skip comparison and schedule a DOM mutation on the next event."
+        },
+        {
+          "id": "d",
+          "text": "Rebuild the whole document before comparing old and new JSX."
+        }
+      ],
+      "answer": "b",
+      "explanation": "React compares the output and commits only necessary DOM changes. Render calls are not a count of mutations.",
+      "materials": [
+        "react-render-and-commit"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/learn/render-and-commit",
+          "title": "Render and Commit",
+          "publisher": "React",
+          "accessed": "2026-10-09",
+          "claim": "React triggers rendering initially or after state updates, calls components to calculate output, commits necessary DOM changes and then the browser paints; rendering must be pure."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w05-l01-q06",
+      "lesson": "w05-l01",
+      "concept": "w05-l01-browser-paint",
+      "type": "multiple_choice",
+      "prompt": "Which ordering best describes a visible React update?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Trigger, browser paint, calculate output, commit DOM changes."
+        },
+        {
+          "id": "b",
+          "text": "Browser paint, calculate output, trigger, commit DOM changes."
+        },
+        {
+          "id": "c",
+          "text": "Commit DOM changes, trigger, browser paint, calculate output."
+        },
+        {
+          "id": "d",
+          "text": "Trigger, calculate output, commit DOM changes, browser paint."
+        }
+      ],
+      "answer": "d",
+      "explanation": "React calculates and commits; the browser then displays the changed pixels. React rendering is distinct from browser painting.",
+      "materials": [
+        "react-render-and-commit"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/learn/render-and-commit",
+          "title": "Render and Commit",
+          "publisher": "React",
+          "accessed": "2026-10-09",
+          "claim": "React triggers rendering initially or after state updates, calls components to calculate output, commits necessary DOM changes and then the browser paints; rendering must be pure."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w05-l01-q07",
+      "lesson": "w05-l01",
+      "concept": "w05-l01-render-trigger",
+      "type": "multiple_select",
+      "prompt": "Which events and steps belong to the React update process? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Every component call automatically replaces its DOM node."
+        },
+        {
+          "id": "b",
+          "text": "An initial root render starts component evaluation."
+        },
+        {
+          "id": "c",
+          "text": "Reading a local variable automatically queues an update."
+        },
+        {
+          "id": "d",
+          "text": "A state change can queue component evaluation."
+        },
+        {
+          "id": "e",
+          "text": "A parent update skips every child whose local state is unchanged."
+        }
+      ],
+      "answers": [
+        "b",
+        "d"
+      ],
+      "explanation": "A: Incorrect: commit applies only necessary differences. B: Correct: initial rendering is a trigger. C: Incorrect: reads do not notify React. D: Correct: state setters can queue rendering. E: Incorrect: un-memoized returned child components are evaluated recursively.",
+      "materials": [
+        "react-render-and-commit"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/learn/render-and-commit",
+          "title": "Render and Commit",
+          "publisher": "React",
+          "accessed": "2026-10-09",
+          "claim": "React triggers rendering initially or after state updates, calls components to calculate output, commits necessary DOM changes and then the browser paints; rendering must be pure."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w05-l01-q08",
+      "lesson": "w05-l01",
+      "concept": "w05-l01-render-purity",
+      "type": "multiple_select",
+      "prompt": "Which practices preserve render purity? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Return the same output for the same component inputs."
+        },
+        {
+          "id": "b",
+          "text": "Send an analytics request every time the function evaluates."
+        },
+        {
+          "id": "c",
+          "text": "Keep external synchronization outside render calculations."
+        },
+        {
+          "id": "d",
+          "text": "Modify a pre-existing shared array while building the JSX."
+        },
+        {
+          "id": "e",
+          "text": "Calculate JSX from the current props and state."
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "A: Correct: deterministic inputs and output are a purity requirement. B: Incorrect: requests are externally observable side effects. C: Correct: rendering should mind its own calculation. D: Incorrect: shared mutation violates purity. E: Correct: rendering derives the description of the UI.",
+      "materials": [
+        "react-render-and-commit"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/learn/render-and-commit",
+          "title": "Render and Commit",
+          "publisher": "React",
+          "accessed": "2026-10-09",
+          "claim": "React triggers rendering initially or after state updates, calls components to calculate output, commits necessary DOM changes and then the browser paints; rendering must be pure."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w05-l01-q09",
+      "lesson": "w05-l01",
+      "concept": "w05-l01-commit-diff",
+      "type": "multiple_select",
+      "prompt": "Which claims about calculation and DOM commit are accurate? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Component execution alone proves a visible DOM change occurred."
+        },
+        {
+          "id": "b",
+          "text": "React calculates differences before applying them to the DOM."
+        },
+        {
+          "id": "c",
+          "text": "Commit applies the DOM changes necessary for the new output."
+        },
+        {
+          "id": "d",
+          "text": "Every re-render requires destroying every existing DOM node."
+        },
+        {
+          "id": "e",
+          "text": "Unchanged output can leave existing DOM nodes untouched."
+        }
+      ],
+      "answers": [
+        "b",
+        "c",
+        "e"
+      ],
+      "explanation": "A: Incorrect: identical output can yield no changes. B: Correct: calculation precedes commit. C: Correct: commit makes the calculated output concrete. D: Incorrect: React preserves nodes where possible. E: Correct: rendering need not cause mutation.",
+      "materials": [
+        "react-render-and-commit"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/learn/render-and-commit",
+          "title": "Render and Commit",
+          "publisher": "React",
+          "accessed": "2026-10-09",
+          "claim": "React triggers rendering initially or after state updates, calls components to calculate output, commits necessary DOM changes and then the browser paints; rendering must be pure."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w05-l01-q10",
+      "lesson": "w05-l01",
+      "concept": "w05-l01-browser-paint",
+      "type": "multiple_select",
+      "prompt": "Which distinctions prevent confusing React rendering with browser painting? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Browser paint is the same operation as calling a component."
+        },
+        {
+          "id": "b",
+          "text": "React rendering calls components to determine their output."
+        },
+        {
+          "id": "c",
+          "text": "One component function call always corresponds to one separate browser paint."
+        },
+        {
+          "id": "d",
+          "text": "Rendering means the browser has already drawn new pixels."
+        },
+        {
+          "id": "e",
+          "text": "DOM changes are applied during the commit step."
+        }
+      ],
+      "answers": [
+        "b",
+        "e"
+      ],
+      "explanation": "A: Incorrect: painting is a browser display operation. B: Correct: this is React rendering terminology. C: Incorrect: React calculation and browser painting are distinct operations. D: Incorrect: component calculation precedes visible painting. E: Correct: commit updates the host DOM.",
+      "materials": [
+        "react-render-and-commit"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/learn/render-and-commit",
+          "title": "Render and Commit",
+          "publisher": "React",
+          "accessed": "2026-10-09",
+          "claim": "React triggers rendering initially or after state updates, calls components to calculate output, commits necessary DOM changes and then the browser paints; rendering must be pure."
+        }
+      ],
+      "retired": null
+    }
+  ]
+}

@@ -1,0 +1,491 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "w02-l01-h1-order",
+      "name": "HTTP/1.1 response ordering"
+    },
+    {
+      "id": "w02-l01-h2-multiplex",
+      "name": "HTTP/2 streams over TCP"
+    },
+    {
+      "id": "w02-l01-h3-delivery",
+      "name": "HTTP/3 independent QUIC delivery"
+    },
+    {
+      "id": "w02-l01-concurrency-limits",
+      "name": "Connection and stream limits"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w02-l01-q01",
+      "lesson": "w02-l01",
+      "concept": "w02-l01-h1-order",
+      "type": "multiple_choice",
+      "prompt": "An HTTP/1.1 client pipelines two requests on one connection. The first response is slow. What ordering does the server have to preserve?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Send complete responses in the order their requests arrived."
+        },
+        {
+          "id": "b",
+          "text": "Send complete responses in application-completion order regardless of request order."
+        },
+        {
+          "id": "c",
+          "text": "Interleave body bytes from both responses using request paths to distinguish them."
+        },
+        {
+          "id": "d",
+          "text": "Send the second response first as long as each response supplies Content-Length."
+        }
+      ],
+      "answer": "a",
+      "explanation": "HTTP/1.1 pipelined responses must be sent in request order. It does not provide HTTP/2-style interleaved streams.",
+      "materials": [
+        "web-h1-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc9112.html",
+          "title": "RFC 9112: HTTP/1.1",
+          "publisher": "IETF",
+          "accessed": "2026-10-09",
+          "claim": "HTTP/1.1 permits persistent connections and pipelining but pipelined responses are sent in request order; connection limits are implementation choices."
+        }
+      ]
+    },
+    {
+      "id": "w02-l01-q02",
+      "lesson": "w02-l01",
+      "concept": "w02-l01-h2-multiplex",
+      "type": "multiple_choice",
+      "prompt": "A page negotiates HTTP/2 and requests many resources over one TCP connection. How are the response messages represented?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Each response must finish before any later response can start on that connection."
+        },
+        {
+          "id": "b",
+          "text": "Each stream needs its own TCP connection even when the protocol is HTTP/2."
+        },
+        {
+          "id": "c",
+          "text": "All response frames share one stream, with URLs identifying their message boundaries."
+        },
+        {
+          "id": "d",
+          "text": "Frames for distinct streams can be multiplexed on that connection."
+        }
+      ],
+      "answer": "d",
+      "explanation": "HTTP/2 multiplexes frames belonging to different streams over a connection. It remains TCP-based and does not require one connection per response.",
+      "materials": [
+        "web-h2-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc9113.html",
+          "title": "RFC 9113: HTTP/2",
+          "publisher": "IETF",
+          "accessed": "2026-10-09",
+          "claim": "HTTP/2 multiplexes streams over a TCP connection, compresses fields, applies flow control and negotiates limits on concurrent streams."
+        }
+      ]
+    },
+    {
+      "id": "w02-l01-q03",
+      "lesson": "w02-l01",
+      "concept": "w02-l01-h3-delivery",
+      "type": "multiple_choice",
+      "prompt": "One HTTP/3 QUIC stream loses data while another has deliverable data. Which property helps the second stream?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Loss on one QUIC stream necessarily blocks byte delivery on every other stream."
+        },
+        {
+          "id": "b",
+          "text": "Each QUIC stream has completely separate connection bandwidth and congestion control."
+        },
+        {
+          "id": "c",
+          "text": "Independent stream delivery avoids TCP-wide delivery blocking from that loss."
+        },
+        {
+          "id": "d",
+          "text": "HTTP/3 must finish each response before transmitting frames for the next request."
+        }
+      ],
+      "answer": "c",
+      "explanation": "QUIC streams have independent delivery, avoiding the TCP ordering dependency across streams. Loss recovery and shared congestion constraints still exist.",
+      "materials": [
+        "web-h3-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc9114.html",
+          "title": "RFC 9114: HTTP/3",
+          "publisher": "IETF",
+          "accessed": "2026-10-09",
+          "claim": "HTTP/3 maps HTTP onto QUIC streams with independent delivery and transport stream limits; it does not eliminate congestion or application dependencies."
+        }
+      ]
+    },
+    {
+      "id": "w02-l01-q04",
+      "lesson": "w02-l01",
+      "concept": "w02-l01-concurrency-limits",
+      "type": "multiple_choice",
+      "prompt": "An interviewer says every browser always opens exactly six connections per host. What is the strongest correction?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Every HTTP version mandates exactly six parallel transport connections per origin."
+        },
+        {
+          "id": "b",
+          "text": "Connection limits are client policies, not a universal rule across HTTP versions."
+        },
+        {
+          "id": "c",
+          "text": "HTTP/2 fixes concurrency at six streams even when peers negotiate a higher limit."
+        },
+        {
+          "id": "d",
+          "text": "HTTP/3 permits only one active request stream because it uses one connection."
+        }
+      ],
+      "answer": "b",
+      "explanation": "The protocols do not establish a universal six-connection rule. HTTP/2 and HTTP/3 use streams with negotiated or transport limits, and client policies vary.",
+      "materials": [
+        "web-h1-reference",
+        "web-h2-reference",
+        "web-h3-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc9112.html",
+          "title": "RFC 9112: HTTP/1.1",
+          "publisher": "IETF",
+          "accessed": "2026-10-09",
+          "claim": "HTTP/1.1 permits persistent connections and pipelining but pipelined responses are sent in request order; connection limits are implementation choices."
+        },
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc9113.html",
+          "title": "RFC 9113: HTTP/2",
+          "publisher": "IETF",
+          "accessed": "2026-10-09",
+          "claim": "HTTP/2 multiplexes streams over a TCP connection, compresses fields, applies flow control and negotiates limits on concurrent streams."
+        },
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc9114.html",
+          "title": "RFC 9114: HTTP/3",
+          "publisher": "IETF",
+          "accessed": "2026-10-09",
+          "claim": "HTTP/3 maps HTTP onto QUIC streams with independent delivery and transport stream limits; it does not eliminate congestion or application dependencies."
+        }
+      ]
+    },
+    {
+      "id": "w02-l01-q05",
+      "lesson": "w02-l01",
+      "concept": "w02-l01-h1-order",
+      "type": "multiple_choice",
+      "prompt": "An HTTP/1.1 response includes `Connection: close`. What does that signal about reuse?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The connection is not retained for later requests after this response."
+        },
+        {
+          "id": "b",
+          "text": "The response can be reused until its cache lifetime expires, regardless of the connection signal."
+        },
+        {
+          "id": "c",
+          "text": "Only pipelining stops; later sequential requests must reuse that same open connection."
+        },
+        {
+          "id": "d",
+          "text": "The connection remains reusable because HTTP/1.1 persistence cannot be disabled."
+        }
+      ],
+      "answer": "a",
+      "explanation": "Close signals ending the connection rather than persistent reuse. It is not a cache directive or an HTTP version upgrade.",
+      "materials": [
+        "web-h1-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc9112.html",
+          "title": "RFC 9112: HTTP/1.1",
+          "publisher": "IETF",
+          "accessed": "2026-10-09",
+          "claim": "HTTP/1.1 permits persistent connections and pipelining but pipelined responses are sent in request order; connection limits are implementation choices."
+        }
+      ]
+    },
+    {
+      "id": "w02-l01-q06",
+      "lesson": "w02-l01",
+      "concept": "w02-l01-h2-multiplex",
+      "type": "multiple_choice",
+      "prompt": "An HTTP/2 connection experiences missing TCP bytes. Why can other streams be delayed despite frame multiplexing?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "HTTP/2 serializes every response body in the original request order."
+        },
+        {
+          "id": "b",
+          "text": "Multiplexing applies only to headers, so body frames cannot use concurrent streams."
+        },
+        {
+          "id": "c",
+          "text": "Every stream has its own TCP ordering buffer so only the affected stream can wait."
+        },
+        {
+          "id": "d",
+          "text": "TCP delivers ordered bytes, so missing data can hold up later bytes for all streams."
+        }
+      ],
+      "answer": "d",
+      "explanation": "HTTP/2 removes application-level response serialization but runs over an ordered TCP byte stream. TCP loss can therefore delay frames from otherwise independent streams.",
+      "materials": [
+        "web-h2-reference",
+        "web-h3-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc9113.html",
+          "title": "RFC 9113: HTTP/2",
+          "publisher": "IETF",
+          "accessed": "2026-10-09",
+          "claim": "HTTP/2 multiplexes streams over a TCP connection, compresses fields, applies flow control and negotiates limits on concurrent streams."
+        },
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc9114.html",
+          "title": "RFC 9114: HTTP/3",
+          "publisher": "IETF",
+          "accessed": "2026-10-09",
+          "claim": "HTTP/3 maps HTTP onto QUIC streams with independent delivery and transport stream limits; it does not eliminate congestion or application dependencies."
+        }
+      ]
+    },
+    {
+      "id": "w02-l01-q07",
+      "lesson": "w02-l01",
+      "concept": "w02-l01-h1-order",
+      "type": "multiple_select",
+      "prompt": "A team considers HTTP/1.1 resource loading. Which claims hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Persistent HTTP/1.1 connections cannot be closed until the entire browser session ends."
+        },
+        {
+          "id": "b",
+          "text": "Exactly six connections is a protocol requirement."
+        },
+        {
+          "id": "c",
+          "text": "Persistent connections can carry later requests."
+        },
+        {
+          "id": "d",
+          "text": "Pipelined responses retain request order."
+        },
+        {
+          "id": "e",
+          "text": "Pipelining creates independently interleaved response streams."
+        }
+      ],
+      "answers": [
+        "c",
+        "d"
+      ],
+      "explanation": "a: A connection can close earlier; persistence is not a browser-session lifetime guarantee. b: It is not a universal HTTP/1.1 requirement. c: HTTP/1.1 supports persistent reuse by default unless closure is signaled. d: The server must send responses in that order. e: HTTP/1.1 does not provide HTTP/2 stream framing.",
+      "materials": [
+        "web-h1-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc9112.html",
+          "title": "RFC 9112: HTTP/1.1",
+          "publisher": "IETF",
+          "accessed": "2026-10-09",
+          "claim": "HTTP/1.1 permits persistent connections and pipelining but pipelined responses are sent in request order; connection limits are implementation choices."
+        }
+      ]
+    },
+    {
+      "id": "w02-l01-q08",
+      "lesson": "w02-l01",
+      "concept": "w02-l01-h2-multiplex",
+      "type": "multiple_select",
+      "prompt": "An HTTP/2 performance review discusses multiplexing. Which claims hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Multiplexing guarantees unlimited server concurrency."
+        },
+        {
+          "id": "b",
+          "text": "Distinct streams can share one TCP connection."
+        },
+        {
+          "id": "c",
+          "text": "TCP loss can delay delivery across streams."
+        },
+        {
+          "id": "d",
+          "text": "A stream identifier separates concurrent messages."
+        },
+        {
+          "id": "e",
+          "text": "HTTP/2 uses QUIC instead of TCP by definition."
+        }
+      ],
+      "answers": [
+        "b",
+        "c",
+        "d"
+      ],
+      "explanation": "a: Limits and server capacity still constrain work. b: HTTP/2 interleaves frames for streams. c: The transport still delivers an ordered byte stream. d: Frames identify the stream to which they belong. e: QUIC is the transport used by HTTP/3.",
+      "materials": [
+        "web-h2-reference",
+        "web-h3-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc9113.html",
+          "title": "RFC 9113: HTTP/2",
+          "publisher": "IETF",
+          "accessed": "2026-10-09",
+          "claim": "HTTP/2 multiplexes streams over a TCP connection, compresses fields, applies flow control and negotiates limits on concurrent streams."
+        },
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc9114.html",
+          "title": "RFC 9114: HTTP/3",
+          "publisher": "IETF",
+          "accessed": "2026-10-09",
+          "claim": "HTTP/3 maps HTTP onto QUIC streams with independent delivery and transport stream limits; it does not eliminate congestion or application dependencies."
+        }
+      ]
+    },
+    {
+      "id": "w02-l01-q09",
+      "lesson": "w02-l01",
+      "concept": "w02-l01-h3-delivery",
+      "type": "multiple_select",
+      "prompt": "An application migrates to HTTP/3. Which expectations are justified? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "HTTP/3 maps requests onto QUIC streams."
+        },
+        {
+          "id": "b",
+          "text": "Stream delivery avoids the TCP-wide ordering dependency."
+        },
+        {
+          "id": "c",
+          "text": "HTTP/3 removes every application-level dependency between resource requests."
+        },
+        {
+          "id": "d",
+          "text": "All congestion and bandwidth limits disappear."
+        },
+        {
+          "id": "e",
+          "text": "Responses must be completed in request order."
+        }
+      ],
+      "answers": [
+        "a",
+        "b"
+      ],
+      "explanation": "a: That is the protocol transport mapping. b: QUIC provides independent stream delivery. c: Transport stream concurrency does not remove application dependencies. d: QUIC still has transport constraints and congestion control. e: Separate request streams permit independent responses.",
+      "materials": [
+        "web-h3-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc9114.html",
+          "title": "RFC 9114: HTTP/3",
+          "publisher": "IETF",
+          "accessed": "2026-10-09",
+          "claim": "HTTP/3 maps HTTP onto QUIC streams with independent delivery and transport stream limits; it does not eliminate congestion or application dependencies."
+        }
+      ]
+    },
+    {
+      "id": "w02-l01-q10",
+      "lesson": "w02-l01",
+      "concept": "w02-l01-concurrency-limits",
+      "type": "multiple_select",
+      "prompt": "A browser negotiates a modern HTTP protocol. Which concurrency assumptions hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "HTTP/3 stream availability depends on QUIC limits."
+        },
+        {
+          "id": "b",
+          "text": "A client may impose additional scheduling policy."
+        },
+        {
+          "id": "c",
+          "text": "Every HTTP version mandates six concurrent requests."
+        },
+        {
+          "id": "d",
+          "text": "One multiplexed connection means unlimited bandwidth."
+        },
+        {
+          "id": "e",
+          "text": "HTTP/2 peers can limit concurrent streams."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "e"
+      ],
+      "explanation": "a: The transport restricts how many streams can be opened. b: The protocol does not force unlimited request scheduling. c: No such universal cross-version mandate exists. d: Streams still share network capacity. e: SETTINGS_MAX_CONCURRENT_STREAMS advertises a limit.",
+      "materials": [
+        "web-h1-reference",
+        "web-h2-reference",
+        "web-h3-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc9112.html",
+          "title": "RFC 9112: HTTP/1.1",
+          "publisher": "IETF",
+          "accessed": "2026-10-09",
+          "claim": "HTTP/1.1 permits persistent connections and pipelining but pipelined responses are sent in request order; connection limits are implementation choices."
+        },
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc9113.html",
+          "title": "RFC 9113: HTTP/2",
+          "publisher": "IETF",
+          "accessed": "2026-10-09",
+          "claim": "HTTP/2 multiplexes streams over a TCP connection, compresses fields, applies flow control and negotiates limits on concurrent streams."
+        },
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc9114.html",
+          "title": "RFC 9114: HTTP/3",
+          "publisher": "IETF",
+          "accessed": "2026-10-09",
+          "claim": "HTTP/3 maps HTTP onto QUIC streams with independent delivery and transport stream limits; it does not eliminate congestion or application dependencies."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,477 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "w11-l04-realtime-direction",
+      "name": "Realtime transport directionality"
+    },
+    {
+      "id": "w11-l04-sse-framing",
+      "name": "EventSource framing and reconnection"
+    },
+    {
+      "id": "w11-l04-horizontal-state",
+      "name": "Horizontal scaling and state placement"
+    },
+    {
+      "id": "w11-l04-circuit-states",
+      "name": "Circuit-breaker states and recovery"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w11-l04-q01",
+      "type": "multiple_choice",
+      "lesson": "w11-l04",
+      "concept": "w11-l04-realtime-direction",
+      "prompt": "A page only needs the server to push notification events. Which browser API directly provides that one-way stream?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "EventSource for server-sent events."
+        },
+        {
+          "id": "b",
+          "text": "A bidirectional WebSocket as the only possible solution."
+        },
+        {
+          "id": "c",
+          "text": "A synchronous XMLHttpRequest that waits on the main thread."
+        },
+        {
+          "id": "d",
+          "text": "Polling a local cache without making any server requests."
+        }
+      ],
+      "answer": "a",
+      "explanation": "EventSource receives server-sent events. WebSocket can also serve realtime needs but is not the only option and has a different directionality.",
+      "materials": [
+        "mdn-websocket",
+        "mdn-server-sent-events"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/API/WebSocket",
+          "title": "WebSocket API",
+          "publisher": "MDN",
+          "accessed": "2026-10-09",
+          "claim": "WebSocket supports sending and receiving while EventSource server-sent events provide one-way server-to-client events."
+        },
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events",
+          "title": "Using server-sent events",
+          "publisher": "MDN",
+          "accessed": "2026-10-09",
+          "claim": "WebSocket supports sending and receiving while EventSource server-sent events provide one-way server-to-client events."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w11-l04-q02",
+      "type": "multiple_choice",
+      "lesson": "w11-l04",
+      "concept": "w11-l04-sse-framing",
+      "prompt": "An SSE response emits fields but never terminates an event block with a blank line. Which detail is missing?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A separate JSON-RPC request for every field."
+        },
+        {
+          "id": "b",
+          "text": "A WebSocket masking key on each text line."
+        },
+        {
+          "id": "c",
+          "text": "A Content-Length header equal to the eventual size of the unlimited stream."
+        },
+        {
+          "id": "d",
+          "text": "The delimiter ending a complete event."
+        }
+      ],
+      "answer": "d",
+      "explanation": "SSE events are text blocks separated by a pair of newlines. JSON-RPC, WebSocket framing and database markers are different protocols.",
+      "materials": [
+        "mdn-server-sent-events"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events",
+          "title": "Using server-sent events",
+          "publisher": "MDN",
+          "accessed": "2026-10-09",
+          "claim": "SSE uses text/event-stream with blank-line-separated events; retry specifies milliseconds and EventSource reconnects after disconnection."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w11-l04-q03",
+      "type": "multiple_choice",
+      "lesson": "w11-l04",
+      "concept": "w11-l04-horizontal-state",
+      "prompt": "An API keeps the only copy of a user’s session in one instance’s memory. What complicates scale-out?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Horizontal scaling always routes every user to one unchanged process."
+        },
+        {
+          "id": "b",
+          "text": "A load balancer converts private sessions into database transactions."
+        },
+        {
+          "id": "c",
+          "text": "Later requests may reach another instance without that state."
+        },
+        {
+          "id": "d",
+          "text": "Adding instances automatically merges all private process memory."
+        }
+      ],
+      "answer": "c",
+      "explanation": "Private state can tie requests to an instance. Stateless design or an appropriate shared state strategy avoids that assumption.",
+      "materials": [
+        "azure-autoscaling"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/best-practices/auto-scaling",
+          "title": "Autoscaling guidance",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "Stateless service design avoids instance affinity, and queue workers must not assume which instance handles a message."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w11-l04-q04",
+      "type": "multiple_choice",
+      "lesson": "w11-l04",
+      "concept": "w11-l04-circuit-states",
+      "prompt": "A dependency repeatedly times out and the circuit is open. What is the breaker’s primary action?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Restart every unrelated service before allowing any local response."
+        },
+        {
+          "id": "b",
+          "text": "Reject calls quickly rather than repeatedly invoking the failing dependency."
+        },
+        {
+          "id": "c",
+          "text": "Retry every request indefinitely with no recovery limit."
+        },
+        {
+          "id": "d",
+          "text": "Treat each timeout as success and clear the failure count."
+        }
+      ],
+      "answer": "b",
+      "explanation": "The open state avoids waste and repeated likely failures. A limited half-open probe can later test recovery; the breaker is distinct from unbounded retries.",
+      "materials": [
+        "azure-circuit-breaker"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/circuit-breaker",
+          "title": "Circuit Breaker pattern",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "Closed allows calls, open rejects calls likely to fail, and half-open permits limited probes to decide whether recovery occurred."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w11-l04-q05",
+      "type": "multiple_choice",
+      "lesson": "w11-l04",
+      "concept": "w11-l04-realtime-direction",
+      "prompt": "A collaborative editor must send frequent client edits and receive server updates over one connection. Which transport characteristic fits?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A WebSocket supports both directions on the connection."
+        },
+        {
+          "id": "b",
+          "text": "EventSource sends client edits through its receive stream."
+        },
+        {
+          "id": "c",
+          "text": "SSE data fields automatically become client POST requests."
+        },
+        {
+          "id": "d",
+          "text": "A one-way transport guarantees client edits reach the server."
+        }
+      ],
+      "answer": "a",
+      "explanation": "WebSocket supports sending and receiving. SSE requires a separate client-to-server mechanism and does not transform incoming fields into writes.",
+      "materials": [
+        "mdn-websocket",
+        "mdn-server-sent-events"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/API/WebSocket",
+          "title": "WebSocket API",
+          "publisher": "MDN",
+          "accessed": "2026-10-09",
+          "claim": "WebSocket supports bidirectional communication, while SSE is one-way server push."
+        },
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events",
+          "title": "Using server-sent events",
+          "publisher": "MDN",
+          "accessed": "2026-10-09",
+          "claim": "WebSocket supports bidirectional communication, while SSE is one-way server push."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w11-l04-q06",
+      "type": "multiple_choice",
+      "lesson": "w11-l04",
+      "concept": "w11-l04-sse-framing",
+      "prompt": "An SSE server sends retry: 3000. What does that field control?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A three-second expiration of every user authentication token."
+        },
+        {
+          "id": "b",
+          "text": "The maximum number of buffered events before the stream reconnects."
+        },
+        {
+          "id": "c",
+          "text": "The required interval between every server-generated event."
+        },
+        {
+          "id": "d",
+          "text": "A three-second delay before reconnection after loss."
+        }
+      ],
+      "answer": "d",
+      "explanation": "The retry field is an integer reconnection delay in milliseconds, so 3000 means three seconds. It is not token expiration, buffer capacity or the required interval between server events.",
+      "materials": [
+        "mdn-server-sent-events"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events",
+          "title": "Using server-sent events",
+          "publisher": "MDN",
+          "accessed": "2026-10-09",
+          "claim": "The SSE retry field is an integer reconnection delay in milliseconds."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w11-l04-q07",
+      "type": "multiple_select",
+      "lesson": "w11-l04",
+      "concept": "w11-l04-realtime-direction",
+      "prompt": "Which transport distinctions hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Server-sent events carry server-to-client events over EventSource."
+        },
+        {
+          "id": "b",
+          "text": "EventSource sends client-to-server events through the same event stream."
+        },
+        {
+          "id": "c",
+          "text": "WebSocket is inherently receive-only like EventSource."
+        },
+        {
+          "id": "d",
+          "text": "Every notification feature requires a bidirectional transport."
+        },
+        {
+          "id": "e",
+          "text": "WebSocket can send data and receive server messages."
+        }
+      ],
+      "answers": [
+        "a",
+        "e"
+      ],
+      "explanation": "A is correct: The event stream is one-way. B is incorrect: Client writes need a separate request mechanism. C is incorrect: It has a send operation. D is incorrect: One-way events can fit server-push notifications. E is correct: It supports two-way communication.",
+      "materials": [
+        "mdn-websocket",
+        "mdn-server-sent-events"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/API/WebSocket",
+          "title": "WebSocket API",
+          "publisher": "MDN",
+          "accessed": "2026-10-09",
+          "claim": "WebSocket supports sending and receiving while EventSource server-sent events provide one-way server-to-client events."
+        },
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events",
+          "title": "Using server-sent events",
+          "publisher": "MDN",
+          "accessed": "2026-10-09",
+          "claim": "WebSocket supports sending and receiving while EventSource server-sent events provide one-way server-to-client events."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w11-l04-q08",
+      "type": "multiple_select",
+      "lesson": "w11-l04",
+      "concept": "w11-l04-sse-framing",
+      "prompt": "Which SSE format and reconnection claims hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The retry field specifies integer milliseconds for reconnection."
+        },
+        {
+          "id": "b",
+          "text": "A data field must contain a complete binary WebSocket frame."
+        },
+        {
+          "id": "c",
+          "text": "An event field is always delivered to onmessage regardless of its name."
+        },
+        {
+          "id": "d",
+          "text": "Serve the stream with the text/event-stream MIME type."
+        },
+        {
+          "id": "e",
+          "text": "Separate complete event blocks with a blank line."
+        }
+      ],
+      "answers": [
+        "a",
+        "d",
+        "e"
+      ],
+      "explanation": "A is correct: Non-integer values are ignored. B is incorrect: SSE uses text fields rather than WebSocket framing. C is incorrect: Named events use listeners for the specified event name. D is correct: It identifies an SSE response. E is correct: The delimiter finishes an event block.",
+      "materials": [
+        "mdn-server-sent-events"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events",
+          "title": "Using server-sent events",
+          "publisher": "MDN",
+          "accessed": "2026-10-09",
+          "claim": "SSE uses text/event-stream with blank-line-separated events; retry specifies milliseconds and EventSource reconnects after disconnection."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w11-l04-q09",
+      "type": "multiple_select",
+      "lesson": "w11-l04",
+      "concept": "w11-l04-horizontal-state",
+      "prompt": "Which choices support scaling services across instances? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Treat private process memory as automatically shared after scale-out."
+        },
+        {
+          "id": "b",
+          "text": "Require permanent instance affinity as the definition of statelessness."
+        },
+        {
+          "id": "c",
+          "text": "Avoid assuming a user’s requests always reach the same instance."
+        },
+        {
+          "id": "d",
+          "text": "Avoid assuming one fixed worker processes each queued message."
+        },
+        {
+          "id": "e",
+          "text": "Store the only durable job progress in a terminating worker’s memory."
+        }
+      ],
+      "answers": [
+        "c",
+        "d"
+      ],
+      "explanation": "A is incorrect: Instances do not merge their heaps. B is incorrect: Stateless design aims to avoid that routing dependency. C is correct: Scaling can change routing and instance availability. D is correct: A consumer pool can grow and shrink. E is incorrect: Scale-in can lose private state.",
+      "materials": [
+        "azure-autoscaling"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/best-practices/auto-scaling",
+          "title": "Autoscaling guidance",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "Stateless service design avoids instance affinity, and queue workers must not assume which instance handles a message."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w11-l04-q10",
+      "type": "multiple_select",
+      "lesson": "w11-l04",
+      "concept": "w11-l04-circuit-states",
+      "prompt": "Which breaker-state statements hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A breaker and a retry policy have identical purposes."
+        },
+        {
+          "id": "b",
+          "text": "Closed normally permits calls while recording failures."
+        },
+        {
+          "id": "c",
+          "text": "Open rejects calls while the dependency is considered unhealthy."
+        },
+        {
+          "id": "d",
+          "text": "Half-open permits limited calls to test recovery."
+        },
+        {
+          "id": "e",
+          "text": "Open requires every caller to retry continuously without delay."
+        }
+      ],
+      "answers": [
+        "b",
+        "c",
+        "d"
+      ],
+      "explanation": "A is incorrect: Retry seeks eventual success; a breaker suppresses likely failures. B is correct: Failures can trigger transition to open. C is correct: It prevents repeated likely failures. D is correct: Probe results determine whether to close or reopen. E is incorrect: The breaker blocks attempts rather than causing an unlimited loop.",
+      "materials": [
+        "azure-circuit-breaker"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/circuit-breaker",
+          "title": "Circuit Breaker pattern",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "Closed allows calls, open rejects calls likely to fail, and half-open permits limited probes to decide whether recovery occurred."
+        }
+      ],
+      "retired": null
+    }
+  ]
+}

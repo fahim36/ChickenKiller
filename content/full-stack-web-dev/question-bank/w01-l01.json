@@ -1,0 +1,442 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "w01-l01-navigation-commit",
+      "name": "Navigation response and document commit"
+    },
+    {
+      "id": "w01-l01-script-scheduling",
+      "name": "Classic and module script scheduling"
+    },
+    {
+      "id": "w01-l01-rendering-stages",
+      "name": "Style, layout, paint and raster"
+    },
+    {
+      "id": "w01-l01-compositor-work",
+      "name": "Compositor work and stage skipping"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w01-l01-q01",
+      "lesson": "w01-l01",
+      "concept": "w01-l01-navigation-commit",
+      "type": "multiple_choice",
+      "prompt": "A navigation receives an HTTP redirect before the HTML response. What should the loading trace show?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Commit the redirect as the final document before requesting its target."
+        },
+        {
+          "id": "b",
+          "text": "A follow-up request to the redirect target before the document is committed."
+        },
+        {
+          "id": "c",
+          "text": "Wait for the redirected page load event before requesting the redirect target."
+        },
+        {
+          "id": "d",
+          "text": "Follow the redirect only if page JavaScript explicitly assigns the target URL."
+        }
+      ],
+      "answer": "b",
+      "explanation": "Navigation follows the redirect destination before committing a suitable final document. It does not require page JavaScript or a load event for the destination first.",
+      "materials": [
+        "web-nav-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.chrome.com/blog/inside-browser-part2",
+          "title": "Inside look at modern web browser (part 2)",
+          "publisher": "Google",
+          "accessed": "2026-10-09",
+          "claim": "Navigation uses network requests, may follow redirects, checks response type and commits the document to a renderer."
+        }
+      ]
+    },
+    {
+      "id": "w01-l01-q02",
+      "lesson": "w01-l01",
+      "concept": "w01-l01-script-scheduling",
+      "type": "multiple_choice",
+      "prompt": "Two external classic scripts use `defer` in document order. What behavior can their author rely on?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "They execute after parsing in their document order."
+        },
+        {
+          "id": "b",
+          "text": "They execute as downloads finish, regardless of their document order."
+        },
+        {
+          "id": "c",
+          "text": "They block parsing at each script tag until that download completes."
+        },
+        {
+          "id": "d",
+          "text": "They execute only after every image and video resource has loaded."
+        }
+      ],
+      "answer": "a",
+      "explanation": "Deferred classic scripts wait for parsing and retain document order. Async scripts instead execute when ready; defer does not mean waiting for every image.",
+      "materials": [
+        "web-script-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://html.spec.whatwg.org/multipage/scripting.html#the-script-element",
+          "title": "HTML Standard: scripting",
+          "publisher": "WHATWG",
+          "accessed": "2026-10-09",
+          "claim": "Classic script execution depends on async and defer; module scripts are deferred by default and async changes their scheduling."
+        }
+      ]
+    },
+    {
+      "id": "w01-l01-q03",
+      "lesson": "w01-l01",
+      "concept": "w01-l01-rendering-stages",
+      "type": "multiple_choice",
+      "prompt": "A browser parses HTML and CSS before displaying a page. Which account of DOM, CSSOM and the rendering pipeline is accurate?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The DOM contains only visible nodes and the CSSOM contains final pixels; layout reconstructs the original markup."
+        },
+        {
+          "id": "b",
+          "text": "The CSSOM computes element geometry before selectors are matched; the DOM then records rasterized pixels for paint."
+        },
+        {
+          "id": "c",
+          "text": "The render tree contains every DOM node, including display:none content; styles are resolved only after the first paint."
+        },
+        {
+          "id": "d",
+          "text": "The DOM represents markup and the CSSOM represents CSS; they inform the render tree before layout computes geometry."
+        }
+      ],
+      "answer": "d",
+      "explanation": "HTML parsing builds the DOM and CSS parsing builds the CSSOM. Together they inform styled renderable content; layout computes geometry, followed by painting and compositing. The render tree is not simply every DOM node: display:none content is excluded.",
+      "materials": [
+        "web-browser-pipeline-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/Performance/Guides/How_browsers_work",
+          "title": "Populating the page: how browsers work",
+          "publisher": "MDN Web Docs",
+          "accessed": "2026-10-09",
+          "claim": "HTML builds the DOM and CSS builds the CSSOM; they inform the render tree, layout computes geometry, and paint and compositing produce displayed output."
+        }
+      ]
+    },
+    {
+      "id": "w01-l01-q04",
+      "lesson": "w01-l01",
+      "concept": "w01-l01-compositor-work",
+      "type": "multiple_choice",
+      "prompt": "An eligible transform animation runs smoothly while the main thread is busy. Which Chromium behavior explains this?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The compositor still recalculates every element layout for each transform frame."
+        },
+        {
+          "id": "b",
+          "text": "Smooth animation proves the compositor executes all JavaScript callbacks independently."
+        },
+        {
+          "id": "c",
+          "text": "The compositor can update the effect without repeating layout and paint."
+        },
+        {
+          "id": "d",
+          "text": "Every CSS animation automatically avoids main-thread work regardless of its property."
+        }
+      ],
+      "answer": "c",
+      "explanation": "Eligible transform effects can be composited without repeating layout and paint. Eligibility depends on the effect and circumstances; this does not move arbitrary JavaScript callbacks off the main thread.",
+      "materials": [
+        "web-render-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.chrome.com/docs/chromium/renderingng-architecture",
+          "title": "RenderingNG architecture",
+          "publisher": "Google",
+          "accessed": "2026-10-09",
+          "claim": "Chromium separates style, layout, paint, raster and compositing; eligible visual effects can skip earlier pipeline stages."
+        }
+      ]
+    },
+    {
+      "id": "w01-l01-q05",
+      "lesson": "w01-l01",
+      "concept": "w01-l01-navigation-commit",
+      "type": "multiple_choice",
+      "prompt": "A navigation response is a downloadable file rather than a document to display. Why might no renderer commit follow?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Every download response must first be committed as a displayed document."
+        },
+        {
+          "id": "b",
+          "text": "The browser can hand the response to download handling instead."
+        },
+        {
+          "id": "c",
+          "text": "The browser checks whether a response is a download only after completing layout."
+        },
+        {
+          "id": "d",
+          "text": "A download response is ordinary HTML rendering with painting disabled after parsing."
+        }
+      ],
+      "answer": "b",
+      "explanation": "Response handling can select download processing without committing a displayed document. Download classification is not a layout or paint decision.",
+      "materials": [
+        "web-nav-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.chrome.com/blog/inside-browser-part2",
+          "title": "Inside look at modern web browser (part 2)",
+          "publisher": "Google",
+          "accessed": "2026-10-09",
+          "claim": "Navigation uses network requests, may follow redirects, checks response type and commits the document to a renderer."
+        }
+      ]
+    },
+    {
+      "id": "w01-l01-q06",
+      "lesson": "w01-l01",
+      "concept": "w01-l01-script-scheduling",
+      "type": "multiple_choice",
+      "prompt": "A dependency must execute before a classic script that uses it. Both are external. Which scheduling choice retains their document order without blocking parsing during download?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Put the dependency first and use `defer` on both scripts."
+        },
+        {
+          "id": "b",
+          "text": "Put the dependency first and use `async` on both scripts."
+        },
+        {
+          "id": "c",
+          "text": "Put the dependency last and use `async` on both scripts."
+        },
+        {
+          "id": "d",
+          "text": "Put the dependency last and use `defer` on both scripts."
+        }
+      ],
+      "answer": "a",
+      "explanation": "Defer keeps document order after parsing. Async does not guarantee order, and putting the dependency last with defer preserves the wrong order.",
+      "materials": [
+        "web-script-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://html.spec.whatwg.org/multipage/scripting.html#the-script-element",
+          "title": "HTML Standard: scripting",
+          "publisher": "WHATWG",
+          "accessed": "2026-10-09",
+          "claim": "Classic script execution depends on async and defer; module scripts are deferred by default and async changes their scheduling."
+        }
+      ]
+    },
+    {
+      "id": "w01-l01-q07",
+      "lesson": "w01-l01",
+      "concept": "w01-l01-navigation-commit",
+      "type": "multiple_select",
+      "prompt": "A teammate describes the navigation boundary. Which statements hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A redirect must be committed as the final displayed document before it is followed."
+        },
+        {
+          "id": "b",
+          "text": "A response marked for download must first create a displayed HTML document."
+        },
+        {
+          "id": "c",
+          "text": "Redirects can require another network request."
+        },
+        {
+          "id": "d",
+          "text": "A document commit transfers navigation to a renderer."
+        },
+        {
+          "id": "e",
+          "text": "Every navigation response must be rendered as HTML."
+        }
+      ],
+      "answers": [
+        "c",
+        "d"
+      ],
+      "explanation": "a: Following a redirect belongs to navigation, before a suitable final document commit. b: Download handling can consume the response without committing a new displayed document. c: The network handling follows a redirect destination. d: A suitable response is committed for document processing. e: Downloads and other response handling paths exist.",
+      "materials": [
+        "web-nav-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.chrome.com/blog/inside-browser-part2",
+          "title": "Inside look at modern web browser (part 2)",
+          "publisher": "Google",
+          "accessed": "2026-10-09",
+          "claim": "Navigation uses network requests, may follow redirects, checks response type and commits the document to a renderer."
+        }
+      ]
+    },
+    {
+      "id": "w01-l01-q08",
+      "lesson": "w01-l01",
+      "concept": "w01-l01-script-scheduling",
+      "type": "multiple_select",
+      "prompt": "A page mixes external classic and module scripts. Which scheduling claims hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Defer makes classic scripts block parsing during download."
+        },
+        {
+          "id": "b",
+          "text": "A classic async script may run before parsing finishes."
+        },
+        {
+          "id": "c",
+          "text": "Classic defer scripts retain their document order."
+        },
+        {
+          "id": "d",
+          "text": "Module scripts block HTML parsing by default until their entire dependency graph executes."
+        },
+        {
+          "id": "e",
+          "text": "Async guarantees execution in document order."
+        }
+      ],
+      "answers": [
+        "b",
+        "c"
+      ],
+      "explanation": "a: The purpose is to defer execution instead of blocking parsing. b: Async scripts execute when ready. c: Deferred execution occurs in order after parsing. d: Module scripts are deferred by default rather than blocking parsing like ordinary classic scripts. e: Download readiness can change the execution order.",
+      "materials": [
+        "web-script-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://html.spec.whatwg.org/multipage/scripting.html#the-script-element",
+          "title": "HTML Standard: scripting",
+          "publisher": "WHATWG",
+          "accessed": "2026-10-09",
+          "claim": "Classic script execution depends on async and defer; module scripts are deferred by default and async changes their scheduling."
+        }
+      ]
+    },
+    {
+      "id": "w01-l01-q09",
+      "lesson": "w01-l01",
+      "concept": "w01-l01-rendering-stages",
+      "type": "multiple_select",
+      "prompt": "A developer interprets a Chromium rendering trace. Which stage descriptions hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Style computes CSS values for DOM content."
+        },
+        {
+          "id": "b",
+          "text": "Layout calculates element sizes and positions."
+        },
+        {
+          "id": "c",
+          "text": "Paint records a display list for drawing."
+        },
+        {
+          "id": "d",
+          "text": "Raster computes selector matches and element geometry before building styles."
+        },
+        {
+          "id": "e",
+          "text": "Compositing recomputes every DOM element layout on every displayed frame."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "c"
+      ],
+      "explanation": "a: The style stage creates computed styles. b: The layout stage creates geometry. c: Painting produces drawing instructions before raster. d: Style and layout produce styles and geometry; raster converts prepared drawing data into pixels. e: Compositing combines prepared visual artifacts and need not redo layout each frame.",
+      "materials": [
+        "web-render-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.chrome.com/docs/chromium/renderingng-architecture",
+          "title": "RenderingNG architecture",
+          "publisher": "Google",
+          "accessed": "2026-10-09",
+          "claim": "Chromium separates style, layout, paint, raster and compositing; eligible visual effects can skip earlier pipeline stages."
+        }
+      ]
+    },
+    {
+      "id": "w01-l01-q10",
+      "lesson": "w01-l01",
+      "concept": "w01-l01-compositor-work",
+      "type": "multiple_select",
+      "prompt": "A team plans animation work in Chromium. Which assumptions are sound? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Compositor work can be isolated from main-thread work."
+        },
+        {
+          "id": "b",
+          "text": "Every visual change always runs every rendering stage."
+        },
+        {
+          "id": "c",
+          "text": "Every transform animation qualifies for compositor-only execution regardless of circumstances."
+        },
+        {
+          "id": "d",
+          "text": "Every CSS animation moves its JavaScript handlers onto the compositor thread."
+        },
+        {
+          "id": "e",
+          "text": "Some visual effects can skip layout and paint."
+        }
+      ],
+      "answers": [
+        "a",
+        "e"
+      ],
+      "explanation": "a: The separate compositor thread supports responsiveness. b: Stages may be skipped when not needed. c: Compositor eligibility depends on the effect and rendering conditions. d: Compositor effects do not move arbitrary JavaScript handlers off the main thread. e: The pipeline can omit stages when their output is reusable.",
+      "materials": [
+        "web-render-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.chrome.com/docs/chromium/renderingng-architecture",
+          "title": "RenderingNG architecture",
+          "publisher": "Google",
+          "accessed": "2026-10-09",
+          "claim": "Chromium separates style, layout, paint, raster and compositing; eligible visual effects can skip earlier pipeline stages."
+        }
+      ]
+    }
+  ]
+}

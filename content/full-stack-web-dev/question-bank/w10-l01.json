@@ -1,0 +1,453 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "w10-l01-assertion-semantics",
+      "name": "Value and exception assertions"
+    },
+    {
+      "id": "w10-l01-async-assertions",
+      "name": "Awaiting asynchronous assertions"
+    },
+    {
+      "id": "w10-l01-mock-lifecycle",
+      "name": "Mock isolation and restoration"
+    },
+    {
+      "id": "w10-l01-fake-time",
+      "name": "Deterministic fake timers"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w10-l01-q01",
+      "type": "multiple_choice",
+      "lesson": "w10-l01",
+      "concept": "w10-l01-assertion-semantics",
+      "prompt": "Two separately created objects have equal fields. Which Vitest matcher checks their structure?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "toEqual."
+        },
+        {
+          "id": "b",
+          "text": "toBe, because equal fields imply one reference."
+        },
+        {
+          "id": "c",
+          "text": "toBeDefined, because both objects exist."
+        },
+        {
+          "id": "d",
+          "text": "toBeTruthy, because both values are objects."
+        }
+      ],
+      "answer": "a",
+      "explanation": "toEqual compares structure. toBe checks reference identity for objects; defined and truthy checks do not compare fields.",
+      "materials": [
+        "vitest-expect"
+      ],
+      "sources": [
+        {
+          "url": "https://vitest.dev/api/expect.html",
+          "title": "Vitest expect API",
+          "publisher": "Vitest",
+          "accessed": "2026-10-09",
+          "claim": "Vitest toBe checks Object.is equality, toEqual compares structure, and synchronous toThrow requires a function wrapper."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w10-l01-q02",
+      "type": "multiple_choice",
+      "lesson": "w10-l01",
+      "concept": "w10-l01-async-assertions",
+      "prompt": "A test asserts a rejected promise using rejects.toThrow. What must the test do with that assertion?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Call it without await because rejects is synchronous."
+        },
+        {
+          "id": "b",
+          "text": "Replace the rejection with a truthy check on the promise."
+        },
+        {
+          "id": "c",
+          "text": "End the test before the asynchronous matcher settles."
+        },
+        {
+          "id": "d",
+          "text": "Await the assertion promise."
+        }
+      ],
+      "answer": "d",
+      "explanation": "Promise matchers are asynchronous. Awaiting them ensures the assertion is completed; promise existence does not verify its outcome.",
+      "materials": [
+        "vitest-expect"
+      ],
+      "sources": [
+        {
+          "url": "https://vitest.dev/api/expect.html",
+          "title": "Vitest expect API",
+          "publisher": "Vitest",
+          "accessed": "2026-10-09",
+          "claim": "Vitest resolves and rejects unwrap promise outcomes and their matchers must be awaited."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w10-l01-q03",
+      "type": "multiple_choice",
+      "lesson": "w10-l01",
+      "concept": "w10-l01-mock-lifecycle",
+      "prompt": "A spy replaces a real implementation and later tests unexpectedly observe it. What maintenance step is missing?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Increase the test timeout instead of restoring it."
+        },
+        {
+          "id": "b",
+          "text": "Reuse the altered implementation in every later test."
+        },
+        {
+          "id": "c",
+          "text": "Restore the spy after the test."
+        },
+        {
+          "id": "d",
+          "text": "Repeat the spy call to make its behavior permanent."
+        }
+      ],
+      "answer": "c",
+      "explanation": "A spy can alter shared behavior. Restoration returns the original implementation and prevents leakage; longer timeouts do not address state.",
+      "materials": [
+        "vitest-mocking"
+      ],
+      "sources": [
+        {
+          "url": "https://vitest.dev/guide/mocking.html",
+          "title": "Vitest mocking guide",
+          "publisher": "Vitest",
+          "accessed": "2026-10-09",
+          "claim": "Vitest mocks and spies record calls and require clearing or restoring state between tests."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w10-l01-q04",
+      "type": "multiple_choice",
+      "lesson": "w10-l01",
+      "concept": "w10-l01-fake-time",
+      "prompt": "A test waits several real seconds for a scheduled callback. Which tool makes the timer behavior deterministic?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Run the test only when the wall clock matches production."
+        },
+        {
+          "id": "b",
+          "text": "Use fake timers and advance controlled time."
+        },
+        {
+          "id": "c",
+          "text": "Increase every real delay until CI stops failing."
+        },
+        {
+          "id": "d",
+          "text": "Skip the callback assertion whenever the machine is busy."
+        }
+      ],
+      "answer": "b",
+      "explanation": "Fake timers let the test control time without real waiting. Increasing delays and skipping assertions do not test the scheduled behavior reliably.",
+      "materials": [
+        "vitest-timers"
+      ],
+      "sources": [
+        {
+          "url": "https://vitest.dev/guide/mocking/timers",
+          "title": "Vitest timers guide",
+          "publisher": "Vitest",
+          "accessed": "2026-10-09",
+          "claim": "Vitest fake timers simulate timer APIs and can be restored to real timers after a test."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w10-l01-q05",
+      "type": "multiple_choice",
+      "lesson": "w10-l01",
+      "concept": "w10-l01-assertion-semantics",
+      "prompt": "Which pattern correctly tests a synchronous function that throws?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "expect(() => operation()).toThrow()."
+        },
+        {
+          "id": "b",
+          "text": "expect(operation()).toThrow(), letting the call throw first."
+        },
+        {
+          "id": "c",
+          "text": "expect(operation).toBeTruthy(), checking the function exists."
+        },
+        {
+          "id": "d",
+          "text": "expect(operation()).toBeDefined(), bypassing exception capture."
+        }
+      ],
+      "answer": "a",
+      "explanation": "The wrapper delays execution until the matcher can capture the error. Existence assertions do not test exceptions.",
+      "materials": [
+        "vitest-expect"
+      ],
+      "sources": [
+        {
+          "url": "https://vitest.dev/api/expect.html",
+          "title": "Vitest expect API",
+          "publisher": "Vitest",
+          "accessed": "2026-10-09",
+          "claim": "Synchronous toThrow needs a function to invoke and capture exceptions."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w10-l01-q06",
+      "type": "multiple_choice",
+      "lesson": "w10-l01",
+      "concept": "w10-l01-async-assertions",
+      "prompt": "An async function should return a known object. Which assertion checks the fulfilled value?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "expect(operation()).toBe(expected), comparing promise identity."
+        },
+        {
+          "id": "b",
+          "text": "expect(operation()).toBeTruthy(), checking promise existence."
+        },
+        {
+          "id": "c",
+          "text": "expect(operation).toBeDefined(), without calling the function."
+        },
+        {
+          "id": "d",
+          "text": "await expect(operation()).resolves.toEqual(expected)."
+        }
+      ],
+      "answer": "d",
+      "explanation": "resolves unwraps the settled value and toEqual compares it. The alternatives do not test the returned data.",
+      "materials": [
+        "vitest-expect"
+      ],
+      "sources": [
+        {
+          "url": "https://vitest.dev/api/expect.html",
+          "title": "Vitest expect API",
+          "publisher": "Vitest",
+          "accessed": "2026-10-09",
+          "claim": "resolves unwraps a fulfilled promise and must be awaited."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w10-l01-q07",
+      "type": "multiple_select",
+      "lesson": "w10-l01",
+      "concept": "w10-l01-assertion-semantics",
+      "prompt": "Which assertion choices match their intended behavior? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Treat toBeTruthy as a complete comparison of object fields."
+        },
+        {
+          "id": "b",
+          "text": "toEqual proves two objects share the same reference when their fields match."
+        },
+        {
+          "id": "c",
+          "text": "Use toEqual to compare the structure of separate objects."
+        },
+        {
+          "id": "d",
+          "text": "Use toBe when object reference identity is the requirement."
+        },
+        {
+          "id": "e",
+          "text": "Pass an already executed throwing call directly to synchronous toThrow."
+        }
+      ],
+      "answers": [
+        "c",
+        "d"
+      ],
+      "explanation": "A is incorrect: Truthy checks boolean conversion, not structure. B is incorrect: Structural equality does not establish reference identity; toBe checks Object.is. C is correct: It compares values recursively. D is correct: toBe uses Object.is semantics. E is incorrect: A function wrapper lets the matcher catch the throw.",
+      "materials": [
+        "vitest-expect"
+      ],
+      "sources": [
+        {
+          "url": "https://vitest.dev/api/expect.html",
+          "title": "Vitest expect API",
+          "publisher": "Vitest",
+          "accessed": "2026-10-09",
+          "claim": "Vitest toBe checks Object.is equality, toEqual compares structure, and synchronous toThrow requires a function wrapper."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w10-l01-q08",
+      "type": "multiple_select",
+      "lesson": "w10-l01",
+      "concept": "w10-l01-async-assertions",
+      "prompt": "Which async assertion statements hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "toBe on an unresolved promise compares its future result automatically."
+        },
+        {
+          "id": "b",
+          "text": "resolves fails when the supplied promise rejects."
+        },
+        {
+          "id": "c",
+          "text": "rejects fails when the supplied promise fulfills."
+        },
+        {
+          "id": "d",
+          "text": "Await matchers chained after resolves or rejects."
+        },
+        {
+          "id": "e",
+          "text": "An existing Promise object proves its eventual result is correct."
+        }
+      ],
+      "answers": [
+        "b",
+        "c",
+        "d"
+      ],
+      "explanation": "A is incorrect: A direct comparison does not unwrap the promise. B is correct: It expects a fulfilled outcome. C is correct: It expects a rejected outcome. D is correct: Those matchers return promises. E is incorrect: The object says nothing about its settled value.",
+      "materials": [
+        "vitest-expect"
+      ],
+      "sources": [
+        {
+          "url": "https://vitest.dev/api/expect.html",
+          "title": "Vitest expect API",
+          "publisher": "Vitest",
+          "accessed": "2026-10-09",
+          "claim": "Vitest resolves and rejects unwrap promise outcomes and their matchers must be awaited."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w10-l01-q09",
+      "type": "multiple_select",
+      "lesson": "w10-l01",
+      "concept": "w10-l01-mock-lifecycle",
+      "prompt": "Which practices keep mock-based tests isolated? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Clear call history when a new test must start with no previous calls."
+        },
+        {
+          "id": "b",
+          "text": "Restore spied implementations when replacement is no longer needed."
+        },
+        {
+          "id": "c",
+          "text": "Assume a mock automatically proves the real dependency behaves identically."
+        },
+        {
+          "id": "d",
+          "text": "Share accumulated call history to make tests independent."
+        },
+        {
+          "id": "e",
+          "text": "A spy always replaces the implementation rather than merely observing it."
+        }
+      ],
+      "answers": [
+        "a",
+        "b"
+      ],
+      "explanation": "A is correct: Recorded interactions can otherwise leak between tests. B is correct: Restoration undoes altered behavior. C is incorrect: A mock supplies controlled behavior rather than validating the real dependency. D is incorrect: Shared state creates order dependence. E is incorrect: A spy can observe existing behavior or be configured with a replacement.",
+      "materials": [
+        "vitest-mocking"
+      ],
+      "sources": [
+        {
+          "url": "https://vitest.dev/guide/mocking.html",
+          "title": "Vitest mocking guide",
+          "publisher": "Vitest",
+          "accessed": "2026-10-09",
+          "claim": "Vitest mocks and spies record calls and require clearing or restoring state between tests."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w10-l01-q10",
+      "type": "multiple_select",
+      "lesson": "w10-l01",
+      "concept": "w10-l01-fake-time",
+      "prompt": "Which choices support testing timer-based logic? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Restore real timers when the timer test finishes."
+        },
+        {
+          "id": "b",
+          "text": "Expect real wall-clock waiting to advance every fake timer automatically."
+        },
+        {
+          "id": "c",
+          "text": "Use timer controls to trigger scheduled callbacks deterministically."
+        },
+        {
+          "id": "d",
+          "text": "Treat fake timers as a substitute for asserting callback results."
+        },
+        {
+          "id": "e",
+          "text": "Enable fake timers before scheduling the behavior under test."
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "A is correct: Cleanup avoids affecting later tests. B is incorrect: Fake timer progression is controlled rather than ordinary elapsed time. C is correct: The test can move simulated time forward. D is incorrect: Controlling time does not verify the resulting behavior. E is correct: The scheduled timer must use the controlled timer APIs.",
+      "materials": [
+        "vitest-timers"
+      ],
+      "sources": [
+        {
+          "url": "https://vitest.dev/guide/mocking/timers",
+          "title": "Vitest timers guide",
+          "publisher": "Vitest",
+          "accessed": "2026-10-09",
+          "claim": "Vitest fake timers simulate timer APIs and can be restored to real timers after a test."
+        }
+      ],
+      "retired": null
+    }
+  ]
+}

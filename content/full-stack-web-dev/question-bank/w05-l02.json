@@ -1,0 +1,454 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "w05-l02-snapshot",
+      "name": "Render state snapshots"
+    },
+    {
+      "id": "w05-l02-updater-queue",
+      "name": "Functional updater queues"
+    },
+    {
+      "id": "w05-l02-replacement-queue",
+      "name": "Replacement and updater ordering"
+    },
+    {
+      "id": "w05-l02-batch-boundary",
+      "name": "Batching boundaries"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w05-l02-q01",
+      "lesson": "w05-l02",
+      "concept": "w05-l02-snapshot",
+      "type": "multiple_choice",
+      "prompt": "count is 0 in this render. A handler calls setCount(count + 1) three times. What count is queued?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "0, because direct replacement updates are ignored in handlers."
+        },
+        {
+          "id": "b",
+          "text": "3, because each call mutates the captured count immediately."
+        },
+        {
+          "id": "c",
+          "text": "2, because React removes only one duplicate queued update."
+        },
+        {
+          "id": "d",
+          "text": "1, because all three calls use the same captured value."
+        }
+      ],
+      "answer": "d",
+      "explanation": "Each expression reads 0 and requests replacement with 1. The render snapshot does not change between calls.",
+      "materials": [
+        "react-state-update-queue"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/learn/queueing-a-series-of-state-updates",
+          "title": "Queueing a Series of State Updates",
+          "publisher": "React",
+          "accessed": "2026-10-09",
+          "claim": "State values are fixed within a render; React batches updates in an event, queues functional updaters in order, and treats direct values as replacements rather than cumulative mutations."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w05-l02-q02",
+      "lesson": "w05-l02",
+      "concept": "w05-l02-snapshot",
+      "type": "multiple_choice",
+      "prompt": "A handler schedules a timeout, then updates state. Which state does the existing timeout closure read?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The latest DOM text because event handlers read through the DOM."
+        },
+        {
+          "id": "b",
+          "text": "The state captured by the render that created that closure."
+        },
+        {
+          "id": "c",
+          "text": "An undefined value because state changes invalidate all closures."
+        },
+        {
+          "id": "d",
+          "text": "The latest committed value because closures track state setters."
+        }
+      ],
+      "answer": "b",
+      "explanation": "A handler and its timeout capture that render snapshot. Setting state does not rewrite an already created closure.",
+      "materials": [
+        "react-state-snapshot"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/learn/state-as-a-snapshot",
+          "title": "State as a Snapshot",
+          "publisher": "React",
+          "accessed": "2026-10-09",
+          "claim": "Event handlers and asynchronous callbacks see the state snapshot captured by their render."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w05-l02-q03",
+      "lesson": "w05-l02",
+      "concept": "w05-l02-updater-queue",
+      "type": "multiple_choice",
+      "prompt": "count starts at 0. Three calls to setCount(n => n + 1) queue what final count?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "3, because each updater receives the preceding queued result."
+        },
+        {
+          "id": "b",
+          "text": "2, because the first queued updater is discarded during batching."
+        },
+        {
+          "id": "c",
+          "text": "0, because functions are stored without being evaluated later."
+        },
+        {
+          "id": "d",
+          "text": "1, because updater functions always receive the render snapshot."
+        }
+      ],
+      "answer": "a",
+      "explanation": "The queue transforms 0 to 1 to 2 to 3. Each updater works on the result of the previous item.",
+      "materials": [
+        "react-state-update-queue"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/learn/queueing-a-series-of-state-updates",
+          "title": "Queueing a Series of State Updates",
+          "publisher": "React",
+          "accessed": "2026-10-09",
+          "claim": "State values are fixed within a render; React batches updates in an event, queues functional updaters in order, and treats direct values as replacements rather than cumulative mutations."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w05-l02-q04",
+      "lesson": "w05-l02",
+      "concept": "w05-l02-updater-queue",
+      "type": "multiple_choice",
+      "prompt": "Which updater is suitable when the next value depends on queued earlier changes?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "count++, because local mutation notifies React immediately."
+        },
+        {
+          "id": "b",
+          "text": "setCount(previous => previous + 1), using the queued value."
+        },
+        {
+          "id": "c",
+          "text": "setCount(1), because replacements accumulate automatically."
+        },
+        {
+          "id": "d",
+          "text": "setCount(count + 1), because it changes the captured count."
+        }
+      ],
+      "answer": "b",
+      "explanation": "Functional updates use the pending queue value. Captured direct expressions and local mutation are different operations.",
+      "materials": [
+        "react-state-update-queue"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/learn/queueing-a-series-of-state-updates",
+          "title": "Queueing a Series of State Updates",
+          "publisher": "React",
+          "accessed": "2026-10-09",
+          "claim": "State values are fixed within a render; React batches updates in an event, queues functional updaters in order, and treats direct values as replacements rather than cumulative mutations."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w05-l02-q05",
+      "lesson": "w05-l02",
+      "concept": "w05-l02-replacement-queue",
+      "type": "multiple_choice",
+      "prompt": "count starts at 0. The handler calls setCount(5), then setCount(n => n + 1). What is next?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "0, because mixing updater types cancels the entire queue."
+        },
+        {
+          "id": "b",
+          "text": "5, because an updater cannot follow a replacement value."
+        },
+        {
+          "id": "c",
+          "text": "1, because all functions start from the old render snapshot."
+        },
+        {
+          "id": "d",
+          "text": "6, because replacement is processed before the increment."
+        }
+      ],
+      "answer": "d",
+      "explanation": "The replacement sets the queued value to 5; the following updater increments it to 6.",
+      "materials": [
+        "react-state-update-queue"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/learn/queueing-a-series-of-state-updates",
+          "title": "Queueing a Series of State Updates",
+          "publisher": "React",
+          "accessed": "2026-10-09",
+          "claim": "State values are fixed within a render; React batches updates in an event, queues functional updaters in order, and treats direct values as replacements rather than cumulative mutations."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w05-l02-q06",
+      "lesson": "w05-l02",
+      "concept": "w05-l02-batch-boundary",
+      "type": "multiple_choice",
+      "prompt": "Why can two intentional button clicks still observe different state snapshots?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A second click runs before the first click handler finishes."
+        },
+        {
+          "id": "b",
+          "text": "React batches every event during the entire lifetime of the page."
+        },
+        {
+          "id": "c",
+          "text": "Browser painting is the only operation that updates React state."
+        },
+        {
+          "id": "d",
+          "text": "React does not batch separate intentional events into one event."
+        }
+      ],
+      "answer": "d",
+      "explanation": "React batches within an event but keeps independent intentional interactions distinct, such as disabling a form before the next click.",
+      "materials": [
+        "react-state-update-queue"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/learn/queueing-a-series-of-state-updates",
+          "title": "Queueing a Series of State Updates",
+          "publisher": "React",
+          "accessed": "2026-10-09",
+          "claim": "State values are fixed within a render; React batches updates in an event, queues functional updaters in order, and treats direct values as replacements rather than cumulative mutations."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w05-l02-q07",
+      "lesson": "w05-l02",
+      "concept": "w05-l02-snapshot",
+      "type": "multiple_select",
+      "prompt": "Which claims hold for a state snapshot captured by an event handler? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The handler sees the state associated with its render."
+        },
+        {
+          "id": "b",
+          "text": "Calling a setter rewrites the existing handler local state value."
+        },
+        {
+          "id": "c",
+          "text": "A timeout closure automatically reads the latest render state."
+        },
+        {
+          "id": "d",
+          "text": "A later render can create handlers with newer snapshots."
+        },
+        {
+          "id": "e",
+          "text": "A setter requests a future render rather than mutating that snapshot."
+        }
+      ],
+      "answers": [
+        "a",
+        "d",
+        "e"
+      ],
+      "explanation": "A: Correct: handlers belong to one render. B: Incorrect: current captured values remain fixed. C: Incorrect: closures retain captured values. D: Correct: new handlers capture new state. E: Correct: setters queue new UI calculations.",
+      "materials": [
+        "react-state-snapshot"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/learn/state-as-a-snapshot",
+          "title": "State as a Snapshot",
+          "publisher": "React",
+          "accessed": "2026-10-09",
+          "claim": "Each render supplies a state snapshot; setting state requests a render without changing values in existing handlers."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w05-l02-q08",
+      "lesson": "w05-l02",
+      "concept": "w05-l02-updater-queue",
+      "type": "multiple_select",
+      "prompt": "Which properties describe functional state updaters? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Several updaters are processed in their queued order."
+        },
+        {
+          "id": "b",
+          "text": "They should be pure calculations without side effects."
+        },
+        {
+          "id": "c",
+          "text": "Each updater must ignore earlier pending queue entries."
+        },
+        {
+          "id": "d",
+          "text": "They can calculate a value from the previous queued result."
+        },
+        {
+          "id": "e",
+          "text": "They should send a network request when React evaluates them."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "d"
+      ],
+      "explanation": "A: Correct: the queue applies them sequentially. B: Correct: repeatable calculations are required. C: Incorrect: previous queue results feed subsequent updates. D: Correct: their argument is the preceding queue value. E: Incorrect: updaters must remain pure.",
+      "materials": [
+        "react-state-update-queue"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/learn/queueing-a-series-of-state-updates",
+          "title": "Queueing a Series of State Updates",
+          "publisher": "React",
+          "accessed": "2026-10-09",
+          "claim": "State values are fixed within a render; React batches updates in an event, queues functional updaters in order, and treats direct values as replacements rather than cumulative mutations."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w05-l02-q09",
+      "lesson": "w05-l02",
+      "concept": "w05-l02-replacement-queue",
+      "type": "multiple_select",
+      "prompt": "Starting from 0, which statements about mixed queues are correct? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A final replacement can override an earlier calculated value."
+        },
+        {
+          "id": "b",
+          "text": "setCount(5) then setCount(7) results in 12."
+        },
+        {
+          "id": "c",
+          "text": "A direct replacement is processed where it appears in the queue."
+        },
+        {
+          "id": "d",
+          "text": "n => n + 1 then setCount(5) results in 6."
+        },
+        {
+          "id": "e",
+          "text": "setCount(5) then n => n + 1 results in 6."
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "A: Correct: a replacement supplies a new pending value. B: Incorrect: replacements yield 7 rather than summing. C: Correct: queue order matters for both entry types. D: Incorrect: the final replacement yields 5. E: Correct: 5 is incremented.",
+      "materials": [
+        "react-state-update-queue"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/learn/queueing-a-series-of-state-updates",
+          "title": "Queueing a Series of State Updates",
+          "publisher": "React",
+          "accessed": "2026-10-09",
+          "claim": "State values are fixed within a render; React batches updates in an event, queues functional updaters in order, and treats direct values as replacements rather than cumulative mutations."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w05-l02-q10",
+      "lesson": "w05-l02",
+      "concept": "w05-l02-batch-boundary",
+      "type": "multiple_select",
+      "prompt": "Which batching statements are accurate? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Batching combines repeated replacement values by adding them together."
+        },
+        {
+          "id": "b",
+          "text": "Batching makes every captured state variable mutate immediately."
+        },
+        {
+          "id": "c",
+          "text": "Multiple updates can be processed together instead of separate intermediate renders."
+        },
+        {
+          "id": "d",
+          "text": "React normally waits for an event handler to finish before processing its updates."
+        },
+        {
+          "id": "e",
+          "text": "React always combines separate intentional clicks into the same batch before showing either result."
+        }
+      ],
+      "answers": [
+        "c",
+        "d"
+      ],
+      "explanation": "A: Incorrect: direct values replace the queued value rather than being added. B: Incorrect: render snapshots stay fixed. C: Correct: batching reduces intermediate render work. D: Correct: this avoids partial updates during the handler. E: Incorrect: intentional events retain separate boundaries.",
+      "materials": [
+        "react-state-update-queue"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/learn/queueing-a-series-of-state-updates",
+          "title": "Queueing a Series of State Updates",
+          "publisher": "React",
+          "accessed": "2026-10-09",
+          "claim": "State values are fixed within a render; React batches updates in an event, queues functional updaters in order, and treats direct values as replacements rather than cumulative mutations."
+        }
+      ],
+      "retired": null
+    }
+  ]
+}

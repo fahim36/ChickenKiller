@@ -1,0 +1,475 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "w03-l01-lexical-binding",
+      "name": "Block bindings and initialization"
+    },
+    {
+      "id": "w03-l01-closure-binding",
+      "name": "Closures capture lexical bindings"
+    },
+    {
+      "id": "w03-l01-iteration-scope",
+      "name": "Per-iteration loop bindings"
+    },
+    {
+      "id": "w03-l01-this-binding",
+      "name": "Arrow and ordinary function this"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w03-l01-q01",
+      "lesson": "w03-l01",
+      "concept": "w03-l01-lexical-binding",
+      "type": "multiple_choice",
+      "prompt": "Inside one block, code reads `count` before the later `let count = 1` declaration executes. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The read returns undefined because let uses the same initialization rule as var."
+        },
+        {
+          "id": "b",
+          "text": "The read finds an outer count because the inner binding starts after its declaration."
+        },
+        {
+          "id": "c",
+          "text": "The read returns 1 because lexical declarations initialize at block entry."
+        },
+        {
+          "id": "d",
+          "text": "A ReferenceError occurs because the lexical binding is not initialized."
+        }
+      ],
+      "answer": "d",
+      "explanation": "The inner lexical binding exists across the block but is uninitialized before its declaration executes. That is the temporal dead zone, not var-style undefined initialization.",
+      "materials": [
+        "web-scope-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://tc39.es/ecma262/multipage/ecmascript-language-statements-and-declarations.html",
+          "title": "ECMAScript: Statements and Declarations",
+          "publisher": "Ecma International",
+          "accessed": "2026-10-09",
+          "claim": "Lexical declarations create block bindings; const prohibits reassignment, and for loops can create per-iteration environments."
+        }
+      ]
+    },
+    {
+      "id": "w03-l01-q02",
+      "lesson": "w03-l01",
+      "concept": "w03-l01-closure-binding",
+      "type": "multiple_choice",
+      "prompt": "`let n = 1; const read = () => n; n = 2;` What does `read()` return?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "undefined, because the binding disappears after the arrow function is defined."
+        },
+        {
+          "id": "b",
+          "text": "A ReferenceError, because closures cannot observe reassigned let bindings."
+        },
+        {
+          "id": "c",
+          "text": "2, because the closure reads the current captured binding."
+        },
+        {
+          "id": "d",
+          "text": "1, because creating a closure copies every primitive value into it."
+        }
+      ],
+      "answer": "c",
+      "explanation": "Closures retain access to lexical bindings rather than snapshotting their current primitive values. The later assignment changes the value read.",
+      "materials": [
+        "web-scope-reference",
+        "web-functions-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://tc39.es/ecma262/multipage/ecmascript-language-statements-and-declarations.html",
+          "title": "ECMAScript: Statements and Declarations",
+          "publisher": "Ecma International",
+          "accessed": "2026-10-09",
+          "claim": "Lexical declarations create block bindings; const prohibits reassignment, and for loops can create per-iteration environments."
+        },
+        {
+          "url": "https://tc39.es/ecma262/multipage/ecmascript-language-functions-and-classes.html",
+          "title": "ECMAScript: Functions and Classes",
+          "publisher": "Ecma International",
+          "accessed": "2026-10-09",
+          "claim": "Functions retain lexical environments; arrow functions use lexical this, and class private fields require their declaring brand."
+        }
+      ]
+    },
+    {
+      "id": "w03-l01-q03",
+      "lesson": "w03-l01",
+      "concept": "w03-l01-iteration-scope",
+      "type": "multiple_choice",
+      "prompt": "Callbacks are pushed inside `for (let i=0; i<3; i++)`. Each callback returns i after the loop. What values result?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "1, 2, 3 because every callback runs automatically after its increment."
+        },
+        {
+          "id": "b",
+          "text": "0, 1, 2 because each iteration gets a distinct binding."
+        },
+        {
+          "id": "c",
+          "text": "3, 3, 3 because every let loop shares the final incremented binding."
+        },
+        {
+          "id": "d",
+          "text": "0, 0, 0 because the binding is initialized only on the first iteration."
+        }
+      ],
+      "answer": "b",
+      "explanation": "A for loop with let creates per-iteration environments. The callbacks retain their respective iteration bindings, unlike a single var binding.",
+      "materials": [
+        "web-scope-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://tc39.es/ecma262/multipage/ecmascript-language-statements-and-declarations.html",
+          "title": "ECMAScript: Statements and Declarations",
+          "publisher": "Ecma International",
+          "accessed": "2026-10-09",
+          "claim": "Lexical declarations create block bindings; const prohibits reassignment, and for loops can create per-iteration environments."
+        }
+      ]
+    },
+    {
+      "id": "w03-l01-q04",
+      "lesson": "w03-l01",
+      "concept": "w03-l01-this-binding",
+      "type": "multiple_choice",
+      "prompt": "An object method is an arrow created in an enclosing function. Does calling it as `obj.method()` give that arrow a new this?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "No; the arrow keeps this from its enclosing lexical context."
+        },
+        {
+          "id": "b",
+          "text": "Yes; property-call syntax always overrides an arrow lexical this."
+        },
+        {
+          "id": "c",
+          "text": "Yes; call syntax replaces lexical this only when the method has no parameters."
+        },
+        {
+          "id": "d",
+          "text": "No; arrows always have the global object as this even inside another function."
+        }
+      ],
+      "answer": "a",
+      "explanation": "Arrow functions use lexical this. A property call does not replace it, and the captured value is not necessarily the global object.",
+      "materials": [
+        "web-functions-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://tc39.es/ecma262/multipage/ecmascript-language-functions-and-classes.html",
+          "title": "ECMAScript: Functions and Classes",
+          "publisher": "Ecma International",
+          "accessed": "2026-10-09",
+          "claim": "Functions retain lexical environments; arrow functions use lexical this, and class private fields require their declaring brand."
+        }
+      ]
+    },
+    {
+      "id": "w03-l01-q05",
+      "lesson": "w03-l01",
+      "concept": "w03-l01-lexical-binding",
+      "type": "multiple_choice",
+      "prompt": "`const settings = {dark:false}; settings.dark = true;` Why can this assignment succeed?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "const allows object mutation only before the next microtask checkpoint."
+        },
+        {
+          "id": "b",
+          "text": "const creates a shallow clone before each property assignment is executed."
+        },
+        {
+          "id": "c",
+          "text": "const behaves like let whenever its value is an object rather than a primitive."
+        },
+        {
+          "id": "d",
+          "text": "const prevents rebinding settings, not mutation of the referenced object."
+        }
+      ],
+      "answer": "d",
+      "explanation": "Const protects the binding from reassignment. It does not freeze the object or change its identity during mutation.",
+      "materials": [
+        "web-scope-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://tc39.es/ecma262/multipage/ecmascript-language-statements-and-declarations.html",
+          "title": "ECMAScript: Statements and Declarations",
+          "publisher": "Ecma International",
+          "accessed": "2026-10-09",
+          "claim": "Lexical declarations create block bindings; const prohibits reassignment, and for loops can create per-iteration environments."
+        }
+      ]
+    },
+    {
+      "id": "w03-l01-q06",
+      "lesson": "w03-l01",
+      "concept": "w03-l01-closure-binding",
+      "type": "multiple_choice",
+      "prompt": "Two closures share the same enclosing `let total` binding. One increments it and the other reads it. What is their relationship?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Both access the same value only until the enclosing function returns."
+        },
+        {
+          "id": "b",
+          "text": "The increment creates a new lexical scope and leaves the reader in the old scope."
+        },
+        {
+          "id": "c",
+          "text": "Both access the same binding, so the reader can see the increment."
+        },
+        {
+          "id": "d",
+          "text": "Each closure gets a private copied total, so the reader cannot see the increment."
+        }
+      ],
+      "answer": "c",
+      "explanation": "Closures created in the same lexical environment can share its binding after the outer function returns. Updates are visible through that shared binding.",
+      "materials": [
+        "web-functions-reference",
+        "web-scope-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://tc39.es/ecma262/multipage/ecmascript-language-functions-and-classes.html",
+          "title": "ECMAScript: Functions and Classes",
+          "publisher": "Ecma International",
+          "accessed": "2026-10-09",
+          "claim": "Functions retain lexical environments; arrow functions use lexical this, and class private fields require their declaring brand."
+        },
+        {
+          "url": "https://tc39.es/ecma262/multipage/ecmascript-language-statements-and-declarations.html",
+          "title": "ECMAScript: Statements and Declarations",
+          "publisher": "Ecma International",
+          "accessed": "2026-10-09",
+          "claim": "Lexical declarations create block bindings; const prohibits reassignment, and for loops can create per-iteration environments."
+        }
+      ]
+    },
+    {
+      "id": "w03-l01-q07",
+      "lesson": "w03-l01",
+      "concept": "w03-l01-lexical-binding",
+      "type": "multiple_select",
+      "prompt": "A review checks lexical declaration behavior. Which claims hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "let is initialized to undefined at block entry like var."
+        },
+        {
+          "id": "b",
+          "text": "An inner lexical binding is ignored before its declaration line."
+        },
+        {
+          "id": "c",
+          "text": "let can create a block-scoped binding."
+        },
+        {
+          "id": "d",
+          "text": "Reading an uninitialized lexical binding throws."
+        },
+        {
+          "id": "e",
+          "text": "const freezes every nested property of its object."
+        }
+      ],
+      "answers": [
+        "c",
+        "d"
+      ],
+      "explanation": "a: Lexical initialization waits for declaration evaluation. b: It shadows the outer binding throughout the block, including its uninitialized interval. c: Its binding belongs to the lexical block environment. d: It cannot be read before initialization. e: Const prevents binding reassignment, not object mutation.",
+      "materials": [
+        "web-scope-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://tc39.es/ecma262/multipage/ecmascript-language-statements-and-declarations.html",
+          "title": "ECMAScript: Statements and Declarations",
+          "publisher": "Ecma International",
+          "accessed": "2026-10-09",
+          "claim": "Lexical declarations create block bindings; const prohibits reassignment, and for loops can create per-iteration environments."
+        }
+      ]
+    },
+    {
+      "id": "w03-l01-q08",
+      "lesson": "w03-l01",
+      "concept": "w03-l01-closure-binding",
+      "type": "multiple_select",
+      "prompt": "A callback retains a local binding after its creator returns. Which closure claims hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Every closure receives a deep copy of all captured objects."
+        },
+        {
+          "id": "b",
+          "text": "The callback can still access its lexical environment."
+        },
+        {
+          "id": "c",
+          "text": "A later update to a shared binding can be visible."
+        },
+        {
+          "id": "d",
+          "text": "Two closures can share one enclosing binding."
+        },
+        {
+          "id": "e",
+          "text": "Returning from the creator invalidates every closure binding."
+        }
+      ],
+      "answers": [
+        "b",
+        "c",
+        "d"
+      ],
+      "explanation": "a: Object references and bindings are not automatically deep-copied. b: Function creation retains the environment needed for lookup. c: Closures observe bindings rather than snapshots. d: They can be created in the same environment. e: Captured environments remain usable by the closures.",
+      "materials": [
+        "web-functions-reference",
+        "web-scope-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://tc39.es/ecma262/multipage/ecmascript-language-functions-and-classes.html",
+          "title": "ECMAScript: Functions and Classes",
+          "publisher": "Ecma International",
+          "accessed": "2026-10-09",
+          "claim": "Functions retain lexical environments; arrow functions use lexical this, and class private fields require their declaring brand."
+        },
+        {
+          "url": "https://tc39.es/ecma262/multipage/ecmascript-language-statements-and-declarations.html",
+          "title": "ECMAScript: Statements and Declarations",
+          "publisher": "Ecma International",
+          "accessed": "2026-10-09",
+          "claim": "Lexical declarations create block bindings; const prohibits reassignment, and for loops can create per-iteration environments."
+        }
+      ]
+    },
+    {
+      "id": "w03-l01-q09",
+      "lesson": "w03-l01",
+      "concept": "w03-l01-iteration-scope",
+      "type": "multiple_select",
+      "prompt": "A team compares callbacks from let and var loops. Which claims hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A for-let loop can create per-iteration bindings."
+        },
+        {
+          "id": "b",
+          "text": "Callbacks can retain the binding from their own iteration."
+        },
+        {
+          "id": "c",
+          "text": "A var loop always creates a new binding for each callback."
+        },
+        {
+          "id": "d",
+          "text": "Callbacks execute automatically when pushed into an array."
+        },
+        {
+          "id": "e",
+          "text": "The increment rewrites every earlier let iteration binding."
+        }
+      ],
+      "answers": [
+        "a",
+        "b"
+      ],
+      "explanation": "a: The loop creates a new environment for each iteration. b: Their lexical environments preserve those bindings. c: Var commonly leaves callbacks sharing one function-scoped binding. d: Storing a function does not call it. e: Earlier closures retain earlier iteration environments.",
+      "materials": [
+        "web-scope-reference",
+        "web-functions-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://tc39.es/ecma262/multipage/ecmascript-language-statements-and-declarations.html",
+          "title": "ECMAScript: Statements and Declarations",
+          "publisher": "Ecma International",
+          "accessed": "2026-10-09",
+          "claim": "Lexical declarations create block bindings; const prohibits reassignment, and for loops can create per-iteration environments."
+        },
+        {
+          "url": "https://tc39.es/ecma262/multipage/ecmascript-language-functions-and-classes.html",
+          "title": "ECMAScript: Functions and Classes",
+          "publisher": "Ecma International",
+          "accessed": "2026-10-09",
+          "claim": "Functions retain lexical environments; arrow functions use lexical this, and class private fields require their declaring brand."
+        }
+      ]
+    },
+    {
+      "id": "w03-l01-q10",
+      "lesson": "w03-l01",
+      "concept": "w03-l01-this-binding",
+      "type": "multiple_select",
+      "prompt": "A callback API accepts arrow and ordinary functions. Which this claims hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "An ordinary method call can supply the receiver as this."
+        },
+        {
+          "id": "b",
+          "text": "call cannot replace an arrow lexical this."
+        },
+        {
+          "id": "c",
+          "text": "Every arrow always binds this to the browser window."
+        },
+        {
+          "id": "d",
+          "text": "Property-call syntax overrides this for every function kind."
+        },
+        {
+          "id": "e",
+          "text": "Arrow functions use the enclosing lexical this."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "e"
+      ],
+      "explanation": "a: Property-call evaluation provides the receiver to an ordinary function. b: The arrow ignores a supplied this argument for its lexical binding. c: Its lexical context may have a different this value. d: Arrow lexical this is not overridden by that syntax. e: Arrow creation does not introduce an ordinary this binding.",
+      "materials": [
+        "web-functions-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://tc39.es/ecma262/multipage/ecmascript-language-functions-and-classes.html",
+          "title": "ECMAScript: Functions and Classes",
+          "publisher": "Ecma International",
+          "accessed": "2026-10-09",
+          "claim": "Functions retain lexical environments; arrow functions use lexical this, and class private fields require their declaring brand."
+        }
+      ]
+    }
+  ]
+}

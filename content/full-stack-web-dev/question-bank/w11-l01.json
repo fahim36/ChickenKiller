@@ -1,0 +1,453 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "w11-l01-cache-aside",
+      "name": "Cache-aside miss and write paths"
+    },
+    {
+      "id": "w11-l01-cache-staleness",
+      "name": "Expiry and divergent local caches"
+    },
+    {
+      "id": "w11-l01-http-validation",
+      "name": "HTTP freshness and validation"
+    },
+    {
+      "id": "w11-l01-cache-scope",
+      "name": "Private and shared cache controls"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w11-l01-q01",
+      "type": "multiple_choice",
+      "lesson": "w11-l01",
+      "concept": "w11-l01-cache-aside",
+      "prompt": "A cache-aside write invalidates the cache before updating the database. Which race can occur?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Every reader is automatically blocked until the write completes."
+        },
+        {
+          "id": "b",
+          "text": "Invalidation atomically commits both cache and database changes."
+        },
+        {
+          "id": "c",
+          "text": "The cache changes into write-through mode for that request."
+        },
+        {
+          "id": "d",
+          "text": "A reader can repopulate the cache with the old database value."
+        }
+      ],
+      "answer": "d",
+      "explanation": "A read between invalidation and the store update can cache old data. The two operations are not atomic, and invalidation does not change the caching pattern.",
+      "materials": [
+        "azure-cache-aside"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/cache-aside",
+          "title": "Cache-Aside pattern",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "Cache-aside loads misses from the store, fills the cache, and writes the store before invalidating cached data."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w11-l01-q02",
+      "type": "multiple_choice",
+      "lesson": "w11-l01",
+      "concept": "w11-l01-cache-staleness",
+      "prompt": "Two API instances cache one record locally. A write invalidates only one instance. What should the design account for?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Cache expiry makes every read immediately strongly consistent."
+        },
+        {
+          "id": "b",
+          "text": "Independent local caches necessarily share one memory entry."
+        },
+        {
+          "id": "c",
+          "text": "The other instance can retain a stale local copy."
+        },
+        {
+          "id": "d",
+          "text": "A local invalidation always broadcasts to every instance."
+        }
+      ],
+      "answer": "c",
+      "explanation": "Private caches can diverge. A distributed mechanism or explicit expiry/invalidation strategy is needed; expiry bounds retention rather than creating immediate consistency.",
+      "materials": [
+        "azure-cache-aside"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/cache-aside",
+          "title": "Cache-Aside pattern",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "Cache-aside does not guarantee consistency, and local caches can diverge; expiry must balance staleness and repeated loading."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w11-l01-q03",
+      "type": "multiple_choice",
+      "lesson": "w11-l01",
+      "concept": "w11-l01-http-validation",
+      "prompt": "A response has Cache-Control: no-cache. What does that directive mean in its unqualified form?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Cache only the body and discard every response header."
+        },
+        {
+          "id": "b",
+          "text": "Validate with the origin before reusing the response."
+        },
+        {
+          "id": "c",
+          "text": "Never store the response in any cache under any circumstances."
+        },
+        {
+          "id": "d",
+          "text": "Reuse it indefinitely without contacting the origin."
+        }
+      ],
+      "answer": "b",
+      "explanation": "no-cache controls reuse through validation. It is not the same as no-store and does not permit unvalidated indefinite reuse.",
+      "materials": [
+        "web-cache-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc9111.html",
+          "title": "RFC 9111: HTTP Caching",
+          "publisher": "IETF",
+          "accessed": "2026-10-09",
+          "claim": "Unqualified no-cache requires successful validation before reuse; freshness and validation are distinct mechanisms."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w11-l01-q04",
+      "type": "multiple_choice",
+      "lesson": "w11-l01",
+      "concept": "w11-l01-cache-scope",
+      "prompt": "A personalized response uses Cache-Control: private. Which cache may store it subject to other rules?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A private browser cache."
+        },
+        {
+          "id": "b",
+          "text": "Any shared proxy cache because private means encrypted."
+        },
+        {
+          "id": "c",
+          "text": "Every CDN cache as long as the response has a cookie."
+        },
+        {
+          "id": "d",
+          "text": "No cache because private is identical to no-store."
+        }
+      ],
+      "answer": "a",
+      "explanation": "Unqualified private prohibits shared-cache storage while permitting private caches. It does not encrypt content or mean no-store.",
+      "materials": [
+        "web-cache-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc9111.html",
+          "title": "RFC 9111: HTTP Caching",
+          "publisher": "IETF",
+          "accessed": "2026-10-09",
+          "claim": "Unqualified private prohibits shared-cache storage but permits private storage; no-store applies to both private and shared caches."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w11-l01-q05",
+      "type": "multiple_choice",
+      "lesson": "w11-l01",
+      "concept": "w11-l01-cache-aside",
+      "prompt": "A record is absent from a cache-aside cache. Which sequence is appropriate?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Return permanent failure because cache misses cannot be loaded."
+        },
+        {
+          "id": "b",
+          "text": "Write an empty record to the database before checking it."
+        },
+        {
+          "id": "c",
+          "text": "Invalidate every other key and assume the missing value appears."
+        },
+        {
+          "id": "d",
+          "text": "Read the store, cache the value, then return it."
+        }
+      ],
+      "answer": "d",
+      "explanation": "Cache-aside loads the requested value from its underlying store. The cache is an optimization, not the only source of the record.",
+      "materials": [
+        "azure-cache-aside"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/cache-aside",
+          "title": "Cache-Aside pattern",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "Cache-aside reads misses from the source and then fills the cache."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w11-l01-q06",
+      "type": "multiple_choice",
+      "lesson": "w11-l01",
+      "concept": "w11-l01-cache-staleness",
+      "prompt": "Reducing a local cache TTL improves freshness but sharply increases database reads. Which tradeoff is visible?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A shorter TTL guarantees that no stale read can ever occur."
+        },
+        {
+          "id": "b",
+          "text": "More database reads prove that caching no longer has any valid use."
+        },
+        {
+          "id": "c",
+          "text": "More frequent refresh reduces retention but increases loading cost."
+        },
+        {
+          "id": "d",
+          "text": "Expiry changes every cache lookup into a database transaction lock."
+        }
+      ],
+      "answer": "c",
+      "explanation": "Shorter retention can reduce stale duration while increasing misses. It does not guarantee immediate consistency or make caching categorically useless.",
+      "materials": [
+        "azure-cache-aside"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/cache-aside",
+          "title": "Cache-Aside pattern",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "Cache-aside local copies can diverge and expiry trades freshness against repeated store access."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w11-l01-q07",
+      "type": "multiple_select",
+      "lesson": "w11-l01",
+      "concept": "w11-l01-cache-aside",
+      "prompt": "Which operations fit cache-aside? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Assume every external database change immediately updates the cache."
+        },
+        {
+          "id": "b",
+          "text": "Treat cache-aside as identical to updating both stores in the write path."
+        },
+        {
+          "id": "c",
+          "text": "Read the data store and populate the cache on a miss."
+        },
+        {
+          "id": "d",
+          "text": "Update the store before invalidating its cached item."
+        },
+        {
+          "id": "e",
+          "text": "Use invalidation as an atomic transaction with every database write."
+        }
+      ],
+      "answers": [
+        "c",
+        "d"
+      ],
+      "explanation": "A is incorrect: External changes can leave stale cached values. B is incorrect: That describes write-through behavior rather than invalidation on write. C is correct: Cache-aside loads data on demand. D is correct: This order reduces repopulation with pre-update data. E is incorrect: The ordinary pattern does not make both stores atomic.",
+      "materials": [
+        "azure-cache-aside"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/cache-aside",
+          "title": "Cache-Aside pattern",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "Cache-aside loads misses from the store, fills the cache, and writes the store before invalidating cached data."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w11-l01-q08",
+      "type": "multiple_select",
+      "lesson": "w11-l01",
+      "concept": "w11-l01-cache-staleness",
+      "prompt": "Which cache-expiry tradeoffs matter? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A cache hit proves the value is the latest authoritative data."
+        },
+        {
+          "id": "b",
+          "text": "Very short expiry can cause repeated loads from the data store."
+        },
+        {
+          "id": "c",
+          "text": "Very long expiry can preserve stale values for too long."
+        },
+        {
+          "id": "d",
+          "text": "Private instance caches can diverge after independent updates."
+        },
+        {
+          "id": "e",
+          "text": "An expiry policy guarantees immediate freshness after every external write."
+        }
+      ],
+      "answers": [
+        "b",
+        "c",
+        "d"
+      ],
+      "explanation": "A is incorrect: A hit can contain older data. B is correct: Premature expiration reduces cache benefits. C is correct: Retention affects data freshness. D is correct: Each instance can hold its own copy. E is incorrect: The value may remain stale until it is refreshed.",
+      "materials": [
+        "azure-cache-aside"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/cache-aside",
+          "title": "Cache-Aside pattern",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "Cache-aside does not guarantee consistency, and local caches can diverge; expiry must balance staleness and repeated loading."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w11-l01-q09",
+      "type": "multiple_select",
+      "lesson": "w11-l01",
+      "concept": "w11-l01-http-validation",
+      "prompt": "Which HTTP cache-validation claims follow RFC 9111? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "An unqualified no-cache response needs successful validation before reuse."
+        },
+        {
+          "id": "b",
+          "text": "Freshness lifetime and validation serve different cache decisions."
+        },
+        {
+          "id": "c",
+          "text": "no-cache and no-store always have identical storage semantics."
+        },
+        {
+          "id": "d",
+          "text": "A stale response is always reusable even when must-revalidate applies."
+        },
+        {
+          "id": "e",
+          "text": "A stored response with no-cache can be served without origin validation."
+        }
+      ],
+      "answers": [
+        "a",
+        "b"
+      ],
+      "explanation": "A is correct: The directive requires contacting the origin for validation. B is correct: A fresh response can be reused while validation checks a stored response. C is incorrect: no-cache can allow storage but restricts reuse. D is incorrect: Explicit revalidation restrictions prohibit that reuse. E is incorrect: That contradicts the unqualified directive.",
+      "materials": [
+        "web-cache-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc9111.html",
+          "title": "RFC 9111: HTTP Caching",
+          "publisher": "IETF",
+          "accessed": "2026-10-09",
+          "claim": "Unqualified no-cache requires successful validation before reuse; freshness and validation are distinct mechanisms."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w11-l01-q10",
+      "type": "multiple_select",
+      "lesson": "w11-l01",
+      "concept": "w11-l01-cache-scope",
+      "prompt": "Which cache-control distinctions hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "no-store ordinarily prohibits intentional storage in private and shared caches."
+        },
+        {
+          "id": "b",
+          "text": "s-maxage applies its age limit to shared caches."
+        },
+        {
+          "id": "c",
+          "text": "private encrypts the response content against interception."
+        },
+        {
+          "id": "d",
+          "text": "public makes a personalized response safe for every user automatically."
+        },
+        {
+          "id": "e",
+          "text": "Unqualified private forbids a shared cache from storing the response."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "e"
+      ],
+      "explanation": "A is correct: It applies across both cache types. B is correct: It overrides max-age or Expires for shared caches. C is incorrect: It controls storage location rather than transport confidentiality. D is incorrect: Caching permission does not establish correct user isolation. E is correct: The response is intended for a single user.",
+      "materials": [
+        "web-cache-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc9111.html",
+          "title": "RFC 9111: HTTP Caching",
+          "publisher": "IETF",
+          "accessed": "2026-10-09",
+          "claim": "Unqualified private prohibits shared-cache storage but permits private storage; no-store applies to both private and shared caches."
+        }
+      ],
+      "retired": null
+    }
+  ]
+}

@@ -1,0 +1,453 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "w08-l01-join-multiplicity",
+      "name": "Join multiplicity"
+    },
+    {
+      "id": "w08-l01-outer-filter",
+      "name": "Outer join filter placement"
+    },
+    {
+      "id": "w08-l01-null-predicate",
+      "name": "NULL predicates"
+    },
+    {
+      "id": "w08-l01-relational-constraint",
+      "name": "Relational constraints"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w08-l01-q01",
+      "lesson": "w08-l01",
+      "concept": "w08-l01-join-multiplicity",
+      "type": "multiple_choice",
+      "prompt": "A customer has three matching orders. How many rows does an inner join return for that customer?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Three rows because each matching pair contributes a result."
+        },
+        {
+          "id": "b",
+          "text": "One row because the customer primary key is unique."
+        },
+        {
+          "id": "c",
+          "text": "Zero rows because more than one match makes the join ambiguous."
+        },
+        {
+          "id": "d",
+          "text": "One row containing an automatically aggregated order array."
+        }
+      ],
+      "answer": "a",
+      "explanation": "A join emits matching pairs. A unique customer key does not collapse its three matching orders.",
+      "materials": [
+        "postgres-table-expressions"
+      ],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/queries-table-expressions.html",
+          "title": "Table Expressions",
+          "publisher": "PostgreSQL",
+          "accessed": "2026-10-09",
+          "claim": "An inner join produces each matching row pair; a left join preserves unmatched left rows with NULL right values, and ON filtering precedes outer-row preservation while WHERE filters its result."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w08-l01-q02",
+      "lesson": "w08-l01",
+      "concept": "w08-l01-join-multiplicity",
+      "type": "multiple_choice",
+      "prompt": "A report counts customers after joining their orders. Why can COUNT(*) exceed the customer count?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The join inserts copies into the customer table."
+        },
+        {
+          "id": "b",
+          "text": "SQL counts only distinct primary keys automatically."
+        },
+        {
+          "id": "c",
+          "text": "Foreign keys force every customer to have several orders."
+        },
+        {
+          "id": "d",
+          "text": "Each matching order can contribute another joined row."
+        }
+      ],
+      "answer": "d",
+      "explanation": "Joined rows have a different grain from customers. Aggregate deliberately, or count distinct customer keys when that is the requirement.",
+      "materials": [
+        "postgres-table-expressions"
+      ],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/queries-table-expressions.html",
+          "title": "Table Expressions",
+          "publisher": "PostgreSQL",
+          "accessed": "2026-10-09",
+          "claim": "An inner join produces each matching row pair; a left join preserves unmatched left rows with NULL right values, and ON filtering precedes outer-row preservation while WHERE filters its result."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w08-l01-q03",
+      "lesson": "w08-l01",
+      "concept": "w08-l01-outer-filter",
+      "type": "multiple_choice",
+      "prompt": "All customers must appear, with only paid orders attached. Where should the paid-order test go?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "In WHERE orders.status = paid after the left join."
+        },
+        {
+          "id": "b",
+          "text": "In an INNER JOIN because it preserves unmatched customers."
+        },
+        {
+          "id": "c",
+          "text": "In the LEFT JOIN ON condition alongside the customer key match."
+        },
+        {
+          "id": "d",
+          "text": "In WHERE with the key match, because ON and WHERE are interchangeable for outer joins."
+        }
+      ],
+      "answer": "c",
+      "explanation": "The ON predicate determines qualifying matches; LEFT JOIN then preserves customers without a qualifying order.",
+      "materials": [
+        "postgres-table-expressions"
+      ],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/queries-table-expressions.html",
+          "title": "Table Expressions",
+          "publisher": "PostgreSQL",
+          "accessed": "2026-10-09",
+          "claim": "An inner join produces each matching row pair; a left join preserves unmatched left rows with NULL right values, and ON filtering precedes outer-row preservation while WHERE filters its result."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w08-l01-q04",
+      "lesson": "w08-l01",
+      "concept": "w08-l01-outer-filter",
+      "type": "multiple_choice",
+      "prompt": "A LEFT JOIN is followed by WHERE orders.status = paid. What happens to customers without any order?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "They remain because WHERE filters matches but never NULL-extended rows."
+        },
+        {
+          "id": "b",
+          "text": "They remain because NULL equals any supplied status value."
+        },
+        {
+          "id": "c",
+          "text": "They are removed because that predicate does not evaluate true."
+        },
+        {
+          "id": "d",
+          "text": "They remain because LEFT JOIN overrides every later filter."
+        }
+      ],
+      "answer": "c",
+      "explanation": "WHERE retains true predicates. A NULL right-side status does not satisfy equality with paid.",
+      "materials": [
+        "postgres-table-expressions"
+      ],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/queries-table-expressions.html",
+          "title": "Table Expressions",
+          "publisher": "PostgreSQL",
+          "accessed": "2026-10-09",
+          "claim": "An inner join produces each matching row pair; a left join preserves unmatched left rows with NULL right values, and ON filtering precedes outer-row preservation while WHERE filters its result."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w08-l01-q05",
+      "lesson": "w08-l01",
+      "concept": "w08-l01-null-predicate",
+      "type": "multiple_choice",
+      "prompt": "Which predicate finds rows whose optional shipped_at column is NULL?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "shipped_at = NULL"
+        },
+        {
+          "id": "b",
+          "text": "shipped_at = an empty string"
+        },
+        {
+          "id": "c",
+          "text": "shipped_at <> NULL"
+        },
+        {
+          "id": "d",
+          "text": "shipped_at IS NULL"
+        }
+      ],
+      "answer": "d",
+      "explanation": "IS NULL tests missing values; ordinary comparisons with NULL do not become true.",
+      "materials": [
+        "postgres-table-expressions"
+      ],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/queries-table-expressions.html",
+          "title": "Table Expressions",
+          "publisher": "PostgreSQL",
+          "accessed": "2026-10-09",
+          "claim": "WHERE discards false or NULL conditions; unmatched outer-join fields are NULL and IS NULL can identify them."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w08-l01-q06",
+      "lesson": "w08-l01",
+      "concept": "w08-l01-relational-constraint",
+      "type": "multiple_choice",
+      "prompt": "An order must reference an existing customer and cannot omit that reference. Which constraints express both requirements?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A foreign key plus NOT NULL on customer_id."
+        },
+        {
+          "id": "b",
+          "text": "CHECK customer_id > 0 alone."
+        },
+        {
+          "id": "c",
+          "text": "An index on customer_id without any constraint."
+        },
+        {
+          "id": "d",
+          "text": "UNIQUE on customer_id alone."
+        }
+      ],
+      "answer": "a",
+      "explanation": "The foreign key enforces the relationship; NOT NULL disallows omitting the key. Uniqueness, positivity and indexing do not establish both.",
+      "materials": [
+        "postgres-constraints"
+      ],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/ddl-constraints.html",
+          "title": "Constraints",
+          "publisher": "PostgreSQL",
+          "accessed": "2026-10-09",
+          "claim": "Primary keys require unique non-NULL values; foreign keys enforce referenced-row existence for non-NULL key values, and NOT NULL separately controls whether missing values are allowed."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w08-l01-q07",
+      "lesson": "w08-l01",
+      "concept": "w08-l01-join-multiplicity",
+      "type": "multiple_select",
+      "prompt": "Which statements describe join multiplicity? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "An inner join can emit multiple rows for one left row."
+        },
+        {
+          "id": "b",
+          "text": "A unique key on the left guarantees exactly one output row per left row."
+        },
+        {
+          "id": "c",
+          "text": "An inner join automatically groups all matches into an array."
+        },
+        {
+          "id": "d",
+          "text": "Counting joined rows can overcount distinct left-side entities."
+        },
+        {
+          "id": "e",
+          "text": "A cross join of N and M rows emits N plus M rows."
+        }
+      ],
+      "answers": [
+        "a",
+        "d"
+      ],
+      "explanation": "A: Correct: every matching pair contributes. B: Incorrect: several right rows can match one key. C: Incorrect: aggregation must be requested. D: Correct: count at the intended entity grain. E: Incorrect: a cross join emits N times M pairs.",
+      "materials": [
+        "postgres-table-expressions"
+      ],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/queries-table-expressions.html",
+          "title": "Table Expressions",
+          "publisher": "PostgreSQL",
+          "accessed": "2026-10-09",
+          "claim": "Inner joins emit matching pairs and cross joins emit the Cartesian product."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w08-l01-q08",
+      "lesson": "w08-l01",
+      "concept": "w08-l01-outer-filter",
+      "type": "multiple_select",
+      "prompt": "Which filter-placement claims are correct? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "An ON restriction can exclude a right match while preserving its left row."
+        },
+        {
+          "id": "b",
+          "text": "ON and WHERE restrictions are always interchangeable for a left join."
+        },
+        {
+          "id": "c",
+          "text": "A right-side equality in WHERE always preserves unmatched left rows."
+        },
+        {
+          "id": "d",
+          "text": "A right-side equality in WHERE can remove NULL-extended rows."
+        },
+        {
+          "id": "e",
+          "text": "WHERE is evaluated on the joined table result."
+        }
+      ],
+      "answers": [
+        "a",
+        "d",
+        "e"
+      ],
+      "explanation": "A: Correct: left preservation follows matching. B: Incorrect: outer preservation makes placement significant. C: Incorrect: NULL equality is not true. D: Correct: such rows fail the equality predicate. E: Correct: it filters the FROM result.",
+      "materials": [
+        "postgres-table-expressions"
+      ],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/queries-table-expressions.html",
+          "title": "Table Expressions",
+          "publisher": "PostgreSQL",
+          "accessed": "2026-10-09",
+          "claim": "LEFT JOIN ON restrictions determine matches before unmatched rows are preserved; WHERE restrictions then filter the joined result."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w08-l01-q09",
+      "lesson": "w08-l01",
+      "concept": "w08-l01-null-predicate",
+      "type": "multiple_select",
+      "prompt": "Which NULL-handling statements are accurate? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A NULL right-side field always proves the left row itself is absent."
+        },
+        {
+          "id": "b",
+          "text": "A comparison returning unknown is retained by WHERE like true."
+        },
+        {
+          "id": "c",
+          "text": "A WHERE predicate must evaluate true for a row to remain."
+        },
+        {
+          "id": "d",
+          "text": "NULL equals NULL under ordinary SQL equality."
+        },
+        {
+          "id": "e",
+          "text": "IS NULL explicitly tests whether a value is missing."
+        }
+      ],
+      "answers": [
+        "c",
+        "e"
+      ],
+      "explanation": "A: Incorrect: left joins preserve left rows with missing right fields. B: Incorrect: unknown does not satisfy WHERE. C: Correct: false and unknown are discarded. D: Incorrect: ordinary NULL comparison yields unknown. E: Correct: IS NULL is the missing-value predicate.",
+      "materials": [
+        "postgres-table-expressions"
+      ],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/queries-table-expressions.html",
+          "title": "Table Expressions",
+          "publisher": "PostgreSQL",
+          "accessed": "2026-10-09",
+          "claim": "WHERE removes false or NULL results, and outer joins supply NULL values for unmatched right columns."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w08-l01-q10",
+      "lesson": "w08-l01",
+      "concept": "w08-l01-relational-constraint",
+      "type": "multiple_select",
+      "prompt": "Which constraint claims are accurate? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A NOT NULL constraint can prohibit an omitted customer reference."
+        },
+        {
+          "id": "b",
+          "text": "A primary key permits duplicates if an application validates them first."
+        },
+        {
+          "id": "c",
+          "text": "A foreign key can enforce that a supplied customer key exists."
+        },
+        {
+          "id": "d",
+          "text": "A primary key combines uniqueness with a non-NULL requirement."
+        },
+        {
+          "id": "e",
+          "text": "A foreign key alone necessarily requires a non-NULL reference."
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "d"
+      ],
+      "explanation": "A: Correct: this is distinct from referential checking. B: Incorrect: duplicate primary keys violate the constraint. C: Correct: referenced-key existence is enforced. D: Correct: both properties define a primary key. E: Incorrect: nullable references can be permitted.",
+      "materials": [
+        "postgres-constraints"
+      ],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/ddl-constraints.html",
+          "title": "Constraints",
+          "publisher": "PostgreSQL",
+          "accessed": "2026-10-09",
+          "claim": "Primary keys require unique non-NULL values; foreign keys enforce referenced-row existence for non-NULL key values, and NOT NULL separately controls whether missing values are allowed."
+        }
+      ],
+      "retired": null
+    }
+  ]
+}

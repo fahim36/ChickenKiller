@@ -1,0 +1,454 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "w08-l03-statement-snapshot",
+      "name": "Read Committed statement snapshots"
+    },
+    {
+      "id": "w08-l03-transaction-snapshot",
+      "name": "Repeatable Read snapshots"
+    },
+    {
+      "id": "w08-l03-serialization-retry",
+      "name": "Serializable transaction retries"
+    },
+    {
+      "id": "w08-l03-row-lock",
+      "name": "Row locks and deadlocks"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w08-l03-q01",
+      "lesson": "w08-l03",
+      "concept": "w08-l03-statement-snapshot",
+      "type": "multiple_choice",
+      "prompt": "Two SELECTs run in one PostgreSQL Read Committed transaction. Another transaction commits between them. What is possible?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The second SELECT always reads the other transaction before it commits."
+        },
+        {
+          "id": "b",
+          "text": "The second SELECT can see the newly committed changes."
+        },
+        {
+          "id": "c",
+          "text": "Both SELECTs must share a transaction-start snapshot."
+        },
+        {
+          "id": "d",
+          "text": "The first SELECT retroactively changes its returned result."
+        }
+      ],
+      "answer": "b",
+      "explanation": "Read Committed takes a fresh snapshot for each statement; it does not expose uncommitted changes.",
+      "materials": [
+        "postgres-transaction-isolation"
+      ],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/transaction-iso.html",
+          "title": "Transaction Isolation",
+          "publisher": "PostgreSQL",
+          "accessed": "2026-10-09",
+          "claim": "PostgreSQL Read Committed SELECT statements use a snapshot at statement start, Repeatable Read uses a transaction snapshot, and Serializable transactions may fail and require retrying the entire transaction."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w08-l03-q02",
+      "lesson": "w08-l03",
+      "concept": "w08-l03-statement-snapshot",
+      "type": "multiple_choice",
+      "prompt": "A PostgreSQL Read Committed SELECT is already running when another transaction commits. What does its ordinary snapshot read show?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "All uncommitted rows from the other transaction."
+        },
+        {
+          "id": "b",
+          "text": "The newly committed changes immediately replace rows already scanned."
+        },
+        {
+          "id": "c",
+          "text": "Only rows from transactions that began after this SELECT."
+        },
+        {
+          "id": "d",
+          "text": "The committed data visible when this statement began."
+        }
+      ],
+      "answer": "d",
+      "explanation": "Ordinary SELECT visibility uses its statement-start snapshot. A later statement can obtain a newer one.",
+      "materials": [
+        "postgres-transaction-isolation"
+      ],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/transaction-iso.html",
+          "title": "Transaction Isolation",
+          "publisher": "PostgreSQL",
+          "accessed": "2026-10-09",
+          "claim": "PostgreSQL Read Committed SELECT statements use a snapshot at statement start, Repeatable Read uses a transaction snapshot, and Serializable transactions may fail and require retrying the entire transaction."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w08-l03-q03",
+      "lesson": "w08-l03",
+      "concept": "w08-l03-transaction-snapshot",
+      "type": "multiple_choice",
+      "prompt": "An ordinary SELECT is repeated in a PostgreSQL Repeatable Read transaction. What is its snapshot relationship?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Each SELECT uses a different snapshot even without local writes."
+        },
+        {
+          "id": "b",
+          "text": "The snapshot is fixed when the client TCP connection first opened."
+        },
+        {
+          "id": "c",
+          "text": "The second read must observe every intervening external commit."
+        },
+        {
+          "id": "d",
+          "text": "The reads share the snapshot established by the first relevant statement."
+        }
+      ],
+      "answer": "d",
+      "explanation": "Repeatable Read uses a transaction snapshot established at its first non-transaction-control statement. Own changes remain visible.",
+      "materials": [
+        "postgres-transaction-isolation"
+      ],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/transaction-iso.html",
+          "title": "Transaction Isolation",
+          "publisher": "PostgreSQL",
+          "accessed": "2026-10-09",
+          "claim": "PostgreSQL Read Committed SELECT statements use a snapshot at statement start, Repeatable Read uses a transaction snapshot, and Serializable transactions may fail and require retrying the entire transaction."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w08-l03-q04",
+      "lesson": "w08-l03",
+      "concept": "w08-l03-transaction-snapshot",
+      "type": "multiple_choice",
+      "prompt": "Does PostgreSQL Repeatable Read guarantee that every concurrent execution is equivalent to some serial execution?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "No; Repeatable Read permits reading uncommitted changes."
+        },
+        {
+          "id": "b",
+          "text": "Yes, because it automatically locks every row that could be read later."
+        },
+        {
+          "id": "c",
+          "text": "Yes, because a stable read snapshot prevents every anomaly."
+        },
+        {
+          "id": "d",
+          "text": "No; Serializable provides a stronger guarantee and can reject conflicts."
+        }
+      ],
+      "answer": "d",
+      "explanation": "A stable snapshot is not full serializability. PostgreSQL Serializable adds conflict detection and may abort a transaction.",
+      "materials": [
+        "postgres-transaction-isolation"
+      ],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/transaction-iso.html",
+          "title": "Transaction Isolation",
+          "publisher": "PostgreSQL",
+          "accessed": "2026-10-09",
+          "claim": "PostgreSQL Read Committed SELECT statements use a snapshot at statement start, Repeatable Read uses a transaction snapshot, and Serializable transactions may fail and require retrying the entire transaction."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w08-l03-q05",
+      "lesson": "w08-l03",
+      "concept": "w08-l03-serialization-retry",
+      "type": "multiple_choice",
+      "prompt": "A Serializable transaction fails with a serialization error after computing an inventory decision. What should the retry do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Retry only COMMIT while retaining the stale application decision."
+        },
+        {
+          "id": "b",
+          "text": "Repeat only the final UPDATE outside any transaction."
+        },
+        {
+          "id": "c",
+          "text": "Treat failure as proof the original transaction committed successfully."
+        },
+        {
+          "id": "d",
+          "text": "Retry the whole transaction, recomputing decisions from its new reads."
+        }
+      ],
+      "answer": "d",
+      "explanation": "A serialization failure invalidates the attempt. Retry its complete logic so reads and decisions belong to the new transaction.",
+      "materials": [
+        "postgres-transaction-isolation"
+      ],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/transaction-iso.html",
+          "title": "Transaction Isolation",
+          "publisher": "PostgreSQL",
+          "accessed": "2026-10-09",
+          "claim": "PostgreSQL Read Committed SELECT statements use a snapshot at statement start, Repeatable Read uses a transaction snapshot, and Serializable transactions may fail and require retrying the entire transaction."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w08-l03-q06",
+      "lesson": "w08-l03",
+      "concept": "w08-l03-row-lock",
+      "type": "multiple_choice",
+      "prompt": "One transaction holds FOR UPDATE on an inventory row. Which operation normally waits for its row lock?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "An ordinary snapshot SELECT reading the committed row."
+        },
+        {
+          "id": "b",
+          "text": "A competing UPDATE targeting that same row."
+        },
+        {
+          "id": "c",
+          "text": "An ordinary snapshot SELECT that filters on this row exact primary key."
+        },
+        {
+          "id": "d",
+          "text": "A SELECT reading an unrelated row with a different key."
+        }
+      ],
+      "answer": "b",
+      "explanation": "The row lock blocks conflicting writers or locking readers. Ordinary snapshot SELECTs are not blocked by the row lock.",
+      "materials": [
+        "postgres-explicit-locking"
+      ],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/explicit-locking.html",
+          "title": "Explicit Locking",
+          "publisher": "PostgreSQL",
+          "accessed": "2026-10-09",
+          "claim": "SELECT FOR UPDATE locks selected rows against competing updates and locking reads until transaction end, does not block ordinary snapshot reads, and deadlocks are resolved by aborting a transaction."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w08-l03-q07",
+      "lesson": "w08-l03",
+      "concept": "w08-l03-statement-snapshot",
+      "type": "multiple_select",
+      "prompt": "Which PostgreSQL Read Committed claims are correct? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "An ordinary SELECT excludes uncommitted changes from other transactions."
+        },
+        {
+          "id": "b",
+          "text": "An ordinary SELECT continually refreshes its snapshot while scanning."
+        },
+        {
+          "id": "c",
+          "text": "A later SELECT can see changes committed after an earlier SELECT."
+        },
+        {
+          "id": "d",
+          "text": "Every statement in a transaction necessarily shares its first snapshot."
+        },
+        {
+          "id": "e",
+          "text": "A statement-start snapshot determines ordinary SELECT visibility."
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "A: Correct: dirty reads are excluded. B: Incorrect: the statement snapshot stays fixed. C: Correct: each statement can see a newer committed state. D: Incorrect: successive statements can acquire new snapshots. E: Correct: that is the ordinary visibility boundary.",
+      "materials": [
+        "postgres-transaction-isolation"
+      ],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/transaction-iso.html",
+          "title": "Transaction Isolation",
+          "publisher": "PostgreSQL",
+          "accessed": "2026-10-09",
+          "claim": "At Read Committed, SELECT sees a statement-start snapshot of committed data and successive statements can see different data."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w08-l03-q08",
+      "lesson": "w08-l03",
+      "concept": "w08-l03-transaction-snapshot",
+      "type": "multiple_select",
+      "prompt": "Which PostgreSQL Repeatable Read claims are correct? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It guarantees complete serializability for every concurrent workload."
+        },
+        {
+          "id": "b",
+          "text": "Every SELECT must expose newly committed external rows."
+        },
+        {
+          "id": "c",
+          "text": "A transaction can see its own earlier modifications."
+        },
+        {
+          "id": "d",
+          "text": "A stable snapshot alone rules out all serialization anomalies."
+        },
+        {
+          "id": "e",
+          "text": "Ordinary reads use a stable transaction snapshot."
+        }
+      ],
+      "answers": [
+        "c",
+        "e"
+      ],
+      "explanation": "A: Incorrect: Serializable is the stronger isolation level. B: Incorrect: later external commits are outside the snapshot. C: Correct: own writes remain visible. D: Incorrect: serialization anomalies can remain. E: Correct: reads share the established transaction view.",
+      "materials": [
+        "postgres-transaction-isolation"
+      ],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/transaction-iso.html",
+          "title": "Transaction Isolation",
+          "publisher": "PostgreSQL",
+          "accessed": "2026-10-09",
+          "claim": "Repeatable Read uses a stable snapshot and sees own updates, but it can permit serialization anomalies."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w08-l03-q09",
+      "lesson": "w08-l03",
+      "concept": "w08-l03-serialization-retry",
+      "type": "multiple_select",
+      "prompt": "Which serialization-failure responses are sound? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Design the application to handle the possibility of a retry."
+        },
+        {
+          "id": "b",
+          "text": "Retain every previous read result and retry COMMIT alone."
+        },
+        {
+          "id": "c",
+          "text": "Retry the complete transaction logic using new reads."
+        },
+        {
+          "id": "d",
+          "text": "Assume serialization errors prove a permanent schema defect."
+        },
+        {
+          "id": "e",
+          "text": "Recompute decisions that depended on the failed transaction reads."
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "A: Correct: stronger isolation can reject attempts. B: Incorrect: the entire attempt must be retried. C: Correct: establish a fresh consistent attempt. D: Incorrect: normal concurrent conflicts can cause failure. E: Correct: stale decisions must not survive the retry unchanged.",
+      "materials": [
+        "postgres-transaction-isolation"
+      ],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/transaction-iso.html",
+          "title": "Transaction Isolation",
+          "publisher": "PostgreSQL",
+          "accessed": "2026-10-09",
+          "claim": "Serializable conflicts can abort transactions and applications must retry the entire transaction, including decision logic."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w08-l03-q10",
+      "lesson": "w08-l03",
+      "concept": "w08-l03-row-lock",
+      "type": "multiple_select",
+      "prompt": "Which row-locking and deadlock claims are accurate? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A deadlock can cause PostgreSQL to abort one participating transaction."
+        },
+        {
+          "id": "b",
+          "text": "Consistent lock acquisition order can reduce deadlock risk."
+        },
+        {
+          "id": "c",
+          "text": "FOR UPDATE prevents every ordinary SELECT from reading that row."
+        },
+        {
+          "id": "d",
+          "text": "Conflicting row writers can wait until the locking transaction ends."
+        },
+        {
+          "id": "e",
+          "text": "A row lock is released immediately after SELECT returns its result."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "d"
+      ],
+      "explanation": "A: Correct: abort breaks the detected cycle. B: Correct: a shared ordering avoids many cyclic waits. C: Incorrect: ordinary snapshot reads are not blocked. D: Correct: conflicting locks wait for release. E: Incorrect: locks normally persist until transaction end.",
+      "materials": [
+        "postgres-explicit-locking"
+      ],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/explicit-locking.html",
+          "title": "Explicit Locking",
+          "publisher": "PostgreSQL",
+          "accessed": "2026-10-09",
+          "claim": "SELECT FOR UPDATE locks selected rows against competing updates and locking reads until transaction end, does not block ordinary snapshot reads, and deadlocks are resolved by aborting a transaction."
+        }
+      ],
+      "retired": null
+    }
+  ]
+}

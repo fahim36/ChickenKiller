@@ -1,0 +1,453 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "w12-l03-trace-spans",
+      "name": "Traces and span relationships"
+    },
+    {
+      "id": "w12-l03-context-propagation",
+      "name": "Cross-service context propagation"
+    },
+    {
+      "id": "w12-l03-metric-cardinality",
+      "name": "Metric aggregation and cardinality"
+    },
+    {
+      "id": "w12-l03-log-correlation",
+      "name": "Logs and trace correlation"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w12-l03-q01",
+      "type": "multiple_choice",
+      "lesson": "w12-l03",
+      "concept": "w12-l03-trace-spans",
+      "prompt": "A request calls another service and a database. Which telemetry structure represents these related operations?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A trace composed of related spans."
+        },
+        {
+          "id": "b",
+          "text": "One global counter used as a unique request identifier."
+        },
+        {
+          "id": "c",
+          "text": "A log severity level that replaces all timing data."
+        },
+        {
+          "id": "d",
+          "text": "An unrelated trace ID generated for every child operation."
+        }
+      ],
+      "answer": "a",
+      "explanation": "A trace links timed operations through spans. Counters aggregate activity, and unrelated IDs prevent reconstructing one operation.",
+      "materials": [
+        "opentelemetry-traces"
+      ],
+      "sources": [
+        {
+          "url": "https://opentelemetry.io/docs/concepts/signals/traces/",
+          "title": "OpenTelemetry traces",
+          "publisher": "OpenTelemetry",
+          "accessed": "2026-10-09",
+          "claim": "A trace records an operation across spans; spans carry timing, identifiers, attributes and parent-child relationships."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w12-l03-q02",
+      "type": "multiple_choice",
+      "lesson": "w12-l03",
+      "concept": "w12-l03-context-propagation",
+      "prompt": "Two instrumented services produce unrelated traces for one request. What boundary should be checked first?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Whether the downstream service starts a new root trace instead of continuing context."
+        },
+        {
+          "id": "b",
+          "text": "Whether both services drop incoming trace headers after accepting the request."
+        },
+        {
+          "id": "c",
+          "text": "Whether the client propagator omits context on outgoing calls."
+        },
+        {
+          "id": "d",
+          "text": "Trace-context injection and extraction across the call."
+        }
+      ],
+      "answer": "d",
+      "explanation": "Distributed tracing needs outgoing context injection and incoming extraction. Dropped headers, omitted propagation or starting an unrelated root trace break the link between service operations.",
+      "materials": [
+        "opentelemetry-context"
+      ],
+      "sources": [
+        {
+          "url": "https://opentelemetry.io/docs/concepts/context-propagation/",
+          "title": "OpenTelemetry context propagation",
+          "publisher": "OpenTelemetry",
+          "accessed": "2026-10-09",
+          "claim": "Injecting and extracting trace context links service spans; baggage propagates arbitrary values and should not contain sensitive credentials."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w12-l03-q03",
+      "type": "multiple_choice",
+      "lesson": "w12-l03",
+      "concept": "w12-l03-metric-cardinality",
+      "prompt": "A request counter adds a unique user-generated URL to every measurement. What risk should the telemetry design consider?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The counter changes into a guaranteed database transaction log."
+        },
+        {
+          "id": "b",
+          "text": "Unique labels make storage and aggregation cost independent of traffic."
+        },
+        {
+          "id": "c",
+          "text": "Too many attribute combinations and cardinality overflow."
+        },
+        {
+          "id": "d",
+          "text": "Every attribute combination becomes one distributed trace automatically."
+        }
+      ],
+      "answer": "c",
+      "explanation": "High-cardinality labels create many time series and can hit limits. They do not become traces or eliminate telemetry costs.",
+      "materials": [
+        "opentelemetry-metrics"
+      ],
+      "sources": [
+        {
+          "url": "https://opentelemetry.io/docs/concepts/signals/metrics/",
+          "title": "OpenTelemetry metrics",
+          "publisher": "OpenTelemetry",
+          "accessed": "2026-10-09",
+          "claim": "Metrics aggregate runtime measurements; histograms summarize distributions and high-cardinality attribute combinations can exceed SDK cardinality limits."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w12-l03-q04",
+      "type": "multiple_choice",
+      "lesson": "w12-l03",
+      "concept": "w12-l03-log-correlation",
+      "prompt": "A structured log records a failed database call. Which fields help connect it to the relevant request trace?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Only the aggregate number of errors observed during that time window."
+        },
+        {
+          "id": "b",
+          "text": "TraceId and SpanId."
+        },
+        {
+          "id": "c",
+          "text": "Only the human-readable severity string."
+        },
+        {
+          "id": "d",
+          "text": "Only the deployment’s public hostname."
+        }
+      ],
+      "answer": "b",
+      "explanation": "Trace and span IDs identify the related operation. Severity, host and aggregate counts do not uniquely locate that request work.",
+      "materials": [
+        "opentelemetry-logs"
+      ],
+      "sources": [
+        {
+          "url": "https://opentelemetry.io/docs/concepts/signals/logs/",
+          "title": "OpenTelemetry logs",
+          "publisher": "OpenTelemetry",
+          "accessed": "2026-10-09",
+          "claim": "OpenTelemetry logs include body and severity along with optional trace and span IDs for correlating events with request work."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w12-l03-q05",
+      "type": "multiple_choice",
+      "lesson": "w12-l03",
+      "concept": "w12-l03-trace-spans",
+      "prompt": "A service creates two child operations inside one trace. Which identity relationship is appropriate?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Share the trace ID but use distinct span IDs."
+        },
+        {
+          "id": "b",
+          "text": "Use one span ID for every operation regardless of parent."
+        },
+        {
+          "id": "c",
+          "text": "Give every child an unrelated trace ID to join the parent."
+        },
+        {
+          "id": "d",
+          "text": "Replace trace identity with a request-count total."
+        }
+      ],
+      "answer": "a",
+      "explanation": "The trace ID groups the operation; each span ID identifies a specific unit of work. Unrelated traces and aggregate totals lose the relationship.",
+      "materials": [
+        "opentelemetry-traces"
+      ],
+      "sources": [
+        {
+          "url": "https://opentelemetry.io/docs/concepts/signals/traces/",
+          "title": "OpenTelemetry traces",
+          "publisher": "OpenTelemetry",
+          "accessed": "2026-10-09",
+          "claim": "Trace spans have a shared trace identity and individual span identity."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w12-l03-q06",
+      "type": "multiple_choice",
+      "lesson": "w12-l03",
+      "concept": "w12-l03-context-propagation",
+      "prompt": "A developer puts an API secret in trace baggage for troubleshooting. What is the problem?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Baggage always encrypts each value for only one recipient."
+        },
+        {
+          "id": "b",
+          "text": "The value cannot leave the originating process under any propagator."
+        },
+        {
+          "id": "c",
+          "text": "Using baggage automatically revokes the original API secret."
+        },
+        {
+          "id": "d",
+          "text": "Baggage can propagate or be logged beyond the intended trust boundary."
+        }
+      ],
+      "answer": "d",
+      "explanation": "Baggage is propagated context, not secret storage. It may reach downstream systems and logs, and does not encrypt or revoke credentials by itself.",
+      "materials": [
+        "opentelemetry-context"
+      ],
+      "sources": [
+        {
+          "url": "https://opentelemetry.io/docs/concepts/context-propagation/",
+          "title": "OpenTelemetry context propagation",
+          "publisher": "OpenTelemetry",
+          "accessed": "2026-10-09",
+          "claim": "Baggage propagates key-value pairs and can disclose data across service boundaries."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w12-l03-q07",
+      "type": "multiple_select",
+      "lesson": "w12-l03",
+      "concept": "w12-l03-trace-spans",
+      "prompt": "Which tracing statements hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A span represents a timed unit of work."
+        },
+        {
+          "id": "b",
+          "text": "Parent-child relationships help reconstruct a distributed operation."
+        },
+        {
+          "id": "c",
+          "text": "Every span in one trace must have the same span identifier."
+        },
+        {
+          "id": "d",
+          "text": "A trace is only an aggregate count with no per-operation timing."
+        },
+        {
+          "id": "e",
+          "text": "A child must use an unrelated trace ID to remain linked to its parent."
+        }
+      ],
+      "answers": [
+        "a",
+        "b"
+      ],
+      "explanation": "A is correct: Its start and end describe one operation. B is correct: Related spans form the trace structure. C is incorrect: Spans have distinct IDs within the shared trace. D is incorrect: Traces retain individual operation structure. E is incorrect: Shared trace context connects the operations.",
+      "materials": [
+        "opentelemetry-traces"
+      ],
+      "sources": [
+        {
+          "url": "https://opentelemetry.io/docs/concepts/signals/traces/",
+          "title": "OpenTelemetry traces",
+          "publisher": "OpenTelemetry",
+          "accessed": "2026-10-09",
+          "claim": "A trace records an operation across spans; spans carry timing, identifiers, attributes and parent-child relationships."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w12-l03-q08",
+      "type": "multiple_select",
+      "lesson": "w12-l03",
+      "concept": "w12-l03-context-propagation",
+      "prompt": "Which propagation choices are appropriate? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Extract incoming context when continuing a distributed operation."
+        },
+        {
+          "id": "b",
+          "text": "Avoid sensitive credentials or personal data in baggage."
+        },
+        {
+          "id": "c",
+          "text": "Treat received trace headers as proof of authentication."
+        },
+        {
+          "id": "d",
+          "text": "Propagate every internal baggage value to all external services without review."
+        },
+        {
+          "id": "e",
+          "text": "Inject trace context into outgoing requests."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "e"
+      ],
+      "explanation": "A is correct: It establishes the relationship to the upstream trace. B is correct: Baggage can cross trust boundaries and be logged. C is incorrect: Trace context is correlation data, not an authorization credential. D is incorrect: Outgoing context can expose sensitive details. E is correct: The downstream service needs the caller’s context.",
+      "materials": [
+        "opentelemetry-context"
+      ],
+      "sources": [
+        {
+          "url": "https://opentelemetry.io/docs/concepts/context-propagation/",
+          "title": "OpenTelemetry context propagation",
+          "publisher": "OpenTelemetry",
+          "accessed": "2026-10-09",
+          "claim": "Injecting and extracting trace context links service spans; baggage propagates arbitrary values and should not contain sensitive credentials."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w12-l03-q09",
+      "type": "multiple_select",
+      "lesson": "w12-l03",
+      "concept": "w12-l03-metric-cardinality",
+      "prompt": "Which metric-design statements hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A monotonically increasing Counter is ideal for a value that rises and falls."
+        },
+        {
+          "id": "b",
+          "text": "Adding unique identifiers has no effect on the number of metric series."
+        },
+        {
+          "id": "c",
+          "text": "Every metric measurement retains a complete parent-child request trace."
+        },
+        {
+          "id": "d",
+          "text": "Histograms can summarize distributions such as request latency."
+        },
+        {
+          "id": "e",
+          "text": "Attribute combinations contribute to metric cardinality."
+        }
+      ],
+      "answers": [
+        "d",
+        "e"
+      ],
+      "explanation": "A is incorrect: An UpDownCounter fits accumulations that can decrease. B is incorrect: Unique values increase distinct combinations. C is incorrect: Metrics aggregate values rather than preserve all trace structure. D is correct: They aggregate observed values into statistical summaries. E is correct: Distinct combinations create distinct aggregation dimensions.",
+      "materials": [
+        "opentelemetry-metrics"
+      ],
+      "sources": [
+        {
+          "url": "https://opentelemetry.io/docs/concepts/signals/metrics/",
+          "title": "OpenTelemetry metrics",
+          "publisher": "OpenTelemetry",
+          "accessed": "2026-10-09",
+          "claim": "Metrics aggregate runtime measurements; histograms summarize distributions and high-cardinality attribute combinations can exceed SDK cardinality limits."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w12-l03-q10",
+      "type": "multiple_select",
+      "lesson": "w12-l03",
+      "concept": "w12-l03-log-correlation",
+      "prompt": "Which logging statements match the OpenTelemetry model? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Every log record must have identical timestamp and observed timestamp."
+        },
+        {
+          "id": "b",
+          "text": "Matching log severity is sufficient to correlate concurrent requests uniquely."
+        },
+        {
+          "id": "c",
+          "text": "A log body records the event content."
+        },
+        {
+          "id": "d",
+          "text": "Severity conveys the event’s importance level."
+        },
+        {
+          "id": "e",
+          "text": "Trace and span identifiers support correlation with request operations."
+        }
+      ],
+      "answers": [
+        "c",
+        "d",
+        "e"
+      ],
+      "explanation": "A is incorrect: Occurrence and observation times can differ. B is incorrect: Many requests produce logs at the same level. C is correct: Body contains the log record’s message or structured data. D is correct: Severity text and number classify the log. E is correct: They can connect logs to traces.",
+      "materials": [
+        "opentelemetry-logs"
+      ],
+      "sources": [
+        {
+          "url": "https://opentelemetry.io/docs/concepts/signals/logs/",
+          "title": "OpenTelemetry logs",
+          "publisher": "OpenTelemetry",
+          "accessed": "2026-10-09",
+          "claim": "OpenTelemetry logs include body and severity along with optional trace and span IDs for correlating events with request work."
+        }
+      ],
+      "retired": null
+    }
+  ]
+}

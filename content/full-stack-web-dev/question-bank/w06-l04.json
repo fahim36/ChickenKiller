@@ -1,0 +1,454 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "w06-l04-memo-boundary",
+      "name": "memo is an optimization boundary"
+    },
+    {
+      "id": "w06-l04-calculation-cache",
+      "name": "useMemo calculation caching"
+    },
+    {
+      "id": "w06-l04-reference-props",
+      "name": "Reference identity in props"
+    },
+    {
+      "id": "w06-l04-measure-render",
+      "name": "Measuring rendering costs"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w06-l04-q01",
+      "lesson": "w06-l04",
+      "concept": "w06-l04-memo-boundary",
+      "type": "multiple_choice",
+      "prompt": "A memoized Counter updates its own state while props stay equal. What should you expect?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A render, because memo does not block its own state updates."
+        },
+        {
+          "id": "b",
+          "text": "No render, because memo freezes every local state value."
+        },
+        {
+          "id": "c",
+          "text": "A remount, because memo requires replacing the component type."
+        },
+        {
+          "id": "d",
+          "text": "A render only if the parent replaces every prop object first."
+        }
+      ],
+      "answer": "a",
+      "explanation": "memo optimizes parent-driven prop comparisons. It does not prevent the component own state from updating.",
+      "materials": [
+        "react-memo-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/reference/react/memo",
+          "title": "memo",
+          "publisher": "React",
+          "accessed": "2026-10-09",
+          "claim": "memo may skip parent-driven renders when props compare equal by Object.is, but own state or used context updates still render; fresh object and function props can defeat memoization."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w06-l04-q02",
+      "lesson": "w06-l04",
+      "concept": "w06-l04-memo-boundary",
+      "type": "multiple_choice",
+      "prompt": "A memoized component reads a context value that changes. What does memo guarantee?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It permanently freezes the context captured on first render."
+        },
+        {
+          "id": "b",
+          "text": "It hides every context update until a prop changes."
+        },
+        {
+          "id": "c",
+          "text": "It does not prevent rendering for changes in used context."
+        },
+        {
+          "id": "d",
+          "text": "It converts context into a mutable module-level variable."
+        }
+      ],
+      "answer": "c",
+      "explanation": "memo compares props, not a prohibition on context-driven updates.",
+      "materials": [
+        "react-memo-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/reference/react/memo",
+          "title": "memo",
+          "publisher": "React",
+          "accessed": "2026-10-09",
+          "claim": "memo may skip parent-driven renders when props compare equal by Object.is, but own state or used context updates still render; fresh object and function props can defeat memoization."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w06-l04-q03",
+      "lesson": "w06-l04",
+      "concept": "w06-l04-calculation-cache",
+      "type": "multiple_choice",
+      "prompt": "A costly filter uses items and query. What dependency list preserves a useful correct cache?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "[items.length], because equal lengths guarantee equal item contents."
+        },
+        {
+          "id": "b",
+          "text": "[Math.random()], because every render should reuse the same value."
+        },
+        {
+          "id": "c",
+          "text": "[], because the first calculation must stay correct forever."
+        },
+        {
+          "id": "d",
+          "text": "[items, query], including the values used by the calculation."
+        }
+      ],
+      "answer": "d",
+      "explanation": "Both data and query affect filtering. Omitting dependencies can retain a stale result; unstable dependencies prevent cache reuse.",
+      "materials": [
+        "react-usememo-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/reference/react/useMemo",
+          "title": "useMemo",
+          "publisher": "React",
+          "accessed": "2026-10-09",
+          "claim": "useMemo caches a pure calculation between renders while dependencies compare equal by Object.is; it is a performance optimization rather than a semantic guarantee."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w06-l04-q04",
+      "lesson": "w06-l04",
+      "concept": "w06-l04-calculation-cache",
+      "type": "multiple_choice",
+      "prompt": "Why should code remain correct if a useMemo cache is discarded?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "useMemo guarantees every cache persists through every future mount."
+        },
+        {
+          "id": "b",
+          "text": "It is a performance optimization, not essential application storage."
+        },
+        {
+          "id": "c",
+          "text": "useMemo preserves its cached value as a correctness guarantee across every remount."
+        },
+        {
+          "id": "d",
+          "text": "It should replace state whenever a value must survive later renders reliably."
+        }
+      ],
+      "answer": "b",
+      "explanation": "React may discard caches. State or another durable model should carry correctness requirements.",
+      "materials": [
+        "react-usememo-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/reference/react/useMemo",
+          "title": "useMemo",
+          "publisher": "React",
+          "accessed": "2026-10-09",
+          "claim": "useMemo caches a pure calculation between renders while dependencies compare equal by Object.is; it is a performance optimization rather than a semantic guarantee."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w06-l04-q05",
+      "lesson": "w06-l04",
+      "concept": "w06-l04-reference-props",
+      "type": "multiple_choice",
+      "prompt": "A parent passes options={{sort: \"name\"}} to a memoized child on every render. Why may the child still render?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Object.is recursively sees that nested sort strings are equal."
+        },
+        {
+          "id": "b",
+          "text": "Every options prop is ignored automatically by memo comparison."
+        },
+        {
+          "id": "c",
+          "text": "A fresh options object is not equal to the previous object reference."
+        },
+        {
+          "id": "d",
+          "text": "memo skips all children whenever their rendered text is unchanged."
+        }
+      ],
+      "answer": "c",
+      "explanation": "Default prop comparison is shallow Object.is. Recreating an object can defeat the boundary.",
+      "materials": [
+        "react-memo-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/reference/react/memo",
+          "title": "memo",
+          "publisher": "React",
+          "accessed": "2026-10-09",
+          "claim": "memo compares each prop with Object.is; fresh object or function references prevent a default props-equal result."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w06-l04-q06",
+      "lesson": "w06-l04",
+      "concept": "w06-l04-measure-render",
+      "type": "multiple_choice",
+      "prompt": "What does Profiler actualDuration help assess?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Time spent rendering the profiled subtree for the current update."
+        },
+        {
+          "id": "b",
+          "text": "Network request duration for every browser navigation automatically."
+        },
+        {
+          "id": "c",
+          "text": "Total database time used by all server queries behind the page."
+        },
+        {
+          "id": "d",
+          "text": "Time spent painting every pixel by the browser GPU exclusively."
+        }
+      ],
+      "answer": "a",
+      "explanation": "Profiler measures React render work. It should not be mistaken for network or browser-paint duration.",
+      "materials": [
+        "react-profiler-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/reference/react/Profiler",
+          "title": "Profiler",
+          "publisher": "React",
+          "accessed": "2026-10-09",
+          "claim": "Profiler onRender exposes actualDuration for rendering the current subtree update and baseDuration estimating unoptimized render cost."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w06-l04-q07",
+      "lesson": "w06-l04",
+      "concept": "w06-l04-memo-boundary",
+      "type": "multiple_select",
+      "prompt": "Which memo claims are correct? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A used context change can still cause rendering."
+        },
+        {
+          "id": "b",
+          "text": "It replaces the requirement for pure component calculations."
+        },
+        {
+          "id": "c",
+          "text": "It guarantees a component can never render again after mounting."
+        },
+        {
+          "id": "d",
+          "text": "It can reduce renders driven by unchanged parent props."
+        },
+        {
+          "id": "e",
+          "text": "A component can still render when its own state changes."
+        }
+      ],
+      "answers": [
+        "a",
+        "d",
+        "e"
+      ],
+      "explanation": "A: Correct: context updates remain relevant. B: Incorrect: memoized components must still be pure. C: Incorrect: it does not freeze components. D: Correct: this is its optimization purpose. E: Correct: local updates still apply.",
+      "materials": [
+        "react-memo-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/reference/react/memo",
+          "title": "memo",
+          "publisher": "React",
+          "accessed": "2026-10-09",
+          "claim": "memo optimizes unchanged props, not local state or context updates, and does not remove purity requirements."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w06-l04-q08",
+      "lesson": "w06-l04",
+      "concept": "w06-l04-calculation-cache",
+      "type": "multiple_select",
+      "prompt": "Which claims about useMemo are true? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A missing dependency guarantees the result follows that value changes."
+        },
+        {
+          "id": "b",
+          "text": "Its calculation should be pure."
+        },
+        {
+          "id": "c",
+          "text": "A dependency newly created on every render can defeat caching."
+        },
+        {
+          "id": "d",
+          "text": "It must be used as the only storage for required persistent application state."
+        },
+        {
+          "id": "e",
+          "text": "It can reuse a result when dependencies are unchanged."
+        }
+      ],
+      "answers": [
+        "b",
+        "c",
+        "e"
+      ],
+      "explanation": "A: Incorrect: omission can retain stale output. B: Correct: repeated calculations must be safe. C: Correct: changed reference identity invalidates comparison. D: Incorrect: memoization is an optimization rather than correctness storage. E: Correct: equal dependencies allow cached output.",
+      "materials": [
+        "react-usememo-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/reference/react/useMemo",
+          "title": "useMemo",
+          "publisher": "React",
+          "accessed": "2026-10-09",
+          "claim": "useMemo caches a pure calculation between renders while dependencies compare equal by Object.is; it is a performance optimization rather than a semantic guarantee."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w06-l04-q09",
+      "lesson": "w06-l04",
+      "concept": "w06-l04-reference-props",
+      "type": "multiple_select",
+      "prompt": "Which props can break default memo equality across otherwise similar parent renders? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The same already existing object reference passed again."
+        },
+        {
+          "id": "b",
+          "text": "A freshly created callback function with equivalent behavior."
+        },
+        {
+          "id": "c",
+          "text": "The same primitive boolean value passed again."
+        },
+        {
+          "id": "d",
+          "text": "A newly allocated object containing the same fields."
+        },
+        {
+          "id": "e",
+          "text": "The same primitive string value passed again."
+        }
+      ],
+      "answers": [
+        "b",
+        "d"
+      ],
+      "explanation": "A: Incorrect: identical references compare equal. B: Correct: function references also differ. C: Incorrect: identical primitive booleans compare equal. D: Correct: new references differ. E: Incorrect: the same string compares equal.",
+      "materials": [
+        "react-memo-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/reference/react/memo",
+          "title": "memo",
+          "publisher": "React",
+          "accessed": "2026-10-09",
+          "claim": "Default memo comparison uses Object.is for individual props rather than deep comparison of object or function contents."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w06-l04-q10",
+      "lesson": "w06-l04",
+      "concept": "w06-l04-measure-render",
+      "type": "multiple_select",
+      "prompt": "Which claims support measured React performance decisions? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Profiler baseDuration estimates render cost without optimization."
+        },
+        {
+          "id": "b",
+          "text": "Profiler actualDuration reports SQL transaction wait time."
+        },
+        {
+          "id": "c",
+          "text": "Compare measured render costs before and after an optimization."
+        },
+        {
+          "id": "d",
+          "text": "Browser paint time is identical to every Profiler render duration."
+        },
+        {
+          "id": "e",
+          "text": "Profiler measures work rendering a React subtree."
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "A: Correct: baseDuration estimates the subtree full render cost. B: Incorrect: it measures React rendering, not SQL. C: Correct: measurements show whether changes reduce work. D: Incorrect: browser painting is a different pipeline stage. E: Correct: Profiler wraps component trees.",
+      "materials": [
+        "react-profiler-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/reference/react/Profiler",
+          "title": "Profiler",
+          "publisher": "React",
+          "accessed": "2026-10-09",
+          "claim": "Profiler reports render timing through actualDuration and baseDuration for evaluating performance changes."
+        }
+      ],
+      "retired": null
+    }
+  ]
+}

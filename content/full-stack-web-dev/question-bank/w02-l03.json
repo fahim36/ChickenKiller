@@ -1,0 +1,443 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "w02-l03-cors-access",
+      "name": "CORS response access"
+    },
+    {
+      "id": "w02-l03-preflight",
+      "name": "CORS preflight triggers"
+    },
+    {
+      "id": "w02-l03-credential-mode",
+      "name": "Credentialed cross-origin fetch"
+    },
+    {
+      "id": "w02-l03-fetch-response",
+      "name": "Fetch response and body semantics"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w02-l03-q01",
+      "lesson": "w02-l03",
+      "concept": "w02-l03-cors-access",
+      "type": "multiple_choice",
+      "prompt": "A cross-origin API GET reaches the server, but its response lacks the needed CORS permission. What can happen in a browser fetch?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The server cannot have received any request unless CORS permission was already present."
+        },
+        {
+          "id": "b",
+          "text": "The browser exposes the body but strips only the disallowed response headers."
+        },
+        {
+          "id": "c",
+          "text": "The browser can deny script access even though the server processed the request."
+        },
+        {
+          "id": "d",
+          "text": "The response is readable because a GET request never needs CORS response checks."
+        }
+      ],
+      "answer": "c",
+      "explanation": "CORS governs browser response access. Some requests are sent without a preflight, so a server can process a request whose response script cannot read.",
+      "materials": [
+        "web-fetch-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://fetch.spec.whatwg.org/",
+          "title": "Fetch Standard",
+          "publisher": "WHATWG",
+          "accessed": "2026-10-09",
+          "claim": "Fetch defines CORS checks, preflights, credentials modes, opaque responses, response status and body consumption."
+        }
+      ]
+    },
+    {
+      "id": "w02-l03-q02",
+      "lesson": "w02-l03",
+      "concept": "w02-l03-preflight",
+      "type": "multiple_choice",
+      "prompt": "A cross-origin fetch sends a custom `X-Trace-ID` header. What normally happens before the actual request?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The header is safelisted because its name starts with the conventional X- prefix."
+        },
+        {
+          "id": "b",
+          "text": "The browser sends a preflight to check permission for the non-safelisted header."
+        },
+        {
+          "id": "c",
+          "text": "GET always avoids preflight regardless of its custom headers."
+        },
+        {
+          "id": "d",
+          "text": "Only a non-safelisted method can trigger preflight, not a non-safelisted header."
+        }
+      ],
+      "answer": "b",
+      "explanation": "Non-safelisted request headers can trigger a CORS preflight even for GET. The method alone does not guarantee a preflight-free request.",
+      "materials": [
+        "web-fetch-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://fetch.spec.whatwg.org/",
+          "title": "Fetch Standard",
+          "publisher": "WHATWG",
+          "accessed": "2026-10-09",
+          "claim": "Fetch defines CORS checks, preflights, credentials modes, opaque responses, response status and body consumption."
+        }
+      ]
+    },
+    {
+      "id": "w02-l03-q03",
+      "lesson": "w02-l03",
+      "concept": "w02-l03-credential-mode",
+      "type": "multiple_choice",
+      "prompt": "A cross-origin fetch uses `credentials: include`. Which allow-origin response value is compatible with credentialed CORS access?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The requesting origin explicitly, with the required allow-credentials permission."
+        },
+        {
+          "id": "b",
+          "text": "A wildcard origin with allow-credentials true is enough for include mode."
+        },
+        {
+          "id": "c",
+          "text": "A wildcard origin is enough because include bypasses response origin checks."
+        },
+        {
+          "id": "d",
+          "text": "An allowed request cookie is enough even if allow-credentials is missing."
+        }
+      ],
+      "answer": "a",
+      "explanation": "Credentialed CORS requires an explicit matching origin and Access-Control-Allow-Credentials: true. A wildcard origin is not sufficient in that mode.",
+      "materials": [
+        "web-fetch-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://fetch.spec.whatwg.org/",
+          "title": "Fetch Standard",
+          "publisher": "WHATWG",
+          "accessed": "2026-10-09",
+          "claim": "Fetch defines CORS checks, preflights, credentials modes, opaque responses, response status and body consumption."
+        }
+      ]
+    },
+    {
+      "id": "w02-l03-q04",
+      "lesson": "w02-l03",
+      "concept": "w02-l03-fetch-response",
+      "type": "multiple_choice",
+      "prompt": "fetch receives an HTTP 404 response with no network or CORS failure. What should application code normally inspect?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The rejected fetch promise, because every non-2xx status rejects it."
+        },
+        {
+          "id": "b",
+          "text": "Only Content-Type, because HTTP error statuses are hidden from every Response."
+        },
+        {
+          "id": "c",
+          "text": "The absence of a Response, because 404 always becomes a fetch network error."
+        },
+        {
+          "id": "d",
+          "text": "The fulfilled Response status or ok value before processing the error body."
+        }
+      ],
+      "answer": "d",
+      "explanation": "HTTP error status does not itself reject fetch. The application checks Response.status or ok; network and CORS errors are different failures.",
+      "materials": [
+        "web-fetch-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://fetch.spec.whatwg.org/",
+          "title": "Fetch Standard",
+          "publisher": "WHATWG",
+          "accessed": "2026-10-09",
+          "claim": "Fetch defines CORS checks, preflights, credentials modes, opaque responses, response status and body consumption."
+        }
+      ]
+    },
+    {
+      "id": "w02-l03-q05",
+      "lesson": "w02-l03",
+      "concept": "w02-l03-cors-access",
+      "type": "multiple_choice",
+      "prompt": "A developer sets `mode: no-cors` hoping to read an unrestricted cross-origin JSON body. What response is exposed in that mode?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A normal readable response whose custom headers alone are hidden."
+        },
+        {
+          "id": "b",
+          "text": "A normal readable response as long as the server response is valid JSON."
+        },
+        {
+          "id": "c",
+          "text": "An opaque response whose body and status are not exposed normally."
+        },
+        {
+          "id": "d",
+          "text": "A readable response if the request used GET and did not include credentials."
+        }
+      ],
+      "answer": "c",
+      "explanation": "No-cors is not a way to bypass CORS for readable data. Cross-origin responses in that mode are opaque to script.",
+      "materials": [
+        "web-fetch-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://fetch.spec.whatwg.org/",
+          "title": "Fetch Standard",
+          "publisher": "WHATWG",
+          "accessed": "2026-10-09",
+          "claim": "Fetch defines CORS checks, preflights, credentials modes, opaque responses, response status and body consumption."
+        }
+      ]
+    },
+    {
+      "id": "w02-l03-q06",
+      "lesson": "w02-l03",
+      "concept": "w02-l03-preflight",
+      "type": "multiple_choice",
+      "prompt": "A browser prepares a CORS preflight for a non-safelisted request method. What is the preflight HTTP method?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "HEAD checks response availability but does not send the intended request method."
+        },
+        {
+          "id": "b",
+          "text": "OPTIONS asks the server about the proposed cross-origin request."
+        },
+        {
+          "id": "c",
+          "text": "The actual method runs first, followed by an OPTIONS response-permission check."
+        },
+        {
+          "id": "d",
+          "text": "GET checks permission whenever the actual request has no body."
+        }
+      ],
+      "answer": "b",
+      "explanation": "A CORS preflight uses OPTIONS with fields describing the intended request. It is separate from the actual operation.",
+      "materials": [
+        "web-fetch-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://fetch.spec.whatwg.org/",
+          "title": "Fetch Standard",
+          "publisher": "WHATWG",
+          "accessed": "2026-10-09",
+          "claim": "Fetch defines CORS checks, preflights, credentials modes, opaque responses, response status and body consumption."
+        }
+      ]
+    },
+    {
+      "id": "w02-l03-q07",
+      "lesson": "w02-l03",
+      "concept": "w02-l03-cors-access",
+      "type": "multiple_select",
+      "prompt": "A team reviews its CORS assumptions. Which claims hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "CORS permission controls cross-origin response exposure."
+        },
+        {
+          "id": "b",
+          "text": "Some cross-origin requests can be sent before a response access check."
+        },
+        {
+          "id": "c",
+          "text": "no-cors exposes arbitrary cross-origin JSON to script."
+        },
+        {
+          "id": "d",
+          "text": "CORS is not server authentication for arbitrary clients."
+        },
+        {
+          "id": "e",
+          "text": "A missing allow-origin always proves the server never saw the request."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "d"
+      ],
+      "explanation": "a: The browser checks whether script may receive the response. b: Safelisted requests need not preflight. c: Its cross-origin response is opaque. d: Non-browser clients are not governed by browser CORS enforcement. e: The server may have processed a non-preflighted request.",
+      "materials": [
+        "web-fetch-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://fetch.spec.whatwg.org/",
+          "title": "Fetch Standard",
+          "publisher": "WHATWG",
+          "accessed": "2026-10-09",
+          "claim": "Fetch defines CORS checks, preflights, credentials modes, opaque responses, response status and body consumption."
+        }
+      ]
+    },
+    {
+      "id": "w02-l03-q08",
+      "lesson": "w02-l03",
+      "concept": "w02-l03-preflight",
+      "type": "multiple_select",
+      "prompt": "A review asks when CORS preflight is needed. Which claims hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A non-safelisted method can trigger preflight."
+        },
+        {
+          "id": "b",
+          "text": "A preflight sends the application request body to test whether it is valid."
+        },
+        {
+          "id": "c",
+          "text": "Every GET avoids preflight regardless of its headers."
+        },
+        {
+          "id": "d",
+          "text": "Every POST Content-Type is automatically safelisted."
+        },
+        {
+          "id": "e",
+          "text": "A non-safelisted custom header can trigger preflight."
+        }
+      ],
+      "answers": [
+        "a",
+        "e"
+      ],
+      "explanation": "a: Methods outside the safelist require permission checking. b: Preflight checks permission using OPTIONS, not the actual application operation body. c: Non-safelisted headers can still require it. d: Only specified media types and constraints meet the safelist. e: Header names and values participate in the preflight decision.",
+      "materials": [
+        "web-fetch-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://fetch.spec.whatwg.org/",
+          "title": "Fetch Standard",
+          "publisher": "WHATWG",
+          "accessed": "2026-10-09",
+          "claim": "Fetch defines CORS checks, preflights, credentials modes, opaque responses, response status and body consumption."
+        }
+      ]
+    },
+    {
+      "id": "w02-l03-q09",
+      "lesson": "w02-l03",
+      "concept": "w02-l03-credential-mode",
+      "type": "multiple_select",
+      "prompt": "A cross-origin API uses cookie credentials. Which CORS claims hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The response needs allow-credentials true for that access."
+        },
+        {
+          "id": "b",
+          "text": "A wildcard allow-origin grants credentialed access by itself."
+        },
+        {
+          "id": "c",
+          "text": "include disables all origin checks for the response."
+        },
+        {
+          "id": "d",
+          "text": "include requests credential inclusion subject to other cookie rules."
+        },
+        {
+          "id": "e",
+          "text": "Credentialed access needs an explicit matching allow-origin."
+        }
+      ],
+      "answers": [
+        "a",
+        "d",
+        "e"
+      ],
+      "explanation": "a: The credentialed CORS check requires it. b: That combination fails the credentialed check. c: CORS checking still applies. d: Credentials mode participates in whether credentials are sent. e: A wildcard does not satisfy include mode.",
+      "materials": [
+        "web-fetch-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://fetch.spec.whatwg.org/",
+          "title": "Fetch Standard",
+          "publisher": "WHATWG",
+          "accessed": "2026-10-09",
+          "claim": "Fetch defines CORS checks, preflights, credentials modes, opaque responses, response status and body consumption."
+        }
+      ]
+    },
+    {
+      "id": "w02-l03-q10",
+      "lesson": "w02-l03",
+      "concept": "w02-l03-fetch-response",
+      "type": "multiple_select",
+      "prompt": "An application handles fetch results. Which claims hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A network failure always returns a readable 500 Response."
+        },
+        {
+          "id": "b",
+          "text": "Opaque responses expose a normal readable cross-origin body."
+        },
+        {
+          "id": "c",
+          "text": "HTTP 500 alone does not require fetch rejection."
+        },
+        {
+          "id": "d",
+          "text": "Response.ok can distinguish successful status codes."
+        },
+        {
+          "id": "e",
+          "text": "A consumed response body can always be read a second time without a prior clone."
+        }
+      ],
+      "answers": [
+        "c",
+        "d"
+      ],
+      "explanation": "a: A network error rejects rather than synthesizing that HTTP response. b: Opaque filtering hides body and status details. c: An HTTP error can still yield a Response. d: It represents the 200 through 299 range. e: A disturbed body cannot simply be consumed again; clone before consuming when multiple reads are needed.",
+      "materials": [
+        "web-fetch-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://fetch.spec.whatwg.org/",
+          "title": "Fetch Standard",
+          "publisher": "WHATWG",
+          "accessed": "2026-10-09",
+          "claim": "Fetch defines CORS checks, preflights, credentials modes, opaque responses, response status and body consumption."
+        }
+      ]
+    }
+  ]
+}

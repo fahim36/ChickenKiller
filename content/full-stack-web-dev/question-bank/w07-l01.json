@@ -1,0 +1,454 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "w07-l01-callback-work",
+      "name": "Callback execution and blocking"
+    },
+    {
+      "id": "w07-l01-timer-threshold",
+      "name": "Timer thresholds"
+    },
+    {
+      "id": "w07-l01-nexttick-starvation",
+      "name": "nextTick and I/O starvation"
+    },
+    {
+      "id": "w07-l01-phase-order",
+      "name": "Context-dependent callback order"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w07-l01-q01",
+      "lesson": "w07-l01",
+      "concept": "w07-l01-callback-work",
+      "type": "multiple_choice",
+      "prompt": "A request callback performs a large synchronous loop. Why do unrelated clients see higher latency?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Only the loop request slows because network sockets are independent."
+        },
+        {
+          "id": "b",
+          "text": "The event loop cannot run other JavaScript callbacks until it yields."
+        },
+        {
+          "id": "c",
+          "text": "All callbacks get a separate operating-system thread automatically."
+        },
+        {
+          "id": "d",
+          "text": "The loop is automatically offloaded because the callback handles HTTP."
+        }
+      ],
+      "answer": "b",
+      "explanation": "One long-running callback monopolizes the JavaScript event loop. Asynchronous socket readiness cannot make other callbacks execute through it.",
+      "materials": [
+        "node-avoid-blocking"
+      ],
+      "sources": [
+        {
+          "url": "https://nodejs.org/en/learn/asynchronous-work/dont-block-the-event-loop",
+          "title": "Do Not Block the Event Loop or Worker Pool",
+          "publisher": "Node.js",
+          "accessed": "2026-10-09",
+          "claim": "Long-running synchronous JavaScript callbacks block the event loop and delay work for other clients."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w07-l01-q02",
+      "lesson": "w07-l01",
+      "concept": "w07-l01-callback-work",
+      "type": "multiple_choice",
+      "prompt": "A CPU-heavy callback is declared async but contains no yield. What changes about its computation?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The runtime preempts its JavaScript loop whenever a socket becomes ready."
+        },
+        {
+          "id": "b",
+          "text": "The async keyword moves its whole body onto the libuv worker pool."
+        },
+        {
+          "id": "c",
+          "text": "Every iteration now runs in parallel with all other request callbacks."
+        },
+        {
+          "id": "d",
+          "text": "It still runs synchronously on that JavaScript thread until it yields."
+        }
+      ],
+      "answer": "d",
+      "explanation": "async return semantics do not offload arbitrary JavaScript or make its synchronous loops preemptible.",
+      "materials": [
+        "node-avoid-blocking"
+      ],
+      "sources": [
+        {
+          "url": "https://nodejs.org/en/learn/asynchronous-work/dont-block-the-event-loop",
+          "title": "Do Not Block the Event Loop or Worker Pool",
+          "publisher": "Node.js",
+          "accessed": "2026-10-09",
+          "claim": "JavaScript callbacks run on the event loop; partitioning or offloading is needed to prevent expensive synchronous work from blocking it."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w07-l01-q03",
+      "lesson": "w07-l01",
+      "concept": "w07-l01-timer-threshold",
+      "type": "multiple_choice",
+      "prompt": "A 100 ms timeout becomes eligible while another callback runs for 200 ms. What does the timer guarantee?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It runs after its minimum threshold when the event loop can process it."
+        },
+        {
+          "id": "b",
+          "text": "It is discarded permanently because its eligibility time was missed."
+        },
+        {
+          "id": "c",
+          "text": "It runs on a worker thread while the callback continues on the main thread."
+        },
+        {
+          "id": "d",
+          "text": "It interrupts the running callback exactly when 100 ms elapses."
+        }
+      ],
+      "answer": "a",
+      "explanation": "A threshold is not a deadline. Busy callbacks can delay a timer beyond the requested interval.",
+      "materials": [
+        "node-event-loop"
+      ],
+      "sources": [
+        {
+          "url": "https://nodejs.org/en/learn/asynchronous-work/event-loop-timers-and-nexttick",
+          "title": "The Node.js Event Loop",
+          "publisher": "Node.js",
+          "accessed": "2026-10-09",
+          "claim": "Node schedules callbacks through event-loop phases, timers have minimum thresholds rather than exact deadlines, recursive nextTick work can starve I/O, and timeout/immediate order depends on call context."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w07-l01-q04",
+      "lesson": "w07-l01",
+      "concept": "w07-l01-timer-threshold",
+      "type": "multiple_choice",
+      "prompt": "What does setTimeout(fn, 0) mean for the currently running JavaScript callback?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "fn is invoked synchronously before the next statement in that callback."
+        },
+        {
+          "id": "b",
+          "text": "fn starts a dedicated thread that preempts current JavaScript execution."
+        },
+        {
+          "id": "c",
+          "text": "fn is scheduled for later processing rather than interrupting the callback."
+        },
+        {
+          "id": "d",
+          "text": "fn is guaranteed to execute before every setImmediate scheduled anywhere."
+        }
+      ],
+      "answer": "c",
+      "explanation": "Zero does not make a timer synchronous or impose an unconditional global ordering.",
+      "materials": [
+        "node-event-loop"
+      ],
+      "sources": [
+        {
+          "url": "https://nodejs.org/en/learn/asynchronous-work/event-loop-timers-and-nexttick",
+          "title": "The Node.js Event Loop",
+          "publisher": "Node.js",
+          "accessed": "2026-10-09",
+          "claim": "Node schedules callbacks through event-loop phases, timers have minimum thresholds rather than exact deadlines, recursive nextTick work can starve I/O, and timeout/immediate order depends on call context."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w07-l01-q05",
+      "lesson": "w07-l01",
+      "concept": "w07-l01-nexttick-starvation",
+      "type": "multiple_choice",
+      "prompt": "A nextTick callback recursively schedules another nextTick forever. What is the main operational risk?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "I/O callbacks can be starved before the loop reaches the poll phase."
+        },
+        {
+          "id": "b",
+          "text": "Only the current client slows because nextTick queues are per socket."
+        },
+        {
+          "id": "c",
+          "text": "Node guarantees a poll callback between each pair of nextTick callbacks."
+        },
+        {
+          "id": "d",
+          "text": "The recursion automatically becomes a worker-thread CPU operation."
+        }
+      ],
+      "answer": "a",
+      "explanation": "The nextTick queue drains before the loop continues. Replenishing it indefinitely prevents I/O progress.",
+      "materials": [
+        "node-event-loop"
+      ],
+      "sources": [
+        {
+          "url": "https://nodejs.org/en/learn/asynchronous-work/event-loop-timers-and-nexttick",
+          "title": "The Node.js Event Loop",
+          "publisher": "Node.js",
+          "accessed": "2026-10-09",
+          "claim": "Node schedules callbacks through event-loop phases, timers have minimum thresholds rather than exact deadlines, recursive nextTick work can starve I/O, and timeout/immediate order depends on call context."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w07-l01-q06",
+      "lesson": "w07-l01",
+      "concept": "w07-l01-phase-order",
+      "type": "multiple_choice",
+      "prompt": "A script schedules a top-level timeout and immediate. Why avoid asserting one unconditional order?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Their names force immediate before timeout in every possible program."
+        },
+        {
+          "id": "b",
+          "text": "Both callbacks are guaranteed to run before the script finishes."
+        },
+        {
+          "id": "c",
+          "text": "Their order depends on timing and context, including I/O scheduling."
+        },
+        {
+          "id": "d",
+          "text": "Both callbacks run simultaneously on separate default JS threads."
+        }
+      ],
+      "answer": "c",
+      "explanation": "The documented order differs by context. Inside an I/O callback, immediate has specific scheduling advantages; top-level timing differs.",
+      "materials": [
+        "node-event-loop"
+      ],
+      "sources": [
+        {
+          "url": "https://nodejs.org/en/learn/asynchronous-work/event-loop-timers-and-nexttick",
+          "title": "The Node.js Event Loop",
+          "publisher": "Node.js",
+          "accessed": "2026-10-09",
+          "claim": "Node schedules callbacks through event-loop phases, timers have minimum thresholds rather than exact deadlines, recursive nextTick work can starve I/O, and timeout/immediate order depends on call context."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w07-l01-q07",
+      "lesson": "w07-l01",
+      "concept": "w07-l01-callback-work",
+      "type": "multiple_select",
+      "prompt": "Which claims explain fairness on a Node event loop? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Declaring a CPU loop async guarantees another thread executes it."
+        },
+        {
+          "id": "b",
+          "text": "Partitioning computation can create opportunities for other work."
+        },
+        {
+          "id": "c",
+          "text": "One long callback can delay callbacks belonging to other clients."
+        },
+        {
+          "id": "d",
+          "text": "Offloading suitable CPU work can keep the main loop responsive."
+        },
+        {
+          "id": "e",
+          "text": "Every socket owns a dedicated JavaScript execution thread by default."
+        }
+      ],
+      "answers": [
+        "b",
+        "c",
+        "d"
+      ],
+      "explanation": "A: Incorrect: async is not CPU offloading. B: Correct: small bounded pieces can yield. C: Correct: callbacks share the loop. D: Correct: explicit offloading moves heavy work away. E: Incorrect: one loop handles many sockets.",
+      "materials": [
+        "node-avoid-blocking"
+      ],
+      "sources": [
+        {
+          "url": "https://nodejs.org/en/learn/asynchronous-work/dont-block-the-event-loop",
+          "title": "Do Not Block the Event Loop or Worker Pool",
+          "publisher": "Node.js",
+          "accessed": "2026-10-09",
+          "claim": "Callbacks should be small; partitioning or offloading expensive work prevents the loop from blocking other clients."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w07-l01-q08",
+      "lesson": "w07-l01",
+      "concept": "w07-l01-timer-threshold",
+      "type": "multiple_select",
+      "prompt": "Which timer claims are correct? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A timer delay specifies a minimum eligibility threshold."
+        },
+        {
+          "id": "b",
+          "text": "A zero-delay timer executes synchronously in the same call stack."
+        },
+        {
+          "id": "c",
+          "text": "Timer callbacks can interrupt arbitrary running JavaScript instructions."
+        },
+        {
+          "id": "d",
+          "text": "A busy callback can delay execution beyond the threshold."
+        },
+        {
+          "id": "e",
+          "text": "A timeout delay is an exact wall-clock execution deadline."
+        }
+      ],
+      "answers": [
+        "a",
+        "d"
+      ],
+      "explanation": "A: Correct: elapsed time makes it eligible. B: Incorrect: it is scheduled for later. C: Incorrect: running callbacks are not preempted by timers. D: Correct: loop availability affects execution. E: Incorrect: execution can happen later.",
+      "materials": [
+        "node-event-loop"
+      ],
+      "sources": [
+        {
+          "url": "https://nodejs.org/en/learn/asynchronous-work/event-loop-timers-and-nexttick",
+          "title": "The Node.js Event Loop",
+          "publisher": "Node.js",
+          "accessed": "2026-10-09",
+          "claim": "Node schedules callbacks through event-loop phases, timers have minimum thresholds rather than exact deadlines, recursive nextTick work can starve I/O, and timeout/immediate order depends on call context."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w07-l01-q09",
+      "lesson": "w07-l01",
+      "concept": "w07-l01-nexttick-starvation",
+      "type": "multiple_select",
+      "prompt": "Which nextTick claims hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Recursive nextTick scheduling can prevent the loop reaching poll."
+        },
+        {
+          "id": "b",
+          "text": "Its queue is processed before the event loop continues."
+        },
+        {
+          "id": "c",
+          "text": "The name means it always waits one complete loop iteration."
+        },
+        {
+          "id": "d",
+          "text": "A recursive queue guarantees polling between successive callbacks."
+        },
+        {
+          "id": "e",
+          "text": "Callbacks run after the current operation finishes."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "e"
+      ],
+      "explanation": "A: Correct: queue replenishment can starve I/O. B: Correct: this priority is documented. C: Incorrect: the name is historically misleading. D: Incorrect: repeated work can starve polling. E: Correct: current execution unwinds first.",
+      "materials": [
+        "node-event-loop"
+      ],
+      "sources": [
+        {
+          "url": "https://nodejs.org/en/learn/asynchronous-work/event-loop-timers-and-nexttick",
+          "title": "The Node.js Event Loop",
+          "publisher": "Node.js",
+          "accessed": "2026-10-09",
+          "claim": "Node schedules callbacks through event-loop phases, timers have minimum thresholds rather than exact deadlines, recursive nextTick work can starve I/O, and timeout/immediate order depends on call context."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w07-l01-q10",
+      "lesson": "w07-l01",
+      "concept": "w07-l01-phase-order",
+      "type": "multiple_select",
+      "prompt": "Which scheduling distinctions are documented? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Top-level timeout and immediate order is fixed for every execution environment."
+        },
+        {
+          "id": "b",
+          "text": "setImmediate is associated with work after the poll phase."
+        },
+        {
+          "id": "c",
+          "text": "Callback order should be reasoned about in its scheduling context."
+        },
+        {
+          "id": "d",
+          "text": "setImmediate invokes its callback inside the current synchronous call stack."
+        },
+        {
+          "id": "e",
+          "text": "A timeout becomes eligible after its delay threshold."
+        }
+      ],
+      "answers": [
+        "b",
+        "c",
+        "e"
+      ],
+      "explanation": "A: Incorrect: ordering can vary by context and timing. B: Correct: immediate callbacks execute in check after poll. C: Correct: phase and creation context matter. D: Incorrect: it schedules later execution. E: Correct: timers use elapsed thresholds.",
+      "materials": [
+        "node-event-loop"
+      ],
+      "sources": [
+        {
+          "url": "https://nodejs.org/en/learn/asynchronous-work/event-loop-timers-and-nexttick",
+          "title": "The Node.js Event Loop",
+          "publisher": "Node.js",
+          "accessed": "2026-10-09",
+          "claim": "Node schedules callbacks through event-loop phases, timers have minimum thresholds rather than exact deadlines, recursive nextTick work can starve I/O, and timeout/immediate order depends on call context."
+        }
+      ],
+      "retired": null
+    }
+  ]
+}

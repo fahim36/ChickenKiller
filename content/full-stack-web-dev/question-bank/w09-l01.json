@@ -1,0 +1,453 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "w09-l01-session-rotation",
+      "name": "Session entropy and rotation"
+    },
+    {
+      "id": "w09-l01-cookie-attributes",
+      "name": "Cookie transport and script access"
+    },
+    {
+      "id": "w09-l01-session-expiry",
+      "name": "Session expiry and invalidation"
+    },
+    {
+      "id": "w09-l01-jwt-validation",
+      "name": "JWT integrity and intended use"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w09-l01-q01",
+      "type": "multiple_choice",
+      "lesson": "w09-l01",
+      "concept": "w09-l01-session-rotation",
+      "prompt": "An anonymous visitor logs in using a session ID chosen before authentication. What most directly prevents session fixation?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Keep the pre-login identifier because HTTPS prevents session fixation."
+        },
+        {
+          "id": "b",
+          "text": "Issue a new session ID after authentication."
+        },
+        {
+          "id": "c",
+          "text": "Retain the ID and change only its cookie expiration."
+        },
+        {
+          "id": "d",
+          "text": "Encode the existing ID with Base64 before reuse."
+        }
+      ],
+      "answer": "b",
+      "explanation": "Renewing the identifier breaks an attacker-fixed session. Expiration, encoding and UI changes do not replace the attacker-known identifier.",
+      "materials": [
+        "owasp-session-management"
+      ],
+      "sources": [
+        {
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html",
+          "title": "Session Management Cheat Sheet",
+          "publisher": "OWASP",
+          "accessed": "2026-10-09",
+          "claim": "Session identifiers require unpredictable randomness and renewal after authentication or privilege changes."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w09-l01-q02",
+      "type": "multiple_choice",
+      "lesson": "w09-l01",
+      "concept": "w09-l01-cookie-attributes",
+      "prompt": "A script cannot read an HttpOnly session cookie. Which risk can still remain?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The script can issue requests with the attached cookie."
+        },
+        {
+          "id": "b",
+          "text": "HttpOnly forces every request onto unencrypted HTTP."
+        },
+        {
+          "id": "c",
+          "text": "HttpOnly stops the browser attaching the cookie at all."
+        },
+        {
+          "id": "d",
+          "text": "HttpOnly removes the need to check resource permissions on the server."
+        }
+      ],
+      "answer": "a",
+      "explanation": "HttpOnly limits direct cookie access. It does not stop malicious scripts from making authenticated requests or replace TLS and authorization.",
+      "materials": [
+        "owasp-session-management"
+      ],
+      "sources": [
+        {
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html",
+          "title": "Session Management Cheat Sheet",
+          "publisher": "OWASP",
+          "accessed": "2026-10-09",
+          "claim": "Secure restricts cookie transmission to HTTPS and HttpOnly blocks direct script reads without preventing authenticated requests."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w09-l01-q03",
+      "type": "multiple_choice",
+      "lesson": "w09-l01",
+      "concept": "w09-l01-session-expiry",
+      "prompt": "A logout endpoint deletes the browser cookie but leaves its session active on the server. What is missing?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Increase cookie lifetime to make deletion more reliable."
+        },
+        {
+          "id": "b",
+          "text": "Rename the session cookie without changing server state."
+        },
+        {
+          "id": "c",
+          "text": "Keep the server session until the next successful login."
+        },
+        {
+          "id": "d",
+          "text": "Invalidate the server-side session as well."
+        }
+      ],
+      "answer": "d",
+      "explanation": "A copied credential can remain usable if server state is not invalidated. Cookie deletion alone, renaming and delayed invalidation do not end that session.",
+      "materials": [
+        "owasp-session-management"
+      ],
+      "sources": [
+        {
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html",
+          "title": "Session Management Cheat Sheet",
+          "publisher": "OWASP",
+          "accessed": "2026-10-09",
+          "claim": "Session idle and absolute timeouts and logout must be enforced by server-side invalidation."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w09-l01-q04",
+      "type": "multiple_choice",
+      "lesson": "w09-l01",
+      "concept": "w09-l01-jwt-validation",
+      "prompt": "An API decodes a JWT payload and trusts its role without verifying the signature. What is the main flaw?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A readable token cannot contain an expiration claim."
+        },
+        {
+          "id": "b",
+          "text": "HTTPS makes every received token trustworthy by default."
+        },
+        {
+          "id": "c",
+          "text": "Decoding does not establish token integrity."
+        },
+        {
+          "id": "d",
+          "text": "Base64 decoding automatically checks the trusted issuer."
+        }
+      ],
+      "answer": "c",
+      "explanation": "A decoded payload is untrusted until integrity and intended-use checks succeed. Base64 and TLS do not replace token verification.",
+      "materials": [
+        "owasp-rest-security"
+      ],
+      "sources": [
+        {
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/REST_Security_Cheat_Sheet.html",
+          "title": "REST Security Cheat Sheet",
+          "publisher": "OWASP",
+          "accessed": "2026-10-09",
+          "claim": "REST APIs verify JWT integrity and expected issuer, audience, expiration and not-before claims; a token header must not choose the verification algorithm."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w09-l01-q05",
+      "type": "multiple_choice",
+      "lesson": "w09-l01",
+      "concept": "w09-l01-session-rotation",
+      "prompt": "A user becomes an administrator during an existing session. Which change follows OWASP session guidance?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Encode the administrator role into the existing opaque identifier."
+        },
+        {
+          "id": "b",
+          "text": "Renew the identifier when the privilege level changes."
+        },
+        {
+          "id": "c",
+          "text": "Retain the identifier because the user was already logged in."
+        },
+        {
+          "id": "d",
+          "text": "Change only the session cookie name while retaining its value."
+        }
+      ],
+      "answer": "b",
+      "explanation": "Privilege changes require session renewal. Existing authentication does not remove fixation risk, and renaming or embedding privileges is not renewal.",
+      "materials": [
+        "owasp-session-management"
+      ],
+      "sources": [
+        {
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html",
+          "title": "Session Management Cheat Sheet",
+          "publisher": "OWASP",
+          "accessed": "2026-10-09",
+          "claim": "Session IDs are renewed after privilege changes to prevent fixation."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w09-l01-q06",
+      "type": "multiple_choice",
+      "lesson": "w09-l01",
+      "concept": "w09-l01-cookie-attributes",
+      "prompt": "A session cookie needs protection from both plaintext transport and direct script reads. Which setting fits?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Set both Secure and HttpOnly."
+        },
+        {
+          "id": "b",
+          "text": "Set HttpOnly and send the session over ordinary HTTP."
+        },
+        {
+          "id": "c",
+          "text": "Set Secure and permit every script to read its value."
+        },
+        {
+          "id": "d",
+          "text": "Set a longer Max-Age instead of either attribute."
+        }
+      ],
+      "answer": "a",
+      "explanation": "Secure and HttpOnly address separate exposure paths. A long lifetime is not a confidentiality control.",
+      "materials": [
+        "owasp-session-management"
+      ],
+      "sources": [
+        {
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html",
+          "title": "Session Management Cheat Sheet",
+          "publisher": "OWASP",
+          "accessed": "2026-10-09",
+          "claim": "Secure protects transport; HttpOnly restricts direct script reads."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w09-l01-q07",
+      "type": "multiple_select",
+      "lesson": "w09-l01",
+      "concept": "w09-l01-session-rotation",
+      "prompt": "Which session identifier practices reduce guessing and fixation? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Treat Base64 encoding as a source of cryptographic randomness."
+        },
+        {
+          "id": "b",
+          "text": "Encode the user’s role into the session ID instead of storing trusted state server-side."
+        },
+        {
+          "id": "c",
+          "text": "Generate session IDs with a cryptographically secure random generator."
+        },
+        {
+          "id": "d",
+          "text": "Regenerate the session ID when authentication changes its privileges."
+        },
+        {
+          "id": "e",
+          "text": "Use an increasing customer number as the complete session credential."
+        }
+      ],
+      "answers": [
+        "c",
+        "d"
+      ],
+      "explanation": "A is incorrect: Encoding changes representation rather than entropy. B is incorrect: Session identifiers should be opaque and meaningless; trusted state belongs on the server. C is correct: Unpredictability protects against session guessing. D is correct: Renewal prevents reuse of a pre-authentication identifier. E is incorrect: Predictable identifiers are not suitable authentication secrets.",
+      "materials": [
+        "owasp-session-management"
+      ],
+      "sources": [
+        {
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html",
+          "title": "Session Management Cheat Sheet",
+          "publisher": "OWASP",
+          "accessed": "2026-10-09",
+          "claim": "Session identifiers require unpredictable randomness and renewal after authentication or privilege changes."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w09-l01-q08",
+      "type": "multiple_select",
+      "lesson": "w09-l01",
+      "concept": "w09-l01-cookie-attributes",
+      "prompt": "Which session-cookie attribute statements hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Narrow cookie Domain and Path settings can limit exposure."
+        },
+        {
+          "id": "b",
+          "text": "Secure restricts transmission to encrypted HTTPS connections."
+        },
+        {
+          "id": "c",
+          "text": "HttpOnly prevents direct cookie reads through page JavaScript."
+        },
+        {
+          "id": "d",
+          "text": "HttpOnly prevents all actions performed by injected same-origin scripts."
+        },
+        {
+          "id": "e",
+          "text": "TLS makes unpredictable session identifiers unnecessary."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "c"
+      ],
+      "explanation": "A is correct: Avoiding unnecessary scope reduces where cookies are sent. B is correct: Secure protects cookie transport. C is correct: It restricts script access to the cookie value. D is incorrect: Injected code can still send authenticated requests. E is incorrect: TLS protects transport rather than identifier guessing.",
+      "materials": [
+        "owasp-session-management"
+      ],
+      "sources": [
+        {
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html",
+          "title": "Session Management Cheat Sheet",
+          "publisher": "OWASP",
+          "accessed": "2026-10-09",
+          "claim": "Secure restricts cookie transmission to HTTPS and HttpOnly blocks direct script reads without preventing authenticated requests."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w09-l01-q09",
+      "type": "multiple_select",
+      "lesson": "w09-l01",
+      "concept": "w09-l01-session-expiry",
+      "prompt": "Which session expiry controls belong on the server? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Enforce an idle timeout independently of client-side scripts."
+        },
+        {
+          "id": "b",
+          "text": "Enforce an absolute timeout even for continuously active sessions."
+        },
+        {
+          "id": "c",
+          "text": "Use a browser countdown as the sole authority for session validity."
+        },
+        {
+          "id": "d",
+          "text": "A browser-side timeout alone makes the session invalid on the server."
+        },
+        {
+          "id": "e",
+          "text": "Treat closing one browser tab as proof that every session ended."
+        }
+      ],
+      "answers": [
+        "a",
+        "b"
+      ],
+      "explanation": "A is correct: Client controls can be bypassed. B is correct: It bounds total session lifetime. C is incorrect: The client cannot enforce server authorization. D is incorrect: Client-side timers cannot enforce server session validity. E is incorrect: Browser behavior does not guarantee server-side invalidation.",
+      "materials": [
+        "owasp-session-management"
+      ],
+      "sources": [
+        {
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html",
+          "title": "Session Management Cheat Sheet",
+          "publisher": "OWASP",
+          "accessed": "2026-10-09",
+          "claim": "Session idle and absolute timeouts and logout must be enforced by server-side invalidation."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w09-l01-q10",
+      "type": "multiple_select",
+      "lesson": "w09-l01",
+      "concept": "w09-l01-jwt-validation",
+      "prompt": "Which JWT validation checks are appropriate for an API? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Check expected issuer and audience before accepting claims."
+        },
+        {
+          "id": "b",
+          "text": "Check expiration and not-before time constraints."
+        },
+        {
+          "id": "c",
+          "text": "Accept the algorithm advertised by any token without a local policy."
+        },
+        {
+          "id": "d",
+          "text": "Treat a successfully decoded payload as an authenticated identity."
+        },
+        {
+          "id": "e",
+          "text": "Verify integrity using a configured trusted verification method."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "e"
+      ],
+      "explanation": "A is correct: Claims must be intended for the API and trust domain. B is correct: Time claims constrain token validity. C is incorrect: The verifier must choose allowed algorithms independently. D is incorrect: Decoding is not cryptographic verification. E is correct: Signature or MAC verification protects authenticity.",
+      "materials": [
+        "owasp-rest-security"
+      ],
+      "sources": [
+        {
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/REST_Security_Cheat_Sheet.html",
+          "title": "REST Security Cheat Sheet",
+          "publisher": "OWASP",
+          "accessed": "2026-10-09",
+          "claim": "REST APIs verify JWT integrity and expected issuer, audience, expiration and not-before claims; a token header must not choose the verification algorithm."
+        }
+      ],
+      "retired": null
+    }
+  ]
+}

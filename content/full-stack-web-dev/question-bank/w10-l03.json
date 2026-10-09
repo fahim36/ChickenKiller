@@ -1,0 +1,453 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "w10-l03-api-assertions",
+      "name": "API response assertions"
+    },
+    {
+      "id": "w10-l03-cookie-contexts",
+      "name": "API and browser cookie contexts"
+    },
+    {
+      "id": "w10-l03-browser-isolation",
+      "name": "Browser-context test isolation"
+    },
+    {
+      "id": "w10-l03-api-fixtures",
+      "name": "Server-state setup and cleanup"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w10-l03-q01",
+      "type": "multiple_choice",
+      "lesson": "w10-l03",
+      "concept": "w10-l03-api-assertions",
+      "prompt": "An API test gets HTTP 200 but the returned object has the wrong owner. What should the test add?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Replace the API assertion with a browser screenshot only."
+        },
+        {
+          "id": "b",
+          "text": "Treat every response from the expected host as correct."
+        },
+        {
+          "id": "c",
+          "text": "Assert the relevant response body fields."
+        },
+        {
+          "id": "d",
+          "text": "Remove payload checks because status proves all behavior."
+        }
+      ],
+      "answer": "c",
+      "explanation": "Success status and payload correctness are separate. A test should verify the contract fields relevant to the scenario.",
+      "materials": [
+        "playwright-api-tests"
+      ],
+      "sources": [
+        {
+          "url": "https://playwright.dev/docs/api-testing",
+          "title": "Playwright API testing",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "Playwright API testing checks status and response payloads and can prepare server state before browser verification."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w10-l03-q02",
+      "type": "multiple_choice",
+      "lesson": "w10-l03",
+      "concept": "w10-l03-cookie-contexts",
+      "prompt": "A test calls context.request to log in. Where can response cookies be available?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Nowhere, because APIRequestContext discards all cookies."
+        },
+        {
+          "id": "b",
+          "text": "In the associated browser context."
+        },
+        {
+          "id": "c",
+          "text": "Only in a new unrelated browser process created later."
+        },
+        {
+          "id": "d",
+          "text": "In every independent request context across the test suite."
+        }
+      ],
+      "answer": "b",
+      "explanation": "Browser-associated request contexts share cookie storage. Independent contexts are isolated rather than globally synchronized.",
+      "materials": [
+        "playwright-api-tests"
+      ],
+      "sources": [
+        {
+          "url": "https://playwright.dev/docs/api-testing",
+          "title": "Playwright API testing",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "Browser-associated APIRequestContext shares cookies with its BrowserContext; independently created request contexts have isolated cookies."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w10-l03-q03",
+      "type": "multiple_choice",
+      "lesson": "w10-l03",
+      "concept": "w10-l03-browser-isolation",
+      "prompt": "Two tests should start with separate cookies and local storage. Which Playwright boundary supports that?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Separate browser contexts."
+        },
+        {
+          "id": "b",
+          "text": "Separate pages in the same shared context only."
+        },
+        {
+          "id": "c",
+          "text": "Different locator variable names on one shared page."
+        },
+        {
+          "id": "d",
+          "text": "One persistent context reused without cleanup by all tests."
+        }
+      ],
+      "answer": "a",
+      "explanation": "Browser contexts isolate browser state. Pages in the same context can share that state; variable names provide no isolation.",
+      "materials": [
+        "playwright-isolation"
+      ],
+      "sources": [
+        {
+          "url": "https://playwright.dev/docs/browser-contexts",
+          "title": "Playwright isolation",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "Playwright uses separate browser contexts for isolated tests, preventing cookies and local storage from leaking between tests."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w10-l03-q04",
+      "type": "multiple_choice",
+      "lesson": "w10-l03",
+      "concept": "w10-l03-api-fixtures",
+      "prompt": "A fresh browser context still sees records created by a previous test in the database. Why?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Every browser context restores the server database automatically."
+        },
+        {
+          "id": "b",
+          "text": "Cookies are the only place a server can store records."
+        },
+        {
+          "id": "c",
+          "text": "Creating a new page always rolls back every prior API request."
+        },
+        {
+          "id": "d",
+          "text": "Browser isolation does not clear remote server data."
+        }
+      ],
+      "answer": "d",
+      "explanation": "Browser state and server persistence are different boundaries. Tests need explicit server-state setup and cleanup where required.",
+      "materials": [
+        "playwright-api-tests"
+      ],
+      "sources": [
+        {
+          "url": "https://playwright.dev/docs/api-testing",
+          "title": "Playwright API testing",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "API tests can create resources for browser scenarios and remove them during teardown; browser isolation alone does not reset remote application data."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w10-l03-q05",
+      "type": "multiple_choice",
+      "lesson": "w10-l03",
+      "concept": "w10-l03-api-assertions",
+      "prompt": "A create endpoint should return the submitted title. Which assertion complements the success status?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Assert that every API response has the same byte length."
+        },
+        {
+          "id": "b",
+          "text": "Accept any body whenever the status is below 400."
+        },
+        {
+          "id": "c",
+          "text": "Check the returned resource title against the submitted value."
+        },
+        {
+          "id": "d",
+          "text": "Check only that the request object existed before sending."
+        }
+      ],
+      "answer": "c",
+      "explanation": "A relevant payload assertion checks the intended contract. Object existence, response length and broad status ranges do not verify the title.",
+      "materials": [
+        "playwright-api-tests"
+      ],
+      "sources": [
+        {
+          "url": "https://playwright.dev/docs/api-testing",
+          "title": "Playwright API testing",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "API status and returned resource data are separate contract checks."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w10-l03-q06",
+      "type": "multiple_choice",
+      "lesson": "w10-l03",
+      "concept": "w10-l03-cookie-contexts",
+      "prompt": "A standalone request context logs in, and a later browser context needs that state. What is appropriate?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Expect cookies to transfer solely because both use the same base URL."
+        },
+        {
+          "id": "b",
+          "text": "Export storage state and initialize the browser context with it."
+        },
+        {
+          "id": "c",
+          "text": "Assume every browser automatically receives the standalone cookie jar."
+        },
+        {
+          "id": "d",
+          "text": "Initialize an unrelated browser context without exporting the API cookie state."
+        }
+      ],
+      "answer": "b",
+      "explanation": "Storage state can be transferred deliberately. Common URLs and variable names do not merge independent context storage.",
+      "materials": [
+        "playwright-api-tests"
+      ],
+      "sources": [
+        {
+          "url": "https://playwright.dev/docs/api-testing",
+          "title": "Playwright API testing",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "Standalone APIRequestContext has isolated cookie storage and can export storage state."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w10-l03-q07",
+      "type": "multiple_select",
+      "lesson": "w10-l03",
+      "concept": "w10-l03-api-assertions",
+      "prompt": "Which checks belong in a targeted API test? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Assert the expected status for the operation."
+        },
+        {
+          "id": "b",
+          "text": "Verify relevant fields in the response payload."
+        },
+        {
+          "id": "c",
+          "text": "A successful status replaces the need to validate the response contract fields."
+        },
+        {
+          "id": "d",
+          "text": "Treat response.ok as proof every returned field is correct."
+        },
+        {
+          "id": "e",
+          "text": "Skip authorization-related response checks in authenticated flows."
+        }
+      ],
+      "answers": [
+        "a",
+        "b"
+      ],
+      "explanation": "A is correct: Status is part of the endpoint contract. B is correct: The body can be incorrect despite a successful status. C is incorrect: Status success and body correctness must be checked separately. D is incorrect: Status classification does not validate data. E is incorrect: Authenticated scenarios still need their access outcome verified.",
+      "materials": [
+        "playwright-api-tests"
+      ],
+      "sources": [
+        {
+          "url": "https://playwright.dev/docs/api-testing",
+          "title": "Playwright API testing",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "Playwright API testing checks status and response payloads and can prepare server state before browser verification."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w10-l03-q08",
+      "type": "multiple_select",
+      "lesson": "w10-l03",
+      "concept": "w10-l03-cookie-contexts",
+      "prompt": "Which request-context cookie statements hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Set-Cookie responses can update the associated browser context."
+        },
+        {
+          "id": "b",
+          "text": "An independently created request context has isolated cookies."
+        },
+        {
+          "id": "c",
+          "text": "Every request context automatically shares one global cookie store."
+        },
+        {
+          "id": "d",
+          "text": "A standalone API login always authenticates all open browser contexts."
+        },
+        {
+          "id": "e",
+          "text": "Browser-associated API requests share browser-context cookies."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "e"
+      ],
+      "explanation": "A is correct: Shared storage supports API login before browser steps. B is correct: It does not automatically update another browser context. C is incorrect: Independent contexts are separate. D is incorrect: State must be deliberately shared or exported. E is correct: They use the same cookie jar.",
+      "materials": [
+        "playwright-api-tests"
+      ],
+      "sources": [
+        {
+          "url": "https://playwright.dev/docs/api-testing",
+          "title": "Playwright API testing",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "Browser-associated APIRequestContext shares cookies with its BrowserContext; independently created request contexts have isolated cookies."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w10-l03-q09",
+      "type": "multiple_select",
+      "lesson": "w10-l03",
+      "concept": "w10-l03-browser-isolation",
+      "prompt": "Which isolation statements follow Playwright’s model? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Creating a second page in the same context clears its existing cookies."
+        },
+        {
+          "id": "b",
+          "text": "Two pages in the same browser context have isolated cookie stores by default."
+        },
+        {
+          "id": "c",
+          "text": "All pages in one context necessarily have independent cookie jars."
+        },
+        {
+          "id": "d",
+          "text": "Separate browser contexts can isolate cookies and storage."
+        },
+        {
+          "id": "e",
+          "text": "Fresh contexts reduce dependence on the order of earlier tests."
+        }
+      ],
+      "answers": [
+        "d",
+        "e"
+      ],
+      "explanation": "A is incorrect: A new page in the same context shares existing context storage. B is incorrect: Pages share their containing context’s cookies and storage. C is incorrect: They share the context’s storage. D is correct: Context boundaries separate browser state. E is correct: A clean starting state prevents state leakage.",
+      "materials": [
+        "playwright-isolation"
+      ],
+      "sources": [
+        {
+          "url": "https://playwright.dev/docs/browser-contexts",
+          "title": "Playwright isolation",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "Playwright uses separate browser contexts for isolated tests, preventing cookies and local storage from leaking between tests."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w10-l03-q10",
+      "type": "multiple_select",
+      "lesson": "w10-l03",
+      "concept": "w10-l03-api-fixtures",
+      "prompt": "Which fixture practices fit API-assisted browser tests? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Keep test fixtures scoped so one test does not rely on another’s record."
+        },
+        {
+          "id": "b",
+          "text": "Treat the same shared mutable record as automatic test isolation."
+        },
+        {
+          "id": "c",
+          "text": "Create needed records through controlled API setup."
+        },
+        {
+          "id": "d",
+          "text": "Remove test-created resources during teardown where appropriate."
+        },
+        {
+          "id": "e",
+          "text": "Assume a new browser context resets the production database."
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "d"
+      ],
+      "explanation": "A is correct: Independent fixtures reduce order dependence. B is incorrect: Concurrent tests can interfere with shared data. C is correct: Setup establishes the scenario explicitly. D is correct: Cleanup avoids persistent test-data interference. E is incorrect: Context isolation is local browser state.",
+      "materials": [
+        "playwright-api-tests"
+      ],
+      "sources": [
+        {
+          "url": "https://playwright.dev/docs/api-testing",
+          "title": "Playwright API testing",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "API tests can create resources for browser scenarios and remove them during teardown; browser isolation alone does not reset remote application data."
+        }
+      ],
+      "retired": null
+    }
+  ]
+}

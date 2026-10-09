@@ -1,0 +1,453 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "w10-l02-accessible-queries",
+      "name": "Queries by role and accessible name"
+    },
+    {
+      "id": "w10-l02-query-cardinality",
+      "name": "Query absence and asynchronous lookup"
+    },
+    {
+      "id": "w10-l02-async-dom",
+      "name": "Asynchronous DOM assertions"
+    },
+    {
+      "id": "w10-l02-user-interactions",
+      "name": "Realistic user-event interactions"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w10-l02-q01",
+      "type": "multiple_choice",
+      "lesson": "w10-l02",
+      "concept": "w10-l02-accessible-queries",
+      "prompt": "A visible submit button has the accessible name Save. Which query best reflects its user-facing identity?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "getByTestId because IDs always outrank semantics."
+        },
+        {
+          "id": "b",
+          "text": "querySelector for its fourth nested wrapper element."
+        },
+        {
+          "id": "c",
+          "text": "getByText on a CSS class name hidden from users."
+        },
+        {
+          "id": "d",
+          "text": "getByRole with button and name Save."
+        }
+      ],
+      "answer": "d",
+      "explanation": "Role and accessible name reflect how users and assistive technology identify the control. IDs and DOM position couple the test to implementation.",
+      "materials": [
+        "testing-library-queries"
+      ],
+      "sources": [
+        {
+          "url": "https://testing-library.com/docs/queries/about/",
+          "title": "Testing Library: About Queries",
+          "publisher": "Testing Library",
+          "accessed": "2026-10-09",
+          "claim": "Testing Library prioritizes role and accessible-name queries over test IDs when semantic queries are available."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w10-l02-q02",
+      "type": "multiple_choice",
+      "lesson": "w10-l02",
+      "concept": "w10-l02-query-cardinality",
+      "prompt": "A test must assert that an error message is absent. Which query avoids throwing just because it is missing?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "findByText, which synchronously returns undefined."
+        },
+        {
+          "id": "b",
+          "text": "getAllByText, which never fails when nothing matches."
+        },
+        {
+          "id": "c",
+          "text": "queryByText."
+        },
+        {
+          "id": "d",
+          "text": "getByText, which returns null on absence."
+        }
+      ],
+      "answer": "c",
+      "explanation": "queryBy supports absence checks by returning null. getBy throws, while findBy waits for a match.",
+      "materials": [
+        "testing-library-queries"
+      ],
+      "sources": [
+        {
+          "url": "https://testing-library.com/docs/queries/about/",
+          "title": "Testing Library: About Queries",
+          "publisher": "Testing Library",
+          "accessed": "2026-10-09",
+          "claim": "getBy throws on absence, queryBy returns null on absence, and findBy retries asynchronously; singular queries reject multiple matches."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w10-l02-q03",
+      "type": "multiple_choice",
+      "lesson": "w10-l02",
+      "concept": "w10-l02-async-dom",
+      "prompt": "A waitFor callback returns false until a result appears, but the test does not retry as intended. What is needed?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Ignore the callback result and end the test early."
+        },
+        {
+          "id": "b",
+          "text": "Throw through an assertion until the condition holds."
+        },
+        {
+          "id": "c",
+          "text": "Return a different false value on every attempt."
+        },
+        {
+          "id": "d",
+          "text": "Use a fixed sleep instead of checking the condition."
+        }
+      ],
+      "answer": "b",
+      "explanation": "waitFor retries when the callback throws. Merely returning a falsy value does not request a retry.",
+      "materials": [
+        "testing-library-async"
+      ],
+      "sources": [
+        {
+          "url": "https://testing-library.com/docs/dom-testing-library/api-async/",
+          "title": "Testing Library async methods",
+          "publisher": "Testing Library",
+          "accessed": "2026-10-09",
+          "claim": "waitFor retries a callback when it throws and findBy waits for an element; asynchronous utilities must be awaited."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w10-l02-q04",
+      "type": "multiple_choice",
+      "lesson": "w10-l02",
+      "concept": "w10-l02-user-interactions",
+      "prompt": "Why prefer user-event typing over dispatching only a single low-level input event?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It models the sequence of a user interaction."
+        },
+        {
+          "id": "b",
+          "text": "It disables the need to assert the resulting UI state."
+        },
+        {
+          "id": "c",
+          "text": "It guarantees the real browser sends a production request."
+        },
+        {
+          "id": "d",
+          "text": "It bypasses visibility checks to interact with hidden controls."
+        }
+      ],
+      "answer": "a",
+      "explanation": "user-event models interactions rather than one event dispatch. Tests still need assertions, and simulated interaction does not establish production behavior.",
+      "materials": [
+        "testing-library-user-event"
+      ],
+      "sources": [
+        {
+          "url": "https://testing-library.com/docs/user-event/intro/",
+          "title": "Introduction to user-event",
+          "publisher": "Testing Library",
+          "accessed": "2026-10-09",
+          "claim": "user-event simulates complete interactions with visibility and interactability checks and recommends setup before interaction."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w10-l02-q05",
+      "type": "multiple_choice",
+      "lesson": "w10-l02",
+      "concept": "w10-l02-accessible-queries",
+      "prompt": "A form contains Save and Cancel buttons. Which query identifies Save through accessible semantics?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "getByRole(\"button\") while assuming only the first is returned."
+        },
+        {
+          "id": "b",
+          "text": "Select the first button regardless of its accessible name."
+        },
+        {
+          "id": "c",
+          "text": "Query a hidden CSS class that happens to contain Save."
+        },
+        {
+          "id": "d",
+          "text": "getByRole(\"button\", { name: \"Save\" })."
+        }
+      ],
+      "answer": "d",
+      "explanation": "The name option disambiguates the role. A singular query with two matches fails; DOM order is a weaker implementation detail.",
+      "materials": [
+        "testing-library-queries"
+      ],
+      "sources": [
+        {
+          "url": "https://testing-library.com/docs/queries/about/",
+          "title": "Testing Library: About Queries",
+          "publisher": "Testing Library",
+          "accessed": "2026-10-09",
+          "claim": "Role queries can include an accessible name to distinguish similar controls."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w10-l02-q06",
+      "type": "multiple_choice",
+      "lesson": "w10-l02",
+      "concept": "w10-l02-query-cardinality",
+      "prompt": "A success banner appears after a submitted request completes. Which lookup fits the timing?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "getByText before submitting the request."
+        },
+        {
+          "id": "b",
+          "text": "findByText without awaiting its pending promise."
+        },
+        {
+          "id": "c",
+          "text": "await findByText for the success banner."
+        },
+        {
+          "id": "d",
+          "text": "queryByText once, treating null as proof the request finished."
+        }
+      ],
+      "answer": "c",
+      "explanation": "findBy retries until the banner appears or times out. Immediate checks can race, and an unawaited promise does not establish completion.",
+      "materials": [
+        "testing-library-queries"
+      ],
+      "sources": [
+        {
+          "url": "https://testing-library.com/docs/queries/about/",
+          "title": "Testing Library: About Queries",
+          "publisher": "Testing Library",
+          "accessed": "2026-10-09",
+          "claim": "findBy waits for an element and returns a promise."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w10-l02-q07",
+      "type": "multiple_select",
+      "lesson": "w10-l02",
+      "concept": "w10-l02-accessible-queries",
+      "prompt": "Which query practices follow Testing Library priorities? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A singular role query returns the first of several matching buttons by default."
+        },
+        {
+          "id": "b",
+          "text": "Query an exposed button by role and accessible name."
+        },
+        {
+          "id": "c",
+          "text": "Use a label-based query for a labelled form field."
+        },
+        {
+          "id": "d",
+          "text": "Prefer test IDs even when an appropriate role query is available."
+        },
+        {
+          "id": "e",
+          "text": "Treat wrapper nesting as the public contract of a component."
+        }
+      ],
+      "answers": [
+        "b",
+        "c"
+      ],
+      "explanation": "A is incorrect: Singular queries reject multiple matches; use a distinguishing accessible name. B is correct: Semantic queries reflect user-facing behavior. C is correct: Labels are a direct way users identify fields. D is incorrect: Test IDs have lower priority than accessible queries. E is incorrect: DOM structure is an implementation detail.",
+      "materials": [
+        "testing-library-queries"
+      ],
+      "sources": [
+        {
+          "url": "https://testing-library.com/docs/queries/about/",
+          "title": "Testing Library: About Queries",
+          "publisher": "Testing Library",
+          "accessed": "2026-10-09",
+          "claim": "Testing Library prioritizes role and accessible-name queries over test IDs when semantic queries are available."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w10-l02-q08",
+      "type": "multiple_select",
+      "lesson": "w10-l02",
+      "concept": "w10-l02-query-cardinality",
+      "prompt": "Which singular-query behaviors are documented? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "getBy throws when no matching element exists."
+        },
+        {
+          "id": "b",
+          "text": "queryBy returns null when no matching element exists."
+        },
+        {
+          "id": "c",
+          "text": "findBy returns a promise that retries for a match."
+        },
+        {
+          "id": "d",
+          "text": "queryBy returns the first element when several elements match."
+        },
+        {
+          "id": "e",
+          "text": "findBy is a synchronous alias for queryBy."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "c"
+      ],
+      "explanation": "A is correct: Immediate absence is an error for getBy. B is correct: This supports assertions of absence. C is correct: It combines query behavior with waiting. D is incorrect: A singular query throws on multiple matches. E is incorrect: Its asynchronous waiting behavior is distinct.",
+      "materials": [
+        "testing-library-queries"
+      ],
+      "sources": [
+        {
+          "url": "https://testing-library.com/docs/queries/about/",
+          "title": "Testing Library: About Queries",
+          "publisher": "Testing Library",
+          "accessed": "2026-10-09",
+          "claim": "getBy throws on absence, queryBy returns null on absence, and findBy retries asynchronously; singular queries reject multiple matches."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w10-l02-q09",
+      "type": "multiple_select",
+      "lesson": "w10-l02",
+      "concept": "w10-l02-async-dom",
+      "prompt": "Which choices support reliable asynchronous DOM tests? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Make waitFor callbacks throw while their expected condition is unmet."
+        },
+        {
+          "id": "b",
+          "text": "Return false as the required signal for waitFor to retry."
+        },
+        {
+          "id": "c",
+          "text": "waitFor executes its callback only once regardless of thrown assertions."
+        },
+        {
+          "id": "d",
+          "text": "Use the same fixed sleep as proof that every UI update completed."
+        },
+        {
+          "id": "e",
+          "text": "Await findBy when a matching element appears after an update."
+        }
+      ],
+      "answers": [
+        "a",
+        "e"
+      ],
+      "explanation": "A is correct: A thrown error triggers retry. B is incorrect: Falsy return alone does not cause a retry. C is incorrect: It retries a throwing callback until success or timeout. D is incorrect: Elapsed time is not a condition-based assertion. E is correct: The query waits for the element.",
+      "materials": [
+        "testing-library-async"
+      ],
+      "sources": [
+        {
+          "url": "https://testing-library.com/docs/dom-testing-library/api-async/",
+          "title": "Testing Library async methods",
+          "publisher": "Testing Library",
+          "accessed": "2026-10-09",
+          "claim": "waitFor retries a callback when it throws and findBy waits for an element; asynchronous utilities must be awaited."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w10-l02-q10",
+      "type": "multiple_select",
+      "lesson": "w10-l02",
+      "concept": "w10-l02-user-interactions",
+      "prompt": "Which user-event practices match the guide? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Treat one fireEvent dispatch as equivalent to every full interaction."
+        },
+        {
+          "id": "b",
+          "text": "Expect normal typing to bypass hidden or disabled controls."
+        },
+        {
+          "id": "c",
+          "text": "Assert the visible behavior produced by the interaction."
+        },
+        {
+          "id": "d",
+          "text": "Create a user instance with userEvent.setup in the test flow."
+        },
+        {
+          "id": "e",
+          "text": "Await asynchronous user interactions such as typing."
+        }
+      ],
+      "answers": [
+        "c",
+        "d",
+        "e"
+      ],
+      "explanation": "A is incorrect: Real interactions often require multiple events and checks. B is incorrect: user-event performs visibility and interactability checks. C is correct: Simulation alone does not prove the outcome. D is correct: The setup API provides the interaction session. E is correct: Interactions can involve multiple asynchronous steps.",
+      "materials": [
+        "testing-library-user-event"
+      ],
+      "sources": [
+        {
+          "url": "https://testing-library.com/docs/user-event/intro/",
+          "title": "Introduction to user-event",
+          "publisher": "Testing Library",
+          "accessed": "2026-10-09",
+          "claim": "user-event simulates complete interactions with visibility and interactability checks and recommends setup before interaction."
+        }
+      ],
+      "retired": null
+    }
+  ]
+}

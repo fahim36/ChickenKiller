@@ -1,0 +1,453 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "w12-l02-job-dependencies",
+      "name": "Workflow job dependencies"
+    },
+    {
+      "id": "w12-l02-workflow-artifacts",
+      "name": "Artifacts and dependency caches"
+    },
+    {
+      "id": "w12-l02-token-permissions",
+      "name": "Workflow token permissions"
+    },
+    {
+      "id": "w12-l02-deployment-gates",
+      "name": "Deployment environments and gates"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w12-l02-q01",
+      "type": "multiple_choice",
+      "lesson": "w12-l02",
+      "concept": "w12-l02-job-dependencies",
+      "prompt": "A deploy job must wait for a test job to succeed. Which workflow field establishes that dependency?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A test-job output reference without declaring a needs dependency."
+        },
+        {
+          "id": "b",
+          "text": "needs on the deploy job."
+        },
+        {
+          "id": "c",
+          "text": "The order of job names in the YAML file alone."
+        },
+        {
+          "id": "d",
+          "text": "A longer test timeout without configuring a deployment dependency."
+        }
+      ],
+      "answer": "b",
+      "explanation": "needs declares a dependency. YAML presentation order, step names and variable labels do not impose job ordering.",
+      "materials": [
+        "github-workflow-syntax"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax",
+          "title": "GitHub Actions workflow syntax",
+          "publisher": "GitHub",
+          "accessed": "2026-10-09",
+          "claim": "GitHub Actions jobs can run in parallel by default; needs establishes dependencies and skipped or failed prerequisites normally prevent dependent jobs."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w12-l02-q02",
+      "type": "multiple_choice",
+      "lesson": "w12-l02",
+      "concept": "w12-l02-workflow-artifacts",
+      "prompt": "A build job produces a bundle required by a deploy job. What should transfer that output?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Upload and download the bundle as an artifact."
+        },
+        {
+          "id": "b",
+          "text": "Assume another runner can read the build runner’s local disk."
+        },
+        {
+          "id": "c",
+          "text": "Use only a dependency-cache hit as proof the bundle exists."
+        },
+        {
+          "id": "d",
+          "text": "Assume a dependency cache always contains the exact output of the current build."
+        }
+      ],
+      "answer": "a",
+      "explanation": "Artifacts transfer generated files across job boundaries. Separate runners do not share their local filesystem by default, and caches serve a different purpose.",
+      "materials": [
+        "github-actions-artifacts"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.github.com/en/actions/how-tos/writing-workflows/choosing-what-your-workflow-does/storing-and-sharing-data-from-a-workflow",
+          "title": "Storing workflow data as artifacts",
+          "publisher": "GitHub",
+          "accessed": "2026-10-09",
+          "claim": "Workflow artifacts persist files for sharing between jobs or after a run; caches are intended to speed reuse of dependencies rather than replace build deliverables."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w12-l02-q03",
+      "type": "multiple_choice",
+      "lesson": "w12-l02",
+      "concept": "w12-l02-token-permissions",
+      "prompt": "A job sets contents: read under permissions. What happens to omitted permission scopes?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "They all become write by default."
+        },
+        {
+          "id": "b",
+          "text": "They retain all repository defaults despite the explicit permissions map."
+        },
+        {
+          "id": "c",
+          "text": "They all receive the same read grant regardless of scope."
+        },
+        {
+          "id": "d",
+          "text": "They are set to none."
+        }
+      ],
+      "answer": "d",
+      "explanation": "Specifying permissions sets omitted scopes to none, overriding inherited defaults for those scopes. A read grant applies only to the named scope and does not grant all-scope read or write access.",
+      "materials": [
+        "github-workflow-syntax"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax",
+          "title": "GitHub Actions workflow syntax",
+          "publisher": "GitHub",
+          "accessed": "2026-10-09",
+          "claim": "GitHub Actions permissions can be constrained per workflow or job; when specified, omitted scopes are set to none."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w12-l02-q04",
+      "type": "multiple_choice",
+      "lesson": "w12-l02",
+      "concept": "w12-l02-deployment-gates",
+      "prompt": "A deploy job references an environment with required approval. When may it access that environment’s secrets?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Before approval so it can bypass the environment gate."
+        },
+        {
+          "id": "b",
+          "text": "Whenever deployment starts on a runner, even while approval is pending."
+        },
+        {
+          "id": "c",
+          "text": "After its environment protection rules are satisfied."
+        },
+        {
+          "id": "d",
+          "text": "As soon as any unrelated test job starts."
+        }
+      ],
+      "answer": "c",
+      "explanation": "Environment protection gates execution and access to its secrets. Other jobs and naming conventions do not satisfy the gate.",
+      "materials": [
+        "github-deployment-environments"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments",
+          "title": "Managing environments for deployment",
+          "publisher": "GitHub",
+          "accessed": "2026-10-09",
+          "claim": "A job referencing a protected environment must meet its rules before running or accessing environment secrets; feature availability depends on repository and plan."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w12-l02-q05",
+      "type": "multiple_choice",
+      "lesson": "w12-l02",
+      "concept": "w12-l02-job-dependencies",
+      "prompt": "A workflow lists build, test and deploy as separate jobs with no dependencies. Which assumption is unsafe?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "That a deploy dependency should name its required test job."
+        },
+        {
+          "id": "b",
+          "text": "That file order makes deploy wait for the tests."
+        },
+        {
+          "id": "c",
+          "text": "That needs can explicitly connect dependent jobs."
+        },
+        {
+          "id": "d",
+          "text": "That independent jobs may be scheduled concurrently."
+        }
+      ],
+      "answer": "b",
+      "explanation": "YAML listing order is not scheduling order. Explicit needs is required for the desired dependency graph.",
+      "materials": [
+        "github-workflow-syntax"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax",
+          "title": "GitHub Actions workflow syntax",
+          "publisher": "GitHub",
+          "accessed": "2026-10-09",
+          "claim": "needs declares successful prerequisite jobs instead of relying on YAML order."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w12-l02-q06",
+      "type": "multiple_choice",
+      "lesson": "w12-l02",
+      "concept": "w12-l02-workflow-artifacts",
+      "prompt": "A deploy job downloads a bundle before its producing build job has finished. What additional coordination is needed?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Make deploy depend on the producing build job."
+        },
+        {
+          "id": "b",
+          "text": "Assume download automatically schedules every required build."
+        },
+        {
+          "id": "c",
+          "text": "Assume artifact retention settings create a dependency on the current build."
+        },
+        {
+          "id": "d",
+          "text": "Put deploy below build in YAML without declaring a needs dependency."
+        }
+      ],
+      "answer": "a",
+      "explanation": "The consumer needs the artifact after production. A job dependency supplies ordering; names do not and downloading is not a build scheduler.",
+      "materials": [
+        "github-actions-artifacts"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.github.com/en/actions/how-tos/writing-workflows/choosing-what-your-workflow-does/storing-and-sharing-data-from-a-workflow",
+          "title": "Storing workflow data as artifacts",
+          "publisher": "GitHub",
+          "accessed": "2026-10-09",
+          "claim": "Artifacts carry generated files across jobs; a producing job should precede its consumer."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w12-l02-q07",
+      "type": "multiple_select",
+      "lesson": "w12-l02",
+      "concept": "w12-l02-job-dependencies",
+      "prompt": "Which GitHub Actions job-order statements hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A step name automatically creates a dependency between different jobs."
+        },
+        {
+          "id": "b",
+          "text": "Jobs can run in parallel unless dependencies constrain them."
+        },
+        {
+          "id": "c",
+          "text": "needs identifies jobs that must complete before a dependent job."
+        },
+        {
+          "id": "d",
+          "text": "Listing deploy below test guarantees a successful test prerequisite."
+        },
+        {
+          "id": "e",
+          "text": "A dependent job always runs after a failed prerequisite without any condition."
+        }
+      ],
+      "answers": [
+        "b",
+        "c"
+      ],
+      "explanation": "A is incorrect: Job dependencies use needs, not display names. B is correct: Independent jobs need not follow file order. C is correct: It forms explicit dependency relationships. D is incorrect: Presentation order does not declare dependencies. E is incorrect: Failure normally prevents dependent execution.",
+      "materials": [
+        "github-workflow-syntax"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax",
+          "title": "GitHub Actions workflow syntax",
+          "publisher": "GitHub",
+          "accessed": "2026-10-09",
+          "claim": "GitHub Actions jobs can run in parallel by default; needs establishes dependencies and skipped or failed prerequisites normally prevent dependent jobs."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w12-l02-q08",
+      "type": "multiple_select",
+      "lesson": "w12-l02",
+      "concept": "w12-l02-workflow-artifacts",
+      "prompt": "Which artifact practices fit a multi-job workflow? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Upload generated output that another job needs."
+        },
+        {
+          "id": "b",
+          "text": "Download the expected artifact in the consuming job."
+        },
+        {
+          "id": "c",
+          "text": "Configure retention for stored artifacts where appropriate."
+        },
+        {
+          "id": "d",
+          "text": "Assume all hosted jobs share one permanent filesystem."
+        },
+        {
+          "id": "e",
+          "text": "Treat a dependency cache as identical to a published build deliverable."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "c"
+      ],
+      "explanation": "A is correct: Artifacts persist files beyond the producing job. B is correct: The files must be retrieved into that job’s environment. C is correct: Artifacts have a storage lifecycle. D is incorrect: Jobs can run on separate runners. E is incorrect: Caches optimize reuse; artifacts persist outputs and evidence.",
+      "materials": [
+        "github-actions-artifacts"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.github.com/en/actions/how-tos/writing-workflows/choosing-what-your-workflow-does/storing-and-sharing-data-from-a-workflow",
+          "title": "Storing workflow data as artifacts",
+          "publisher": "GitHub",
+          "accessed": "2026-10-09",
+          "claim": "Workflow artifacts persist files for sharing between jobs or after a run; caches are intended to speed reuse of dependencies rather than replace build deliverables."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w12-l02-q09",
+      "type": "multiple_select",
+      "lesson": "w12-l02",
+      "concept": "w12-l02-token-permissions",
+      "prompt": "Which token-permission practices fit least privilege? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Use job-level permissions when jobs need different access."
+        },
+        {
+          "id": "b",
+          "text": "Assume a read grant on one scope implies writes on every other scope."
+        },
+        {
+          "id": "c",
+          "text": "Set write-all merely to avoid understanding deployment requirements."
+        },
+        {
+          "id": "d",
+          "text": "Assume all scopes become writable when any one scope receives read access."
+        },
+        {
+          "id": "e",
+          "text": "Grant only the scopes required by the job."
+        }
+      ],
+      "answers": [
+        "a",
+        "e"
+      ],
+      "explanation": "A is correct: Permissions can be scoped to individual jobs. B is incorrect: Each scope has independent access. C is incorrect: Broad write grants are unnecessary when narrower scopes suffice. D is incorrect: Access is controlled by permission configuration. E is correct: Unneeded access increases the impact of compromised workflow code.",
+      "materials": [
+        "github-workflow-syntax"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax",
+          "title": "GitHub Actions workflow syntax",
+          "publisher": "GitHub",
+          "accessed": "2026-10-09",
+          "claim": "GitHub Actions permissions can be constrained per workflow or job; when specified, omitted scopes are set to none."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w12-l02-q10",
+      "type": "multiple_select",
+      "lesson": "w12-l02",
+      "concept": "w12-l02-deployment-gates",
+      "prompt": "Which deployment-environment statements are appropriate? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Verify rule availability for the repository visibility and plan."
+        },
+        {
+          "id": "b",
+          "text": "Environment secrets are unconditionally available before its protection rules pass."
+        },
+        {
+          "id": "c",
+          "text": "Naming a branch production automatically applies every environment rule."
+        },
+        {
+          "id": "d",
+          "text": "Reference the environment from the deployment job."
+        },
+        {
+          "id": "e",
+          "text": "Configure relevant deployment protection rules where available."
+        }
+      ],
+      "answers": [
+        "a",
+        "d",
+        "e"
+      ],
+      "explanation": "A is correct: Not every feature is available on every plan. B is incorrect: Access is gated by those rules. C is incorrect: Environment association is configured on the job. D is correct: The job must name it to use its configuration. E is correct: Rules can constrain deployment execution.",
+      "materials": [
+        "github-deployment-environments"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments",
+          "title": "Managing environments for deployment",
+          "publisher": "GitHub",
+          "accessed": "2026-10-09",
+          "claim": "A job referencing a protected environment must meet its rules before running or accessing environment secrets; feature availability depends on repository and plan."
+        }
+      ],
+      "retired": null
+    }
+  ]
+}

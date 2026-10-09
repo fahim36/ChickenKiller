@@ -1,0 +1,453 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "w12-l01-build-stages",
+      "name": "Multi-stage artifact selection"
+    },
+    {
+      "id": "w12-l01-layer-cache",
+      "name": "Build cache ordering"
+    },
+    {
+      "id": "w12-l01-startup-signals",
+      "name": "Exec-form startup and signal handling"
+    },
+    {
+      "id": "w12-l01-build-secrets",
+      "name": "Temporary build secrets"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w12-l01-q01",
+      "type": "multiple_choice",
+      "lesson": "w12-l01",
+      "concept": "w12-l01-build-stages",
+      "prompt": "A Docker build compiles in an SDK stage and copies only output into a fresh runtime stage. What can remain outside the final image?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The final stage’s selected base image."
+        },
+        {
+          "id": "b",
+          "text": "Every file required by the application process."
+        },
+        {
+          "id": "c",
+          "text": "The SDK and unused build artifacts."
+        },
+        {
+          "id": "d",
+          "text": "All runtime files copied by COPY --from."
+        }
+      ],
+      "answer": "c",
+      "explanation": "A separate final stage includes its base and selected artifacts. It need not include the SDK or unused build output.",
+      "materials": [
+        "docker-multi-stage"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.docker.com/build/building/multi-stage/",
+          "title": "Docker multi-stage builds",
+          "publisher": "Docker",
+          "accessed": "2026-10-09",
+          "claim": "Each FROM starts a build stage and COPY --from selectively copies artifacts without including all earlier-stage tools."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w12-l01-q02",
+      "type": "multiple_choice",
+      "lesson": "w12-l01",
+      "concept": "w12-l01-layer-cache",
+      "prompt": "Every source edit reruns dependency installation because COPY . . precedes it. Which ordering improves cache reuse?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Disable the build cache for every development build."
+        },
+        {
+          "id": "b",
+          "text": "Copy dependency manifests, install, then copy changing source."
+        },
+        {
+          "id": "c",
+          "text": "Copy all source first and add another identical install step."
+        },
+        {
+          "id": "d",
+          "text": "Delete dependency manifests so installs cannot detect changes."
+        }
+      ],
+      "answer": "b",
+      "explanation": "Stable dependency inputs should precede frequently changing source. Repeating installation or disabling cache does not preserve the reusable dependency layer.",
+      "materials": [
+        "docker-build-cache"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.docker.com/build/cache/optimize/",
+          "title": "Optimize cache usage in builds",
+          "publisher": "Docker",
+          "accessed": "2026-10-09",
+          "claim": "Put infrequently changing dependency inputs before frequently changing source files; changes invalidate their layer and subsequent dependent layers."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w12-l01-q03",
+      "type": "multiple_choice",
+      "lesson": "w12-l01",
+      "concept": "w12-l01-startup-signals",
+      "prompt": "A shell-form ENTRYPOINT launches the app under a shell, and stop signals do not reach it as expected. Which form addresses the wrapper?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Use exec-form ENTRYPOINT for the application executable."
+        },
+        {
+          "id": "b",
+          "text": "Add EXPOSE so Docker forwards process signals."
+        },
+        {
+          "id": "c",
+          "text": "Retain the implicit shell wrapper and rely on EXPOSE for process cleanup."
+        },
+        {
+          "id": "d",
+          "text": "Keep shell-form startup and assume CMD arguments remove its shell wrapper."
+        }
+      ],
+      "answer": "a",
+      "explanation": "Exec form avoids the implicit shell wrapper and supports direct signal delivery to the main process. EXPOSE and CMD arguments do not remove a shell-form ENTRYPOINT wrapper.",
+      "materials": [
+        "docker-dockerfile-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.docker.com/reference/dockerfile/",
+          "title": "Dockerfile reference",
+          "publisher": "Docker",
+          "accessed": "2026-10-09",
+          "claim": "Exec-form ENTRYPOINT runs the executable without a shell wrapper; shell-form startup can prevent signals from reaching the application process."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w12-l01-q04",
+      "type": "multiple_choice",
+      "lesson": "w12-l01",
+      "concept": "w12-l01-build-secrets",
+      "prompt": "A private registry credential is passed through a Dockerfile ENV instruction. What is the safer build mechanism?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Keep ENV and obscure the credential with Base64."
+        },
+        {
+          "id": "b",
+          "text": "Commit the credential file so every build can reproduce it."
+        },
+        {
+          "id": "c",
+          "text": "Delete the credential only in a later image layer."
+        },
+        {
+          "id": "d",
+          "text": "Supply it through a BuildKit secret mount."
+        }
+      ],
+      "answer": "d",
+      "explanation": "Secret mounts expose build credentials temporarily. ENV, source commits and earlier persisted layers can disclose them; encoding is not protection.",
+      "materials": [
+        "docker-build-secrets"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.docker.com/build/building/secrets/",
+          "title": "Docker build secrets",
+          "publisher": "Docker",
+          "accessed": "2026-10-09",
+          "claim": "Docker build arguments and environment variables are unsuitable for build secrets; secret mounts expose values temporarily during build instructions."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w12-l01-q05",
+      "type": "multiple_choice",
+      "lesson": "w12-l01",
+      "concept": "w12-l01-build-stages",
+      "prompt": "A build refers to its compilation stage by numeric index, which breaks after stage reordering. What improves maintainability?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Use ordinary COPY without --from and assume it reads the earlier stage."
+        },
+        {
+          "id": "b",
+          "text": "Rename a build argument and assume COPY --from treats it as a declared stage."
+        },
+        {
+          "id": "c",
+          "text": "Name the stage and reference that name."
+        },
+        {
+          "id": "d",
+          "text": "Use RUN cp and assume files from earlier stages share the current filesystem."
+        }
+      ],
+      "answer": "c",
+      "explanation": "AS assigns a stage name, and COPY --from can reference it. Earlier stages do not share the current stage filesystem; ordinary COPY reads the build context, and a build argument is not a stage declaration.",
+      "materials": [
+        "docker-multi-stage"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.docker.com/build/building/multi-stage/",
+          "title": "Docker multi-stage builds",
+          "publisher": "Docker",
+          "accessed": "2026-10-09",
+          "claim": "Named stages can be referenced through COPY --from and remain stable under reordering."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w12-l01-q06",
+      "type": "multiple_choice",
+      "lesson": "w12-l01",
+      "concept": "w12-l01-layer-cache",
+      "prompt": "A repository sends logs and local dependency folders as build context. Which change reduces unnecessary input?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Install dependencies again after every source copy."
+        },
+        {
+          "id": "b",
+          "text": "Exclude irrelevant files with .dockerignore."
+        },
+        {
+          "id": "c",
+          "text": "Copy every log into the final image for cache reuse."
+        },
+        {
+          "id": "d",
+          "text": "Move unwanted files to a later COPY instruction without excluding them from context."
+        }
+      ],
+      "answer": "b",
+      "explanation": "The ignore file removes unneeded context files. Extra copying and repeated installation add work rather than reducing input.",
+      "materials": [
+        "docker-build-cache"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.docker.com/build/cache/optimize/",
+          "title": "Optimize cache usage in builds",
+          "publisher": "Docker",
+          "accessed": "2026-10-09",
+          "claim": "A small build context and .dockerignore avoid unnecessary transferred inputs."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w12-l01-q07",
+      "type": "multiple_select",
+      "lesson": "w12-l01",
+      "concept": "w12-l01-build-stages",
+      "prompt": "Which multi-stage build statements hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A stage name refers to the same thing as a runtime environment variable."
+        },
+        {
+          "id": "b",
+          "text": "Multi-stage builds require separate Dockerfiles for each stage."
+        },
+        {
+          "id": "c",
+          "text": "Each FROM begins a new stage that may use a different base."
+        },
+        {
+          "id": "d",
+          "text": "COPY --from can copy selected artifacts from another stage."
+        },
+        {
+          "id": "e",
+          "text": "All earlier-stage tools automatically become final-image layers."
+        }
+      ],
+      "answers": [
+        "c",
+        "d"
+      ],
+      "explanation": "A is incorrect: Stage names identify build stages. B is incorrect: One Dockerfile can define multiple stages. C is correct: Stages can separate building from running. D is correct: It does not copy the entire earlier image. E is incorrect: A fresh final stage can leave them behind.",
+      "materials": [
+        "docker-multi-stage"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.docker.com/build/building/multi-stage/",
+          "title": "Docker multi-stage builds",
+          "publisher": "Docker",
+          "accessed": "2026-10-09",
+          "claim": "Each FROM starts a build stage and COPY --from selectively copies artifacts without including all earlier-stage tools."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w12-l01-q08",
+      "type": "multiple_select",
+      "lesson": "w12-l01",
+      "concept": "w12-l01-layer-cache",
+      "prompt": "Which choices improve Docker build cache use? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Copy all frequently changing files before dependency installation for best reuse."
+        },
+        {
+          "id": "b",
+          "text": "Place expensive steps with stable inputs earlier in the build."
+        },
+        {
+          "id": "c",
+          "text": "Keep the build context small with an appropriate .dockerignore."
+        },
+        {
+          "id": "d",
+          "text": "Use cache mounts for reusable package-download data where appropriate."
+        },
+        {
+          "id": "e",
+          "text": "Assume a changed earlier layer leaves all later dependent layers reusable."
+        }
+      ],
+      "answers": [
+        "b",
+        "c",
+        "d"
+      ],
+      "explanation": "A is incorrect: This invalidates the dependency layer on source changes. B is correct: Later source edits need not invalidate those steps. C is correct: Unneeded files increase transfer and invalidation risk. D is correct: They preserve cache data across builds. E is incorrect: Subsequent dependent layers must rebuild.",
+      "materials": [
+        "docker-build-cache"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.docker.com/build/cache/optimize/",
+          "title": "Optimize cache usage in builds",
+          "publisher": "Docker",
+          "accessed": "2026-10-09",
+          "claim": "Put infrequently changing dependency inputs before frequently changing source files; changes invalidate their layer and subsequent dependent layers."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w12-l01-q09",
+      "type": "multiple_select",
+      "lesson": "w12-l01",
+      "concept": "w12-l01-startup-signals",
+      "prompt": "Which startup statements follow Dockerfile semantics? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Exec-form ENTRYPOINT avoids the implicit command shell."
+        },
+        {
+          "id": "b",
+          "text": "Shell-form ENTRYPOINT can interfere with signal delivery to its child."
+        },
+        {
+          "id": "c",
+          "text": "Exec-form arguments always expand shell variables automatically."
+        },
+        {
+          "id": "d",
+          "text": "EXPOSE controls whether the application receives termination signals."
+        },
+        {
+          "id": "e",
+          "text": "Changing only COPY order changes shell-form startup into exec form."
+        }
+      ],
+      "answers": [
+        "a",
+        "b"
+      ],
+      "explanation": "A is correct: The application can be the container’s main process. B is correct: The shell wrapper changes process relationships. C is incorrect: There is no shell to perform that expansion. D is incorrect: EXPOSE describes network ports, not process signals. E is incorrect: Startup syntax is controlled by ENTRYPOINT or CMD.",
+      "materials": [
+        "docker-dockerfile-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.docker.com/reference/dockerfile/",
+          "title": "Dockerfile reference",
+          "publisher": "Docker",
+          "accessed": "2026-10-09",
+          "claim": "Exec-form ENTRYPOINT runs the executable without a shell wrapper; shell-form startup can prevent signals from reaching the application process."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w12-l01-q10",
+      "type": "multiple_select",
+      "lesson": "w12-l01",
+      "concept": "w12-l01-build-secrets",
+      "prompt": "Which secret-handling choices follow Docker guidance? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A secret mount is available for the relevant build instruction."
+        },
+        {
+          "id": "b",
+          "text": "Use SSH mounts for supported private Git access."
+        },
+        {
+          "id": "c",
+          "text": "Use ENV as the recommended storage for private build credentials."
+        },
+        {
+          "id": "d",
+          "text": "Treat Base64 in a build argument as encryption of the secret."
+        },
+        {
+          "id": "e",
+          "text": "Pass the secret to the build and consume it through a secret mount."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "e"
+      ],
+      "explanation": "A is correct: Its access is temporary rather than an ordinary image file. B is correct: They expose SSH credentials or sockets during the build. C is incorrect: Environment values can persist in the image. D is incorrect: Encoding does not prevent disclosure. E is correct: Both client supply and Dockerfile consumption are needed.",
+      "materials": [
+        "docker-build-secrets"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.docker.com/build/building/secrets/",
+          "title": "Docker build secrets",
+          "publisher": "Docker",
+          "accessed": "2026-10-09",
+          "claim": "Docker build arguments and environment variables are unsuitable for build secrets; secret mounts expose values temporarily during build instructions."
+        }
+      ],
+      "retired": null
+    }
+  ]
+}

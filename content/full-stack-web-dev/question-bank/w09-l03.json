@@ -1,0 +1,453 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "w09-l03-output-encoding",
+      "name": "Context-specific output encoding"
+    },
+    {
+      "id": "w09-l03-sanitization",
+      "name": "Sanitization and safe DOM sinks"
+    },
+    {
+      "id": "w09-l03-csrf-tokens",
+      "name": "CSRF tokens and ambient credentials"
+    },
+    {
+      "id": "w09-l03-csrf-depth",
+      "name": "SameSite and defense in depth"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w09-l03-q01",
+      "type": "multiple_choice",
+      "lesson": "w09-l03",
+      "concept": "w09-l03-output-encoding",
+      "prompt": "User text is inserted into an HTML attribute. Which defense matches the context?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Use SQL parameterization on the string before rendering."
+        },
+        {
+          "id": "b",
+          "text": "Decode HTML entities before inserting untrusted text."
+        },
+        {
+          "id": "c",
+          "text": "Apply one JavaScript escaping rule to every output context."
+        },
+        {
+          "id": "d",
+          "text": "Encode for a quoted HTML attribute."
+        }
+      ],
+      "answer": "d",
+      "explanation": "Encoding must match the browser parsing context. SQL controls do not secure HTML, and decoding can restore dangerous syntax.",
+      "materials": [
+        "owasp-xss-prevention"
+      ],
+      "sources": [
+        {
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html",
+          "title": "Cross Site Scripting Prevention Cheat Sheet",
+          "publisher": "OWASP",
+          "accessed": "2026-10-09",
+          "claim": "Output encoding depends on HTML, attribute, JavaScript or URL context; generic encoding does not make dangerous contexts safe."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w09-l03-q02",
+      "type": "multiple_choice",
+      "lesson": "w09-l03",
+      "concept": "w09-l03-sanitization",
+      "prompt": "A comment should appear as plain text. Which DOM assignment avoids interpreting its markup?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Construct a script element from the comment text."
+        },
+        {
+          "id": "b",
+          "text": "Remove spaces and then pass it to document.write."
+        },
+        {
+          "id": "c",
+          "text": "Assign it through textContent."
+        },
+        {
+          "id": "d",
+          "text": "Assign it through innerHTML without sanitization."
+        }
+      ],
+      "answer": "c",
+      "explanation": "textContent treats the value as text. HTML-parsing and code-executing sinks can interpret attacker-controlled content.",
+      "materials": [
+        "owasp-xss-prevention"
+      ],
+      "sources": [
+        {
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html",
+          "title": "Cross Site Scripting Prevention Cheat Sheet",
+          "publisher": "OWASP",
+          "accessed": "2026-10-09",
+          "claim": "Untrusted HTML requires sanitization; textContent is a safe text sink while innerHTML parses markup."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w09-l03-q03",
+      "type": "multiple_choice",
+      "lesson": "w09-l03",
+      "concept": "w09-l03-csrf-tokens",
+      "prompt": "Why can a forged cross-site request act as a logged-in user when sessions use cookies?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The request automatically proves the user intended the action."
+        },
+        {
+          "id": "b",
+          "text": "The browser can attach eligible cookies automatically."
+        },
+        {
+          "id": "c",
+          "text": "The attacker must read the cookie value before causing an authenticated request."
+        },
+        {
+          "id": "d",
+          "text": "HttpOnly cookies cannot accompany requests triggered by another site."
+        }
+      ],
+      "answer": "b",
+      "explanation": "Cookie attachment can supply authentication without proving intent. TLS does not prevent induced authenticated requests.",
+      "materials": [
+        "owasp-csrf-prevention"
+      ],
+      "sources": [
+        {
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html",
+          "title": "Cross-Site Request Forgery Prevention Cheat Sheet",
+          "publisher": "OWASP",
+          "accessed": "2026-10-09",
+          "claim": "Browsers attach eligible cookies automatically; state-changing requests need validated CSRF defenses."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w09-l03-q04",
+      "type": "multiple_choice",
+      "lesson": "w09-l03",
+      "concept": "w09-l03-csrf-depth",
+      "prompt": "An app enables SameSite cookies and removes all other CSRF defenses. What is the problem?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "SameSite is a layer, not a universal replacement."
+        },
+        {
+          "id": "b",
+          "text": "SameSite always disables all same-origin requests."
+        },
+        {
+          "id": "c",
+          "text": "SameSite turns every cookie into a bearer header."
+        },
+        {
+          "id": "d",
+          "text": "SameSite prevents injected scripts from running at all."
+        }
+      ],
+      "answer": "a",
+      "explanation": "OWASP treats SameSite as defense in depth. It does not stop XSS or replace all application-specific request validation.",
+      "materials": [
+        "owasp-csrf-prevention"
+      ],
+      "sources": [
+        {
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html",
+          "title": "Cross-Site Request Forgery Prevention Cheat Sheet",
+          "publisher": "OWASP",
+          "accessed": "2026-10-09",
+          "claim": "SameSite is defense in depth and XSS can bypass CSRF controls; state-changing GET requests should be avoided."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w09-l03-q05",
+      "type": "multiple_choice",
+      "lesson": "w09-l03",
+      "concept": "w09-l03-output-encoding",
+      "prompt": "A developer encodes a string for HTML and then places it inside executable JavaScript. Which conclusion follows?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "HTML encoding automatically covers every browser parser."
+        },
+        {
+          "id": "b",
+          "text": "A signed-in user cannot submit an XSS payload."
+        },
+        {
+          "id": "c",
+          "text": "TLS changes script parsing into safe plain-text rendering."
+        },
+        {
+          "id": "d",
+          "text": "The encoding may not protect the JavaScript context."
+        }
+      ],
+      "answer": "d",
+      "explanation": "HTML and JavaScript have different parsing rules. Authentication and transport security do not change the output context.",
+      "materials": [
+        "owasp-xss-prevention"
+      ],
+      "sources": [
+        {
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html",
+          "title": "Cross Site Scripting Prevention Cheat Sheet",
+          "publisher": "OWASP",
+          "accessed": "2026-10-09",
+          "claim": "Encoding must match the destination parsing context."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w09-l03-q06",
+      "type": "multiple_choice",
+      "lesson": "w09-l03",
+      "concept": "w09-l03-sanitization",
+      "prompt": "A rich-text feature intentionally allows user-supplied HTML. Which control fits that requirement?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Delete quote characters but preserve all elements and handlers."
+        },
+        {
+          "id": "b",
+          "text": "Rely on SQL escaping to remove browser executable content."
+        },
+        {
+          "id": "c",
+          "text": "Use a maintained HTML sanitizer."
+        },
+        {
+          "id": "d",
+          "text": "Render every string unchanged because markup is intended."
+        }
+      ],
+      "answer": "c",
+      "explanation": "A sanitizer evaluates allowed HTML constructs. Intended markup still contains attack surfaces, and ad hoc string edits or SQL escaping are insufficient.",
+      "materials": [
+        "owasp-xss-prevention"
+      ],
+      "sources": [
+        {
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html",
+          "title": "Cross Site Scripting Prevention Cheat Sheet",
+          "publisher": "OWASP",
+          "accessed": "2026-10-09",
+          "claim": "Sanitization is needed when users are permitted to submit HTML markup."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w09-l03-q07",
+      "type": "multiple_select",
+      "lesson": "w09-l03",
+      "concept": "w09-l03-output-encoding",
+      "prompt": "Which encoding statements help prevent XSS? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Use output encoding appropriate to the destination context."
+        },
+        {
+          "id": "b",
+          "text": "Quote attribute values when inserting encoded text."
+        },
+        {
+          "id": "c",
+          "text": "Assume HTML encoding makes every script-body insertion safe."
+        },
+        {
+          "id": "d",
+          "text": "Decode untrusted entities immediately before rendering them."
+        },
+        {
+          "id": "e",
+          "text": "Encoding once before storage secures every later browser output context."
+        }
+      ],
+      "answers": [
+        "a",
+        "b"
+      ],
+      "explanation": "A is correct: Different parsers need different escaping rules. B is correct: Quoted attributes reduce parsing ambiguity. C is incorrect: JavaScript contexts need their own controls and dangerous contexts should be avoided. D is incorrect: Decoding may reintroduce executable syntax. E is incorrect: Encoding must fit each destination context rather than one generic storage transformation.",
+      "materials": [
+        "owasp-xss-prevention"
+      ],
+      "sources": [
+        {
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html",
+          "title": "Cross Site Scripting Prevention Cheat Sheet",
+          "publisher": "OWASP",
+          "accessed": "2026-10-09",
+          "claim": "Output encoding depends on HTML, attribute, JavaScript or URL context; generic encoding does not make dangerous contexts safe."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w09-l03-q08",
+      "type": "multiple_select",
+      "lesson": "w09-l03",
+      "concept": "w09-l03-sanitization",
+      "prompt": "Which practices distinguish plain text from allowed HTML? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Sanitize untrusted HTML when markup must be supported."
+        },
+        {
+          "id": "b",
+          "text": "Modify sanitized HTML arbitrarily and assume it remains safe."
+        },
+        {
+          "id": "c",
+          "text": "Keep the sanitizer updated as bypasses are discovered."
+        },
+        {
+          "id": "d",
+          "text": "Use innerHTML as a universally safe sink for untrusted strings."
+        },
+        {
+          "id": "e",
+          "text": "Use textContent for content intended to remain plain text."
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ],
+      "explanation": "A is correct: A sanitizer removes unsafe constructs. B is incorrect: Later mutations can invalidate sanitization. C is correct: Sanitizer maintenance addresses known weaknesses. D is incorrect: innerHTML interprets HTML and can introduce XSS. E is correct: It avoids parsing the string as HTML.",
+      "materials": [
+        "owasp-xss-prevention"
+      ],
+      "sources": [
+        {
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html",
+          "title": "Cross Site Scripting Prevention Cheat Sheet",
+          "publisher": "OWASP",
+          "accessed": "2026-10-09",
+          "claim": "Untrusted HTML requires sanitization; textContent is a safe text sink while innerHTML parses markup."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w09-l03-q09",
+      "type": "multiple_select",
+      "lesson": "w09-l03",
+      "concept": "w09-l03-csrf-tokens",
+      "prompt": "Which CSRF-token practices are appropriate? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Put a secret synchronizer token in URLs for easier logging."
+        },
+        {
+          "id": "b",
+          "text": "Treat possession of the session cookie as proof of user intent."
+        },
+        {
+          "id": "c",
+          "text": "A CSRF token is valid whenever its format matches, without server-side verification."
+        },
+        {
+          "id": "d",
+          "text": "Validate the token on protected state-changing requests."
+        },
+        {
+          "id": "e",
+          "text": "Keep synchronizer tokens secret and unpredictable."
+        }
+      ],
+      "answers": [
+        "d",
+        "e"
+      ],
+      "explanation": "A is incorrect: URLs can expose tokens through logs and navigation. B is incorrect: Cookie attachment is automatic. C is incorrect: The server must validate the token rather than check only its syntax. D is correct: The server must enforce the token check. E is correct: Attackers should not be able to forge valid tokens.",
+      "materials": [
+        "owasp-csrf-prevention"
+      ],
+      "sources": [
+        {
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html",
+          "title": "Cross-Site Request Forgery Prevention Cheat Sheet",
+          "publisher": "OWASP",
+          "accessed": "2026-10-09",
+          "claim": "Browsers attach eligible cookies automatically; state-changing requests need validated CSRF defenses."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w09-l03-q10",
+      "type": "multiple_select",
+      "lesson": "w09-l03",
+      "concept": "w09-l03-csrf-depth",
+      "prompt": "Which choices support CSRF defense in depth? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Use origin checks where appropriate as an additional signal."
+        },
+        {
+          "id": "b",
+          "text": "Accept any cross-site write merely because the session is valid."
+        },
+        {
+          "id": "c",
+          "text": "Use SameSite cookies alongside appropriate request validation."
+        },
+        {
+          "id": "d",
+          "text": "Avoid state-changing operations behind GET routes."
+        },
+        {
+          "id": "e",
+          "text": "Assume CSRF tokens neutralize every injected script."
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "d"
+      ],
+      "explanation": "A is correct: Origin validation can supplement token protections. B is incorrect: Authentication alone does not establish request intent. C is correct: Independent controls reduce reliance on one browser behavior. D is correct: Safe navigation should not mutate protected state. E is incorrect: XSS can bypass CSRF defenses.",
+      "materials": [
+        "owasp-csrf-prevention"
+      ],
+      "sources": [
+        {
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html",
+          "title": "Cross-Site Request Forgery Prevention Cheat Sheet",
+          "publisher": "OWASP",
+          "accessed": "2026-10-09",
+          "claim": "SameSite is defense in depth and XSS can bypass CSRF controls; state-changing GET requests should be avoided."
+        }
+      ],
+      "retired": null
+    }
+  ]
+}

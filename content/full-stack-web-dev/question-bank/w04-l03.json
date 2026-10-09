@@ -1,0 +1,483 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "w04-l03-module-scope",
+      "name": "Module scope versus script scope"
+    },
+    {
+      "id": "w04-l03-type-import",
+      "name": "Type-only import erasure"
+    },
+    {
+      "id": "w04-l03-host-resolution",
+      "name": "Module resolution models the runtime host"
+    },
+    {
+      "id": "w04-l03-dynamic-loading",
+      "name": "Dynamic imports and runtime implementations"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w04-l03-q01",
+      "lesson": "w04-l03",
+      "concept": "w04-l03-module-scope",
+      "type": "multiple_choice",
+      "prompt": "A TypeScript file contains a top-level export. What does that establish about its ordinary top-level declarations?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "They belong to the module scope rather than the shared script global scope."
+        },
+        {
+          "id": "b",
+          "text": "They become globally visible to every script without any explicit import."
+        },
+        {
+          "id": "c",
+          "text": "They are copied into every importing file as independently mutable globals."
+        },
+        {
+          "id": "d",
+          "text": "They disappear from runtime code even when they are exported values."
+        }
+      ],
+      "answer": "a",
+      "explanation": "A top-level import or export makes a module. Its declarations are scoped to that module and exported bindings require appropriate imports.",
+      "materials": [
+        "web-tsmodules-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://www.typescriptlang.org/docs/handbook/2/modules.html",
+          "title": "TypeScript: Modules",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "Files with top-level imports or exports are modules with their own scope; dynamic import is asynchronous and type-only imports disappear."
+        }
+      ]
+    },
+    {
+      "id": "w04-l03-q02",
+      "lesson": "w04-l03",
+      "concept": "w04-l03-type-import",
+      "type": "multiple_choice",
+      "prompt": "A file uses `import type {User} from \"./types\"`. What happens to that import in emitted JavaScript?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It eagerly runs the imported module to validate every User instance."
+        },
+        {
+          "id": "b",
+          "text": "It becomes a fetch call that downloads a runtime interface object."
+        },
+        {
+          "id": "c",
+          "text": "It creates a runtime User constructor from the imported type definition."
+        },
+        {
+          "id": "d",
+          "text": "It is erased because it supplies types rather than runtime values."
+        }
+      ],
+      "answer": "d",
+      "explanation": "Type-only imports are removed. They do not import runtime values or generate constructors and validation.",
+      "materials": [
+        "web-tsmodules-reference",
+        "web-modules-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://www.typescriptlang.org/docs/handbook/2/modules.html",
+          "title": "TypeScript: Modules",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "Files with top-level imports or exports are modules with their own scope; dynamic import is asynchronous and type-only imports disappear."
+        },
+        {
+          "url": "https://www.typescriptlang.org/docs/handbook/modules/theory.html",
+          "title": "TypeScript: Modules - Theory",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "Module behavior is determined by the runtime host; TypeScript module resolution models the host and type-only imports are erased."
+        }
+      ]
+    },
+    {
+      "id": "w04-l03-q03",
+      "lesson": "w04-l03",
+      "concept": "w04-l03-host-resolution",
+      "type": "multiple_choice",
+      "prompt": "A Node project emits one module format while configuring resolution assumptions for an unrelated host. What should be reviewed?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Switch every import to any so the runtime can infer the intended module format."
+        },
+        {
+          "id": "b",
+          "text": "Assume moduleResolution alone changes Node into a browser bundler host."
+        },
+        {
+          "id": "c",
+          "text": "Align TypeScript resolution and emitted module assumptions with the actual runtime host."
+        },
+        {
+          "id": "d",
+          "text": "Assume type-check success guarantees every emitted import resolves at runtime."
+        }
+      ],
+      "answer": "c",
+      "explanation": "TypeScript models a host resolution strategy; the runtime ultimately loads emitted modules. Correct checking requires matching the host assumptions rather than treating compiler options as runtime changes.",
+      "materials": [
+        "web-modules-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://www.typescriptlang.org/docs/handbook/modules/theory.html",
+          "title": "TypeScript: Modules - Theory",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "Module behavior is determined by the runtime host; TypeScript module resolution models the host and type-only imports are erased."
+        }
+      ]
+    },
+    {
+      "id": "w04-l03-q04",
+      "lesson": "w04-l03",
+      "concept": "w04-l03-dynamic-loading",
+      "type": "multiple_choice",
+      "prompt": "Code uses `import(\"./feature\")` in an async loading path. What is the loading contract?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It guarantees the module is not evaluated until an export is first read."
+        },
+        {
+          "id": "b",
+          "text": "It returns a promise for the module namespace when loading succeeds."
+        },
+        {
+          "id": "c",
+          "text": "It synchronously returns the namespace before any loading work can occur."
+        },
+        {
+          "id": "d",
+          "text": "It returns only the TypeScript type declarations and no runtime values."
+        }
+      ],
+      "answer": "b",
+      "explanation": "Dynamic import is asynchronous and yields the module namespace through a promise. It is not a type-only import or a lazy-per-export evaluation guarantee.",
+      "materials": [
+        "web-tsmodules-reference",
+        "web-modules-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://www.typescriptlang.org/docs/handbook/2/modules.html",
+          "title": "TypeScript: Modules",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "Files with top-level imports or exports are modules with their own scope; dynamic import is asynchronous and type-only imports disappear."
+        },
+        {
+          "url": "https://www.typescriptlang.org/docs/handbook/modules/theory.html",
+          "title": "TypeScript: Modules - Theory",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "Module behavior is determined by the runtime host; TypeScript module resolution models the host and type-only imports are erased."
+        }
+      ]
+    },
+    {
+      "id": "w04-l03-q05",
+      "lesson": "w04-l03",
+      "concept": "w04-l03-module-scope",
+      "type": "multiple_choice",
+      "prompt": "A file has no imports or exports and is treated as a script in the stated compiler configuration. Why might its top-level name conflict with another script?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Script declarations can share global scope across files."
+        },
+        {
+          "id": "b",
+          "text": "Script declarations automatically get one isolated scope per filename."
+        },
+        {
+          "id": "c",
+          "text": "Every script file receives a generated namespace matching its folder."
+        },
+        {
+          "id": "d",
+          "text": "Every top-level script declaration is erased before global names are checked."
+        }
+      ],
+      "answer": "a",
+      "explanation": "A script can contribute to global scope. Module scope is different, and the question explicitly states the file is classified as a script.",
+      "materials": [
+        "web-tsmodules-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://www.typescriptlang.org/docs/handbook/2/modules.html",
+          "title": "TypeScript: Modules",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "Files with top-level imports or exports are modules with their own scope; dynamic import is asynchronous and type-only imports disappear."
+        }
+      ]
+    },
+    {
+      "id": "w04-l03-q06",
+      "lesson": "w04-l03",
+      "concept": "w04-l03-type-import",
+      "type": "multiple_choice",
+      "prompt": "A symbol imported with import type is needed by a runtime expression. What is the issue?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The import automatically changes into a value import when execution starts."
+        },
+        {
+          "id": "b",
+          "text": "The runtime synthesizes an object from the static type name on first use."
+        },
+        {
+          "id": "c",
+          "text": "The expression works because all TypeScript types exist as runtime values."
+        },
+        {
+          "id": "d",
+          "text": "A type-only import cannot provide a runtime value for that expression."
+        }
+      ],
+      "answer": "d",
+      "explanation": "Type-only imports are erased and cannot supply a value. A value import is needed for runtime use of a value-exported symbol.",
+      "materials": [
+        "web-tsmodules-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://www.typescriptlang.org/docs/handbook/2/modules.html",
+          "title": "TypeScript: Modules",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "Files with top-level imports or exports are modules with their own scope; dynamic import is asynchronous and type-only imports disappear."
+        }
+      ]
+    },
+    {
+      "id": "w04-l03-q07",
+      "lesson": "w04-l03",
+      "concept": "w04-l03-module-scope",
+      "type": "multiple_select",
+      "prompt": "A codebase mixes script files and ES modules. Which scope claims hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Top-level imports or exports establish a module."
+        },
+        {
+          "id": "b",
+          "text": "Module declarations have their own scope."
+        },
+        {
+          "id": "c",
+          "text": "Every exported value is automatically global in every browser script."
+        },
+        {
+          "id": "d",
+          "text": "Script files can contribute declarations to global scope."
+        },
+        {
+          "id": "e",
+          "text": "A filename alone creates an ES module namespace in every host."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "d"
+      ],
+      "explanation": "a: They distinguish module files in the described model. b: They do not automatically populate shared script globals. c: Consumers use imports rather than automatic global visibility. d: Scripts can share that scope when classified as scripts. e: Module classification depends on syntax and host or compiler configuration.",
+      "materials": [
+        "web-tsmodules-reference",
+        "web-modules-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://www.typescriptlang.org/docs/handbook/2/modules.html",
+          "title": "TypeScript: Modules",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "Files with top-level imports or exports are modules with their own scope; dynamic import is asynchronous and type-only imports disappear."
+        },
+        {
+          "url": "https://www.typescriptlang.org/docs/handbook/modules/theory.html",
+          "title": "TypeScript: Modules - Theory",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "Module behavior is determined by the runtime host; TypeScript module resolution models the host and type-only imports are erased."
+        }
+      ]
+    },
+    {
+      "id": "w04-l03-q08",
+      "lesson": "w04-l03",
+      "concept": "w04-l03-type-import",
+      "type": "multiple_select",
+      "prompt": "A build uses explicit type-only imports. Which claims hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It cannot provide a runtime value for an expression."
+        },
+        {
+          "id": "b",
+          "text": "It automatically executes the module for side effects."
+        },
+        {
+          "id": "c",
+          "text": "It generates runtime validators for imported interfaces."
+        },
+        {
+          "id": "d",
+          "text": "It guarantees a runtime constructor exists for each imported interface."
+        },
+        {
+          "id": "e",
+          "text": "import type is erased from emitted JavaScript."
+        }
+      ],
+      "answers": [
+        "a",
+        "e"
+      ],
+      "explanation": "a: No value import remains after erasure. b: Its erasure removes that runtime import. c: Imported types do not turn into validation code. d: An interface need not have any runtime value. e: It supplies only type information.",
+      "materials": [
+        "web-tsmodules-reference",
+        "web-modules-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://www.typescriptlang.org/docs/handbook/2/modules.html",
+          "title": "TypeScript: Modules",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "Files with top-level imports or exports are modules with their own scope; dynamic import is asynchronous and type-only imports disappear."
+        },
+        {
+          "url": "https://www.typescriptlang.org/docs/handbook/modules/theory.html",
+          "title": "TypeScript: Modules - Theory",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "Module behavior is determined by the runtime host; TypeScript module resolution models the host and type-only imports are erased."
+        }
+      ]
+    },
+    {
+      "id": "w04-l03-q09",
+      "lesson": "w04-l03",
+      "concept": "w04-l03-host-resolution",
+      "type": "multiple_select",
+      "prompt": "A package must run in a specific host. Which configuration claims hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Type lookup may find declarations rather than implementation code."
+        },
+        {
+          "id": "b",
+          "text": "Changing a compiler option rewrites the host own resolver automatically."
+        },
+        {
+          "id": "c",
+          "text": "A resolved declaration file alone proves an implementation exists at runtime."
+        },
+        {
+          "id": "d",
+          "text": "The host determines actual module loading behavior."
+        },
+        {
+          "id": "e",
+          "text": "TypeScript resolution should model that host."
+        }
+      ],
+      "answers": [
+        "a",
+        "d",
+        "e"
+      ],
+      "explanation": "a: TypeScript can resolve supporting types while the host loads JavaScript. b: The host still follows its runtime rules. c: Type availability and runtime loadability are different checks. d: The emitted code is interpreted by its runtime host. e: The compiler must predict the host lookup behavior.",
+      "materials": [
+        "web-modules-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://www.typescriptlang.org/docs/handbook/modules/theory.html",
+          "title": "TypeScript: Modules - Theory",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "Module behavior is determined by the runtime host; TypeScript module resolution models the host and type-only imports are erased."
+        }
+      ]
+    },
+    {
+      "id": "w04-l03-q10",
+      "lesson": "w04-l03",
+      "concept": "w04-l03-dynamic-loading",
+      "type": "multiple_select",
+      "prompt": "A team reviews asynchronous module loading. Which claims hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Dynamic import always returns synchronously without a promise."
+        },
+        {
+          "id": "b",
+          "text": "Type-only imports perform the same runtime loading as dynamic import."
+        },
+        {
+          "id": "c",
+          "text": "Dynamic import returns a promise for the namespace."
+        },
+        {
+          "id": "d",
+          "text": "The application must handle possible load failure."
+        },
+        {
+          "id": "e",
+          "text": "A declaration file is a substitute for the runtime implementation."
+        }
+      ],
+      "answers": [
+        "c",
+        "d"
+      ],
+      "explanation": "a: It is the asynchronous import expression. b: Type-only imports are erased. c: Loading and evaluation are represented asynchronously. d: The returned promise can reject. e: Declarations provide types rather than executable implementation.",
+      "materials": [
+        "web-modules-reference",
+        "web-tsmodules-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://www.typescriptlang.org/docs/handbook/modules/theory.html",
+          "title": "TypeScript: Modules - Theory",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "Module behavior is determined by the runtime host; TypeScript module resolution models the host and type-only imports are erased."
+        },
+        {
+          "url": "https://www.typescriptlang.org/docs/handbook/2/modules.html",
+          "title": "TypeScript: Modules",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "Files with top-level imports or exports are modules with their own scope; dynamic import is asynchronous and type-only imports disappear."
+        }
+      ]
+    }
+  ]
+}

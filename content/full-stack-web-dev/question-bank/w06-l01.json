@@ -1,0 +1,455 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "w06-l01-effect-purpose",
+      "name": "External synchronization"
+    },
+    {
+      "id": "w06-l01-effect-dependencies",
+      "name": "Reactive Effect dependencies"
+    },
+    {
+      "id": "w06-l01-effect-cleanup",
+      "name": "Cleanup lifecycle"
+    },
+    {
+      "id": "w06-l01-request-race",
+      "name": "Out-of-order request results"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w06-l01-q01",
+      "lesson": "w06-l01",
+      "concept": "w06-l01-effect-purpose",
+      "type": "multiple_choice",
+      "prompt": "A chat component must connect whenever roomId changes. Where should connection synchronization live?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Inside render, so every calculation opens another connection."
+        },
+        {
+          "id": "b",
+          "text": "Only in a click handler, even when roomId changes externally."
+        },
+        {
+          "id": "c",
+          "text": "In an Effect whose setup connects and cleanup disconnects."
+        },
+        {
+          "id": "d",
+          "text": "In a module variable shared by every chat component instance."
+        }
+      ],
+      "answer": "c",
+      "explanation": "An Effect synchronizes the connection with current inputs. Render must not open external connections.",
+      "materials": [
+        "react-useeffect-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/reference/react/useEffect",
+          "title": "useEffect",
+          "publisher": "React",
+          "accessed": "2026-10-09",
+          "claim": "Effects synchronize external systems, compare reactive dependencies with Object.is, clean up before changed-dependency setup and on unmount, and can ignore stale fetch responses."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w06-l01-q02",
+      "lesson": "w06-l01",
+      "concept": "w06-l01-effect-purpose",
+      "type": "multiple_choice",
+      "prompt": "The total price is fully determined by current item props. Which approach avoids unnecessary synchronization?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Store every intermediate total in an Effect with no dependencies."
+        },
+        {
+          "id": "b",
+          "text": "Calculate the derived total during rendering from current inputs."
+        },
+        {
+          "id": "c",
+          "text": "Open a subscription that changes props after every render."
+        },
+        {
+          "id": "d",
+          "text": "Mutate the supplied item array so the new total becomes state."
+        }
+      ],
+      "answer": "b",
+      "explanation": "A pure derived value needs no external-system synchronization. Storing it through an Effect adds redundant state.",
+      "materials": [
+        "react-effect-synchronization"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/learn/synchronizing-with-effects",
+          "title": "Synchronizing with Effects",
+          "publisher": "React",
+          "accessed": "2026-10-09",
+          "claim": "Effects synchronize external systems rather than being needed for every calculation derived from existing state."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w06-l01-q03",
+      "lesson": "w06-l01",
+      "concept": "w06-l01-effect-dependencies",
+      "type": "multiple_choice",
+      "prompt": "An Effect reads roomId but declares []. What is the central bug if roomId changes?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It always reconnects twice on every roomId change in production."
+        },
+        {
+          "id": "b",
+          "text": "React mutates the dependency list automatically to insert roomId."
+        },
+        {
+          "id": "c",
+          "text": "It retains the captured roomId and does not resynchronize for the change."
+        },
+        {
+          "id": "d",
+          "text": "An empty dependency list makes the Effect execute on every render."
+        }
+      ],
+      "answer": "c",
+      "explanation": "Dependencies declare the reactive values needed for resynchronization. Omitting one creates stale synchronization.",
+      "materials": [
+        "react-useeffect-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/reference/react/useEffect",
+          "title": "useEffect",
+          "publisher": "React",
+          "accessed": "2026-10-09",
+          "claim": "Effects synchronize external systems, compare reactive dependencies with Object.is, clean up before changed-dependency setup and on unmount, and can ignore stale fetch responses."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w06-l01-q04",
+      "lesson": "w06-l01",
+      "concept": "w06-l01-effect-dependencies",
+      "type": "multiple_choice",
+      "prompt": "An Effect depends on a fresh options object created on every render. Why does unrelated state reconnect it?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The object identity differs under Object.is on each render."
+        },
+        {
+          "id": "b",
+          "text": "The dependency is deeply equal, so only an unrelated state bug could reconnect."
+        },
+        {
+          "id": "c",
+          "text": "React compares object properties recursively before each Effect."
+        },
+        {
+          "id": "d",
+          "text": "A dependency array always forces reconnecting after every render."
+        }
+      ],
+      "answer": "a",
+      "explanation": "Fresh objects are unequal references. Move construction inside the Effect or depend on relevant stable values.",
+      "materials": [
+        "react-useeffect-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/reference/react/useEffect",
+          "title": "useEffect",
+          "publisher": "React",
+          "accessed": "2026-10-09",
+          "claim": "Effects synchronize external systems, compare reactive dependencies with Object.is, clean up before changed-dependency setup and on unmount, and can ignore stale fetch responses."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w06-l01-q05",
+      "lesson": "w06-l01",
+      "concept": "w06-l01-effect-cleanup",
+      "type": "multiple_choice",
+      "prompt": "The room changes from A to B. Which lifecycle order avoids retaining both connections?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Clean up A, then run setup using the current room B value."
+        },
+        {
+          "id": "b",
+          "text": "Keep A connected because cleanup runs only on component removal."
+        },
+        {
+          "id": "c",
+          "text": "Disconnect B before connecting A, then retain A until unmount."
+        },
+        {
+          "id": "d",
+          "text": "Connect B, render A again, then skip A cleanup until unmount."
+        }
+      ],
+      "answer": "a",
+      "explanation": "Changed dependencies trigger old cleanup before new setup. Cleanup is not limited to unmount.",
+      "materials": [
+        "react-useeffect-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/reference/react/useEffect",
+          "title": "useEffect",
+          "publisher": "React",
+          "accessed": "2026-10-09",
+          "claim": "Effects synchronize external systems, compare reactive dependencies with Object.is, clean up before changed-dependency setup and on unmount, and can ignore stale fetch responses."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w06-l01-q06",
+      "lesson": "w06-l01",
+      "concept": "w06-l01-request-race",
+      "type": "multiple_choice",
+      "prompt": "Search A starts, then B starts. B finishes first. What prevents A later overwriting B?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Call the setter unconditionally for both response callbacks."
+        },
+        {
+          "id": "b",
+          "text": "Ignore the obsolete response using cleanup-linked request state."
+        },
+        {
+          "id": "c",
+          "text": "Assume HTTP responses always complete in request-start order."
+        },
+        {
+          "id": "d",
+          "text": "Remove the search term dependency so only A can ever run."
+        }
+      ],
+      "answer": "b",
+      "explanation": "The documented fetch pattern marks an old Effect ignored during cleanup, so only the current request applies results.",
+      "materials": [
+        "react-useeffect-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/reference/react/useEffect",
+          "title": "useEffect",
+          "publisher": "React",
+          "accessed": "2026-10-09",
+          "claim": "Effects synchronize external systems, compare reactive dependencies with Object.is, clean up before changed-dependency setup and on unmount, and can ignore stale fetch responses."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w06-l01-q07",
+      "lesson": "w06-l01",
+      "concept": "w06-l01-effect-purpose",
+      "type": "multiple_select",
+      "prompt": "Which uses belong in external-system Effects? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Compute a sum of existing props without any external system."
+        },
+        {
+          "id": "b",
+          "text": "Send a purchase for every render whether a user clicked or not."
+        },
+        {
+          "id": "c",
+          "text": "Connect to a third-party widget that lives outside React."
+        },
+        {
+          "id": "d",
+          "text": "Subscribe to browser events and remove that subscription later."
+        },
+        {
+          "id": "e",
+          "text": "Synchronize a network connection with the selected room."
+        }
+      ],
+      "answers": [
+        "c",
+        "d",
+        "e"
+      ],
+      "explanation": "A: Incorrect: a pure derived calculation can run during render. B: Incorrect: an interaction-specific purchase belongs to its event. C: Correct: external widgets can require synchronization. D: Correct: event subscriptions are external synchronization. E: Correct: connection state must follow the room input.",
+      "materials": [
+        "react-effect-synchronization"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/learn/synchronizing-with-effects",
+          "title": "Synchronizing with Effects",
+          "publisher": "React",
+          "accessed": "2026-10-09",
+          "claim": "Effects synchronize external APIs such as events, connections and widgets; interaction-specific actions belong in event handlers."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w06-l01-q08",
+      "lesson": "w06-l01",
+      "concept": "w06-l01-effect-dependencies",
+      "type": "multiple_select",
+      "prompt": "Which dependency claims are correct? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Omitting a used value makes the closure automatically read its latest value."
+        },
+        {
+          "id": "b",
+          "text": "React compares dependencies by recursively checking nested object fields."
+        },
+        {
+          "id": "c",
+          "text": "Changing a used dependency can trigger cleanup and setup again."
+        },
+        {
+          "id": "d",
+          "text": "Reactive values used by setup must be represented as dependencies."
+        },
+        {
+          "id": "e",
+          "text": "Object.is compares dependencies between successive renders."
+        }
+      ],
+      "answers": [
+        "c",
+        "d",
+        "e"
+      ],
+      "explanation": "A: Incorrect: the closure retains its render values. B: Incorrect: comparison uses Object.is, not deep equality. C: Correct: changed inputs require resynchronization. D: Correct: dependencies reflect the setup reactive inputs. E: Correct: this is the documented comparison.",
+      "materials": [
+        "react-useeffect-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/reference/react/useEffect",
+          "title": "useEffect",
+          "publisher": "React",
+          "accessed": "2026-10-09",
+          "claim": "Effects synchronize external systems, compare reactive dependencies with Object.is, clean up before changed-dependency setup and on unmount, and can ignore stale fetch responses."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w06-l01-q09",
+      "lesson": "w06-l01",
+      "concept": "w06-l01-effect-cleanup",
+      "type": "multiple_select",
+      "prompt": "Which lifecycle claims hold for a well-formed subscription Effect? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Cleanup occurs only after the browser tab is permanently closed."
+        },
+        {
+          "id": "b",
+          "text": "Cleanup removes the subscription established by its setup."
+        },
+        {
+          "id": "c",
+          "text": "Changed dependencies run old cleanup before the new setup."
+        },
+        {
+          "id": "d",
+          "text": "Setup must always run exactly once even in development Strict Mode."
+        },
+        {
+          "id": "e",
+          "text": "Development may exercise setup and cleanup to detect missing cleanup."
+        }
+      ],
+      "answers": [
+        "b",
+        "c",
+        "e"
+      ],
+      "explanation": "A: Incorrect: cleanup also runs on changes and unmount. B: Correct: cleanup should undo setup. C: Correct: the old external state is removed first. D: Incorrect: development checks can exercise an extra cycle. E: Correct: the extra cycle exposes missing reversibility.",
+      "materials": [
+        "react-useeffect-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/reference/react/useEffect",
+          "title": "useEffect",
+          "publisher": "React",
+          "accessed": "2026-10-09",
+          "claim": "Effects synchronize external systems, compare reactive dependencies with Object.is, clean up before changed-dependency setup and on unmount, and can ignore stale fetch responses."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w06-l01-q10",
+      "lesson": "w06-l01",
+      "concept": "w06-l01-request-race",
+      "type": "multiple_select",
+      "prompt": "Which claims help handle stale fetch results? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Cleanup can mark the previous Effect response as obsolete."
+        },
+        {
+          "id": "b",
+          "text": "Apply a response only while its associated request is current."
+        },
+        {
+          "id": "c",
+          "text": "Network response order always matches request-start order."
+        },
+        {
+          "id": "d",
+          "text": "Ignoring an old response guarantees the server never processed its request."
+        },
+        {
+          "id": "e",
+          "text": "A cleanup flag can prevent an obsolete response from replacing newer UI data."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "e"
+      ],
+      "explanation": "A: Correct: the documented pattern uses an ignore flag. B: Correct: current-request ownership avoids stale UI writes. C: Incorrect: responses can arrive in any order. D: Incorrect: ignoring UI application is not server cancellation. E: Correct: this addresses out-of-order completion.",
+      "materials": [
+        "react-useeffect-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/reference/react/useEffect",
+          "title": "useEffect",
+          "publisher": "React",
+          "accessed": "2026-10-09",
+          "claim": "Effects synchronize external systems, compare reactive dependencies with Object.is, clean up before changed-dependency setup and on unmount, and can ignore stale fetch responses."
+        }
+      ],
+      "retired": null
+    }
+  ]
+}

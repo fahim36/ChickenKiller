@@ -1,0 +1,453 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "w09-l04-sql-values",
+      "name": "SQL parameterization"
+    },
+    {
+      "id": "w09-l04-sql-identifiers",
+      "name": "Allowlisted SQL identifiers"
+    },
+    {
+      "id": "w09-l04-ssrf-destinations",
+      "name": "SSRF destination validation"
+    },
+    {
+      "id": "w09-l04-ssrf-network",
+      "name": "Redirect and network restrictions"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w09-l04-q01",
+      "type": "multiple_choice",
+      "lesson": "w09-l04",
+      "concept": "w09-l04-sql-values",
+      "prompt": "A login query concatenates the submitted username into SQL. Which change addresses the injection boundary?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Allow any SQL syntax when the request uses HTTPS."
+        },
+        {
+          "id": "b",
+          "text": "Hide database error messages but keep the concatenation."
+        },
+        {
+          "id": "c",
+          "text": "Bind the username as a parameter."
+        },
+        {
+          "id": "d",
+          "text": "Base64-encode the username before concatenating it."
+        }
+      ],
+      "answer": "c",
+      "explanation": "A bound parameter is treated as data. Encoding, HTTPS and quieter errors do not remove executable string concatenation.",
+      "materials": [
+        "owasp-sql-injection"
+      ],
+      "sources": [
+        {
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html",
+          "title": "SQL Injection Prevention Cheat Sheet",
+          "publisher": "OWASP",
+          "accessed": "2026-10-09",
+          "claim": "Parameterized queries separate code from data; safely implemented stored procedures also help, but concatenated dynamic SQL remains risky."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w09-l04-q02",
+      "type": "multiple_choice",
+      "lesson": "w09-l04",
+      "concept": "w09-l04-sql-identifiers",
+      "prompt": "A user chooses the column used by ORDER BY. What is the appropriate boundary?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Allow arbitrary SQL after removing all whitespace."
+        },
+        {
+          "id": "b",
+          "text": "Map the choice to an allowlist of known columns."
+        },
+        {
+          "id": "c",
+          "text": "Bind a column name as an ordinary data-value parameter."
+        },
+        {
+          "id": "d",
+          "text": "Concatenate every requested identifier if login succeeded."
+        }
+      ],
+      "answer": "b",
+      "explanation": "Parameters represent data values rather than identifiers. A fixed mapping controls executable structure; login and whitespace removal do not.",
+      "materials": [
+        "owasp-sql-injection"
+      ],
+      "sources": [
+        {
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html",
+          "title": "SQL Injection Prevention Cheat Sheet",
+          "publisher": "OWASP",
+          "accessed": "2026-10-09",
+          "claim": "Table names, column names and sort direction cannot be bound as data values; map permitted inputs to known identifiers."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w09-l04-q03",
+      "type": "multiple_choice",
+      "lesson": "w09-l04",
+      "concept": "w09-l04-ssrf-destinations",
+      "prompt": "A server downloads any URL submitted by a user. Which risk distinguishes SSRF?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It may reach internal resources using server network access."
+        },
+        {
+          "id": "b",
+          "text": "It is limited to destinations the user’s browser can directly reach."
+        },
+        {
+          "id": "c",
+          "text": "It only matters when the URL contains an invalid hostname."
+        },
+        {
+          "id": "d",
+          "text": "It requires the response to contain executable JavaScript."
+        }
+      ],
+      "answer": "a",
+      "explanation": "SSRF abuses server-side network reachability. Browser navigation, private-key theft and JavaScript execution are separate concerns.",
+      "materials": [
+        "owasp-ssrf-prevention"
+      ],
+      "sources": [
+        {
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html",
+          "title": "Server Side Request Forgery Prevention Cheat Sheet",
+          "publisher": "OWASP",
+          "accessed": "2026-10-09",
+          "claim": "SSRF controls validate allowed domains and IP destinations and account for alternate representations and DNS resolution."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w09-l04-q04",
+      "type": "multiple_choice",
+      "lesson": "w09-l04",
+      "concept": "w09-l04-ssrf-network",
+      "prompt": "An allowlisted URL redirects to an internal service. Which behavior enables this bypass?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A narrow list of destination protocols."
+        },
+        {
+          "id": "b",
+          "text": "A deny rule for private network destinations."
+        },
+        {
+          "id": "c",
+          "text": "An egress firewall enforcing the intended reachability."
+        },
+        {
+          "id": "d",
+          "text": "Unrestricted automatic redirect following."
+        }
+      ],
+      "answer": "d",
+      "explanation": "Redirects can switch destinations after initial validation. Protocol and network restrictions help prevent rather than create this bypass.",
+      "materials": [
+        "owasp-ssrf-prevention"
+      ],
+      "sources": [
+        {
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html",
+          "title": "Server Side Request Forgery Prevention Cheat Sheet",
+          "publisher": "OWASP",
+          "accessed": "2026-10-09",
+          "claim": "SSRF defenses include disabling redirects where possible, constraining protocols and applying network egress restrictions."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w09-l04-q05",
+      "type": "multiple_choice",
+      "lesson": "w09-l04",
+      "concept": "w09-l04-sql-values",
+      "prompt": "A search value contains a quote character. How should a parameterized query handle it?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Treat quoted input as trusted executable SQL by default."
+        },
+        {
+          "id": "b",
+          "text": "Remove parameter binding because quotes change its purpose."
+        },
+        {
+          "id": "c",
+          "text": "Pass the full value as data through the parameter API."
+        },
+        {
+          "id": "d",
+          "text": "Switch to concatenation whenever a value contains a quote."
+        }
+      ],
+      "answer": "c",
+      "explanation": "Binding handles the value as data, including quotes. Switching to executable concatenation removes the security boundary.",
+      "materials": [
+        "owasp-sql-injection"
+      ],
+      "sources": [
+        {
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html",
+          "title": "SQL Injection Prevention Cheat Sheet",
+          "publisher": "OWASP",
+          "accessed": "2026-10-09",
+          "claim": "Data-value parameters keep submitted data separate from SQL syntax."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w09-l04-q06",
+      "type": "multiple_choice",
+      "lesson": "w09-l04",
+      "concept": "w09-l04-sql-identifiers",
+      "prompt": "A grid sends a requested sort direction. Which implementation fits OWASP guidance?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Allow any direction string when the column exists."
+        },
+        {
+          "id": "b",
+          "text": "Map approved values to ASC or DESC."
+        },
+        {
+          "id": "c",
+          "text": "Concatenate the entire request field into the SQL clause."
+        },
+        {
+          "id": "d",
+          "text": "Bind the entire ORDER BY clause as a scalar data value."
+        }
+      ],
+      "answer": "b",
+      "explanation": "Sort direction is SQL structure. A narrow fixed mapping is appropriate; ordinary value binding and unchecked concatenation are not.",
+      "materials": [
+        "owasp-sql-injection"
+      ],
+      "sources": [
+        {
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html",
+          "title": "SQL Injection Prevention Cheat Sheet",
+          "publisher": "OWASP",
+          "accessed": "2026-10-09",
+          "claim": "SQL sort direction needs a fixed mapping instead of arbitrary executable input."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w09-l04-q07",
+      "type": "multiple_select",
+      "lesson": "w09-l04",
+      "concept": "w09-l04-sql-values",
+      "prompt": "Which SQL value-handling statements hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Review stored procedures that construct dynamic SQL internally."
+        },
+        {
+          "id": "b",
+          "text": "Trust every stored procedure regardless of its implementation."
+        },
+        {
+          "id": "c",
+          "text": "Use escaping as the preferred universal solution for every database."
+        },
+        {
+          "id": "d",
+          "text": "An ORM makes every raw concatenated query safe from SQL injection."
+        },
+        {
+          "id": "e",
+          "text": "Bind untrusted values through a parameterized query API."
+        }
+      ],
+      "answers": [
+        "a",
+        "e"
+      ],
+      "explanation": "A is correct: Stored procedures are not safe if they concatenate executable input. B is incorrect: Dynamic SQL can preserve injection risk. C is incorrect: OWASP discourages fragile escaping as the primary defense. D is incorrect: Using an ORM does not protect raw SQL that interpolates executable input. E is correct: The database distinguishes values from SQL syntax.",
+      "materials": [
+        "owasp-sql-injection"
+      ],
+      "sources": [
+        {
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html",
+          "title": "SQL Injection Prevention Cheat Sheet",
+          "publisher": "OWASP",
+          "accessed": "2026-10-09",
+          "claim": "Parameterized queries separate code from data; safely implemented stored procedures also help, but concatenated dynamic SQL remains risky."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w09-l04-q08",
+      "type": "multiple_select",
+      "lesson": "w09-l04",
+      "concept": "w09-l04-sql-identifiers",
+      "prompt": "Which controls fit dynamic SQL structure? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Treat identifier parameters as interchangeable with value parameters."
+        },
+        {
+          "id": "b",
+          "text": "Accept arbitrary table names from an authenticated browser."
+        },
+        {
+          "id": "c",
+          "text": "Redesign a query when arbitrary dynamic structure is unnecessary."
+        },
+        {
+          "id": "d",
+          "text": "Map sort-column choices to predefined identifiers."
+        },
+        {
+          "id": "e",
+          "text": "Validate sort direction against the supported fixed options."
+        }
+      ],
+      "answers": [
+        "c",
+        "d",
+        "e"
+      ],
+      "explanation": "A is incorrect: Databases do not use value parameters as schema identifiers. B is incorrect: Authenticated input can still contain unsafe SQL structure. C is correct: Removing dynamic structure reduces the attack surface. D is correct: An allowlist limits SQL structure. E is correct: Ascending or descending choices need controlled mapping.",
+      "materials": [
+        "owasp-sql-injection"
+      ],
+      "sources": [
+        {
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html",
+          "title": "SQL Injection Prevention Cheat Sheet",
+          "publisher": "OWASP",
+          "accessed": "2026-10-09",
+          "claim": "Table names, column names and sort direction cannot be bound as data values; map permitted inputs to known identifiers."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w09-l04-q09",
+      "type": "multiple_select",
+      "lesson": "w09-l04",
+      "concept": "w09-l04-ssrf-destinations",
+      "prompt": "Which destination controls reduce SSRF risk? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Resolving an approved hostname once guarantees all future resolved addresses are safe."
+        },
+        {
+          "id": "b",
+          "text": "Treat a URL syntax check as sufficient network authorization."
+        },
+        {
+          "id": "c",
+          "text": "Allow only the destinations required by the feature."
+        },
+        {
+          "id": "d",
+          "text": "Validate IP addresses against prohibited internal destinations."
+        },
+        {
+          "id": "e",
+          "text": "Trust any hostname merely because its text looks public."
+        }
+      ],
+      "answers": [
+        "c",
+        "d"
+      ],
+      "explanation": "A is incorrect: DNS resolution can change or expose bypasses, so destination policy must account for it. B is incorrect: Valid syntax does not make a destination safe. C is correct: A constrained allowlist reduces reachable targets. D is correct: Server-accessible internal targets need protection. E is incorrect: DNS and alternate representations can defeat superficial checks.",
+      "materials": [
+        "owasp-ssrf-prevention"
+      ],
+      "sources": [
+        {
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html",
+          "title": "Server Side Request Forgery Prevention Cheat Sheet",
+          "publisher": "OWASP",
+          "accessed": "2026-10-09",
+          "claim": "SSRF controls validate allowed domains and IP destinations and account for alternate representations and DNS resolution."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w09-l04-q10",
+      "type": "multiple_select",
+      "lesson": "w09-l04",
+      "concept": "w09-l04-ssrf-network",
+      "prompt": "Which layers help protect a server URL-fetch feature? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Assume URL parsing alone blocks every SSRF technique."
+        },
+        {
+          "id": "b",
+          "text": "Disable automatic redirects when they are not required."
+        },
+        {
+          "id": "c",
+          "text": "Restrict the permitted protocols to the feature’s needs."
+        },
+        {
+          "id": "d",
+          "text": "Use network egress controls as well as application validation."
+        },
+        {
+          "id": "e",
+          "text": "Permit all private networks after a public URL is validated once."
+        }
+      ],
+      "answers": [
+        "b",
+        "c",
+        "d"
+      ],
+      "explanation": "A is incorrect: Parsing is not destination or network authorization. B is correct: Redirects can bypass initial destination validation. C is correct: Unexpected schemes increase attack surface. D is correct: Network controls limit the server’s reachability. E is incorrect: A later destination can still reach sensitive services.",
+      "materials": [
+        "owasp-ssrf-prevention"
+      ],
+      "sources": [
+        {
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html",
+          "title": "Server Side Request Forgery Prevention Cheat Sheet",
+          "publisher": "OWASP",
+          "accessed": "2026-10-09",
+          "claim": "SSRF defenses include disabling redirects where possible, constraining protocols and applying network egress restrictions."
+        }
+      ],
+      "retired": null
+    }
+  ]
+}

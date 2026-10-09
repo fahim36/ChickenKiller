@@ -1,0 +1,444 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "w03-l04-map-contract",
+      "name": "Map identity equality and insertion order"
+    },
+    {
+      "id": "w03-l04-set-contract",
+      "name": "Set uniqueness and SameValueZero"
+    },
+    {
+      "id": "w03-l04-weak-keys",
+      "name": "Weak collection reachability and non-enumeration"
+    },
+    {
+      "id": "w03-l04-shallow-copy",
+      "name": "Shallow copies retain nested references"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w03-l04-q01",
+      "lesson": "w03-l04",
+      "concept": "w03-l04-map-contract",
+      "type": "multiple_choice",
+      "prompt": "A Map stores a value under `{id:1}`. Looking it up with a different newly created `{id:1}` fails. Why?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Object keys use identity rather than equality of their visible fields."
+        },
+        {
+          "id": "b",
+          "text": "Map keys use JSON equality but only after values are sorted alphabetically."
+        },
+        {
+          "id": "c",
+          "text": "Map supports object keys only when those objects were explicitly frozen."
+        },
+        {
+          "id": "d",
+          "text": "Map converts both object keys to strings and rejects their repeated spelling."
+        }
+      ],
+      "answer": "a",
+      "explanation": "Separate object instances are distinct keys even when fields look the same. Map does not stringify keys or compare their JSON structure.",
+      "materials": [
+        "web-collections-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://tc39.es/ecma262/multipage/keyed-collections.html",
+          "title": "ECMAScript: Keyed Collections",
+          "publisher": "Ecma International",
+          "accessed": "2026-10-09",
+          "claim": "Map preserves insertion order and uses SameValueZero equality; weak collections do not keep keys alive or expose key enumeration."
+        }
+      ]
+    },
+    {
+      "id": "w03-l04-q02",
+      "lesson": "w03-l04",
+      "concept": "w03-l04-set-contract",
+      "type": "multiple_choice",
+      "prompt": "What is `new Set([NaN, NaN, 0, -0]).size` under standard equality?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "4, because every position in the input creates a separate Set entry."
+        },
+        {
+          "id": "b",
+          "text": "3, because NaN repeats but signed zeros remain different Set entries."
+        },
+        {
+          "id": "c",
+          "text": "1, because Set converts all numeric keys into the same falsy entry."
+        },
+        {
+          "id": "d",
+          "text": "2, because NaN repeats and signed zeros share the same key value."
+        }
+      ],
+      "answer": "d",
+      "explanation": "Set uses SameValueZero equality: NaN equals NaN for membership, and +0 and -0 are equivalent. Two unique values remain.",
+      "materials": [
+        "web-collections-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://tc39.es/ecma262/multipage/keyed-collections.html",
+          "title": "ECMAScript: Keyed Collections",
+          "publisher": "Ecma International",
+          "accessed": "2026-10-09",
+          "claim": "Map preserves insertion order and uses SameValueZero equality; weak collections do not keep keys alive or expose key enumeration."
+        }
+      ]
+    },
+    {
+      "id": "w03-l04-q03",
+      "lesson": "w03-l04",
+      "concept": "w03-l04-weak-keys",
+      "type": "multiple_choice",
+      "prompt": "A cache uses a WeakMap keyed by objects. Which feature is intentionally unavailable?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Deleting an entry when the caller still holds its object key."
+        },
+        {
+          "id": "b",
+          "text": "Associating a value with an accepted object key held by the caller."
+        },
+        {
+          "id": "c",
+          "text": "Enumerating every stored key to inspect which keys are still alive."
+        },
+        {
+          "id": "d",
+          "text": "Looking up the cached value when the caller still holds its key."
+        }
+      ],
+      "answer": "c",
+      "explanation": "WeakMap does not expose key enumeration because it would reveal collection-dependent liveness. Lookup, deletion and set with held keys are supported.",
+      "materials": [
+        "web-collections-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://tc39.es/ecma262/multipage/keyed-collections.html",
+          "title": "ECMAScript: Keyed Collections",
+          "publisher": "Ecma International",
+          "accessed": "2026-10-09",
+          "claim": "Map preserves insertion order and uses SameValueZero equality; weak collections do not keep keys alive or expose key enumeration."
+        }
+      ]
+    },
+    {
+      "id": "w03-l04-q04",
+      "lesson": "w03-l04",
+      "concept": "w03-l04-shallow-copy",
+      "type": "multiple_choice",
+      "prompt": "`const a=[{n:1}]; const b=a.slice(); b[0].n=2;` What does a[0].n become?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A TypeError, because copying an array makes every nested element readonly."
+        },
+        {
+          "id": "b",
+          "text": "2, because slice copies the element reference rather than cloning its object."
+        },
+        {
+          "id": "c",
+          "text": "1, because slice deeply clones each nested object it encounters."
+        },
+        {
+          "id": "d",
+          "text": "undefined, because editing b removes the corresponding entry from a."
+        }
+      ],
+      "answer": "b",
+      "explanation": "Slice creates a new outer array with the same element references. A nested object mutation is visible through either array.",
+      "materials": [
+        "web-arrays-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://tc39.es/ecma262/multipage/indexed-collections.html",
+          "title": "ECMAScript: Indexed Collections",
+          "publisher": "Ecma International",
+          "accessed": "2026-10-09",
+          "claim": "Array methods have defined mutation and comparison semantics; sorting without a comparator uses string ordering and copies can be shallow."
+        }
+      ]
+    },
+    {
+      "id": "w03-l04-q05",
+      "lesson": "w03-l04",
+      "concept": "w03-l04-map-contract",
+      "type": "multiple_choice",
+      "prompt": "A Map inserts a then b, updates the value for a without deleting it, and iterates keys. What key order remains?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "a then b, because updating an existing key does not reinsert it."
+        },
+        {
+          "id": "b",
+          "text": "b then a, because every set moves its key to the end of iteration."
+        },
+        {
+          "id": "c",
+          "text": "Alphabetical order, because Maps sort keys before iteration."
+        },
+        {
+          "id": "d",
+          "text": "Unspecified order, because Map never preserves insertion order."
+        }
+      ],
+      "answer": "a",
+      "explanation": "Map preserves insertion order. Updating an existing entry keeps its position; delete followed by reinsert would differ.",
+      "materials": [
+        "web-collections-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://tc39.es/ecma262/multipage/keyed-collections.html",
+          "title": "ECMAScript: Keyed Collections",
+          "publisher": "Ecma International",
+          "accessed": "2026-10-09",
+          "claim": "Map preserves insertion order and uses SameValueZero equality; weak collections do not keep keys alive or expose key enumeration."
+        }
+      ]
+    },
+    {
+      "id": "w03-l04-q06",
+      "lesson": "w03-l04",
+      "concept": "w03-l04-set-contract",
+      "type": "multiple_choice",
+      "prompt": "A Set contains one object. Adding the same object reference again has what effect on size?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It increases by one because object references never participate in equality."
+        },
+        {
+          "id": "b",
+          "text": "It doubles because Set clones objects when inserting them."
+        },
+        {
+          "id": "c",
+          "text": "It becomes zero because adding a duplicate clears the collection."
+        },
+        {
+          "id": "d",
+          "text": "It stays unchanged because the existing key is already present."
+        }
+      ],
+      "answer": "d",
+      "explanation": "Set membership uses key equality, including object identity. Inserting the same object again does not create a second entry.",
+      "materials": [
+        "web-collections-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://tc39.es/ecma262/multipage/keyed-collections.html",
+          "title": "ECMAScript: Keyed Collections",
+          "publisher": "Ecma International",
+          "accessed": "2026-10-09",
+          "claim": "Map preserves insertion order and uses SameValueZero equality; weak collections do not keep keys alive or expose key enumeration."
+        }
+      ]
+    },
+    {
+      "id": "w03-l04-q07",
+      "lesson": "w03-l04",
+      "concept": "w03-l04-map-contract",
+      "type": "multiple_select",
+      "prompt": "A Map serves as an object-keyed lookup table. Which claims hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Iteration preserves insertion order."
+        },
+        {
+          "id": "b",
+          "text": "Updating an existing key moves it to the end automatically."
+        },
+        {
+          "id": "c",
+          "text": "Map compares every object key by JSON serialization."
+        },
+        {
+          "id": "d",
+          "text": "Deleting then reinserting a key can change its position."
+        },
+        {
+          "id": "e",
+          "text": "Different object instances can be different keys with identical fields."
+        }
+      ],
+      "answers": [
+        "a",
+        "d",
+        "e"
+      ],
+      "explanation": "a: Entries are iterated in their insertion sequence. b: The existing entry retains its position. c: It compares object identity instead. d: Reinsertion creates a new entry at the end. e: Object key identity is not structural equality.",
+      "materials": [
+        "web-collections-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://tc39.es/ecma262/multipage/keyed-collections.html",
+          "title": "ECMAScript: Keyed Collections",
+          "publisher": "Ecma International",
+          "accessed": "2026-10-09",
+          "claim": "Map preserves insertion order and uses SameValueZero equality; weak collections do not keep keys alive or expose key enumeration."
+        }
+      ]
+    },
+    {
+      "id": "w03-l04-q08",
+      "lesson": "w03-l04",
+      "concept": "w03-l04-set-contract",
+      "type": "multiple_select",
+      "prompt": "A deduplication step uses Set. Which equality claims hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Two objects with equal fields must share one entry."
+        },
+        {
+          "id": "b",
+          "text": "The same object reference can occupy multiple unique entries."
+        },
+        {
+          "id": "c",
+          "text": "Set sorts numeric values before exposing iteration."
+        },
+        {
+          "id": "d",
+          "text": "Repeated NaN values share one entry."
+        },
+        {
+          "id": "e",
+          "text": "Positive and negative zero share one entry."
+        }
+      ],
+      "answers": [
+        "d",
+        "e"
+      ],
+      "explanation": "a: Different object identities remain distinct. b: Repeated insertion of the same key does not add an entry. c: It preserves insertion order rather than numeric sorting. d: SameValueZero treats NaN as equivalent for membership. e: SameValueZero does not distinguish signed zeros.",
+      "materials": [
+        "web-collections-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://tc39.es/ecma262/multipage/keyed-collections.html",
+          "title": "ECMAScript: Keyed Collections",
+          "publisher": "Ecma International",
+          "accessed": "2026-10-09",
+          "claim": "Map preserves insertion order and uses SameValueZero equality; weak collections do not keep keys alive or expose key enumeration."
+        }
+      ]
+    },
+    {
+      "id": "w03-l04-q09",
+      "lesson": "w03-l04",
+      "concept": "w03-l04-weak-keys",
+      "type": "multiple_select",
+      "prompt": "A WeakMap supports a cache keyed by objects. Which claims hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It guarantees removal at the next timer tick after a reference is dropped."
+        },
+        {
+          "id": "b",
+          "text": "It provides a size counter that is updated synchronously by garbage collection."
+        },
+        {
+          "id": "c",
+          "text": "Its entries do not keep otherwise unreachable keys alive."
+        },
+        {
+          "id": "d",
+          "text": "Holding a key allows lookup of its associated value."
+        },
+        {
+          "id": "e",
+          "text": "It intentionally omits general key enumeration."
+        }
+      ],
+      "answers": [
+        "c",
+        "d",
+        "e"
+      ],
+      "explanation": "a: Collection timing is not guaranteed that way. b: WeakMap does not expose a size counter. c: Weak keys are not strong reachability roots. d: get is supported when the caller supplies the key. e: Enumeration would expose collection-dependent liveness.",
+      "materials": [
+        "web-collections-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://tc39.es/ecma262/multipage/keyed-collections.html",
+          "title": "ECMAScript: Keyed Collections",
+          "publisher": "Ecma International",
+          "accessed": "2026-10-09",
+          "claim": "Map preserves insertion order and uses SameValueZero equality; weak collections do not keep keys alive or expose key enumeration."
+        }
+      ]
+    },
+    {
+      "id": "w03-l04-q10",
+      "lesson": "w03-l04",
+      "concept": "w03-l04-shallow-copy",
+      "type": "multiple_select",
+      "prompt": "An array slice is used before editing object records. Which copy claims hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Reassigning one new-array slot necessarily changes the original slot."
+        },
+        {
+          "id": "b",
+          "text": "The new outer array can be changed independently."
+        },
+        {
+          "id": "c",
+          "text": "Nested object references can still be shared."
+        },
+        {
+          "id": "d",
+          "text": "Mutating a shared nested object can affect both views."
+        },
+        {
+          "id": "e",
+          "text": "slice automatically deep-clones all reachable records."
+        }
+      ],
+      "answers": [
+        "b",
+        "c",
+        "d"
+      ],
+      "explanation": "a: The separate outer arrays have separate element slots. b: Slice returns a distinct array container. c: Element references are copied rather than deeply cloned. d: Both arrays may reference that same object. e: It is a shallow copy operation.",
+      "materials": [
+        "web-arrays-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://tc39.es/ecma262/multipage/indexed-collections.html",
+          "title": "ECMAScript: Indexed Collections",
+          "publisher": "Ecma International",
+          "accessed": "2026-10-09",
+          "claim": "Array methods have defined mutation and comparison semantics; sorting without a comparator uses string ordering and copies can be shallow."
+        }
+      ]
+    }
+  ]
+}

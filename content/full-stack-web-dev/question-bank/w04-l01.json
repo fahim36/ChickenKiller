@@ -1,0 +1,467 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "w04-l01-assertion-boundary",
+      "name": "Type assertions do not validate runtime data"
+    },
+    {
+      "id": "w04-l01-control-narrowing",
+      "name": "Control-flow narrowing and null checks"
+    },
+    {
+      "id": "w04-l01-discriminated-union",
+      "name": "Discriminated union member selection"
+    },
+    {
+      "id": "w04-l01-exhaustive-never",
+      "name": "Exhaustive handling with never"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w04-l01-q01",
+      "lesson": "w04-l01",
+      "concept": "w04-l01-assertion-boundary",
+      "type": "multiple_choice",
+      "prompt": "A parsed API payload is asserted with `as User`. Which runtime guarantee does that assertion add?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A conversion that fills every required User property with a default value."
+        },
+        {
+          "id": "b",
+          "text": "A prototype change that makes the parsed object an instance of User."
+        },
+        {
+          "id": "c",
+          "text": "None; an explicit runtime check is still needed to establish its shape."
+        },
+        {
+          "id": "d",
+          "text": "A recursive property check that throws when the payload misses a field."
+        }
+      ],
+      "answer": "c",
+      "explanation": "Type assertions are removed and do not validate or transform runtime data. External data needs explicit checks before trusting its shape.",
+      "materials": [
+        "web-types-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://www.typescriptlang.org/docs/handbook/2/everyday-types.html",
+          "title": "TypeScript: Everyday Types",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "Type assertions are erased and perform no runtime checks; any disables checks while union members require narrowing."
+        }
+      ]
+    },
+    {
+      "id": "w04-l01-q02",
+      "lesson": "w04-l01",
+      "concept": "w04-l01-control-narrowing",
+      "type": "multiple_choice",
+      "prompt": "A union contains object values and null. Why is `typeof value === \"object\"` alone insufficient before reading a field?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Every object value becomes a string after its typeof result is compared."
+        },
+        {
+          "id": "b",
+          "text": "JavaScript also reports object for null, so a null check is needed."
+        },
+        {
+          "id": "c",
+          "text": "TypeScript treats every object branch as any and forbids further narrowing."
+        },
+        {
+          "id": "d",
+          "text": "The typeof operation validates every field but never allows property access."
+        }
+      ],
+      "answer": "b",
+      "explanation": "TypeScript accounts for the JavaScript typeof null behavior. A separate null exclusion is needed to safely access object fields.",
+      "materials": [
+        "web-narrow-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://www.typescriptlang.org/docs/handbook/2/narrowing.html",
+          "title": "TypeScript: Narrowing",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "TypeScript narrows unions through control flow, discriminants and predicates; never supports exhaustive checks."
+        }
+      ]
+    },
+    {
+      "id": "w04-l01-q03",
+      "lesson": "w04-l01",
+      "concept": "w04-l01-discriminated-union",
+      "type": "multiple_choice",
+      "prompt": "A result union uses `kind: \"ok\"` with data and `kind: \"error\"` with message. What helps select the right member?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Check kind before accessing the fields specific to that variant."
+        },
+        {
+          "id": "b",
+          "text": "Assert the union as the ok member without testing the discriminant."
+        },
+        {
+          "id": "c",
+          "text": "Read both variant fields directly because a union contains their intersection."
+        },
+        {
+          "id": "d",
+          "text": "Make kind a general string so any comparison narrows to every member."
+        }
+      ],
+      "answer": "a",
+      "explanation": "A shared literal discriminant narrows a union to the appropriate member. Unions do not permit unchecked access to members that only some variants contain.",
+      "materials": [
+        "web-narrow-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://www.typescriptlang.org/docs/handbook/2/narrowing.html",
+          "title": "TypeScript: Narrowing",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "TypeScript narrows unions through control flow, discriminants and predicates; never supports exhaustive checks."
+        }
+      ]
+    },
+    {
+      "id": "w04-l01-q04",
+      "lesson": "w04-l01",
+      "concept": "w04-l01-exhaustive-never",
+      "type": "multiple_choice",
+      "prompt": "A switch handles every member of a discriminated union and assigns the default branch value to never. Why is that useful?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The assignment ensures every runtime payload is automatically validated."
+        },
+        {
+          "id": "b",
+          "text": "The assignment causes TypeScript to emit a switch case for each missing member."
+        },
+        {
+          "id": "c",
+          "text": "The assignment deletes unknown variants from network response objects."
+        },
+        {
+          "id": "d",
+          "text": "A newly added unhandled variant makes the never assignment fail type checking."
+        }
+      ],
+      "answer": "d",
+      "explanation": "Never represents the absence of remaining variants after exhaustive narrowing. An unhandled new member is not assignable to never, but this does not validate external runtime data.",
+      "materials": [
+        "web-narrow-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://www.typescriptlang.org/docs/handbook/2/narrowing.html",
+          "title": "TypeScript: Narrowing",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "TypeScript narrows unions through control flow, discriminants and predicates; never supports exhaustive checks."
+        }
+      ]
+    },
+    {
+      "id": "w04-l01-q05",
+      "lesson": "w04-l01",
+      "concept": "w04-l01-assertion-boundary",
+      "type": "multiple_choice",
+      "prompt": "An API parser exposes its unvalidated result as unknown rather than any. What changes at the call site?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The runtime automatically checks unknown properties before every read."
+        },
+        {
+          "id": "b",
+          "text": "The emitted JavaScript stores unknown values in a different object format."
+        },
+        {
+          "id": "c",
+          "text": "The caller must narrow or assert the value before using its specific properties."
+        },
+        {
+          "id": "d",
+          "text": "The caller can access every property because unknown disables checking."
+        }
+      ],
+      "answer": "c",
+      "explanation": "Unknown requires establishing a type before specific use. Any instead allows unchecked operations; neither type changes the runtime object format.",
+      "materials": [
+        "web-types-reference",
+        "web-ts-functions-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://www.typescriptlang.org/docs/handbook/2/everyday-types.html",
+          "title": "TypeScript: Everyday Types",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "Type assertions are erased and perform no runtime checks; any disables checks while union members require narrowing."
+        },
+        {
+          "url": "https://www.typescriptlang.org/docs/handbook/2/functions.html",
+          "title": "TypeScript: More on Functions",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "unknown permits arbitrary values but does not permit property use without narrowing; unlike any, it retains checking at unvalidated boundaries."
+        }
+      ]
+    },
+    {
+      "id": "w04-l01-q06",
+      "lesson": "w04-l01",
+      "concept": "w04-l01-control-narrowing",
+      "type": "multiple_choice",
+      "prompt": "A value is string or number. A branch checks `typeof value === \"string\"`. What can TypeScript infer inside that branch?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The value becomes any because primitive tests erase all type information."
+        },
+        {
+          "id": "b",
+          "text": "The value is a string and string-specific operations are available."
+        },
+        {
+          "id": "c",
+          "text": "The value remains the full union because typeof never affects static types."
+        },
+        {
+          "id": "d",
+          "text": "The value becomes a string at runtime even if it originally was a number."
+        }
+      ],
+      "answer": "b",
+      "explanation": "TypeScript recognizes typeof guards and narrows the branch. The check tests the actual value; it does not perform conversion.",
+      "materials": [
+        "web-narrow-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://www.typescriptlang.org/docs/handbook/2/narrowing.html",
+          "title": "TypeScript: Narrowing",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "TypeScript narrows unions through control flow, discriminants and predicates; never supports exhaustive checks."
+        }
+      ]
+    },
+    {
+      "id": "w04-l01-q07",
+      "lesson": "w04-l01",
+      "concept": "w04-l01-assertion-boundary",
+      "type": "multiple_select",
+      "prompt": "A service accepts JSON from outside its process. Which boundary claims hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A non-null assertion proves a server never returns null."
+        },
+        {
+          "id": "b",
+          "text": "A declared interface automatically validates incoming JSON."
+        },
+        {
+          "id": "c",
+          "text": "An assertion does not check the payload at runtime."
+        },
+        {
+          "id": "d",
+          "text": "Explicit shape checks can establish runtime facts."
+        },
+        {
+          "id": "e",
+          "text": "as User fills missing fields in the payload."
+        }
+      ],
+      "answers": [
+        "c",
+        "d"
+      ],
+      "explanation": "a: The assertion is not evidence or a runtime check. b: A static declaration does not run a parser or validator. c: Assertions are erased without runtime validation. d: The application must implement those checks for untrusted values. e: It does not transform the runtime object.",
+      "materials": [
+        "web-types-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://www.typescriptlang.org/docs/handbook/2/everyday-types.html",
+          "title": "TypeScript: Everyday Types",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "Type assertions are erased and perform no runtime checks; any disables checks while union members require narrowing."
+        }
+      ]
+    },
+    {
+      "id": "w04-l01-q08",
+      "lesson": "w04-l01",
+      "concept": "w04-l01-control-narrowing",
+      "type": "multiple_select",
+      "prompt": "A function narrows a union with runtime checks. Which claims hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "typeof object proves every expected property exists."
+        },
+        {
+          "id": "b",
+          "text": "typeof guards can narrow primitive unions."
+        },
+        {
+          "id": "c",
+          "text": "A null check matters when testing object values."
+        },
+        {
+          "id": "d",
+          "text": "Control flow can affect the type at each branch."
+        },
+        {
+          "id": "e",
+          "text": "A typeof comparison coerces the value into that type."
+        }
+      ],
+      "answers": [
+        "b",
+        "c",
+        "d"
+      ],
+      "explanation": "a: That broad test does not validate the object shape. b: TypeScript recognizes the checked primitive types. c: typeof null is object. d: Reachability and checks drive narrowing. e: It tests rather than converts the value.",
+      "materials": [
+        "web-narrow-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://www.typescriptlang.org/docs/handbook/2/narrowing.html",
+          "title": "TypeScript: Narrowing",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "TypeScript narrows unions through control flow, discriminants and predicates; never supports exhaustive checks."
+        }
+      ]
+    },
+    {
+      "id": "w04-l01-q09",
+      "lesson": "w04-l01",
+      "concept": "w04-l01-discriminated-union",
+      "type": "multiple_select",
+      "prompt": "A discriminated union models success and failure. Which claims hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A common literal-valued field can identify a member."
+        },
+        {
+          "id": "b",
+          "text": "Checking the discriminant permits variant-specific access."
+        },
+        {
+          "id": "c",
+          "text": "Every union property is present on every runtime variant."
+        },
+        {
+          "id": "d",
+          "text": "A general string field always identifies exactly one member."
+        },
+        {
+          "id": "e",
+          "text": "An assertion replaces the need to test an external variant."
+        }
+      ],
+      "answers": [
+        "a",
+        "b"
+      ],
+      "explanation": "a: That field provides the discriminant. b: The selected branch is narrowed to matching members. c: Members may have different fields. d: Distinct literal values provide the precise discrimination. e: An assertion does not establish which variant actually arrived.",
+      "materials": [
+        "web-narrow-reference",
+        "web-types-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://www.typescriptlang.org/docs/handbook/2/narrowing.html",
+          "title": "TypeScript: Narrowing",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "TypeScript narrows unions through control flow, discriminants and predicates; never supports exhaustive checks."
+        },
+        {
+          "url": "https://www.typescriptlang.org/docs/handbook/2/everyday-types.html",
+          "title": "TypeScript: Everyday Types",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "Type assertions are erased and perform no runtime checks; any disables checks while union members require narrowing."
+        }
+      ]
+    },
+    {
+      "id": "w04-l01-q10",
+      "lesson": "w04-l01",
+      "concept": "w04-l01-exhaustive-never",
+      "type": "multiple_select",
+      "prompt": "A switch uses a never check in its default branch. Which claims hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A new unhandled union member can cause a compile error."
+        },
+        {
+          "id": "b",
+          "text": "The pattern supports maintenance as the union grows."
+        },
+        {
+          "id": "c",
+          "text": "It validates every external runtime value automatically."
+        },
+        {
+          "id": "d",
+          "text": "It generates missing case implementations at runtime."
+        },
+        {
+          "id": "e",
+          "text": "Fully handled variants leave no remaining member there."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "e"
+      ],
+      "explanation": "a: That member is not assignable to never. b: It exposes missing handling during type checking. c: Static exhaustiveness assumes the declared type is accurate. d: Type checking does not write those application branches. e: Exhaustive narrowing yields never.",
+      "materials": [
+        "web-narrow-reference",
+        "web-types-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://www.typescriptlang.org/docs/handbook/2/narrowing.html",
+          "title": "TypeScript: Narrowing",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "TypeScript narrows unions through control flow, discriminants and predicates; never supports exhaustive checks."
+        },
+        {
+          "url": "https://www.typescriptlang.org/docs/handbook/2/everyday-types.html",
+          "title": "TypeScript: Everyday Types",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "Type assertions are erased and perform no runtime checks; any disables checks while union members require narrowing."
+        }
+      ]
+    }
+  ]
+}

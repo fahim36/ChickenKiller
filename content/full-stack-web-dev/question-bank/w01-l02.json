@@ -1,0 +1,508 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "w01-l02-event-path",
+      "name": "Event propagation phases"
+    },
+    {
+      "id": "w01-l02-default-actions",
+      "name": "Cancelable event default actions"
+    },
+    {
+      "id": "w01-l02-form-entries",
+      "name": "Form submission entry construction"
+    },
+    {
+      "id": "w01-l02-constraint-validation",
+      "name": "Native constraints and validation boundaries"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w01-l02-q01",
+      "lesson": "w01-l02",
+      "concept": "w01-l02-event-path",
+      "type": "multiple_choice",
+      "prompt": "A click listener on a form receives a bubbling click from a nested submit button. Why is this useful for delegation?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The event propagates from the target through its ancestors."
+        },
+        {
+          "id": "b",
+          "text": "The ancestor listener runs only because registration copies the listener to every child."
+        },
+        {
+          "id": "c",
+          "text": "The event target changes to the form whenever propagation reaches the form listener."
+        },
+        {
+          "id": "d",
+          "text": "A form receives descendant clicks only if it is also the element originally clicked."
+        }
+      ],
+      "answer": "a",
+      "explanation": "Bubbling carries the event along the ancestor path. It does not copy listeners or replace the original target with the current listener location.",
+      "materials": [
+        "web-events-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://www.w3.org/TR/DOM-Level-3-Events/",
+          "title": "UI Events",
+          "publisher": "W3C",
+          "accessed": "2026-10-09",
+          "claim": "UI events have capture, target and bubble phases; canceling a cancelable event prevents its default action, distinct from stopping propagation."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/whatwg/dom/main/dom.bs",
+          "title": "DOM Standard source: events and dispatch",
+          "publisher": "WHATWG",
+          "accessed": "2026-10-09",
+          "claim": "The DOM event model distinguishes target and currentTarget, capture and bubbling phases, and cancellation from propagation stopping."
+        }
+      ]
+    },
+    {
+      "id": "w01-l02-q02",
+      "lesson": "w01-l02",
+      "concept": "w01-l02-default-actions",
+      "type": "multiple_choice",
+      "prompt": "A cancelable link click is handled with `preventDefault()`. Which effect should be distinguished from propagation?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The navigation is canceled and all later ancestor listeners are suppressed automatically."
+        },
+        {
+          "id": "b",
+          "text": "The click stops propagating but the browser must still perform its normal navigation."
+        },
+        {
+          "id": "c",
+          "text": "The call changes the link href so that subsequent unhandled clicks cannot navigate."
+        },
+        {
+          "id": "d",
+          "text": "The navigation default action can be canceled while listeners still receive the event."
+        }
+      ],
+      "answer": "d",
+      "explanation": "preventDefault cancels a cancelable navigation default action. It neither stops propagation automatically nor edits the href attribute.",
+      "materials": [
+        "web-events-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://www.w3.org/TR/DOM-Level-3-Events/",
+          "title": "UI Events",
+          "publisher": "W3C",
+          "accessed": "2026-10-09",
+          "claim": "UI events have capture, target and bubble phases; canceling a cancelable event prevents its default action, distinct from stopping propagation."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/whatwg/dom/main/dom.bs",
+          "title": "DOM Standard source: events and dispatch",
+          "publisher": "WHATWG",
+          "accessed": "2026-10-09",
+          "claim": "The DOM event model distinguishes target and currentTarget, capture and bubbling phases, and cancellation from propagation stopping."
+        }
+      ]
+    },
+    {
+      "id": "w01-l02-q03",
+      "lesson": "w01-l02",
+      "concept": "w01-l02-form-entries",
+      "type": "multiple_choice",
+      "prompt": "A named text input is disabled when a form is submitted. What does the normal entry-construction algorithm do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It includes the value because disabled only prevents focus and editing, not submission."
+        },
+        {
+          "id": "b",
+          "text": "It includes the value only when the disabled input also has the required attribute."
+        },
+        {
+          "id": "c",
+          "text": "It omits that disabled control from the submitted entries."
+        },
+        {
+          "id": "d",
+          "text": "It includes an empty string because disabled controls submit placeholders instead."
+        }
+      ],
+      "answer": "c",
+      "explanation": "Disabled controls are skipped during form entry construction. Neither a name nor required makes the disabled value submit; readonly has different semantics.",
+      "materials": [
+        "web-forms-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://html.spec.whatwg.org/multipage/form-control-infrastructure.html",
+          "title": "HTML Standard: form control infrastructure",
+          "publisher": "WHATWG",
+          "accessed": "2026-10-09",
+          "claim": "Form submission constructs entries from successful controls; disabled and unchecked controls are omitted and validation can be bypassed by specified APIs or attributes."
+        }
+      ]
+    },
+    {
+      "id": "w01-l02-q04",
+      "lesson": "w01-l02",
+      "concept": "w01-l02-constraint-validation",
+      "type": "multiple_choice",
+      "prompt": "An API receives data from a form with `required` and `type=email`. Which server assumption is valid?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The server can trust submitted data because native validation runs for every client request."
+        },
+        {
+          "id": "b",
+          "text": "The server must validate input even when the browser has native constraints."
+        },
+        {
+          "id": "c",
+          "text": "The server needs checks for text fields but email fields enforce their format for all clients."
+        },
+        {
+          "id": "d",
+          "text": "The server only validates fields without required because required implies trusted data."
+        }
+      ],
+      "answer": "b",
+      "explanation": "Native constraints improve client interaction but can be bypassed through submission paths or other clients. The server must validate all inputs it relies on.",
+      "materials": [
+        "web-forms-reference",
+        "web-input-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://html.spec.whatwg.org/multipage/form-control-infrastructure.html",
+          "title": "HTML Standard: form control infrastructure",
+          "publisher": "WHATWG",
+          "accessed": "2026-10-09",
+          "claim": "Form submission constructs entries from successful controls; disabled and unchecked controls are omitted and validation can be bypassed by specified APIs or attributes."
+        },
+        {
+          "url": "https://html.spec.whatwg.org/multipage/input.html",
+          "title": "HTML Standard: input",
+          "publisher": "WHATWG",
+          "accessed": "2026-10-09",
+          "claim": "Input types provide specific constraints; readonly and disabled have different semantics, and checked controls participate in form data."
+        }
+      ]
+    },
+    {
+      "id": "w01-l02-q05",
+      "lesson": "w01-l02",
+      "concept": "w01-l02-event-path",
+      "type": "multiple_choice",
+      "prompt": "A bubbling event traverses parent and child elements. Which ordering is the propagation model built around?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Capture toward the target, target handling, then bubbling outward."
+        },
+        {
+          "id": "b",
+          "text": "Bubbling toward the target, target handling, then capture outward."
+        },
+        {
+          "id": "c",
+          "text": "Target handling first, then capture toward the target, then bubbling outward."
+        },
+        {
+          "id": "d",
+          "text": "Capture toward the target, bubbling outward, then target handling at the end."
+        }
+      ],
+      "answer": "a",
+      "explanation": "Capture travels toward the target and bubbling away from it for events that bubble. Not every event has a bubbling phase.",
+      "materials": [
+        "web-events-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://www.w3.org/TR/DOM-Level-3-Events/",
+          "title": "UI Events",
+          "publisher": "W3C",
+          "accessed": "2026-10-09",
+          "claim": "UI events have capture, target and bubble phases; canceling a cancelable event prevents its default action, distinct from stopping propagation."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/whatwg/dom/main/dom.bs",
+          "title": "DOM Standard source: events and dispatch",
+          "publisher": "WHATWG",
+          "accessed": "2026-10-09",
+          "claim": "The DOM event model distinguishes target and currentTarget, capture and bubbling phases, and cancellation from propagation stopping."
+        }
+      ]
+    },
+    {
+      "id": "w01-l02-q06",
+      "lesson": "w01-l02",
+      "concept": "w01-l02-default-actions",
+      "type": "multiple_choice",
+      "prompt": "A handler calls `preventDefault()` on an event whose `cancelable` property is false. What should the author expect?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The call stops propagation even though it cannot cancel the browser default action."
+        },
+        {
+          "id": "b",
+          "text": "The call changes cancelable to true and then prevents the default action."
+        },
+        {
+          "id": "c",
+          "text": "The default action is canceled but the defaultPrevented property remains false."
+        },
+        {
+          "id": "d",
+          "text": "That call cannot cancel the event default action."
+        }
+      ],
+      "answer": "d",
+      "explanation": "A noncancelable event cannot have its default action canceled by preventDefault. The call does not make it cancelable or stop propagation.",
+      "materials": [
+        "web-events-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://www.w3.org/TR/DOM-Level-3-Events/",
+          "title": "UI Events",
+          "publisher": "W3C",
+          "accessed": "2026-10-09",
+          "claim": "UI events have capture, target and bubble phases; canceling a cancelable event prevents its default action, distinct from stopping propagation."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/whatwg/dom/main/dom.bs",
+          "title": "DOM Standard source: events and dispatch",
+          "publisher": "WHATWG",
+          "accessed": "2026-10-09",
+          "claim": "The DOM event model distinguishes target and currentTarget, capture and bubbling phases, and cancellation from propagation stopping."
+        }
+      ]
+    },
+    {
+      "id": "w01-l02-q07",
+      "lesson": "w01-l02",
+      "concept": "w01-l02-event-path",
+      "type": "multiple_select",
+      "prompt": "A team implements an ancestor click listener. Which event-path claims hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A target listener always runs after every bubbling ancestor listener."
+        },
+        {
+          "id": "b",
+          "text": "A bubbling click can reach an ancestor listener."
+        },
+        {
+          "id": "c",
+          "text": "Capture and bubble are separate propagation phases."
+        },
+        {
+          "id": "d",
+          "text": "Every UI event is required to bubble."
+        },
+        {
+          "id": "e",
+          "text": "The dispatch target becomes every ancestor in turn."
+        }
+      ],
+      "answers": [
+        "b",
+        "c"
+      ],
+      "explanation": "a: Target handling precedes the outward bubbling phase. b: That is the basis for delegated click handling. c: The model traverses the event path in distinct phases. d: Event types specify whether they bubble. e: The original target and current listener location are distinct.",
+      "materials": [
+        "web-events-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://www.w3.org/TR/DOM-Level-3-Events/",
+          "title": "UI Events",
+          "publisher": "W3C",
+          "accessed": "2026-10-09",
+          "claim": "UI events have capture, target and bubble phases; canceling a cancelable event prevents its default action, distinct from stopping propagation."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/whatwg/dom/main/dom.bs",
+          "title": "DOM Standard source: events and dispatch",
+          "publisher": "WHATWG",
+          "accessed": "2026-10-09",
+          "claim": "The DOM event model distinguishes target and currentTarget, capture and bubbling phases, and cancellation from propagation stopping."
+        }
+      ]
+    },
+    {
+      "id": "w01-l02-q08",
+      "lesson": "w01-l02",
+      "concept": "w01-l02-default-actions",
+      "type": "multiple_select",
+      "prompt": "A review separates default actions from event delivery. Which claims hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A cancelable click can have its default action canceled."
+        },
+        {
+          "id": "b",
+          "text": "Canceling navigation need not stop event propagation."
+        },
+        {
+          "id": "c",
+          "text": "preventDefault makes a noncancelable event cancelable."
+        },
+        {
+          "id": "d",
+          "text": "Default actions are distinct from author event listeners."
+        },
+        {
+          "id": "e",
+          "text": "Calling preventDefault automatically suppresses all ancestor listeners."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "d"
+      ],
+      "explanation": "a: Cancelable events support this cancellation. b: Cancellation and propagation controls are separate. c: The call does not change the cancelable property. d: The browser action is separate from listener execution. e: Cancellation and propagation controls are separate.",
+      "materials": [
+        "web-events-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://www.w3.org/TR/DOM-Level-3-Events/",
+          "title": "UI Events",
+          "publisher": "W3C",
+          "accessed": "2026-10-09",
+          "claim": "UI events have capture, target and bubble phases; canceling a cancelable event prevents its default action, distinct from stopping propagation."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/whatwg/dom/main/dom.bs",
+          "title": "DOM Standard source: events and dispatch",
+          "publisher": "WHATWG",
+          "accessed": "2026-10-09",
+          "claim": "The DOM event model distinguishes target and currentTarget, capture and bubbling phases, and cancellation from propagation stopping."
+        }
+      ]
+    },
+    {
+      "id": "w01-l02-q09",
+      "lesson": "w01-l02",
+      "concept": "w01-l02-form-entries",
+      "type": "multiple_select",
+      "prompt": "A normal HTML form contains named controls. Which entry rules hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "An unchecked checkbox is normally omitted."
+        },
+        {
+          "id": "b",
+          "text": "A readonly text control is omitted by the same rule as a disabled control."
+        },
+        {
+          "id": "c",
+          "text": "Every button contributes its value regardless of submitter."
+        },
+        {
+          "id": "d",
+          "text": "A disabled named input contributes its value because its name remains present."
+        },
+        {
+          "id": "e",
+          "text": "A disabled text control is normally omitted."
+        }
+      ],
+      "answers": [
+        "a",
+        "e"
+      ],
+      "explanation": "a: Only checked checkbox and radio controls contribute entries. b: Readonly does not impose the disabled submission exclusion. c: Submit buttons are included only when they are the submitter. d: Disabled controls are omitted even when they have a name. e: Entry construction skips disabled controls.",
+      "materials": [
+        "web-forms-reference",
+        "web-input-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://html.spec.whatwg.org/multipage/form-control-infrastructure.html",
+          "title": "HTML Standard: form control infrastructure",
+          "publisher": "WHATWG",
+          "accessed": "2026-10-09",
+          "claim": "Form submission constructs entries from successful controls; disabled and unchecked controls are omitted and validation can be bypassed by specified APIs or attributes."
+        },
+        {
+          "url": "https://html.spec.whatwg.org/multipage/input.html",
+          "title": "HTML Standard: input",
+          "publisher": "WHATWG",
+          "accessed": "2026-10-09",
+          "claim": "Input types provide specific constraints; readonly and disabled have different semantics, and checked controls participate in form data."
+        }
+      ]
+    },
+    {
+      "id": "w01-l02-q10",
+      "lesson": "w01-l02",
+      "concept": "w01-l02-constraint-validation",
+      "type": "multiple_select",
+      "prompt": "A developer relies on native input validation. Which statements hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Client validation eliminates the need for server validation."
+        },
+        {
+          "id": "b",
+          "text": "novalidate can bypass interactive form validation."
+        },
+        {
+          "id": "c",
+          "text": "Every script submission API performs interactive validation."
+        },
+        {
+          "id": "d",
+          "text": "A required field can report a missing value."
+        },
+        {
+          "id": "e",
+          "text": "An email control guarantees the submitted address exists and receives mail."
+        }
+      ],
+      "answers": [
+        "b",
+        "d"
+      ],
+      "explanation": "a: Clients and validation paths can be bypassed. b: That form attribute disables the interactive validation step. c: The submit method can bypass interactive validation. d: The required constraint can create valueMissing. e: The native constraint checks format, not deliverability or ownership.",
+      "materials": [
+        "web-forms-reference",
+        "web-input-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://html.spec.whatwg.org/multipage/form-control-infrastructure.html",
+          "title": "HTML Standard: form control infrastructure",
+          "publisher": "WHATWG",
+          "accessed": "2026-10-09",
+          "claim": "Form submission constructs entries from successful controls; disabled and unchecked controls are omitted and validation can be bypassed by specified APIs or attributes."
+        },
+        {
+          "url": "https://html.spec.whatwg.org/multipage/input.html",
+          "title": "HTML Standard: input",
+          "publisher": "WHATWG",
+          "accessed": "2026-10-09",
+          "claim": "Input types provide specific constraints; readonly and disabled have different semantics, and checked controls participate in form data."
+        }
+      ]
+    }
+  ]
+}

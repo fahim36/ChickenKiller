@@ -1,0 +1,444 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "w04-l04-sort-comparator",
+      "name": "Numeric sorting and comparator contract"
+    },
+    {
+      "id": "w04-l04-lower-bound",
+      "name": "Lower-bound partition invariant"
+    },
+    {
+      "id": "w04-l04-dedup-identity",
+      "name": "Deduplication requires an equality rule"
+    },
+    {
+      "id": "w04-l04-mutation-copy",
+      "name": "Sorting mutation and shallow copies"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w04-l04-q01",
+      "lesson": "w04-l04",
+      "concept": "w04-l04-sort-comparator",
+      "type": "multiple_choice",
+      "prompt": "A JavaScript array `[2,10,1]` uses sort with no comparator. What result should numeric code avoid assuming?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "String-based ordering; the default comparison always uses numeric subtraction."
+        },
+        {
+          "id": "b",
+          "text": "Any stable order; sort randomly shuffles all values before returning."
+        },
+        {
+          "id": "c",
+          "text": "Mutation; sort always returns a fresh array without touching its receiver."
+        },
+        {
+          "id": "d",
+          "text": "Numeric ascending order; the default comparison uses string forms."
+        }
+      ],
+      "answer": "d",
+      "explanation": "Default sort uses string comparison, producing [1,10,2] here. A numeric comparator such as (a,b)=>a-b is needed for numeric ascending order.",
+      "materials": [
+        "web-arrays-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://tc39.es/ecma262/multipage/indexed-collections.html",
+          "title": "ECMAScript: Indexed Collections",
+          "publisher": "Ecma International",
+          "accessed": "2026-10-09",
+          "claim": "Array methods have defined mutation and comparison semantics; sorting without a comparator uses string ordering and copies can be shallow."
+        }
+      ]
+    },
+    {
+      "id": "w04-l04-q02",
+      "lesson": "w04-l04",
+      "concept": "w04-l04-lower-bound",
+      "type": "multiple_choice",
+      "prompt": "For sorted `[1,3,3,7]`, a lower-bound search for 3 returns which insertion index?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "3, after every element equal to the target."
+        },
+        {
+          "id": "b",
+          "text": "4, because a present value has no valid insertion position."
+        },
+        {
+          "id": "c",
+          "text": "1, before the first element equal to the target."
+        },
+        {
+          "id": "d",
+          "text": "2, after the first equal element but before later duplicates."
+        }
+      ],
+      "answer": "c",
+      "explanation": "Lower bound places the target before existing equal values. Values before index 1 are below 3; values at and after it are at least 3.",
+      "materials": [
+        "web-bisect-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/library/bisect.html",
+          "title": "bisect: Array bisection algorithm",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-10-09",
+          "claim": "Lower-bound search partitions sorted data into values below the target and values at least the target; logarithmic search does not make array insertion logarithmic."
+        }
+      ]
+    },
+    {
+      "id": "w04-l04-q03",
+      "lesson": "w04-l04",
+      "concept": "w04-l04-dedup-identity",
+      "type": "multiple_choice",
+      "prompt": "Records have unique business IDs but may be recreated as new objects. Why might Set of the objects fail to deduplicate by ID?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Set only deduplicates objects that have distinct reference identities."
+        },
+        {
+          "id": "b",
+          "text": "Set compares object identity rather than the business ID field."
+        },
+        {
+          "id": "c",
+          "text": "Set compares every object by all of its JSON fields automatically."
+        },
+        {
+          "id": "d",
+          "text": "Set deduplicates objects by their first numeric field automatically."
+        }
+      ],
+      "answer": "b",
+      "explanation": "Set key equality does not inspect a chosen business field. Extract an explicit key when deduplication is defined by business ID.",
+      "materials": [
+        "web-collections-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://tc39.es/ecma262/multipage/keyed-collections.html",
+          "title": "ECMAScript: Keyed Collections",
+          "publisher": "Ecma International",
+          "accessed": "2026-10-09",
+          "claim": "Map preserves insertion order and uses SameValueZero equality; weak collections do not keep keys alive or expose key enumeration."
+        }
+      ]
+    },
+    {
+      "id": "w04-l04-q04",
+      "lesson": "w04-l04",
+      "concept": "w04-l04-mutation-copy",
+      "type": "multiple_choice",
+      "prompt": "A caller passes an array to a helper that invokes `items.sort(compare)`. Which ownership effect should the API document?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The original array order is changed because sort mutates its receiver."
+        },
+        {
+          "id": "b",
+          "text": "Only a new returned array changes; the original receiver remains ordered as before."
+        },
+        {
+          "id": "c",
+          "text": "Only nested record fields change; the outer order is always preserved."
+        },
+        {
+          "id": "d",
+          "text": "The array is frozen automatically after sort returns its result."
+        }
+      ],
+      "answer": "a",
+      "explanation": "Sort mutates the receiver and returns it. A helper must deliberately copy first if the caller expects its outer order preserved.",
+      "materials": [
+        "web-arrays-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://tc39.es/ecma262/multipage/indexed-collections.html",
+          "title": "ECMAScript: Indexed Collections",
+          "publisher": "Ecma International",
+          "accessed": "2026-10-09",
+          "claim": "Array methods have defined mutation and comparison semantics; sorting without a comparator uses string ordering and copies can be shallow."
+        }
+      ]
+    },
+    {
+      "id": "w04-l04-q05",
+      "lesson": "w04-l04",
+      "concept": "w04-l04-sort-comparator",
+      "type": "multiple_choice",
+      "prompt": "A numeric ascending comparator is implemented as `(a,b)=>a>b`. What is the defect?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It returns a negative value for a>b, reversing the intended numeric order."
+        },
+        {
+          "id": "b",
+          "text": "It performs a full deep comparison of all object fields before each subtraction."
+        },
+        {
+          "id": "c",
+          "text": "It makes sort nonmutating because boolean comparators request a new array."
+        },
+        {
+          "id": "d",
+          "text": "It returns zero for a<b instead of a negative value, violating the intended ordering contract."
+        }
+      ],
+      "answer": "d",
+      "explanation": "A comparator needs a negative result for a before b, zero for equivalence and positive for a after b. A boolean comparator does not express the negative case.",
+      "materials": [
+        "web-arrays-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://tc39.es/ecma262/multipage/indexed-collections.html",
+          "title": "ECMAScript: Indexed Collections",
+          "publisher": "Ecma International",
+          "accessed": "2026-10-09",
+          "claim": "Array methods have defined mutation and comparison semantics; sorting without a comparator uses string ordering and copies can be shallow."
+        }
+      ]
+    },
+    {
+      "id": "w04-l04-q06",
+      "lesson": "w04-l04",
+      "concept": "w04-l04-lower-bound",
+      "type": "multiple_choice",
+      "prompt": "Lower-bound search maintains `[lo,hi)` candidates. When `a[mid] < target`, which update discards only values known too small?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Set lo to mid while keeping hi unchanged even when only one candidate remains."
+        },
+        {
+          "id": "b",
+          "text": "Return mid immediately because every smaller value is a valid lower bound."
+        },
+        {
+          "id": "c",
+          "text": "Set lo to mid+1 while keeping hi unchanged."
+        },
+        {
+          "id": "d",
+          "text": "Set hi to mid while keeping lo unchanged."
+        }
+      ],
+      "answer": "c",
+      "explanation": "The midpoint and all earlier candidates are below the target, so lo becomes mid+1. This preserves the partition invariant and makes progress.",
+      "materials": [
+        "web-bisect-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/library/bisect.html",
+          "title": "bisect: Array bisection algorithm",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-10-09",
+          "claim": "Lower-bound search partitions sorted data into values below the target and values at least the target; logarithmic search does not make array insertion logarithmic."
+        }
+      ]
+    },
+    {
+      "id": "w04-l04-q07",
+      "lesson": "w04-l04",
+      "concept": "w04-l04-sort-comparator",
+      "type": "multiple_select",
+      "prompt": "A sort comparator supports numeric data. Which claims hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Subtracting finite numeric values can express ascending order."
+        },
+        {
+          "id": "b",
+          "text": "Default sort compares numbers numerically without conversion."
+        },
+        {
+          "id": "c",
+          "text": "Returning only true or false expresses all three ordering cases."
+        },
+        {
+          "id": "d",
+          "text": "Comparator consistency matters for well-defined ordering."
+        },
+        {
+          "id": "e",
+          "text": "A negative result places the first value before the second."
+        }
+      ],
+      "answers": [
+        "a",
+        "d",
+        "e"
+      ],
+      "explanation": "a: a-b has the intended sign for finite numbers. b: Without a comparator it compares string forms. c: The negative case is missing. d: The comparison must consistently express the intended relation. e: That is the comparator sign contract.",
+      "materials": [
+        "web-arrays-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://tc39.es/ecma262/multipage/indexed-collections.html",
+          "title": "ECMAScript: Indexed Collections",
+          "publisher": "Ecma International",
+          "accessed": "2026-10-09",
+          "claim": "Array methods have defined mutation and comparison semantics; sorting without a comparator uses string ordering and copies can be shallow."
+        }
+      ]
+    },
+    {
+      "id": "w04-l04-q08",
+      "lesson": "w04-l04",
+      "concept": "w04-l04-lower-bound",
+      "type": "multiple_select",
+      "prompt": "A sorted numeric array is searched for its lower bound. Which invariant claims hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The result may equal the array length."
+        },
+        {
+          "id": "b",
+          "text": "An equal midpoint should always be discarded into the left partition."
+        },
+        {
+          "id": "c",
+          "text": "Finding an insertion index makes shifting array elements logarithmic."
+        },
+        {
+          "id": "d",
+          "text": "Elements before the returned index are below the target."
+        },
+        {
+          "id": "e",
+          "text": "Elements from the index onward are at least the target."
+        }
+      ],
+      "answers": [
+        "a",
+        "d",
+        "e"
+      ],
+      "explanation": "a: That occurs when all elements are below the target. b: Lower bound keeps equal candidates in the right partition. c: Logarithmic search does not remove linear insertion work. d: They form the left partition. e: They form the right partition.",
+      "materials": [
+        "web-bisect-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/library/bisect.html",
+          "title": "bisect: Array bisection algorithm",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-10-09",
+          "claim": "Lower-bound search partitions sorted data into values below the target and values at least the target; logarithmic search does not make array insertion logarithmic."
+        }
+      ]
+    },
+    {
+      "id": "w04-l04-q09",
+      "lesson": "w04-l04",
+      "concept": "w04-l04-dedup-identity",
+      "type": "multiple_select",
+      "prompt": "An application deduplicates values using a declared key rule. Which claims hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Set automatically compares every record by its id property."
+        },
+        {
+          "id": "b",
+          "text": "Two freshly created equal-looking objects must be one Set entry."
+        },
+        {
+          "id": "c",
+          "text": "SameValueZero collapses repeated NaN values in Set."
+        },
+        {
+          "id": "d",
+          "text": "Object identity may differ from business-record equality."
+        },
+        {
+          "id": "e",
+          "text": "A Map keyed by business ID can express ID-based lookup."
+        }
+      ],
+      "answers": [
+        "c",
+        "d",
+        "e"
+      ],
+      "explanation": "a: It does not choose business keys automatically. b: Their distinct identities can remain separate keys. c: Set key equality treats NaN as equivalent. d: Separate objects can have the same business fields. e: The application selects that explicit key.",
+      "materials": [
+        "web-collections-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://tc39.es/ecma262/multipage/keyed-collections.html",
+          "title": "ECMAScript: Keyed Collections",
+          "publisher": "Ecma International",
+          "accessed": "2026-10-09",
+          "claim": "Map preserves insertion order and uses SameValueZero equality; weak collections do not keep keys alive or expose key enumeration."
+        }
+      ]
+    },
+    {
+      "id": "w04-l04-q10",
+      "lesson": "w04-l04",
+      "concept": "w04-l04-mutation-copy",
+      "type": "multiple_select",
+      "prompt": "A helper sorts a shallow copy of an array of records. Which claims hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Changing a shared record is isolated by outer-array copying alone."
+        },
+        {
+          "id": "b",
+          "text": "Copying the outer array can preserve the caller original order."
+        },
+        {
+          "id": "c",
+          "text": "Nested records may still be shared after the copy."
+        },
+        {
+          "id": "d",
+          "text": "sort on the original array is nonmutating by definition."
+        },
+        {
+          "id": "e",
+          "text": "A shallow copy freezes all shared record properties."
+        }
+      ],
+      "answers": [
+        "b",
+        "c"
+      ],
+      "explanation": "a: The shared object can be observed through either array. b: Sorting the separate container need not reorder the original. c: A shallow copy retains element references. d: Sort changes the receiver. e: Copying does not enforce immutability.",
+      "materials": [
+        "web-arrays-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://tc39.es/ecma262/multipage/indexed-collections.html",
+          "title": "ECMAScript: Indexed Collections",
+          "publisher": "Ecma International",
+          "accessed": "2026-10-09",
+          "claim": "Array methods have defined mutation and comparison semantics; sorting without a comparator uses string ordering and copies can be shallow."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,458 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "w03-l02-prototype-lookup",
+      "name": "Prototype lookup and own-property shadowing"
+    },
+    {
+      "id": "w03-l02-own-properties",
+      "name": "Own properties versus inherited properties"
+    },
+    {
+      "id": "w03-l02-property-descriptors",
+      "name": "Data and accessor descriptors"
+    },
+    {
+      "id": "w03-l02-private-brand",
+      "name": "Private fields require a compatible receiver"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w03-l02-q01",
+      "lesson": "w03-l02",
+      "concept": "w03-l02-prototype-lookup",
+      "type": "multiple_choice",
+      "prompt": "`const proto={x:1}; const obj=Object.create(proto); obj.x=2;` What does proto.x become?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It becomes undefined; assigning obj.x removes the inherited property."
+        },
+        {
+          "id": "b",
+          "text": "It becomes 1 only until obj.x is next read, then the values synchronize."
+        },
+        {
+          "id": "c",
+          "text": "It remains 1; the normal writable inherited property is shadowed on obj."
+        },
+        {
+          "id": "d",
+          "text": "It becomes 2; assignments always update the object where lookup found the property."
+        }
+      ],
+      "answer": "c",
+      "explanation": "A normal assignment to an inherited writable data property creates an own property on the receiver. It does not update that property on the prototype.",
+      "materials": [
+        "web-objects-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://tc39.es/ecma262/multipage/ordinary-and-exotic-objects-behaviours.html",
+          "title": "ECMAScript: Ordinary and Exotic Objects",
+          "publisher": "Ecma International",
+          "accessed": "2026-10-09",
+          "claim": "Ordinary property reads follow the prototype chain and getters; writes normally create or update own properties subject to descriptors."
+        },
+        {
+          "url": "https://tc39.es/ecma262/multipage/fundamental-objects.html",
+          "title": "ECMAScript: Fundamental Objects",
+          "publisher": "Ecma International",
+          "accessed": "2026-10-09",
+          "claim": "Object.create establishes a prototype reference and Object.hasOwn tests for an own property without accepting inherited properties."
+        }
+      ]
+    },
+    {
+      "id": "w03-l02-q02",
+      "lesson": "w03-l02",
+      "concept": "w03-l02-own-properties",
+      "type": "multiple_choice",
+      "prompt": "An object reads `x` from its prototype but has no own x. What does `Object.hasOwn(obj, \"x\")` indicate?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "False, because Object.hasOwn excludes all data properties as well as inherited ones."
+        },
+        {
+          "id": "b",
+          "text": "False, because the readable property is inherited rather than own."
+        },
+        {
+          "id": "c",
+          "text": "True, because every readable property counts as an own property."
+        },
+        {
+          "id": "d",
+          "text": "True, because property lookup copies inherited values onto the receiver."
+        }
+      ],
+      "answer": "b",
+      "explanation": "Own-property checks distinguish direct properties from inherited ones. A successful read does not imply ownership.",
+      "materials": [
+        "web-objects-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://tc39.es/ecma262/multipage/ordinary-and-exotic-objects-behaviours.html",
+          "title": "ECMAScript: Ordinary and Exotic Objects",
+          "publisher": "Ecma International",
+          "accessed": "2026-10-09",
+          "claim": "Ordinary property reads follow the prototype chain and getters; writes normally create or update own properties subject to descriptors."
+        },
+        {
+          "url": "https://tc39.es/ecma262/multipage/fundamental-objects.html",
+          "title": "ECMAScript: Fundamental Objects",
+          "publisher": "Ecma International",
+          "accessed": "2026-10-09",
+          "claim": "Object.create establishes a prototype reference and Object.hasOwn tests for an own property without accepting inherited properties."
+        }
+      ]
+    },
+    {
+      "id": "w03-l02-q03",
+      "lesson": "w03-l02",
+      "concept": "w03-l02-property-descriptors",
+      "type": "multiple_choice",
+      "prompt": "A property is defined with a getter. What does reading that property normally do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It invokes the getter rather than returning a stored data-property value."
+        },
+        {
+          "id": "b",
+          "text": "It returns the getter function itself without invoking it."
+        },
+        {
+          "id": "c",
+          "text": "It invokes the setter because reads and writes share one accessor slot."
+        },
+        {
+          "id": "d",
+          "text": "It caches the first return value and skips all later getter calls automatically."
+        }
+      ],
+      "answer": "a",
+      "explanation": "An accessor read calls its getter. Getter values are not automatically cached, and a setter handles writes rather than reads.",
+      "materials": [
+        "web-objects-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://tc39.es/ecma262/multipage/ordinary-and-exotic-objects-behaviours.html",
+          "title": "ECMAScript: Ordinary and Exotic Objects",
+          "publisher": "Ecma International",
+          "accessed": "2026-10-09",
+          "claim": "Ordinary property reads follow the prototype chain and getters; writes normally create or update own properties subject to descriptors."
+        }
+      ]
+    },
+    {
+      "id": "w03-l02-q04",
+      "lesson": "w03-l02",
+      "concept": "w03-l02-private-brand",
+      "type": "multiple_choice",
+      "prompt": "A class method reads `this.#value`. Calling the method with an unrelated plain object as this fails. Why?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The method requires every receiver to have a public property named value."
+        },
+        {
+          "id": "b",
+          "text": "Private fields are stored as ordinary string keys but cannot be read through this."
+        },
+        {
+          "id": "c",
+          "text": "All detached class methods fail even when called with their original instance."
+        },
+        {
+          "id": "d",
+          "text": "The receiver lacks the private field brand required by that class."
+        }
+      ],
+      "answer": "d",
+      "explanation": "Private access checks the compatible receiver brand. A same-looking public property cannot supply it; a correctly supplied original instance remains compatible.",
+      "materials": [
+        "web-functions-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://tc39.es/ecma262/multipage/ecmascript-language-functions-and-classes.html",
+          "title": "ECMAScript: Functions and Classes",
+          "publisher": "Ecma International",
+          "accessed": "2026-10-09",
+          "claim": "Functions retain lexical environments; arrow functions use lexical this, and class private fields require their declaring brand."
+        }
+      ]
+    },
+    {
+      "id": "w03-l02-q05",
+      "lesson": "w03-l02",
+      "concept": "w03-l02-prototype-lookup",
+      "type": "multiple_choice",
+      "prompt": "A writable own property shadows the same name on a prototype. After deleting only the own property, what can a read do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Recreate the deleted own property before consulting the prototype."
+        },
+        {
+          "id": "b",
+          "text": "Throw because deleting an own property disables later prototype lookup."
+        },
+        {
+          "id": "c",
+          "text": "Find the still-existing property through the prototype chain."
+        },
+        {
+          "id": "d",
+          "text": "Return undefined because delete removes that name from the whole chain."
+        }
+      ],
+      "answer": "c",
+      "explanation": "Removing an own property can expose an inherited property. Delete does not recursively remove names from the prototype chain.",
+      "materials": [
+        "web-objects-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://tc39.es/ecma262/multipage/ordinary-and-exotic-objects-behaviours.html",
+          "title": "ECMAScript: Ordinary and Exotic Objects",
+          "publisher": "Ecma International",
+          "accessed": "2026-10-09",
+          "claim": "Ordinary property reads follow the prototype chain and getters; writes normally create or update own properties subject to descriptors."
+        }
+      ]
+    },
+    {
+      "id": "w03-l02-q06",
+      "lesson": "w03-l02",
+      "concept": "w03-l02-own-properties",
+      "type": "multiple_choice",
+      "prompt": "An own property has the value undefined. How does its existence compare with a missing own property?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The property exists only while a getter for it is actively executing."
+        },
+        {
+          "id": "b",
+          "text": "The property can still be own even though its value is undefined."
+        },
+        {
+          "id": "c",
+          "text": "The property is automatically removed when its value becomes undefined."
+        },
+        {
+          "id": "d",
+          "text": "The property becomes inherited as soon as its value becomes undefined."
+        }
+      ],
+      "answer": "b",
+      "explanation": "Property existence and value are distinct. Undefined can be the value of a present data property.",
+      "materials": [
+        "web-objects-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://tc39.es/ecma262/multipage/ordinary-and-exotic-objects-behaviours.html",
+          "title": "ECMAScript: Ordinary and Exotic Objects",
+          "publisher": "Ecma International",
+          "accessed": "2026-10-09",
+          "claim": "Ordinary property reads follow the prototype chain and getters; writes normally create or update own properties subject to descriptors."
+        }
+      ]
+    },
+    {
+      "id": "w03-l02-q07",
+      "lesson": "w03-l02",
+      "concept": "w03-l02-prototype-lookup",
+      "type": "multiple_select",
+      "prompt": "A plain object uses a prototype with writable data properties. Which lookup claims hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Assignment to an inherited writable data property normally shadows it."
+        },
+        {
+          "id": "b",
+          "text": "Own properties can shadow inherited names."
+        },
+        {
+          "id": "c",
+          "text": "A missing own property can be found on the prototype."
+        },
+        {
+          "id": "d",
+          "text": "Deleting an own property always deletes its inherited counterpart."
+        },
+        {
+          "id": "e",
+          "text": "Reading a property copies it permanently onto the receiver."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "c"
+      ],
+      "explanation": "a: The receiver can get an own data property instead of mutating the prototype. b: Lookup considers a matching own property before the prototype. c: Ordinary lookup follows the prototype chain. d: Deletion targets the object own property. e: Lookup does not itself create a new own property.",
+      "materials": [
+        "web-objects-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://tc39.es/ecma262/multipage/ordinary-and-exotic-objects-behaviours.html",
+          "title": "ECMAScript: Ordinary and Exotic Objects",
+          "publisher": "Ecma International",
+          "accessed": "2026-10-09",
+          "claim": "Ordinary property reads follow the prototype chain and getters; writes normally create or update own properties subject to descriptors."
+        }
+      ]
+    },
+    {
+      "id": "w03-l02-q08",
+      "lesson": "w03-l02",
+      "concept": "w03-l02-own-properties",
+      "type": "multiple_select",
+      "prompt": "A review distinguishes ownership from values. Which claims hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "An own property may contain undefined."
+        },
+        {
+          "id": "b",
+          "text": "An inherited property can be readable without being own."
+        },
+        {
+          "id": "c",
+          "text": "A successful read proves the property is own."
+        },
+        {
+          "id": "d",
+          "text": "Assigning undefined necessarily deletes the property."
+        },
+        {
+          "id": "e",
+          "text": "Every inherited property is copied when an object is created."
+        }
+      ],
+      "answers": [
+        "a",
+        "b"
+      ],
+      "explanation": "a: Undefined is a valid stored value. b: Read lookup and own-property testing are different operations. c: The prototype chain can supply the value. d: Assignment and deletion are separate operations. e: The prototype is referenced rather than copied into all own slots.",
+      "materials": [
+        "web-objects-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://tc39.es/ecma262/multipage/ordinary-and-exotic-objects-behaviours.html",
+          "title": "ECMAScript: Ordinary and Exotic Objects",
+          "publisher": "Ecma International",
+          "accessed": "2026-10-09",
+          "claim": "Ordinary property reads follow the prototype chain and getters; writes normally create or update own properties subject to descriptors."
+        }
+      ]
+    },
+    {
+      "id": "w03-l02-q09",
+      "lesson": "w03-l02",
+      "concept": "w03-l02-property-descriptors",
+      "type": "multiple_select",
+      "prompt": "An object exposes data and accessor properties. Which descriptor claims hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Writable controls reassignment of data properties."
+        },
+        {
+          "id": "b",
+          "text": "An accessor can define a setter for assignments."
+        },
+        {
+          "id": "c",
+          "text": "Every getter result is automatically memoized by the language."
+        },
+        {
+          "id": "d",
+          "text": "A data descriptor must include a getter and setter."
+        },
+        {
+          "id": "e",
+          "text": "A getter can run code on a property read."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "e"
+      ],
+      "explanation": "a: It is a data descriptor attribute. b: The setter handles writes when present. c: Each read may invoke the getter again. d: Data and accessor descriptors are distinct descriptor forms. e: Accessor reads invoke the getter.",
+      "materials": [
+        "web-objects-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://tc39.es/ecma262/multipage/ordinary-and-exotic-objects-behaviours.html",
+          "title": "ECMAScript: Ordinary and Exotic Objects",
+          "publisher": "Ecma International",
+          "accessed": "2026-10-09",
+          "claim": "Ordinary property reads follow the prototype chain and getters; writes normally create or update own properties subject to descriptors."
+        }
+      ]
+    },
+    {
+      "id": "w03-l02-q10",
+      "lesson": "w03-l02",
+      "concept": "w03-l02-private-brand",
+      "type": "multiple_select",
+      "prompt": "A class uses private fields. Which receiver claims hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Any object with the same public shape can satisfy private access."
+        },
+        {
+          "id": "b",
+          "text": "An unrelated this argument can cause private access to throw."
+        },
+        {
+          "id": "c",
+          "text": "Private fields become enumerable string-keyed properties."
+        },
+        {
+          "id": "d",
+          "text": "A method needs a receiver with its declaring private brand."
+        },
+        {
+          "id": "e",
+          "text": "A public property with the same spelling does not supply that brand."
+        }
+      ],
+      "answers": [
+        "b",
+        "d",
+        "e"
+      ],
+      "explanation": "a: Structural public similarity does not establish the private brand. b: The brand check can fail for that receiver. c: They do not appear as ordinary enumerable public properties. d: Private access checks the receiver compatibility. e: Private names are distinct from string-keyed public properties.",
+      "materials": [
+        "web-functions-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://tc39.es/ecma262/multipage/ecmascript-language-functions-and-classes.html",
+          "title": "ECMAScript: Functions and Classes",
+          "publisher": "Ecma International",
+          "accessed": "2026-10-09",
+          "claim": "Functions retain lexical environments; arrow functions use lexical this, and class private fields require their declaring brand."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,477 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "w11-l02-load-leveling",
+      "name": "Queue-based load leveling"
+    },
+    {
+      "id": "w11-l02-consumer-capacity",
+      "name": "Competing consumers and downstream capacity"
+    },
+    {
+      "id": "w11-l02-at-least-once",
+      "name": "At-least-once processing and idempotence"
+    },
+    {
+      "id": "w11-l02-poison-order",
+      "name": "Ordering and poison-message isolation"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w11-l02-q01",
+      "type": "multiple_choice",
+      "lesson": "w11-l02",
+      "concept": "w11-l02-load-leveling",
+      "prompt": "A burst of notification jobs overwhelms a downstream service. What does a buffering queue primarily provide?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Automatic synchronous completion before enqueue returns."
+        },
+        {
+          "id": "b",
+          "text": "A guarantee that every job completes with no latency."
+        },
+        {
+          "id": "c",
+          "text": "Decoupling of job arrivals from processing rate."
+        },
+        {
+          "id": "d",
+          "text": "Unlimited downstream capacity without changing the service."
+        }
+      ],
+      "answer": "c",
+      "explanation": "The queue smooths demand and separates producer timing. It does not create infinite capacity or eliminate processing delay.",
+      "materials": [
+        "azure-queue-load-leveling"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/queue-based-load-leveling",
+          "title": "Queue-Based Load Leveling pattern",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "A queue buffers variable arrival rates and lets a service process work at its own pace rather than eliminating sustained capacity limits."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w11-l02-q02",
+      "type": "multiple_choice",
+      "lesson": "w11-l02",
+      "concept": "w11-l02-consumer-capacity",
+      "prompt": "Several workers consume one queue using competing consumers. How is this different from publish-subscribe fan-out?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The producer must pick a fixed worker for every message."
+        },
+        {
+          "id": "b",
+          "text": "Each message is assigned to one consumer for a processing attempt."
+        },
+        {
+          "id": "c",
+          "text": "Every worker must receive each message as a broadcast."
+        },
+        {
+          "id": "d",
+          "text": "Workers can process only one global message at a time."
+        }
+      ],
+      "answer": "b",
+      "explanation": "Competing consumers share work; publish-subscribe delivers to each subscriber. Work need not bind to a fixed instance.",
+      "materials": [
+        "azure-queue-load-leveling",
+        "azure-competing-consumers"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/queue-based-load-leveling",
+          "title": "Queue-Based Load Leveling pattern",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "Multiple consumers distribute independent work, but consumer throughput must respect downstream capacity and differs from broadcast publish-subscribe."
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/competing-consumers",
+          "title": "Competing Consumers pattern",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "Multiple consumers distribute independent work, but consumer throughput must respect downstream capacity and differs from broadcast publish-subscribe."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w11-l02-q03",
+      "type": "multiple_choice",
+      "lesson": "w11-l02",
+      "concept": "w11-l02-at-least-once",
+      "prompt": "A worker commits a change and crashes before acknowledging the message. What must the handler tolerate?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The same message may be delivered again."
+        },
+        {
+          "id": "b",
+          "text": "The broker automatically rolls back every external side effect."
+        },
+        {
+          "id": "c",
+          "text": "The producer must create a different operation for the retry."
+        },
+        {
+          "id": "d",
+          "text": "At-least-once delivery guarantees no duplicate processing."
+        }
+      ],
+      "answer": "a",
+      "explanation": "The message can be retried even though an external side effect succeeded. Idempotent handling protects against repeating that effect.",
+      "materials": [
+        "azure-competing-consumers"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/competing-consumers",
+          "title": "Competing Consumers pattern",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "Competing-consumer queues can deliver messages more than once after failures; operations should tolerate duplicate processing."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w11-l02-q04",
+      "type": "multiple_choice",
+      "lesson": "w11-l02",
+      "concept": "w11-l02-poison-order",
+      "prompt": "One malformed job fails on every delivery and keeps returning to the queue. Which response fits the pattern?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Retry it indefinitely with no delivery limit."
+        },
+        {
+          "id": "b",
+          "text": "Assume another identical worker necessarily repairs its content."
+        },
+        {
+          "id": "c",
+          "text": "Delete every healthy queued job to preserve order."
+        },
+        {
+          "id": "d",
+          "text": "Move it to a dead-letter path for analysis."
+        }
+      ],
+      "answer": "d",
+      "explanation": "Poison-message isolation prevents endless failure cycles and retains evidence. Adding identical consumers does not fix malformed content.",
+      "materials": [
+        "azure-competing-consumers"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/competing-consumers",
+          "title": "Competing Consumers pattern",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "Competing consumers do not guarantee global ordering; repeatedly failing messages should be isolated rather than retried indefinitely."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w11-l02-q05",
+      "type": "multiple_choice",
+      "lesson": "w11-l02",
+      "concept": "w11-l02-load-leveling",
+      "prompt": "Arrivals remain faster than consumption for several hours. What should the design expect?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Every message is automatically completed when storage fills."
+        },
+        {
+          "id": "b",
+          "text": "Buffering guarantees a constant zero-age backlog at any rate."
+        },
+        {
+          "id": "c",
+          "text": "A growing backlog unless capacity or input rate changes."
+        },
+        {
+          "id": "d",
+          "text": "The queue eventually processes messages without any consumers."
+        }
+      ],
+      "answer": "c",
+      "explanation": "A sustained rate mismatch accumulates work. Queues separate timing but do not manufacture processing capacity.",
+      "materials": [
+        "azure-queue-load-leveling"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/queue-based-load-leveling",
+          "title": "Queue-Based Load Leveling pattern",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "Queuing smooths intermittent peaks but does not remove downstream processing limits."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w11-l02-q06",
+      "type": "multiple_choice",
+      "lesson": "w11-l02",
+      "concept": "w11-l02-consumer-capacity",
+      "prompt": "Doubling workers increases database contention and slows all jobs. What is the useful next decision?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Raise the worker limit without measuring downstream throughput or contention."
+        },
+        {
+          "id": "b",
+          "text": "Tune consumer concurrency around the database bottleneck."
+        },
+        {
+          "id": "c",
+          "text": "Keep doubling workers because queuing guarantees linear speedup."
+        },
+        {
+          "id": "d",
+          "text": "Broadcast each message to every worker to reduce duplicate work."
+        }
+      ],
+      "answer": "b",
+      "explanation": "The bottleneck constrains throughput. More concurrency can worsen contention; broadcasting repeats work and does not solve capacity.",
+      "materials": [
+        "azure-queue-load-leveling",
+        "azure-competing-consumers"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/queue-based-load-leveling",
+          "title": "Queue-Based Load Leveling pattern",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "Consumer concurrency can overload a dependency and should be matched to downstream capacity."
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/competing-consumers",
+          "title": "Competing Consumers pattern",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "Consumer concurrency can overload a dependency and should be matched to downstream capacity."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w11-l02-q07",
+      "type": "multiple_select",
+      "lesson": "w11-l02",
+      "concept": "w11-l02-load-leveling",
+      "prompt": "Which load-leveling statements hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A queue gives each message zero waiting time during a large burst."
+        },
+        {
+          "id": "b",
+          "text": "A queue can buffer intermittent demand peaks."
+        },
+        {
+          "id": "c",
+          "text": "Producers and consumers can operate asynchronously."
+        },
+        {
+          "id": "d",
+          "text": "Adding a queue eliminates every sustained throughput bottleneck."
+        },
+        {
+          "id": "e",
+          "text": "A queued response means downstream processing has already completed."
+        }
+      ],
+      "answers": [
+        "b",
+        "c"
+      ],
+      "explanation": "A is incorrect: Buffering often introduces waiting time. B is correct: The service can consume work at a manageable rate. C is correct: Enqueueing and processing are decoupled. D is incorrect: Backlog still grows if arrivals exceed capacity for long enough. E is incorrect: Acceptance and completion are separate events.",
+      "materials": [
+        "azure-queue-load-leveling"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/queue-based-load-leveling",
+          "title": "Queue-Based Load Leveling pattern",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "A queue buffers variable arrival rates and lets a service process work at its own pace rather than eliminating sustained capacity limits."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w11-l02-q08",
+      "type": "multiple_select",
+      "lesson": "w11-l02",
+      "concept": "w11-l02-consumer-capacity",
+      "prompt": "Which consumer-scaling choices are appropriate? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Add consumers for independent work when capacity permits."
+        },
+        {
+          "id": "b",
+          "text": "Respect the capacity of dependencies used by the workers."
+        },
+        {
+          "id": "c",
+          "text": "Monitor backlog when deciding whether consumer capacity is sufficient."
+        },
+        {
+          "id": "d",
+          "text": "Assume increasing workers always helps a saturated database."
+        },
+        {
+          "id": "e",
+          "text": "Require every worker to process every queued item to share load."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "c"
+      ],
+      "explanation": "A is correct: Parallel processing can increase throughput. B is correct: Excessive concurrency can overload the downstream service. C is correct: Queue depth can reveal pressure on processing. D is incorrect: More workers can increase contention at the bottleneck. E is incorrect: That is broadcast rather than competing consumption.",
+      "materials": [
+        "azure-queue-load-leveling",
+        "azure-competing-consumers"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/queue-based-load-leveling",
+          "title": "Queue-Based Load Leveling pattern",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "Multiple consumers distribute independent work, but consumer throughput must respect downstream capacity and differs from broadcast publish-subscribe."
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/competing-consumers",
+          "title": "Competing Consumers pattern",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "Multiple consumers distribute independent work, but consumer throughput must respect downstream capacity and differs from broadcast publish-subscribe."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w11-l02-q09",
+      "type": "multiple_select",
+      "lesson": "w11-l02",
+      "concept": "w11-l02-at-least-once",
+      "prompt": "Which duplicate-handling claims are sound? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Track processed messages when that is needed for deduplication."
+        },
+        {
+          "id": "b",
+          "text": "Treat at-least-once delivery as an exactly-once side-effect guarantee."
+        },
+        {
+          "id": "c",
+          "text": "Assume the queue reverses a database commit when acknowledgement fails."
+        },
+        {
+          "id": "d",
+          "text": "Acknowledge every message before doing work to guarantee recovery."
+        },
+        {
+          "id": "e",
+          "text": "Design processing so repeated delivery does not repeat an unintended effect."
+        }
+      ],
+      "answers": [
+        "a",
+        "e"
+      ],
+      "explanation": "A is correct: A stored identity can identify an already applied operation. B is incorrect: Delivery can repeat after failure. C is incorrect: The queue does not automatically undo an external transaction. D is incorrect: Early acknowledgement can lose work if processing then fails. E is correct: Idempotent operations tolerate retries.",
+      "materials": [
+        "azure-competing-consumers"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/competing-consumers",
+          "title": "Competing Consumers pattern",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "Competing-consumer queues can deliver messages more than once after failures; operations should tolerate duplicate processing."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w11-l02-q10",
+      "type": "multiple_select",
+      "lesson": "w11-l02",
+      "concept": "w11-l02-poison-order",
+      "prompt": "Which ordering and failure considerations matter? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Capture repeatedly failing messages for investigation."
+        },
+        {
+          "id": "b",
+          "text": "Retry a poison message forever as the only error policy."
+        },
+        {
+          "id": "c",
+          "text": "Assume all parallel consumers finish messages in creation order."
+        },
+        {
+          "id": "d",
+          "text": "Do not assume competing consumers preserve global processing order."
+        },
+        {
+          "id": "e",
+          "text": "Use supported ordering mechanisms when the workload requires them."
+        }
+      ],
+      "answers": [
+        "a",
+        "d",
+        "e"
+      ],
+      "explanation": "A is correct: Dead-letter handling isolates poison work. B is incorrect: Unbounded retries can consume resources indefinitely. C is incorrect: Variable work duration can reorder completion. D is correct: Concurrent consumption can change ordering. E is correct: Some brokers offer sessions or similar grouping.",
+      "materials": [
+        "azure-competing-consumers"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/competing-consumers",
+          "title": "Competing Consumers pattern",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "Competing consumers do not guarantee global ordering; repeatedly failing messages should be isolated rather than retried indefinitely."
+        }
+      ],
+      "retired": null
+    }
+  ]
+}

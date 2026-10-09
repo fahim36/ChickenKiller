@@ -1,0 +1,476 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "w03-l03-task-microtask",
+      "name": "Task completion and microtask checkpoints"
+    },
+    {
+      "id": "w03-l03-promise-chaining",
+      "name": "Promise chaining and reaction results"
+    },
+    {
+      "id": "w03-l03-promise-all",
+      "name": "Promise.all order and rejection"
+    },
+    {
+      "id": "w03-l03-render-starvation",
+      "name": "Microtask work and rendering opportunity"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w03-l03-q01",
+      "lesson": "w03-l03",
+      "concept": "w03-l03-task-microtask",
+      "type": "multiple_choice",
+      "prompt": "A browser task logs A, schedules `Promise.resolve().then(()=>log(\"B\"))`, schedules a timer to log C, then logs D. What order follows?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A, C, B, D because scheduling a timer pauses the current task."
+        },
+        {
+          "id": "b",
+          "text": "A, D, B, C under the ordinary browser task and microtask model."
+        },
+        {
+          "id": "c",
+          "text": "A, B, D, C because a resolved promise reaction runs synchronously."
+        },
+        {
+          "id": "d",
+          "text": "A, D, C, B because timers always run before every microtask."
+        }
+      ],
+      "answer": "b",
+      "explanation": "The task completes A then D. The microtask checkpoint runs the Promise reaction B before the timer task C. Scheduling does not pause the current task.",
+      "materials": [
+        "web-loop-reference",
+        "web-promises-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://html.spec.whatwg.org/multipage/webappapis.html#event-loops",
+          "title": "HTML Standard: event loops",
+          "publisher": "WHATWG",
+          "accessed": "2026-10-09",
+          "claim": "Browser event loops run tasks and microtask checkpoints; rendering opportunities are scheduled separately and tasks run to completion."
+        },
+        {
+          "url": "https://tc39.es/ecma262/multipage/control-abstraction-objects.html",
+          "title": "ECMAScript: Control Abstraction Objects",
+          "publisher": "Ecma International",
+          "accessed": "2026-10-09",
+          "claim": "Promise executors run during construction, reactions are jobs, chaining propagates results and Promise.all preserves input ordering."
+        }
+      ]
+    },
+    {
+      "id": "w03-l03-q02",
+      "lesson": "w03-l03",
+      "concept": "w03-l03-promise-chaining",
+      "type": "multiple_choice",
+      "prompt": "A then handler returns 42 without throwing. What happens to the promise returned by then?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It fulfills with 42 as the handler result."
+        },
+        {
+          "id": "b",
+          "text": "It always fulfills with the original promise value regardless of the return."
+        },
+        {
+          "id": "c",
+          "text": "It rejects because a then handler must return another promise object."
+        },
+        {
+          "id": "d",
+          "text": "It stays pending because primitive return values are ignored by chaining."
+        }
+      ],
+      "answer": "a",
+      "explanation": "A reaction return value fulfills the derived promise, with promise resolution adopting thenables when applicable. A primitive return is valid.",
+      "materials": [
+        "web-promises-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://tc39.es/ecma262/multipage/control-abstraction-objects.html",
+          "title": "ECMAScript: Control Abstraction Objects",
+          "publisher": "Ecma International",
+          "accessed": "2026-10-09",
+          "claim": "Promise executors run during construction, reactions are jobs, chaining propagates results and Promise.all preserves input ordering."
+        }
+      ]
+    },
+    {
+      "id": "w03-l03-q03",
+      "lesson": "w03-l03",
+      "concept": "w03-l03-promise-all",
+      "type": "multiple_choice",
+      "prompt": "Two promises passed to Promise.all resolve in the reverse order from the input. What ordering does its result array use?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Completion order, even when it differs from the input order."
+        },
+        {
+          "id": "b",
+          "text": "Sorted order based on the string form of each resolved value."
+        },
+        {
+          "id": "c",
+          "text": "Unspecified order because parallel promises cannot retain their indices."
+        },
+        {
+          "id": "d",
+          "text": "Input order, even when completion order differs."
+        }
+      ],
+      "answer": "d",
+      "explanation": "Promise.all associates results with input indices. Completion order does not determine the final array order.",
+      "materials": [
+        "web-promises-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://tc39.es/ecma262/multipage/control-abstraction-objects.html",
+          "title": "ECMAScript: Control Abstraction Objects",
+          "publisher": "Ecma International",
+          "accessed": "2026-10-09",
+          "claim": "Promise executors run during construction, reactions are jobs, chaining propagates results and Promise.all preserves input ordering."
+        }
+      ]
+    },
+    {
+      "id": "w03-l03-q04",
+      "lesson": "w03-l03",
+      "concept": "w03-l03-render-starvation",
+      "type": "multiple_choice",
+      "prompt": "A microtask recursively queues another microtask without ending. Why can browser painting be delayed?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Microtasks always move to a separate worker and cannot delay the window event loop."
+        },
+        {
+          "id": "b",
+          "text": "Rendering interrupts every callback after one statement to keep the screen current."
+        },
+        {
+          "id": "c",
+          "text": "The checkpoint can keep draining queued microtasks before a rendering opportunity."
+        },
+        {
+          "id": "d",
+          "text": "Every microtask is guaranteed a new visible paint before the next one runs."
+        }
+      ],
+      "answer": "c",
+      "explanation": "A microtask checkpoint drains work until the queue is empty. Continually adding work can delay progressing to other event-loop work and rendering.",
+      "materials": [
+        "web-loop-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://html.spec.whatwg.org/multipage/webappapis.html#event-loops",
+          "title": "HTML Standard: event loops",
+          "publisher": "WHATWG",
+          "accessed": "2026-10-09",
+          "claim": "Browser event loops run tasks and microtask checkpoints; rendering opportunities are scheduled separately and tasks run to completion."
+        }
+      ]
+    },
+    {
+      "id": "w03-l03-q05",
+      "lesson": "w03-l03",
+      "concept": "w03-l03-task-microtask",
+      "type": "multiple_choice",
+      "prompt": "A Promise constructor executor logs E; its then handler logs T; the current task later logs S. What is the relevant timing distinction?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Both always run synchronously before any code after the constructor."
+        },
+        {
+          "id": "b",
+          "text": "The executor runs during construction; the reaction waits until its job runs."
+        },
+        {
+          "id": "c",
+          "text": "Both executor and reaction are deferred to the same future timer task."
+        },
+        {
+          "id": "d",
+          "text": "The executor is deferred but the reaction runs during then registration."
+        }
+      ],
+      "answer": "b",
+      "explanation": "Promise construction invokes the executor immediately. Promise reactions are queued jobs rather than synchronous calls during then registration.",
+      "materials": [
+        "web-promises-reference",
+        "web-loop-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://tc39.es/ecma262/multipage/control-abstraction-objects.html",
+          "title": "ECMAScript: Control Abstraction Objects",
+          "publisher": "Ecma International",
+          "accessed": "2026-10-09",
+          "claim": "Promise executors run during construction, reactions are jobs, chaining propagates results and Promise.all preserves input ordering."
+        },
+        {
+          "url": "https://html.spec.whatwg.org/multipage/webappapis.html#event-loops",
+          "title": "HTML Standard: event loops",
+          "publisher": "WHATWG",
+          "accessed": "2026-10-09",
+          "claim": "Browser event loops run tasks and microtask checkpoints; rendering opportunities are scheduled separately and tasks run to completion."
+        }
+      ]
+    },
+    {
+      "id": "w03-l03-q06",
+      "lesson": "w03-l03",
+      "concept": "w03-l03-promise-chaining",
+      "type": "multiple_choice",
+      "prompt": "A then handler throws an Error and no rejection handler has run yet. What is the derived promise state?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Rejected with that thrown error."
+        },
+        {
+          "id": "b",
+          "text": "Fulfilled with the thrown Error as if it had been returned normally."
+        },
+        {
+          "id": "c",
+          "text": "Still pending because throwing cancels creation of the derived promise."
+        },
+        {
+          "id": "d",
+          "text": "Fulfilled with the original value because then suppresses handler exceptions."
+        }
+      ],
+      "answer": "a",
+      "explanation": "A thrown reaction error rejects the derived promise. Returning an Error value would be different from throwing it.",
+      "materials": [
+        "web-promises-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://tc39.es/ecma262/multipage/control-abstraction-objects.html",
+          "title": "ECMAScript: Control Abstraction Objects",
+          "publisher": "Ecma International",
+          "accessed": "2026-10-09",
+          "claim": "Promise executors run during construction, reactions are jobs, chaining propagates results and Promise.all preserves input ordering."
+        }
+      ]
+    },
+    {
+      "id": "w03-l03-q07",
+      "lesson": "w03-l03",
+      "concept": "w03-l03-task-microtask",
+      "type": "multiple_select",
+      "prompt": "A browser task schedules Promise reactions and timers. Which claims hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The current JavaScript task runs to completion."
+        },
+        {
+          "id": "b",
+          "text": "Promise reaction jobs run through microtask processing."
+        },
+        {
+          "id": "c",
+          "text": "A resolved promise runs its newly registered then handler inline."
+        },
+        {
+          "id": "d",
+          "text": "A zero-delay timer interrupts the current task immediately."
+        },
+        {
+          "id": "e",
+          "text": "A microtask checkpoint occurs before the next selected task proceeds."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "e"
+      ],
+      "explanation": "a: A queued timer does not interleave statements into the current task. b: The host integrates promise jobs with its microtask queue. c: Its reaction is scheduled rather than called inline. d: It schedules later task work. e: The event-loop processing model performs its checkpoint after task execution.",
+      "materials": [
+        "web-loop-reference",
+        "web-promises-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://html.spec.whatwg.org/multipage/webappapis.html#event-loops",
+          "title": "HTML Standard: event loops",
+          "publisher": "WHATWG",
+          "accessed": "2026-10-09",
+          "claim": "Browser event loops run tasks and microtask checkpoints; rendering opportunities are scheduled separately and tasks run to completion."
+        },
+        {
+          "url": "https://tc39.es/ecma262/multipage/control-abstraction-objects.html",
+          "title": "ECMAScript: Control Abstraction Objects",
+          "publisher": "Ecma International",
+          "accessed": "2026-10-09",
+          "claim": "Promise executors run during construction, reactions are jobs, chaining propagates results and Promise.all preserves input ordering."
+        }
+      ]
+    },
+    {
+      "id": "w03-l03-q08",
+      "lesson": "w03-l03",
+      "concept": "w03-l03-promise-chaining",
+      "type": "multiple_select",
+      "prompt": "A Promise chain returns and throws values. Which claims hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Throwing rejects the derived promise."
+        },
+        {
+          "id": "b",
+          "text": "A returned promise can be adopted by the derived promise."
+        },
+        {
+          "id": "c",
+          "text": "then always returns the original promise instance."
+        },
+        {
+          "id": "d",
+          "text": "A catch handler that returns a value must stay rejected."
+        },
+        {
+          "id": "e",
+          "text": "Returning a value can fulfill the derived promise."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "e"
+      ],
+      "explanation": "a: Abrupt completion becomes rejection. b: Promise resolution follows its eventual state. c: It returns a derived promise. d: A normal handler return can recover into fulfillment. e: The reaction result is used to resolve that promise.",
+      "materials": [
+        "web-promises-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://tc39.es/ecma262/multipage/control-abstraction-objects.html",
+          "title": "ECMAScript: Control Abstraction Objects",
+          "publisher": "Ecma International",
+          "accessed": "2026-10-09",
+          "claim": "Promise executors run during construction, reactions are jobs, chaining propagates results and Promise.all preserves input ordering."
+        }
+      ]
+    },
+    {
+      "id": "w03-l03-q09",
+      "lesson": "w03-l03",
+      "concept": "w03-l03-promise-all",
+      "type": "multiple_select",
+      "prompt": "A team uses Promise.all for independent requests. Which claims hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Rejecting the aggregate automatically cancels all input operations."
+        },
+        {
+          "id": "b",
+          "text": "The result array is sorted by completion time."
+        },
+        {
+          "id": "c",
+          "text": "The aggregate only rejects after every input rejects."
+        },
+        {
+          "id": "d",
+          "text": "Fulfillment results retain input order."
+        },
+        {
+          "id": "e",
+          "text": "One rejection can reject the aggregate promise."
+        }
+      ],
+      "answers": [
+        "d",
+        "e"
+      ],
+      "explanation": "a: Promise.all supplies no general cancellation operation. b: Input indices determine result positions. c: A single input rejection is sufficient. d: The algorithm stores each fulfillment at its input index. e: It does not wait for a successful result from every input after rejection.",
+      "materials": [
+        "web-promises-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://tc39.es/ecma262/multipage/control-abstraction-objects.html",
+          "title": "ECMAScript: Control Abstraction Objects",
+          "publisher": "Ecma International",
+          "accessed": "2026-10-09",
+          "claim": "Promise executors run during construction, reactions are jobs, chaining propagates results and Promise.all preserves input ordering."
+        }
+      ]
+    },
+    {
+      "id": "w03-l03-q10",
+      "lesson": "w03-l03",
+      "concept": "w03-l03-render-starvation",
+      "type": "multiple_select",
+      "prompt": "A UI callback considers yielding and rendering. Which claims hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Rendering is scheduled separately from arbitrary Promise reactions."
+        },
+        {
+          "id": "b",
+          "text": "Every Promise continuation runs on a background worker thread."
+        },
+        {
+          "id": "c",
+          "text": "A long task can delay other window event-loop work."
+        },
+        {
+          "id": "d",
+          "text": "Continually queued microtasks can delay rendering opportunities."
+        },
+        {
+          "id": "e",
+          "text": "Every resolved-promise await guarantees a visible paint."
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "d"
+      ],
+      "explanation": "a: The loop has its own update-rendering steps and opportunity checks. b: Window microtasks execute in that event loop, not automatically in a worker. c: JavaScript tasks run to completion before the loop advances. d: The checkpoint may keep draining without ending. e: A microtask continuation need not create a rendering opportunity.",
+      "materials": [
+        "web-loop-reference",
+        "web-promises-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://html.spec.whatwg.org/multipage/webappapis.html#event-loops",
+          "title": "HTML Standard: event loops",
+          "publisher": "WHATWG",
+          "accessed": "2026-10-09",
+          "claim": "Browser event loops run tasks and microtask checkpoints; rendering opportunities are scheduled separately and tasks run to completion."
+        },
+        {
+          "url": "https://tc39.es/ecma262/multipage/control-abstraction-objects.html",
+          "title": "ECMAScript: Control Abstraction Objects",
+          "publisher": "Ecma International",
+          "accessed": "2026-10-09",
+          "claim": "Promise executors run during construction, reactions are jobs, chaining propagates results and Promise.all preserves input ordering."
+        }
+      ]
+    }
+  ]
+}

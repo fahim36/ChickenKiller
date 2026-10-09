@@ -1,0 +1,454 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "w07-l03-stream-flow",
+      "name": "Stream roles and chunked transfer"
+    },
+    {
+      "id": "w07-l03-write-drain",
+      "name": "write return value and drain"
+    },
+    {
+      "id": "w07-l03-pipeline-error",
+      "name": "pipeline error propagation"
+    },
+    {
+      "id": "w07-l03-buffer-threshold",
+      "name": "highWaterMark thresholds"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w07-l03-q01",
+      "lesson": "w07-l03",
+      "concept": "w07-l03-stream-flow",
+      "type": "multiple_choice",
+      "prompt": "A large file is copied to a slow destination. What advantage does streaming provide over buffering it all first?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A guarantee that each chunk is a complete logical CSV row."
+        },
+        {
+          "id": "b",
+          "text": "A zero-memory guarantee independent of every chunk size."
+        },
+        {
+          "id": "c",
+          "text": "Incremental processing without needing the whole file buffered up front."
+        },
+        {
+          "id": "d",
+          "text": "A guarantee that the destination disk can never fail midway."
+        }
+      ],
+      "answer": "c",
+      "explanation": "Streams process pieces, avoiding whole-file buffering. They still have buffers, errors and format boundaries to manage.",
+      "materials": [
+        "node-stream-api"
+      ],
+      "sources": [
+        {
+          "url": "https://nodejs.org/api/stream.html",
+          "title": "Stream",
+          "publisher": "Node.js",
+          "accessed": "2026-10-09",
+          "claim": "Readable streams supply data and Writable streams consume it; write false indicates backpressure and callers should wait for drain; pipeline forwards errors and cleans streams; highWaterMark is a threshold, not a strict memory ceiling."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w07-l03-q02",
+      "lesson": "w07-l03",
+      "concept": "w07-l03-stream-flow",
+      "type": "multiple_choice",
+      "prompt": "In source.pipe(destination), what roles normally apply?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Both streams must buffer the complete payload before any chunk can move."
+        },
+        {
+          "id": "b",
+          "text": "The source can disregard the destination buffer because pipe never uses backpressure."
+        },
+        {
+          "id": "c",
+          "text": "The readable source supplies chunks; the writable destination consumes them."
+        },
+        {
+          "id": "d",
+          "text": "The writable source supplies chunks; the readable destination consumes them."
+        }
+      ],
+      "answer": "c",
+      "explanation": "Readable and writable roles define data direction. Piping transfers incrementally and manages backpressure.",
+      "materials": [
+        "node-stream-api"
+      ],
+      "sources": [
+        {
+          "url": "https://nodejs.org/api/stream.html",
+          "title": "Stream",
+          "publisher": "Node.js",
+          "accessed": "2026-10-09",
+          "claim": "Readable streams supply data and Writable streams consume it; write false indicates backpressure and callers should wait for drain; pipeline forwards errors and cleans streams; highWaterMark is a threshold, not a strict memory ceiling."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w07-l03-q03",
+      "lesson": "w07-l03",
+      "concept": "w07-l03-write-drain",
+      "type": "multiple_choice",
+      "prompt": "destination.write(chunk) returns false. What should a manual producer normally do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Ignore it because only thrown exceptions can indicate backpressure."
+        },
+        {
+          "id": "b",
+          "text": "Discard the current chunk because the internal buffer has lost it."
+        },
+        {
+          "id": "c",
+          "text": "Stop producing more chunks until the destination emits drain."
+        },
+        {
+          "id": "d",
+          "text": "Retry the same chunk immediately because false means it was rejected."
+        }
+      ],
+      "answer": "c",
+      "explanation": "The chunk was accepted into buffering; false signals to stop adding more until drain.",
+      "materials": [
+        "node-stream-api"
+      ],
+      "sources": [
+        {
+          "url": "https://nodejs.org/api/stream.html",
+          "title": "Stream",
+          "publisher": "Node.js",
+          "accessed": "2026-10-09",
+          "claim": "Readable streams supply data and Writable streams consume it; write false indicates backpressure and callers should wait for drain; pipeline forwards errors and cleans streams; highWaterMark is a threshold, not a strict memory ceiling."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w07-l03-q04",
+      "lesson": "w07-l03",
+      "concept": "w07-l03-write-drain",
+      "type": "multiple_choice",
+      "prompt": "What does drain signify for a writable stream that previously returned false?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The source has ended and no more chunks may ever be written."
+        },
+        {
+          "id": "b",
+          "text": "All pending chunks were rejected and must now be resent by the producer."
+        },
+        {
+          "id": "c",
+          "text": "The buffer has drained enough that production can resume."
+        },
+        {
+          "id": "d",
+          "text": "Every byte has reached permanent disk storage successfully."
+        }
+      ],
+      "answer": "c",
+      "explanation": "drain controls flow. It is not a durability acknowledgement or end-of-stream signal.",
+      "materials": [
+        "node-stream-api"
+      ],
+      "sources": [
+        {
+          "url": "https://nodejs.org/api/stream.html",
+          "title": "Stream",
+          "publisher": "Node.js",
+          "accessed": "2026-10-09",
+          "claim": "Readable streams supply data and Writable streams consume it; write false indicates backpressure and callers should wait for drain; pipeline forwards errors and cleans streams; highWaterMark is a threshold, not a strict memory ceiling."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w07-l03-q05",
+      "lesson": "w07-l03",
+      "concept": "w07-l03-pipeline-error",
+      "type": "multiple_choice",
+      "prompt": "Which API coordinates errors and cleanup across source, transform and destination?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A source error listener alone, without handling destination or transform failure."
+        },
+        {
+          "id": "b",
+          "text": "Promise.resolve(source.pipe(destination)), treating that resolved value as completion."
+        },
+        {
+          "id": "c",
+          "text": "A write loop that ignores every stream error event."
+        },
+        {
+          "id": "d",
+          "text": "pipeline, with a callback or Promise handling its completion."
+        }
+      ],
+      "answer": "d",
+      "explanation": "pipeline coordinates connected streams and propagates failures; its completion path must be handled.",
+      "materials": [
+        "node-stream-api"
+      ],
+      "sources": [
+        {
+          "url": "https://nodejs.org/api/stream.html",
+          "title": "Stream",
+          "publisher": "Node.js",
+          "accessed": "2026-10-09",
+          "claim": "Readable streams supply data and Writable streams consume it; write false indicates backpressure and callers should wait for drain; pipeline forwards errors and cleans streams; highWaterMark is a threshold, not a strict memory ceiling."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w07-l03-q06",
+      "lesson": "w07-l03",
+      "concept": "w07-l03-buffer-threshold",
+      "type": "multiple_choice",
+      "prompt": "A writable highWaterMark is set to 16 KB. Which interpretation is accurate?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It guarantees process resident memory never exceeds 16 KB."
+        },
+        {
+          "id": "b",
+          "text": "It means the stream sends exactly one 16 KB packet per write."
+        },
+        {
+          "id": "c",
+          "text": "It truncates every accepted chunk longer than 16 KB automatically."
+        },
+        {
+          "id": "d",
+          "text": "It is a buffering threshold used to apply backpressure."
+        }
+      ],
+      "answer": "d",
+      "explanation": "The threshold indicates buffering pressure, not a strict allocation cap or network packet size.",
+      "materials": [
+        "node-stream-api"
+      ],
+      "sources": [
+        {
+          "url": "https://nodejs.org/api/stream.html",
+          "title": "Stream",
+          "publisher": "Node.js",
+          "accessed": "2026-10-09",
+          "claim": "Readable streams supply data and Writable streams consume it; write false indicates backpressure and callers should wait for drain; pipeline forwards errors and cleans streams; highWaterMark is a threshold, not a strict memory ceiling."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w07-l03-q07",
+      "lesson": "w07-l03",
+      "concept": "w07-l03-stream-flow",
+      "type": "multiple_select",
+      "prompt": "Which claims describe stream processing correctly? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Readable streams provide data that writable streams consume."
+        },
+        {
+          "id": "b",
+          "text": "A transform stream can consume input and produce transformed output."
+        },
+        {
+          "id": "c",
+          "text": "Chunks permit incremental processing of a large payload."
+        },
+        {
+          "id": "d",
+          "text": "Streaming eliminates the need to handle errors from the destination."
+        },
+        {
+          "id": "e",
+          "text": "Each chunk is guaranteed to align with an application record boundary."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "c"
+      ],
+      "explanation": "A: Correct: these are the respective stream roles. B: Correct: transforms expose writable and readable sides. C: Correct: whole payload buffering is unnecessary. D: Incorrect: I/O errors remain possible. E: Incorrect: chunking is not record framing.",
+      "materials": [
+        "node-stream-api"
+      ],
+      "sources": [
+        {
+          "url": "https://nodejs.org/api/stream.html",
+          "title": "Stream",
+          "publisher": "Node.js",
+          "accessed": "2026-10-09",
+          "claim": "Readable streams supply data and Writable streams consume it; write false indicates backpressure and callers should wait for drain; pipeline forwards errors and cleans streams; highWaterMark is a threshold, not a strict memory ceiling."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w07-l03-q08",
+      "lesson": "w07-l03",
+      "concept": "w07-l03-write-drain",
+      "type": "multiple_select",
+      "prompt": "Which actions correctly respond to write returning false? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Pause further production until drain."
+        },
+        {
+          "id": "b",
+          "text": "Keep listening for errors while waiting to resume."
+        },
+        {
+          "id": "c",
+          "text": "Assume a thrown error must occur before backpressure can be meaningful."
+        },
+        {
+          "id": "d",
+          "text": "Send the same chunk again immediately because it was not accepted."
+        },
+        {
+          "id": "e",
+          "text": "Continue writing every remaining chunk regardless of the return value."
+        }
+      ],
+      "answers": [
+        "a",
+        "b"
+      ],
+      "explanation": "A: Correct: wait for the writable flow signal. B: Correct: a flow pause does not prevent failures. C: Incorrect: false is the ordinary backpressure signal. D: Incorrect: write already accepted or queued that chunk. E: Incorrect: ignoring it can grow buffers unnecessarily.",
+      "materials": [
+        "node-stream-api"
+      ],
+      "sources": [
+        {
+          "url": "https://nodejs.org/api/stream.html",
+          "title": "Stream",
+          "publisher": "Node.js",
+          "accessed": "2026-10-09",
+          "claim": "Readable streams supply data and Writable streams consume it; write false indicates backpressure and callers should wait for drain; pipeline forwards errors and cleans streams; highWaterMark is a threshold, not a strict memory ceiling."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w07-l03-q09",
+      "lesson": "w07-l03",
+      "concept": "w07-l03-pipeline-error",
+      "type": "multiple_select",
+      "prompt": "Which pipeline properties matter for a file-export endpoint? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Pipeline coordinates cleanup of participating streams on failure."
+        },
+        {
+          "id": "b",
+          "text": "A pipeline Promise rejection should be observed and handled."
+        },
+        {
+          "id": "c",
+          "text": "Pipeline makes destination failures impossible after the first chunk."
+        },
+        {
+          "id": "d",
+          "text": "Awaiting the pipeline Promise means no error handler is needed if it rejects."
+        },
+        {
+          "id": "e",
+          "text": "Pipeline propagates stream failures through its completion callback or Promise."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "e"
+      ],
+      "explanation": "A: Correct: error handling includes stream destruction. B: Correct: observe success or failure explicitly. C: Incorrect: destinations can fail midstream. D: Incorrect: awaiting a rejected pipeline still requires normal error handling. E: Correct: its completion path reports failure.",
+      "materials": [
+        "node-stream-api"
+      ],
+      "sources": [
+        {
+          "url": "https://nodejs.org/api/stream.html",
+          "title": "Stream",
+          "publisher": "Node.js",
+          "accessed": "2026-10-09",
+          "claim": "Readable streams supply data and Writable streams consume it; write false indicates backpressure and callers should wait for drain; pipeline forwards errors and cleans streams; highWaterMark is a threshold, not a strict memory ceiling."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w07-l03-q10",
+      "lesson": "w07-l03",
+      "concept": "w07-l03-buffer-threshold",
+      "type": "multiple_select",
+      "prompt": "Which highWaterMark claims are accurate? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "In object mode it counts buffered objects rather than byte size."
+        },
+        {
+          "id": "b",
+          "text": "It is a threshold for stream buffering and backpressure."
+        },
+        {
+          "id": "c",
+          "text": "A chunk can push buffering beyond the threshold."
+        },
+        {
+          "id": "d",
+          "text": "It guarantees every write exactly equals the specified buffer size."
+        },
+        {
+          "id": "e",
+          "text": "It is always a global hard limit on all process memory."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "c"
+      ],
+      "explanation": "A: Correct: units differ for object mode. B: Correct: it drives flow-control decisions. C: Correct: a threshold is not a strict ceiling. D: Incorrect: callers can write differently sized chunks. E: Incorrect: other buffers and allocations exist.",
+      "materials": [
+        "node-stream-api"
+      ],
+      "sources": [
+        {
+          "url": "https://nodejs.org/api/stream.html",
+          "title": "Stream",
+          "publisher": "Node.js",
+          "accessed": "2026-10-09",
+          "claim": "Readable streams supply data and Writable streams consume it; write false indicates backpressure and callers should wait for drain; pipeline forwards errors and cleans streams; highWaterMark is a threshold, not a strict memory ceiling."
+        }
+      ],
+      "retired": null
+    }
+  ]
+}

@@ -1,0 +1,469 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "w12-l04-core-vitals",
+      "name": "Loading, interaction and visual stability"
+    },
+    {
+      "id": "w12-l04-field-percentiles",
+      "name": "Field evidence and percentile evaluation"
+    },
+    {
+      "id": "w12-l04-event-loop-blocking",
+      "name": "Node.js event-loop blocking"
+    },
+    {
+      "id": "w12-l04-evidence-diagnosis",
+      "name": "End-to-end performance evidence"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w12-l04-q01",
+      "type": "multiple_choice",
+      "lesson": "w12-l04",
+      "concept": "w12-l04-core-vitals",
+      "prompt": "A page’s content loads promptly, but text and buttons jump as images arrive. Which Core Web Vital most directly tracks the instability?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Largest Contentful Paint as an exclusive input-latency measure."
+        },
+        {
+          "id": "b",
+          "text": "Interaction to Next Paint as a count of network requests."
+        },
+        {
+          "id": "c",
+          "text": "Time to First Byte as a direct score of unexpected element movement."
+        },
+        {
+          "id": "d",
+          "text": "Cumulative Layout Shift."
+        }
+      ],
+      "answer": "d",
+      "explanation": "CLS measures visual stability. LCP concerns loading and INP interaction responsiveness; status codes do not quantify layout shift.",
+      "materials": [
+        "webdev-web-vitals"
+      ],
+      "sources": [
+        {
+          "url": "https://web.dev/articles/vitals",
+          "title": "Web Vitals",
+          "publisher": "Google",
+          "accessed": "2026-10-09",
+          "claim": "Core Web Vitals use LCP for loading, INP for interaction responsiveness and CLS for visual stability."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w12-l04-q02",
+      "type": "multiple_choice",
+      "lesson": "w12-l04",
+      "concept": "w12-l04-field-percentiles",
+      "prompt": "A team reports only an average LCP across every user and device. Which evidence better matches Core Web Vitals evaluation?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Only the server’s mean response time, without page-load measurements."
+        },
+        {
+          "id": "b",
+          "text": "A single local run treated as the complete user population."
+        },
+        {
+          "id": "c",
+          "text": "The 75th percentile segmented by mobile and desktop."
+        },
+        {
+          "id": "d",
+          "text": "Only the fastest measured visit in the entire sample."
+        }
+      ],
+      "answer": "c",
+      "explanation": "The guidance evaluates the 75th percentile for most users and segments device categories. A mean or best sample can hide poor experiences.",
+      "materials": [
+        "webdev-web-vitals"
+      ],
+      "sources": [
+        {
+          "url": "https://web.dev/articles/vitals",
+          "title": "Web Vitals",
+          "publisher": "Google",
+          "accessed": "2026-10-09",
+          "claim": "Core Web Vitals targets are assessed at the 75th percentile with mobile and desktop segmentation; lab and field evidence are complementary."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w12-l04-q03",
+      "type": "multiple_choice",
+      "lesson": "w12-l04",
+      "concept": "w12-l04-event-loop-blocking",
+      "prompt": "A Node.js handler performs a large synchronous computation inside an async function. What remains a risk?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Each HTTP request gets an independent JavaScript event loop."
+        },
+        {
+          "id": "b",
+          "text": "The computation can block the event loop."
+        },
+        {
+          "id": "c",
+          "text": "The async keyword automatically sends all CPU work to a worker thread."
+        },
+        {
+          "id": "d",
+          "text": "Promises guarantee every callback takes constant time."
+        }
+      ],
+      "answer": "b",
+      "explanation": "Async syntax does not relocate synchronous CPU work. A long callback can delay other requests on the event loop.",
+      "materials": [
+        "node-event-loop"
+      ],
+      "sources": [
+        {
+          "url": "https://nodejs.org/en/learn/asynchronous-work/dont-block-the-event-loop",
+          "title": "Do not block the Event Loop",
+          "publisher": "Node.js",
+          "accessed": "2026-10-09",
+          "claim": "Node.js uses an event loop and worker pool; long synchronous callbacks block other work, and wrapping CPU work in async syntax does not move it off the loop."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w12-l04-q04",
+      "type": "multiple_choice",
+      "lesson": "w12-l04",
+      "concept": "w12-l04-evidence-diagnosis",
+      "prompt": "A slow page’s trace shows most server time inside one downstream call. Which next investigation follows the evidence?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Inspect that dependency span and compare browser timing boundaries."
+        },
+        {
+          "id": "b",
+          "text": "Rewrite CSS first because all slow pages are layout problems."
+        },
+        {
+          "id": "c",
+          "text": "Increase server instances without checking the dependency limit."
+        },
+        {
+          "id": "d",
+          "text": "Remove timing instrumentation once the response returns 200."
+        }
+      ],
+      "answer": "a",
+      "explanation": "Trace timing localizes server work and browser entries locate user-facing phases. A status or arbitrary rewrite does not identify the bottleneck.",
+      "materials": [
+        "mdn-performance",
+        "opentelemetry-traces"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/API/Performance_API",
+          "title": "Performance API",
+          "publisher": "MDN",
+          "accessed": "2026-10-09",
+          "claim": "Browser performance entries and distributed trace spans provide timing evidence at different boundaries, supporting localization rather than guessing a bottleneck."
+        },
+        {
+          "url": "https://opentelemetry.io/docs/concepts/signals/traces/",
+          "title": "OpenTelemetry traces",
+          "publisher": "OpenTelemetry",
+          "accessed": "2026-10-09",
+          "claim": "Browser performance entries and distributed trace spans provide timing evidence at different boundaries, supporting localization rather than guessing a bottleneck."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w12-l04-q05",
+      "type": "multiple_choice",
+      "lesson": "w12-l04",
+      "concept": "w12-l04-core-vitals",
+      "prompt": "A page’s loading score improves but interaction responsiveness worsens. Which conclusion is appropriate?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "All Core Web Vitals must improve by the same proportion."
+        },
+        {
+          "id": "b",
+          "text": "INP becomes irrelevant whenever the first content loads quickly."
+        },
+        {
+          "id": "c",
+          "text": "A good loading metric proves no long interaction tasks exist."
+        },
+        {
+          "id": "d",
+          "text": "LCP improvement does not guarantee INP improvement."
+        }
+      ],
+      "answer": "d",
+      "explanation": "Core Web Vitals cover different experience dimensions. Improving loading alone does not establish responsive interactions.",
+      "materials": [
+        "webdev-web-vitals"
+      ],
+      "sources": [
+        {
+          "url": "https://web.dev/articles/vitals",
+          "title": "Web Vitals",
+          "publisher": "Google",
+          "accessed": "2026-10-09",
+          "claim": "LCP measures loading, INP responsiveness and CLS stability rather than interchangeable qualities."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w12-l04-q06",
+      "type": "multiple_choice",
+      "lesson": "w12-l04",
+      "concept": "w12-l04-field-percentiles",
+      "prompt": "A local lab test is fast, but field measurements are slow on mobile visits. What should the investigation preserve?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Only the fastest mobile observation as the release decision."
+        },
+        {
+          "id": "b",
+          "text": "One combined average that discards device and population differences."
+        },
+        {
+          "id": "c",
+          "text": "Both datasets and their different populations and conditions."
+        },
+        {
+          "id": "d",
+          "text": "Only the lab result because it invalidates all user measurements."
+        }
+      ],
+      "answer": "c",
+      "explanation": "Lab and field data answer different questions. Keeping their context helps diagnose variation rather than discarding evidence.",
+      "materials": [
+        "webdev-web-vitals"
+      ],
+      "sources": [
+        {
+          "url": "https://web.dev/articles/vitals",
+          "title": "Web Vitals",
+          "publisher": "Google",
+          "accessed": "2026-10-09",
+          "claim": "Field measurements reflect actual users while lab measurements use controlled conditions."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w12-l04-q07",
+      "type": "multiple_select",
+      "lesson": "w12-l04",
+      "concept": "w12-l04-core-vitals",
+      "prompt": "Which Core Web Vital mappings are correct? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "INP reflects interaction responsiveness."
+        },
+        {
+          "id": "b",
+          "text": "CLS measures server database transaction duration."
+        },
+        {
+          "id": "c",
+          "text": "INP is the cumulative amount of page layout movement."
+        },
+        {
+          "id": "d",
+          "text": "LCP is a guarantee that all later interactions will be responsive."
+        },
+        {
+          "id": "e",
+          "text": "LCP reflects loading performance of prominent content."
+        }
+      ],
+      "answers": [
+        "a",
+        "e"
+      ],
+      "explanation": "A is correct: It concerns the next visual response to interactions. B is incorrect: It measures visual layout instability. C is incorrect: That describes the domain of CLS. D is incorrect: Loading and interaction performance are separate dimensions. E is correct: It measures when the largest contentful element is painted.",
+      "materials": [
+        "webdev-web-vitals"
+      ],
+      "sources": [
+        {
+          "url": "https://web.dev/articles/vitals",
+          "title": "Web Vitals",
+          "publisher": "Google",
+          "accessed": "2026-10-09",
+          "claim": "Core Web Vitals use LCP for loading, INP for interaction responsiveness and CLS for visual stability."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w12-l04-q08",
+      "type": "multiple_select",
+      "lesson": "w12-l04",
+      "concept": "w12-l04-field-percentiles",
+      "prompt": "Which measurement practices fit user-experience assessment? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Assess Core Web Vitals targets at the 75th percentile."
+        },
+        {
+          "id": "b",
+          "text": "Assume one fast local visit proves every real user meets the targets."
+        },
+        {
+          "id": "c",
+          "text": "Combine every device category and ignore mobile performance differences."
+        },
+        {
+          "id": "d",
+          "text": "Use real-user field data to understand experienced performance."
+        },
+        {
+          "id": "e",
+          "text": "Use lab tests to reproduce and investigate controlled conditions."
+        }
+      ],
+      "answers": [
+        "a",
+        "d",
+        "e"
+      ],
+      "explanation": "A is correct: This is the documented evaluation threshold. B is incorrect: A local sample does not represent the full population. C is incorrect: The guidance calls for mobile and desktop segmentation. D is correct: Field measurements reflect actual visits. E is correct: They complement field evidence.",
+      "materials": [
+        "webdev-web-vitals"
+      ],
+      "sources": [
+        {
+          "url": "https://web.dev/articles/vitals",
+          "title": "Web Vitals",
+          "publisher": "Google",
+          "accessed": "2026-10-09",
+          "claim": "Core Web Vitals targets are assessed at the 75th percentile with mobile and desktop segmentation; lab and field evidence are complementary."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w12-l04-q09",
+      "type": "multiple_select",
+      "lesson": "w12-l04",
+      "concept": "w12-l04-event-loop-blocking",
+      "prompt": "Which statements guide Node.js performance diagnosis? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Treat a Promise wrapper as automatic CPU-work offloading."
+        },
+        {
+          "id": "b",
+          "text": "Use request isolation as proof that one callback cannot affect other clients."
+        },
+        {
+          "id": "c",
+          "text": "Keep event-loop callbacks short enough to preserve responsiveness."
+        },
+        {
+          "id": "d",
+          "text": "A synchronous API can block the event loop despite an async function wrapper."
+        },
+        {
+          "id": "e",
+          "text": "Assume all filesystem and cryptographic operations share identical scheduling behavior."
+        }
+      ],
+      "answers": [
+        "c",
+        "d"
+      ],
+      "explanation": "A is incorrect: Wrapping a computation does not move it to another thread. B is incorrect: Clients share event-loop execution time. C is correct: Long callbacks delay unrelated work. D is correct: The function declaration does not change that work’s execution. E is incorrect: Some use the worker pool while synchronous variants block.",
+      "materials": [
+        "node-event-loop"
+      ],
+      "sources": [
+        {
+          "url": "https://nodejs.org/en/learn/asynchronous-work/dont-block-the-event-loop",
+          "title": "Do not block the Event Loop",
+          "publisher": "Node.js",
+          "accessed": "2026-10-09",
+          "claim": "Node.js uses an event loop and worker pool; long synchronous callbacks block other work, and wrapping CPU work in async syntax does not move it off the loop."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w12-l04-q10",
+      "type": "multiple_select",
+      "lesson": "w12-l04",
+      "concept": "w12-l04-evidence-diagnosis",
+      "prompt": "Which evidence helps diagnose a slow full-stack request? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Assume the longest visible page load phase must be database execution."
+        },
+        {
+          "id": "b",
+          "text": "Use browser performance entries to inspect user-facing timing."
+        },
+        {
+          "id": "c",
+          "text": "Use related trace spans to inspect server and dependency work."
+        },
+        {
+          "id": "d",
+          "text": "Compare timings before and after a targeted change."
+        },
+        {
+          "id": "e",
+          "text": "Treat HTTP 200 as proof that user-visible latency is acceptable."
+        }
+      ],
+      "answers": [
+        "b",
+        "c",
+        "d"
+      ],
+      "explanation": "A is incorrect: Browser and server boundaries require correlation. B is correct: They expose browser-side operation measurements. C is correct: Span timing locates time within the distributed operation. D is correct: Measurement establishes whether the suspected cause improved. E is incorrect: Successful status says nothing about responsiveness.",
+      "materials": [
+        "mdn-performance",
+        "opentelemetry-traces"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/API/Performance_API",
+          "title": "Performance API",
+          "publisher": "MDN",
+          "accessed": "2026-10-09",
+          "claim": "Browser performance entries and distributed trace spans provide timing evidence at different boundaries, supporting localization rather than guessing a bottleneck."
+        },
+        {
+          "url": "https://opentelemetry.io/docs/concepts/signals/traces/",
+          "title": "OpenTelemetry traces",
+          "publisher": "OpenTelemetry",
+          "accessed": "2026-10-09",
+          "claim": "Browser performance entries and distributed trace spans provide timing evidence at different boundaries, supporting localization rather than guessing a bottleneck."
+        }
+      ],
+      "retired": null
+    }
+  ]
+}

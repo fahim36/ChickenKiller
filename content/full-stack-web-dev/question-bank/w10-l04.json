@@ -1,0 +1,453 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "w10-l04-actionability",
+      "name": "Actionability and auto-waiting"
+    },
+    {
+      "id": "w10-l04-web-first",
+      "name": "Web-first assertions and resilient locators"
+    },
+    {
+      "id": "w10-l04-retry-classification",
+      "name": "Retries and flaky tests"
+    },
+    {
+      "id": "w10-l04-ci-diagnostics",
+      "name": "CI traces and failure diagnosis"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w10-l04-q01",
+      "type": "multiple_choice",
+      "lesson": "w10-l04",
+      "concept": "w10-l04-actionability",
+      "prompt": "A button is covered by an overlay. Why can a normal Playwright click wait rather than immediately act?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A matching selector alone proves the element is actionable."
+        },
+        {
+          "id": "b",
+          "text": "The button must be able to receive pointer events."
+        },
+        {
+          "id": "c",
+          "text": "All clicks wait for every network request on the page to finish."
+        },
+        {
+          "id": "d",
+          "text": "The locator automatically removes overlays before clicking."
+        }
+      ],
+      "answer": "b",
+      "explanation": "Click actionability includes receiving events. A selector match is insufficient, and auto-waiting does not remove application overlays.",
+      "materials": [
+        "playwright-actionability"
+      ],
+      "sources": [
+        {
+          "url": "https://playwright.dev/docs/actionability",
+          "title": "Playwright auto-waiting",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "Playwright checks actionability such as visibility, stability, receiving events and enabled state before clicking, then fails on timeout."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w10-l04-q02",
+      "type": "multiple_choice",
+      "lesson": "w10-l04",
+      "concept": "w10-l04-web-first",
+      "prompt": "An assertion checks isVisible once immediately after an async update and flakes. Which approach fits Playwright guidance?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Use an awaited toBeVisible web-first assertion."
+        },
+        {
+          "id": "b",
+          "text": "Add a permanent ten-second sleep before every assertion."
+        },
+        {
+          "id": "c",
+          "text": "Ignore visibility failures when CI is under load."
+        },
+        {
+          "id": "d",
+          "text": "Check the locator object’s truthiness instead of the DOM."
+        }
+      ],
+      "answer": "a",
+      "explanation": "Web-first assertions retry until the condition or timeout. Immediate checks race, while fixed sleeps and ignored failures weaken tests.",
+      "materials": [
+        "playwright-best-practices"
+      ],
+      "sources": [
+        {
+          "url": "https://playwright.dev/docs/best-practices",
+          "title": "Playwright best practices",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "Playwright recommends user-facing locators and web-first assertions that retry instead of manual immediate state checks."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w10-l04-q03",
+      "type": "multiple_choice",
+      "lesson": "w10-l04",
+      "concept": "w10-l04-retry-classification",
+      "prompt": "A test fails on its first run and passes on its first retry. How does Playwright classify it?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Passed with no evidence of instability."
+        },
+        {
+          "id": "b",
+          "text": "Failed even though a retry succeeded."
+        },
+        {
+          "id": "c",
+          "text": "Skipped because retries never execute failed tests."
+        },
+        {
+          "id": "d",
+          "text": "Flaky."
+        }
+      ],
+      "answer": "d",
+      "explanation": "Retry success after initial failure is flaky. It is distinct from first-run success and from exhausting all retries.",
+      "materials": [
+        "playwright-retries"
+      ],
+      "sources": [
+        {
+          "url": "https://playwright.dev/docs/test-retries",
+          "title": "Playwright test retries",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "Playwright labels first-run success passed, retry success flaky, and exhaustion of retries failed; retries do not remove the underlying failure."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w10-l04-q04",
+      "type": "multiple_choice",
+      "lesson": "w10-l04",
+      "concept": "w10-l04-ci-diagnostics",
+      "prompt": "A CI-only test failure needs inspection of actions and page state. Which artifact is most directly useful?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A screenshot alone, assuming it records every prior network and action step."
+        },
+        {
+          "id": "b",
+          "text": "A trace started after the failed worker exits, assuming it recovers prior actions."
+        },
+        {
+          "id": "c",
+          "text": "A Playwright trace captured on the first retry."
+        },
+        {
+          "id": "d",
+          "text": "Only the final exit code with every other artifact deleted."
+        }
+      ],
+      "answer": "c",
+      "explanation": "A recorded trace captures actions and page state during execution. A screenshot or exit code does not reconstruct the sequence, and starting tracing after failure cannot recover earlier events.",
+      "materials": [
+        "playwright-best-practices"
+      ],
+      "sources": [
+        {
+          "url": "https://playwright.dev/docs/best-practices",
+          "title": "Playwright best practices",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "Playwright recommends traces on first retry to investigate CI failures and warns against tracing every test due to overhead."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w10-l04-q05",
+      "type": "multiple_choice",
+      "lesson": "w10-l04",
+      "concept": "w10-l04-actionability",
+      "prompt": "A button stays disabled for the entire action timeout. What should a normal click do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Automatically submit its form without delivering a click."
+        },
+        {
+          "id": "b",
+          "text": "Fail with a timeout rather than silently bypass enabled state."
+        },
+        {
+          "id": "c",
+          "text": "Enable the button in the application and then click it."
+        },
+        {
+          "id": "d",
+          "text": "Report success because the selector matched exactly one button."
+        }
+      ],
+      "answer": "b",
+      "explanation": "Normal actions respect actionability. Playwright does not repair disabled application state or report successful interaction from a selector match alone.",
+      "materials": [
+        "playwright-actionability"
+      ],
+      "sources": [
+        {
+          "url": "https://playwright.dev/docs/actionability",
+          "title": "Playwright auto-waiting",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "Click actionability checks can fail with a timeout when the target remains disabled."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w10-l04-q06",
+      "type": "multiple_choice",
+      "lesson": "w10-l04",
+      "concept": "w10-l04-web-first",
+      "prompt": "A loading label should disappear after a request. Which approach avoids a fixed sleep?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Await a web-first assertion that the label is hidden."
+        },
+        {
+          "id": "b",
+          "text": "Sleep once and assume every machine has the same latency."
+        },
+        {
+          "id": "c",
+          "text": "Read the label text before triggering the request."
+        },
+        {
+          "id": "d",
+          "text": "Treat the existence of a locator as evidence of disappearance."
+        }
+      ],
+      "answer": "a",
+      "explanation": "An awaited condition-based assertion handles the expected change. Fixed timing and locator existence do not verify the final DOM state.",
+      "materials": [
+        "playwright-best-practices"
+      ],
+      "sources": [
+        {
+          "url": "https://playwright.dev/docs/best-practices",
+          "title": "Playwright best practices",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "Web-first assertions retry the condition instead of checking an immediate snapshot."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w10-l04-q07",
+      "type": "multiple_select",
+      "lesson": "w10-l04",
+      "concept": "w10-l04-actionability",
+      "prompt": "Which normal-click checks can Playwright perform? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Wait for the target to be stable and enabled."
+        },
+        {
+          "id": "b",
+          "text": "A visible but disabled button passes all normal-click actionability checks."
+        },
+        {
+          "id": "c",
+          "text": "Treat a DOM match as proof that all actionability checks passed."
+        },
+        {
+          "id": "d",
+          "text": "Remove every obstructing application element automatically."
+        },
+        {
+          "id": "e",
+          "text": "Wait for the target to be visible."
+        }
+      ],
+      "answers": [
+        "a",
+        "e"
+      ],
+      "explanation": "A is correct: Movement and disabled state affect actionability. B is incorrect: Normal click checks enabled state as well as visibility. C is incorrect: Matching and actionability are different. D is incorrect: Playwright waits rather than repairing the application. E is correct: A click requires a visible target.",
+      "materials": [
+        "playwright-actionability"
+      ],
+      "sources": [
+        {
+          "url": "https://playwright.dev/docs/actionability",
+          "title": "Playwright auto-waiting",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "Playwright checks actionability such as visibility, stability, receiving events and enabled state before clicking, then fails on timeout."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w10-l04-q08",
+      "type": "multiple_select",
+      "lesson": "w10-l04",
+      "concept": "w10-l04-web-first",
+      "prompt": "Which choices improve end-to-end test resilience? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Prefer long CSS chains that depend on every wrapper element."
+        },
+        {
+          "id": "b",
+          "text": "Use fixed sleeps as the primary proof of readiness."
+        },
+        {
+          "id": "c",
+          "text": "Test user-visible behavior rather than private component internals."
+        },
+        {
+          "id": "d",
+          "text": "Use locators based on roles and accessible names."
+        },
+        {
+          "id": "e",
+          "text": "Await web-first assertions for asynchronously changing state."
+        }
+      ],
+      "answers": [
+        "c",
+        "d",
+        "e"
+      ],
+      "explanation": "A is incorrect: Structural selectors are brittle under markup changes. B is incorrect: A delay does not verify a condition. C is correct: Behavior-focused tests reflect the intended contract. D is correct: User-facing attributes are less tied to DOM implementation. E is correct: Retrying assertions handle expected timing variation.",
+      "materials": [
+        "playwright-best-practices"
+      ],
+      "sources": [
+        {
+          "url": "https://playwright.dev/docs/best-practices",
+          "title": "Playwright best practices",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "Playwright recommends user-facing locators and web-first assertions that retry instead of manual immediate state checks."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w10-l04-q09",
+      "type": "multiple_select",
+      "lesson": "w10-l04",
+      "concept": "w10-l04-retry-classification",
+      "prompt": "Which retry statements match Playwright behavior? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A successful retry proves there is no test or application issue."
+        },
+        {
+          "id": "b",
+          "text": "Retries require every test to share state with the preceding test."
+        },
+        {
+          "id": "c",
+          "text": "A test passing on its first attempt is classified as passed."
+        },
+        {
+          "id": "d",
+          "text": "A test passing only after a retry is classified as flaky."
+        },
+        {
+          "id": "e",
+          "text": "A passing retry changes the initial failure into first-attempt passed status."
+        }
+      ],
+      "answers": [
+        "c",
+        "d"
+      ],
+      "explanation": "A is incorrect: Retry success does not explain the original instability. B is incorrect: Isolated tests can be retried independently. C is correct: No retry was needed. D is correct: The initial failure remains visible. E is incorrect: Playwright distinguishes retry success as flaky rather than first-attempt passed.",
+      "materials": [
+        "playwright-retries"
+      ],
+      "sources": [
+        {
+          "url": "https://playwright.dev/docs/test-retries",
+          "title": "Playwright test retries",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "Playwright labels first-run success passed, retry success flaky, and exhaustion of retries failed; retries do not remove the underlying failure."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w10-l04-q10",
+      "type": "multiple_select",
+      "lesson": "w10-l04",
+      "concept": "w10-l04-ci-diagnostics",
+      "prompt": "Which practices support diagnosing CI browser failures? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Keep tests isolated so a retry can reproduce its own setup."
+        },
+        {
+          "id": "b",
+          "text": "Capture a trace on the first retry for failure investigation."
+        },
+        {
+          "id": "c",
+          "text": "Inspect trace actions and state rather than guessing from timing alone."
+        },
+        {
+          "id": "d",
+          "text": "Trace every test as the recommended default regardless of overhead."
+        },
+        {
+          "id": "e",
+          "text": "Discard all failure evidence whenever a retry passes."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "c"
+      ],
+      "explanation": "A is correct: Independent state simplifies failure reproduction. B is correct: It supplies evidence for an intermittent failure. C is correct: Recorded evidence helps locate the failing interaction. D is incorrect: The guide recommends first-retry tracing rather than always-on traces. E is incorrect: Flakiness still needs investigation.",
+      "materials": [
+        "playwright-best-practices"
+      ],
+      "sources": [
+        {
+          "url": "https://playwright.dev/docs/best-practices",
+          "title": "Playwright best practices",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-09",
+          "claim": "Playwright recommends traces on first retry to investigate CI failures and warns against tracing every test due to overhead."
+        }
+      ],
+      "retired": null
+    }
+  ]
+}

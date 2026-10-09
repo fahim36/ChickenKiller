@@ -1,0 +1,453 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "w09-l02-least-privilege",
+      "name": "Deny by default and least privilege"
+    },
+    {
+      "id": "w09-l02-object-access",
+      "name": "Object-level authorization"
+    },
+    {
+      "id": "w09-l02-request-checks",
+      "name": "Authorization on every request"
+    },
+    {
+      "id": "w09-l02-authn-authz",
+      "name": "Authentication and authorization"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w09-l02-q01",
+      "type": "multiple_choice",
+      "lesson": "w09-l02",
+      "concept": "w09-l02-least-privilege",
+      "prompt": "A new API route has no explicit permission policy. Which default is safest?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Deny access until a policy grants it."
+        },
+        {
+          "id": "b",
+          "text": "Allow all authenticated users until a complaint arrives."
+        },
+        {
+          "id": "c",
+          "text": "Allow it when a browser hides the navigation link."
+        },
+        {
+          "id": "d",
+          "text": "Trust the first request to establish its own permissions."
+        }
+      ],
+      "answer": "a",
+      "explanation": "Deny by default prevents gaps from granting access. Authentication, UI visibility and request-supplied claims are not a permission policy.",
+      "materials": [
+        "owasp-authorization"
+      ],
+      "sources": [
+        {
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html",
+          "title": "Authorization Cheat Sheet",
+          "publisher": "OWASP",
+          "accessed": "2026-10-09",
+          "claim": "Authorization should grant least privilege and deny access by default."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w09-l02-q02",
+      "type": "multiple_choice",
+      "lesson": "w09-l02",
+      "concept": "w09-l02-object-access",
+      "prompt": "A user changes `/orders/41` to `/orders/42` and receives another user’s order. Which control is missing?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Encode both order IDs before showing them in links."
+        },
+        {
+          "id": "b",
+          "text": "Move the order ID from the URL to a hidden form field."
+        },
+        {
+          "id": "c",
+          "text": "Require a logged-in session but skip ownership checks."
+        },
+        {
+          "id": "d",
+          "text": "Check permission for the requested order."
+        }
+      ],
+      "answer": "d",
+      "explanation": "Object access must be checked server-side. Encoding, hidden inputs and login alone do not establish ownership.",
+      "materials": [
+        "owasp-authorization"
+      ],
+      "sources": [
+        {
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html",
+          "title": "Authorization Cheat Sheet",
+          "publisher": "OWASP",
+          "accessed": "2026-10-09",
+          "claim": "Resource identifiers are not proof of permission; authorization must validate access to the requested object."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w09-l02-q03",
+      "type": "multiple_choice",
+      "lesson": "w09-l02",
+      "concept": "w09-l02-request-checks",
+      "prompt": "A browser hides the Delete button from non-admins, but the API accepts their DELETE requests. What should change?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Rename the route so it is harder to discover."
+        },
+        {
+          "id": "b",
+          "text": "Trust the role value copied from localStorage."
+        },
+        {
+          "id": "c",
+          "text": "Enforce the permission in the server endpoint."
+        },
+        {
+          "id": "d",
+          "text": "Hide the button using a stronger CSS selector."
+        }
+      ],
+      "answer": "c",
+      "explanation": "Client-side restrictions are bypassable. The server must check the operation regardless of how a request is made.",
+      "materials": [
+        "owasp-authorization"
+      ],
+      "sources": [
+        {
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html",
+          "title": "Authorization Cheat Sheet",
+          "publisher": "OWASP",
+          "accessed": "2026-10-09",
+          "claim": "Permissions must be validated on every request and enforced server-side, including AJAX and alternate paths."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w09-l02-q04",
+      "type": "multiple_choice",
+      "lesson": "w09-l02",
+      "concept": "w09-l02-authn-authz",
+      "prompt": "A validly authenticated user lacks permission to edit a document. Which status describes that denial?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "404 for every authorization failure because 403 is only for invalid credentials."
+        },
+        {
+          "id": "b",
+          "text": "403 Forbidden."
+        },
+        {
+          "id": "c",
+          "text": "401 Unauthorized because every denial means no login."
+        },
+        {
+          "id": "d",
+          "text": "200 OK because the token signature was valid."
+        }
+      ],
+      "answer": "b",
+      "explanation": "403 indicates that access is forbidden for an authenticated caller. 401 addresses missing or invalid authentication; valid identity does not make an unauthorized action successful, and authorization failures are not uniformly 404.",
+      "materials": [
+        "owasp-rest-security"
+      ],
+      "sources": [
+        {
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/REST_Security_Cheat_Sheet.html",
+          "title": "REST Security Cheat Sheet",
+          "publisher": "OWASP",
+          "accessed": "2026-10-09",
+          "claim": "REST endpoints validate authentication and independently enforce access control; 401 and 403 represent different failures."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w09-l02-q05",
+      "type": "multiple_choice",
+      "lesson": "w09-l02",
+      "concept": "w09-l02-least-privilege",
+      "prompt": "A background worker only needs to read pending jobs. Which grant matches least privilege?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Read permission for the required job data."
+        },
+        {
+          "id": "b",
+          "text": "Administrator permission across all application resources."
+        },
+        {
+          "id": "c",
+          "text": "Write access to every user record in the same database."
+        },
+        {
+          "id": "d",
+          "text": "Permission to alter authorization policies during each job."
+        }
+      ],
+      "answer": "a",
+      "explanation": "The grant should match the worker’s task. Broad administrative and unrelated write access are unnecessary.",
+      "materials": [
+        "owasp-authorization"
+      ],
+      "sources": [
+        {
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html",
+          "title": "Authorization Cheat Sheet",
+          "publisher": "OWASP",
+          "accessed": "2026-10-09",
+          "claim": "Least privilege minimizes grants rather than relying on authentication alone."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w09-l02-q06",
+      "type": "multiple_choice",
+      "lesson": "w09-l02",
+      "concept": "w09-l02-object-access",
+      "prompt": "An application replaces sequential invoice IDs with UUIDs. What remains necessary?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Remove ownership checks because UUIDs are unpredictable."
+        },
+        {
+          "id": "b",
+          "text": "Trust any invoice ID that passes UUID syntax validation."
+        },
+        {
+          "id": "c",
+          "text": "Grant access whenever a user knows the invoice URL."
+        },
+        {
+          "id": "d",
+          "text": "Authorize access to each invoice."
+        }
+      ],
+      "answer": "d",
+      "explanation": "Opaque IDs reduce guessing but are not proof of permission. Syntax and URL knowledge are also not authorization.",
+      "materials": [
+        "owasp-authorization"
+      ],
+      "sources": [
+        {
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html",
+          "title": "Authorization Cheat Sheet",
+          "publisher": "OWASP",
+          "accessed": "2026-10-09",
+          "claim": "Authorization must validate object ownership rather than infer it from identifier complexity."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w09-l02-q07",
+      "type": "multiple_select",
+      "lesson": "w09-l02",
+      "concept": "w09-l02-least-privilege",
+      "prompt": "Which access-control design practices follow least privilege? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Grant broad permissions first and narrow them only after a security incident."
+        },
+        {
+          "id": "b",
+          "text": "Start with denied access and grant only required operations."
+        },
+        {
+          "id": "c",
+          "text": "Review privileges as responsibilities change."
+        },
+        {
+          "id": "d",
+          "text": "Give every service account administrator rights for convenience."
+        },
+        {
+          "id": "e",
+          "text": "Treat authenticated status as permission for every action."
+        }
+      ],
+      "answers": [
+        "b",
+        "c"
+      ],
+      "explanation": "A is incorrect: Least privilege and deny-by-default policies should be established before incidents. B is correct: Explicit grants avoid accidental broad access. C is correct: Privilege creep can outlive the original need. D is incorrect: Broad permissions increase unnecessary access. E is incorrect: Authentication and authorization are distinct.",
+      "materials": [
+        "owasp-authorization"
+      ],
+      "sources": [
+        {
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html",
+          "title": "Authorization Cheat Sheet",
+          "publisher": "OWASP",
+          "accessed": "2026-10-09",
+          "claim": "Authorization should grant least privilege and deny access by default."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w09-l02-q08",
+      "type": "multiple_select",
+      "lesson": "w09-l02",
+      "concept": "w09-l02-object-access",
+      "prompt": "Which object-access controls prevent identifier manipulation? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Check the caller’s permission for each requested resource."
+        },
+        {
+          "id": "b",
+          "text": "Scope data queries to resources the caller may access."
+        },
+        {
+          "id": "c",
+          "text": "Use a random identifier as the only authorization control."
+        },
+        {
+          "id": "d",
+          "text": "Trust ownership values submitted by the browser without verification."
+        },
+        {
+          "id": "e",
+          "text": "Test attempts to access another user’s object."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "e"
+      ],
+      "explanation": "A is correct: Authorization depends on the object and operation. B is correct: Authorized query scope reduces accidental exposure. C is incorrect: Hard-to-guess IDs do not replace permission checks. D is incorrect: Client input can be manipulated. E is correct: Negative tests expose missing object-level checks.",
+      "materials": [
+        "owasp-authorization"
+      ],
+      "sources": [
+        {
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html",
+          "title": "Authorization Cheat Sheet",
+          "publisher": "OWASP",
+          "accessed": "2026-10-09",
+          "claim": "Resource identifiers are not proof of permission; authorization must validate access to the requested object."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w09-l02-q09",
+      "type": "multiple_select",
+      "lesson": "w09-l02",
+      "concept": "w09-l02-request-checks",
+      "prompt": "Which requests require authorization checks? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "An AJAX request for a protected resource."
+        },
+        {
+          "id": "b",
+          "text": "Only the first request after a successful login."
+        },
+        {
+          "id": "c",
+          "text": "Only requests using the main navigation route need permission checks."
+        },
+        {
+          "id": "d",
+          "text": "Only requests whose buttons were visible in the UI."
+        },
+        {
+          "id": "e",
+          "text": "A direct API call that bypasses the application navigation."
+        }
+      ],
+      "answers": [
+        "a",
+        "e"
+      ],
+      "explanation": "A is correct: The transport does not remove authorization requirements. B is incorrect: Permissions must be checked on every request. C is incorrect: Alternate API paths must enforce authorization as well. D is incorrect: The server cannot rely on UI visibility. E is correct: Direct calls still access protected functionality.",
+      "materials": [
+        "owasp-authorization"
+      ],
+      "sources": [
+        {
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html",
+          "title": "Authorization Cheat Sheet",
+          "publisher": "OWASP",
+          "accessed": "2026-10-09",
+          "claim": "Permissions must be validated on every request and enforced server-side, including AJAX and alternate paths."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w09-l02-q10",
+      "type": "multiple_select",
+      "lesson": "w09-l02",
+      "concept": "w09-l02-authn-authz",
+      "prompt": "Which distinctions matter for protected REST endpoints? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A valid signature grants access to every protected object."
+        },
+        {
+          "id": "b",
+          "text": "Use 401 when authentication is missing or invalid."
+        },
+        {
+          "id": "c",
+          "text": "Use 200 for denied actions so clients cannot detect failures."
+        },
+        {
+          "id": "d",
+          "text": "Authentication establishes a trusted caller identity."
+        },
+        {
+          "id": "e",
+          "text": "Authorization decides whether the caller may perform an operation."
+        }
+      ],
+      "answers": [
+        "b",
+        "d",
+        "e"
+      ],
+      "explanation": "A is incorrect: Token verification does not replace object authorization. B is correct: 401 indicates an authentication requirement or failure. C is incorrect: Successful status misrepresents the rejected operation. D is correct: Credentials identify the caller. E is correct: Permission depends on policy and resources.",
+      "materials": [
+        "owasp-rest-security"
+      ],
+      "sources": [
+        {
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/REST_Security_Cheat_Sheet.html",
+          "title": "REST Security Cheat Sheet",
+          "publisher": "OWASP",
+          "accessed": "2026-10-09",
+          "claim": "REST endpoints validate authentication and independently enforce access control; 401 and 403 represent different failures."
+        }
+      ],
+      "retired": null
+    }
+  ]
+}

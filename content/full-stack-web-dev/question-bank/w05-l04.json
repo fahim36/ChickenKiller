@@ -1,0 +1,454 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "w05-l04-hook-order",
+      "name": "Stable ordinary Hook order"
+    },
+    {
+      "id": "w05-l04-custom-hook-state",
+      "name": "Custom Hook state isolation"
+    },
+    {
+      "id": "w05-l04-nested-copy",
+      "name": "Nested immutable updates"
+    },
+    {
+      "id": "w05-l04-state-mutation",
+      "name": "Mutation versus state updates"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w05-l04-q01",
+      "lesson": "w05-l04",
+      "concept": "w05-l04-hook-order",
+      "type": "multiple_choice",
+      "prompt": "A useState call runs only when showDetails is true. What is the repair?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Call useState unconditionally at the component top level."
+        },
+        {
+          "id": "b",
+          "text": "Call useState after an early return for showDetails false."
+        },
+        {
+          "id": "c",
+          "text": "Place useState inside a loop with one conditional iteration."
+        },
+        {
+          "id": "d",
+          "text": "Call useState from the click handler that toggles showDetails."
+        }
+      ],
+      "answer": "a",
+      "explanation": "Ordinary Hook call order must stay stable. Put the call before conditional returns and condition the UI instead.",
+      "materials": [
+        "react-rules-of-hooks"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/reference/rules/rules-of-hooks",
+          "title": "Rules of Hooks",
+          "publisher": "React",
+          "accessed": "2026-10-09",
+          "claim": "Ordinary Hooks such as useState and useEffect must be called at the top level of React components or custom Hooks, not in conditions, loops or event handlers."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w05-l04-q02",
+      "lesson": "w05-l04",
+      "concept": "w05-l04-hook-order",
+      "type": "multiple_choice",
+      "prompt": "Which location can directly call useEffect?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The top level of a React component or custom Hook."
+        },
+        {
+          "id": "b",
+          "text": "A plain utility function called only after a network response."
+        },
+        {
+          "id": "c",
+          "text": "A conditional branch skipped by the first component render."
+        },
+        {
+          "id": "d",
+          "text": "A button click callback after the component has committed."
+        }
+      ],
+      "answer": "a",
+      "explanation": "React components and custom Hooks are allowed callers; arbitrary callbacks and conditional locations are not.",
+      "materials": [
+        "react-rules-of-hooks"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/reference/rules/rules-of-hooks",
+          "title": "Rules of Hooks",
+          "publisher": "React",
+          "accessed": "2026-10-09",
+          "claim": "Ordinary Hooks such as useState and useEffect must be called at the top level of React components or custom Hooks, not in conditions, loops or event handlers."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w05-l04-q03",
+      "lesson": "w05-l04",
+      "concept": "w05-l04-custom-hook-state",
+      "type": "multiple_choice",
+      "prompt": "Two components call the same useDraft custom Hook. What is shared automatically?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The Hook code, while each call retains its own local state."
+        },
+        {
+          "id": "b",
+          "text": "One synchronized draft, because each caller passes the same arguments."
+        },
+        {
+          "id": "c",
+          "text": "One draft value, because all calls use the same function."
+        },
+        {
+          "id": "d",
+          "text": "One component identity across both caller tree positions."
+        }
+      ],
+      "answer": "a",
+      "explanation": "Extracting a Hook shares implementation logic, not one state instance. Shared state requires another mechanism.",
+      "materials": [
+        "react-custom-hooks"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/learn/reusing-logic-with-custom-hooks",
+          "title": "Reusing Logic with Custom Hooks",
+          "publisher": "React",
+          "accessed": "2026-10-09",
+          "claim": "Custom Hooks share stateful logic, not state itself; each call is independent, can accept reactive values and should be named use followed by a capital letter."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w05-l04-q04",
+      "lesson": "w05-l04",
+      "concept": "w05-l04-custom-hook-state",
+      "type": "multiple_choice",
+      "prompt": "A helper calls useState and useEffect. Why name it useConnection?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The prefix allows conditional Hook calls in event handlers."
+        },
+        {
+          "id": "b",
+          "text": "The prefix marks it as a custom Hook subject to Hook rules."
+        },
+        {
+          "id": "c",
+          "text": "The prefix turns it into a component that must return JSX."
+        },
+        {
+          "id": "d",
+          "text": "The prefix makes all its invocations share one global connection."
+        }
+      ],
+      "answer": "b",
+      "explanation": "The naming convention makes Hook behavior visible and lintable. It does not waive ordering rules or share state.",
+      "materials": [
+        "react-custom-hooks"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/learn/reusing-logic-with-custom-hooks",
+          "title": "Reusing Logic with Custom Hooks",
+          "publisher": "React",
+          "accessed": "2026-10-09",
+          "claim": "Custom Hooks share stateful logic, not state itself; each call is independent, can accept reactive values and should be named use followed by a capital letter."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w05-l04-q05",
+      "lesson": "w05-l04",
+      "concept": "w05-l04-nested-copy",
+      "type": "multiple_choice",
+      "prompt": "State is {address: {city: \"A\"}}. Which update preserves immutable history?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Assign a new city property on a module variable without a setter."
+        },
+        {
+          "id": "b",
+          "text": "Mutate state.address.city, then pass the original state object."
+        },
+        {
+          "id": "c",
+          "text": "Spread only state, then mutate the shared address object."
+        },
+        {
+          "id": "d",
+          "text": "Copy state and address, setting city on the new address object."
+        }
+      ],
+      "answer": "d",
+      "explanation": "Spread is shallow. Both the outer object and the modified nested address need fresh identities.",
+      "materials": [
+        "react-immutable-state"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/learn/updating-objects-in-state",
+          "title": "Updating Objects in State",
+          "publisher": "React",
+          "accessed": "2026-10-09",
+          "claim": "React state should be treated as read-only; object spread is shallow, so nested updates copy each changed level, and setting a new object requests a render."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w05-l04-q06",
+      "lesson": "w05-l04",
+      "concept": "w05-l04-state-mutation",
+      "type": "multiple_choice",
+      "prompt": "An event mutates user.name directly without calling the setter. Why may the displayed name remain old?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "React updates the DOM immediately before the event handler returns."
+        },
+        {
+          "id": "b",
+          "text": "Every state object is automatically frozen in all production apps."
+        },
+        {
+          "id": "c",
+          "text": "React tracks each property assignment through a state proxy."
+        },
+        {
+          "id": "d",
+          "text": "Mutation alone does not request a render and alters old snapshots."
+        }
+      ],
+      "answer": "d",
+      "explanation": "Treat state as read-only and request an update with a new value. Mutation is neither notification nor snapshot preservation.",
+      "materials": [
+        "react-immutable-state"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/learn/updating-objects-in-state",
+          "title": "Updating Objects in State",
+          "publisher": "React",
+          "accessed": "2026-10-09",
+          "claim": "React state should be treated as read-only; object spread is shallow, so nested updates copy each changed level, and setting a new object requests a render."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w05-l04-q07",
+      "lesson": "w05-l04",
+      "concept": "w05-l04-hook-order",
+      "type": "multiple_select",
+      "prompt": "Which ordinary Hook usages follow the Rules of Hooks? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Call useState inside a custom Hook invoked at the top level."
+        },
+        {
+          "id": "b",
+          "text": "Ordinary Hooks may run after an early return if the condition was false initially."
+        },
+        {
+          "id": "c",
+          "text": "Call useEffect only inside an if branch that sometimes runs."
+        },
+        {
+          "id": "d",
+          "text": "Call useState unconditionally before early returns."
+        },
+        {
+          "id": "e",
+          "text": "Call useState from a click callback after the render completes."
+        }
+      ],
+      "answers": [
+        "a",
+        "d"
+      ],
+      "explanation": "A: Correct: custom Hooks are allowed callers. B: Incorrect: Hook order must remain consistent across renders. C: Incorrect: conditional calls can change order. D: Correct: this keeps Hook order stable. E: Incorrect: callbacks are not component rendering or Hook execution.",
+      "materials": [
+        "react-rules-of-hooks"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/reference/rules/rules-of-hooks",
+          "title": "Rules of Hooks",
+          "publisher": "React",
+          "accessed": "2026-10-09",
+          "claim": "Ordinary Hook calls follow top-level order in components and custom Hooks; eslint-plugin-react-hooks detects violations."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w05-l04-q08",
+      "lesson": "w05-l04",
+      "concept": "w05-l04-custom-hook-state",
+      "type": "multiple_select",
+      "prompt": "Which custom-Hook statements are correct? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A custom Hook must return a JSX element like a component."
+        },
+        {
+          "id": "b",
+          "text": "Extracting a Hook can remove duplicated stateful behavior code."
+        },
+        {
+          "id": "c",
+          "text": "Reactive arguments can change what a custom Hook synchronizes."
+        },
+        {
+          "id": "d",
+          "text": "Separate invocations can each have independent local state."
+        },
+        {
+          "id": "e",
+          "text": "Every call to one custom Hook shares one state object automatically."
+        }
+      ],
+      "answers": [
+        "b",
+        "c",
+        "d"
+      ],
+      "explanation": "A: Incorrect: Hooks may return arbitrary values. B: Correct: Hooks reuse behavior implementation. C: Correct: Hook code reruns with current arguments. D: Correct: state is isolated for each invocation. E: Incorrect: calls have independent state.",
+      "materials": [
+        "react-custom-hooks"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/learn/reusing-logic-with-custom-hooks",
+          "title": "Reusing Logic with Custom Hooks",
+          "publisher": "React",
+          "accessed": "2026-10-09",
+          "claim": "Custom Hooks share logic rather than state, may return arbitrary values and receive reactive arguments."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w05-l04-q09",
+      "lesson": "w05-l04",
+      "concept": "w05-l04-nested-copy",
+      "type": "multiple_select",
+      "prompt": "Which claims explain shallow object copying? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Changing a nested field requires copying the changed path."
+        },
+        {
+          "id": "b",
+          "text": "Mutating the shared nested object leaves the original snapshot unchanged."
+        },
+        {
+          "id": "c",
+          "text": "Object spread creates a new outer object."
+        },
+        {
+          "id": "d",
+          "text": "An unchanged nested object can remain shared by both copies."
+        },
+        {
+          "id": "e",
+          "text": "Object spread recursively clones every nested object by default."
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "d"
+      ],
+      "explanation": "A: Correct: copy each modified level. B: Incorrect: shared nested mutation alters both references. C: Correct: the outer identity is new. D: Correct: unchanged nested references can be reused. E: Incorrect: object spread is shallow.",
+      "materials": [
+        "react-immutable-state"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/learn/updating-objects-in-state",
+          "title": "Updating Objects in State",
+          "publisher": "React",
+          "accessed": "2026-10-09",
+          "claim": "React state should be treated as read-only; object spread is shallow, so nested updates copy each changed level, and setting a new object requests a render."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w05-l04-q10",
+      "lesson": "w05-l04",
+      "concept": "w05-l04-state-mutation",
+      "type": "multiple_select",
+      "prompt": "Which practices support reliable React state updates? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Keep old nested objects unchanged when producing an updated state."
+        },
+        {
+          "id": "b",
+          "text": "Pass a newly constructed updated object to the setter."
+        },
+        {
+          "id": "c",
+          "text": "Mutate an old state object to notify React without its setter."
+        },
+        {
+          "id": "d",
+          "text": "Treat existing state objects as read-only snapshots."
+        },
+        {
+          "id": "e",
+          "text": "Assume setter calls retroactively rewrite all previous render snapshots."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "d"
+      ],
+      "explanation": "A: Correct: immutable updates preserve earlier snapshots. B: Correct: this queues the new state. C: Incorrect: mutation is not an update signal. D: Correct: snapshots should remain stable. E: Incorrect: existing snapshots retain their old values.",
+      "materials": [
+        "react-immutable-state"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/learn/updating-objects-in-state",
+          "title": "Updating Objects in State",
+          "publisher": "React",
+          "accessed": "2026-10-09",
+          "claim": "React state should be treated as read-only; object spread is shallow, so nested updates copy each changed level, and setting a new object requests a render."
+        }
+      ],
+      "retired": null
+    }
+  ]
+}

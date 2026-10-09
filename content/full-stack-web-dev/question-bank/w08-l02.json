@@ -1,0 +1,453 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "w08-l02-selectivity",
+      "name": "Selective access paths"
+    },
+    {
+      "id": "w08-l02-leading-column",
+      "name": "Multicolumn B-tree access"
+    },
+    {
+      "id": "w08-l02-index-cost",
+      "name": "Index maintenance costs"
+    },
+    {
+      "id": "w08-l02-explain-execution",
+      "name": "Plan estimates and execution"
+    }
+  ],
+  "questions": [
+    {
+      "id": "w08-l02-q01",
+      "lesson": "w08-l02",
+      "concept": "w08-l02-selectivity",
+      "type": "multiple_choice",
+      "prompt": "A query returns most rows of a small table. Why may the planner choose a sequential scan despite an index?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The index is necessarily corrupt whenever it is unused."
+        },
+        {
+          "id": "b",
+          "text": "The index is ignored because SELECT must name its indexed column first."
+        },
+        {
+          "id": "c",
+          "text": "Sequential scans are compulsory whenever the query returns more than one row."
+        },
+        {
+          "id": "d",
+          "text": "Sequential scanning can cost less than using that index."
+        }
+      ],
+      "answer": "d",
+      "explanation": "An index is an available access path, not a mandate. Reading much of a small table can favor a sequential scan.",
+      "materials": [
+        "postgres-index-introduction"
+      ],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/indexes-intro.html",
+          "title": "Introduction to Indexes",
+          "publisher": "PostgreSQL",
+          "accessed": "2026-10-09",
+          "claim": "Indexes can accelerate finding selected rows but add storage and maintenance overhead; the planner decides whether an index or a sequential scan is economical."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w08-l02-q02",
+      "lesson": "w08-l02",
+      "concept": "w08-l02-selectivity",
+      "type": "multiple_choice",
+      "prompt": "An endpoint often searches a large table for one selective key. What is the principal benefit of an appropriate index?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It guarantees the endpoint will never wait for a transaction lock."
+        },
+        {
+          "id": "b",
+          "text": "It ensures all qualifying rows are returned in insertion order without ORDER BY."
+        },
+        {
+          "id": "c",
+          "text": "It can reduce the work needed to locate qualifying rows."
+        },
+        {
+          "id": "d",
+          "text": "It eliminates the need to check the query predicate."
+        }
+      ],
+      "answer": "c",
+      "explanation": "An index narrows access to relevant rows. Locking and application response caching remain separate concerns.",
+      "materials": [
+        "postgres-index-introduction"
+      ],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/indexes-intro.html",
+          "title": "Introduction to Indexes",
+          "publisher": "PostgreSQL",
+          "accessed": "2026-10-09",
+          "claim": "Indexes can accelerate finding selected rows but add storage and maintenance overhead; the planner decides whether an index or a sequential scan is economical."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w08-l02-q03",
+      "lesson": "w08-l02",
+      "concept": "w08-l02-leading-column",
+      "type": "multiple_choice",
+      "prompt": "A B-tree index is on (tenant_id, created_at). Which query best aligns with its leading-column range access?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Filter created_at but assume column order never matters."
+        },
+        {
+          "id": "b",
+          "text": "Filter created_at by a range while assuming tenant_id cannot affect scan work."
+        },
+        {
+          "id": "c",
+          "text": "Filter tenant_id by a broad range while assuming later dates always narrow every scan equally."
+        },
+        {
+          "id": "d",
+          "text": "Filter tenant_id by equality and created_at by a date range."
+        }
+      ],
+      "answer": "d",
+      "explanation": "A leading tenant equality and following date range bound the relevant index span. Column order matters to this access pattern.",
+      "materials": [
+        "postgres-multicolumn-indexes"
+      ],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/indexes-multicolumn.html",
+          "title": "Multicolumn Indexes",
+          "publisher": "PostgreSQL",
+          "accessed": "2026-10-09",
+          "claim": "Multicolumn B-tree scans are most efficient with leading-column constraints; leading equalities and the first inequality constrain the scanned range, while later constraints and skip scans can still matter."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w08-l02-q04",
+      "lesson": "w08-l02",
+      "concept": "w08-l02-leading-column",
+      "type": "multiple_choice",
+      "prompt": "A query constrains only the second column of a two-column PostgreSQL 18+ B-tree index. Which claim is sound?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The index is always as efficient as constraining both columns."
+        },
+        {
+          "id": "b",
+          "text": "It is automatically equivalent to a separate index on that second column."
+        },
+        {
+          "id": "c",
+          "text": "The index can never participate in any plan for that query."
+        },
+        {
+          "id": "d",
+          "text": "Usefulness depends on costs and possible skip-scan opportunities."
+        }
+      ],
+      "answer": "d",
+      "explanation": "Later-column predicates can still be used; favorable distinct-value counts may support skip scans. Avoid universal claims.",
+      "materials": [
+        "postgres-multicolumn-indexes"
+      ],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/indexes-multicolumn.html",
+          "title": "Multicolumn Indexes",
+          "publisher": "PostgreSQL",
+          "accessed": "2026-10-09",
+          "claim": "Multicolumn B-tree scans are most efficient with leading-column constraints; leading equalities and the first inequality constrain the scanned range, while later constraints and skip scans can still matter."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w08-l02-q05",
+      "lesson": "w08-l02",
+      "concept": "w08-l02-index-cost",
+      "type": "multiple_choice",
+      "prompt": "A write-heavy table accumulates many redundant indexes. What tradeoff should a review consider?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Removing a redundant index always changes SQL query result semantics."
+        },
+        {
+          "id": "b",
+          "text": "Indexes are maintained only when a SELECT first requests them."
+        },
+        {
+          "id": "c",
+          "text": "Each additional index speeds every INSERT by avoiding row validation."
+        },
+        {
+          "id": "d",
+          "text": "Indexes need storage and must be maintained as data changes."
+        }
+      ],
+      "answer": "d",
+      "explanation": "Read access gains carry write and storage costs. Review workload evidence before retaining redundant indexes.",
+      "materials": [
+        "postgres-index-introduction"
+      ],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/indexes-intro.html",
+          "title": "Introduction to Indexes",
+          "publisher": "PostgreSQL",
+          "accessed": "2026-10-09",
+          "claim": "Indexes require storage and add overhead to insertion, updating and deletion; they should be used sensibly."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w08-l02-q06",
+      "lesson": "w08-l02",
+      "concept": "w08-l02-explain-execution",
+      "type": "multiple_choice",
+      "prompt": "What materially changes when EXPLAIN ANALYZE is used instead of plain EXPLAIN?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The statement executes and actual timing and row counts are reported."
+        },
+        {
+          "id": "b",
+          "text": "The statement is only planned, so an UPDATE cannot modify any rows."
+        },
+        {
+          "id": "c",
+          "text": "Only actual results are reported, so estimates cannot be compared with them."
+        },
+        {
+          "id": "d",
+          "text": "All cost estimates become guaranteed wall-clock milliseconds."
+        }
+      ],
+      "answer": "a",
+      "explanation": "ANALYZE runs the statement. This matters for expensive queries and data-modifying statements as well as read-only plans.",
+      "materials": [
+        "postgres-explain"
+      ],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/using-explain.html",
+          "title": "Using EXPLAIN",
+          "publisher": "PostgreSQL",
+          "accessed": "2026-10-09",
+          "claim": "EXPLAIN shows a planner-selected tree with estimated costs and row counts; EXPLAIN ANALYZE actually executes the statement and reports actual measurements, which can be compared with estimates."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w08-l02-q07",
+      "lesson": "w08-l02",
+      "concept": "w08-l02-selectivity",
+      "type": "multiple_select",
+      "prompt": "Which access-path statements are accurate? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Creating an index guarantees all future queries become faster."
+        },
+        {
+          "id": "b",
+          "text": "Every WHERE predicate requires a separate index to be executable."
+        },
+        {
+          "id": "c",
+          "text": "An index can reduce work for a selective lookup."
+        },
+        {
+          "id": "d",
+          "text": "A sequential scan always proves an index definition is invalid."
+        },
+        {
+          "id": "e",
+          "text": "The planner can prefer a sequential scan when many rows qualify."
+        }
+      ],
+      "answers": [
+        "c",
+        "e"
+      ],
+      "explanation": "A: Incorrect: benefit depends on workload and costs. B: Incorrect: queries also work without such indexes. C: Correct: it provides selective access. D: Incorrect: a scan can be the economical plan. E: Correct: broad retrieval can favor scanning.",
+      "materials": [
+        "postgres-index-introduction"
+      ],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/indexes-intro.html",
+          "title": "Introduction to Indexes",
+          "publisher": "PostgreSQL",
+          "accessed": "2026-10-09",
+          "claim": "Indexes can speed selected-row retrieval, but sensible use depends on access costs and index maintenance overhead."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w08-l02-q08",
+      "lesson": "w08-l02",
+      "concept": "w08-l02-leading-column",
+      "type": "multiple_select",
+      "prompt": "In PostgreSQL 18+, which multicolumn B-tree claims are accurate? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Leading equality conditions can restrict the scanned range."
+        },
+        {
+          "id": "b",
+          "text": "A condition on a later column is forbidden in an index plan."
+        },
+        {
+          "id": "c",
+          "text": "A later-column condition can still be checked using the index."
+        },
+        {
+          "id": "d",
+          "text": "PostgreSQL may use a skip scan when the data distribution favors it."
+        },
+        {
+          "id": "e",
+          "text": "Column order never influences the amount of index scanning."
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "d"
+      ],
+      "explanation": "A: Correct: equalities narrow the relevant span. B: Incorrect: later constraints are usable. C: Correct: they can filter index entries. D: Correct: skip scans can avoid scanning irrelevant groups. E: Incorrect: leading constraints generally matter.",
+      "materials": [
+        "postgres-multicolumn-indexes"
+      ],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/indexes-multicolumn.html",
+          "title": "Multicolumn Indexes",
+          "publisher": "PostgreSQL",
+          "accessed": "2026-10-09",
+          "claim": "Leading equality constraints and the first inequality restrict B-tree scanning; later conditions can be checked and suitable distributions can enable skip scanning."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w08-l02-q09",
+      "lesson": "w08-l02",
+      "concept": "w08-l02-index-cost",
+      "type": "multiple_select",
+      "prompt": "Which costs belong in an index design decision? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Tradeoffs between read benefit and write overhead."
+        },
+        {
+          "id": "b",
+          "text": "Guaranteed reduction in every query execution time."
+        },
+        {
+          "id": "c",
+          "text": "Automatic removal of every table-scan plan after the first index is created."
+        },
+        {
+          "id": "d",
+          "text": "Maintenance work when indexed data changes."
+        },
+        {
+          "id": "e",
+          "text": "Additional storage for the index structure."
+        }
+      ],
+      "answers": [
+        "a",
+        "d",
+        "e"
+      ],
+      "explanation": "A: Correct: useful read paths must justify their costs. B: Incorrect: benefits depend on the workload. C: Incorrect: the planner can still prefer a scan. D: Correct: modifications can require maintenance. E: Correct: indexes occupy storage.",
+      "materials": [
+        "postgres-index-introduction"
+      ],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/indexes-intro.html",
+          "title": "Introduction to Indexes",
+          "publisher": "PostgreSQL",
+          "accessed": "2026-10-09",
+          "claim": "Indexes consume storage and increase data-modification overhead, requiring sensible selection."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "w08-l02-q10",
+      "lesson": "w08-l02",
+      "concept": "w08-l02-explain-execution",
+      "type": "multiple_select",
+      "prompt": "Which plan-analysis statements are correct? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "ANALYZE reports measurements from executing the statement."
+        },
+        {
+          "id": "b",
+          "text": "A large estimated-versus-actual row gap can reveal poor estimates."
+        },
+        {
+          "id": "c",
+          "text": "EXPLAIN ANALYZE has no effects even for an UPDATE statement."
+        },
+        {
+          "id": "d",
+          "text": "Planner cost units are guaranteed to equal elapsed milliseconds."
+        },
+        {
+          "id": "e",
+          "text": "Plain EXPLAIN executes the query and returns actual row counts."
+        }
+      ],
+      "answers": [
+        "a",
+        "b"
+      ],
+      "explanation": "A: Correct: ANALYZE collects actual execution evidence. B: Correct: compare estimates with observed cardinality. C: Incorrect: the statement executes, including modifications. D: Incorrect: planner costs use internal cost units. E: Incorrect: ordinary EXPLAIN reports an estimated plan.",
+      "materials": [
+        "postgres-explain"
+      ],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/using-explain.html",
+          "title": "Using EXPLAIN",
+          "publisher": "PostgreSQL",
+          "accessed": "2026-10-09",
+          "claim": "EXPLAIN shows a planner-selected tree with estimated costs and row counts; EXPLAIN ANALYZE actually executes the statement and reports actual measurements, which can be compared with estimates."
+        }
+      ],
+      "retired": null
+    }
+  ]
+}
