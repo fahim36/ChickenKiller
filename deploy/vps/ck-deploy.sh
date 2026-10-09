@@ -4,13 +4,13 @@
 #
 #   git archive --format=tar.gz <sha> | ssh ubuntu@<vps> deploy <sha>
 #
-# It unpacks the archive over /opt/interview-cracker (deploy/vps/.env is not in the repo, so it
+# It unpacks the archive over /opt/chickenkiller (deploy/vps/.env is not in the repo, so it
 # is kept), rebuilds and restarts the containers, waits until they are healthy, and records the
-# commit in DEPLOYED_COMMIT. Installed as /usr/local/bin/ic-deploy; each deploy reinstalls it
+# commit in DEPLOYED_COMMIT. Installed as /usr/local/bin/ck-deploy; each deploy reinstalls it
 # from the commit it deploys.
 set -euo pipefail
 
-APP=/opt/interview-cracker
+APP=/opt/chickenkiller
 COMPOSE=(sudo docker compose -f "$APP/deploy/vps/docker-compose.yml" --env-file "$APP/deploy/vps/.env")
 
 read -r verb sha extra <<<"${SSH_ORIGINAL_COMMAND:-}" || true
@@ -19,7 +19,7 @@ if [[ "${verb:-}" != deploy || ! "${sha:-}" =~ ^[0-9a-f]{40}$ || -n "${extra:-}"
   exit 2
 fi
 
-exec 9>/tmp/ic-deploy.lock
+exec 9>/tmp/ck-deploy.lock
 flock -n 9 || { echo "Another deploy is running." >&2; exit 75; }
 
 archive=$(mktemp)
@@ -38,7 +38,7 @@ echo "Building and starting the containers"
 "${COMPOSE[@]}" up -d --build --wait --wait-timeout 900
 
 echo "$sha" | sudo tee "$APP/DEPLOYED_COMMIT" >/dev/null
-sudo install -m 755 "$APP/deploy/vps/ic-deploy.sh" /usr/local/bin/ic-deploy
+sudo install -m 755 "$APP/deploy/vps/ck-deploy.sh" /usr/local/bin/ck-deploy
 sudo docker image prune -f >/dev/null
 "${COMPOSE[@]}" ps
 echo "Deployed $sha"
