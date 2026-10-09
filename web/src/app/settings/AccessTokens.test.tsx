@@ -20,7 +20,7 @@ it("shows a placeholder in the connect command until a token is created", () => 
   render(<AccessTokens mcpUrl={MCP} tokens={[]} createAction={vi.fn()} revokeAction={vi.fn()} />);
 
   expect(command()).toBe(
-    `claude mcp add --transport http interview-cracker ${MCP} --header "Authorization: Bearer <your token>"`,
+    `claude mcp add --transport http chickenkiller ${MCP} --header "Authorization: Bearer <your token>"`,
   );
   expect(screen.queryByRole("button", { name: "Copy command" })).toBeNull();
 });

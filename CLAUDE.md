@@ -1,4 +1,4 @@
-# InterviewCrackerAssistant
+# ChickenKiller
 
 ## Agent skills
 

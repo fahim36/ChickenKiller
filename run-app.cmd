@@ -1,5 +1,5 @@
 @echo off
-rem Runs the whole Learning App on this machine.
+rem Runs the whole ChickenKiller on this machine.
 rem
 rem   run-app.cmd          rebuild the Docker images, start Postgres and the web app in Docker,
 rem                        update the database and content, then run the API here (Ctrl+C stops it)

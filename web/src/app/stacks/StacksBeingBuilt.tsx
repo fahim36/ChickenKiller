@@ -105,10 +105,10 @@ function BuildWithClaude({ stackId }: { stackId: string }) {
         ), run the <strong>build_stack</strong> prompt. In Claude Code:
       </p>
       <pre className="overflow-x-auto rounded-lg bg-background p-2 text-xs">
-        /mcp__interview-cracker__build_stack {stackId}
+        /mcp__chickenkiller__build_stack {stackId}
       </pre>
       <p className="text-xs text-muted-foreground">
-        Or ask: &quot;Build the {stackId} Stack with the Interview Cracker connector.&quot;
+        Or ask: &quot;Build the {stackId} Stack with the ChickenKiller connector.&quot;
       </p>
     </div>
   );

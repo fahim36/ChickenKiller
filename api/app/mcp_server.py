@@ -123,7 +123,7 @@ def build_server(
 ) -> MCPServer:
     """The MCP server and its tools. `session_scope` opens a database session per call."""
     server = MCPServer(
-        name="Interview Cracker",
+        name="ChickenKiller",
         instructions=(
             "Read the Stacks' Syllabuses and propose new Questions and Daily Challenges. "
             "Proposals are drafts, recorded under your name, for the Admin to accept; they "

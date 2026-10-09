@@ -1,4 +1,4 @@
-# Learning App
+# ChickenKiller
 
 Daily interview-prep games, modeled on LinkedIn Games. Every Stack releases one numbered Daily Challenge a day, the same for everyone, and Learners keep a Streak by playing it. Past Challenges stay playable in the Archive. Alongside the Challenges, each Stack has a researched Syllabus that Learners work through one Lesson at a time. Every question a Learner misses is explained and can be re-tested.
 

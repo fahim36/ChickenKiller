@@ -1,4 +1,4 @@
-# Deploying the Learning App
+# Deploying the ChickenKiller
 
 The app runs as three pieces on [Render](https://render.com), all defined in [`render.yaml`](../render.yaml):
 
@@ -60,7 +60,7 @@ The app sends no invitation email. After inviting someone on the **Invitations**
 
 Creating the Clerk account is a step only a person can do.
 
-1. Sign up at https://dashboard.clerk.com and create an application named, for example, "Interview Cracker".
+1. Sign up at https://dashboard.clerk.com and create an application named, for example, "ChickenKiller".
    - Choose **Email** and **Google** as the sign-in options.
    - The new application starts as a **development instance**. It works on any URL, including `onrender.com`, and is enough for an invite-only app. It shows a small "Development mode" badge. A production instance needs a domain you own and your own Google OAuth credentials.
 2. Under **User & authentication**, check that **Email address** is on and required, with verification by email code, and that **Google** is on under **SSO connections**.

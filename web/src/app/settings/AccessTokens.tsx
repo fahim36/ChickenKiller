@@ -38,7 +38,7 @@ export function AccessTokens({
   const created =
     state?.ok === true && tokens.some((t) => t.id === state.token.id) ? state.token.token : null;
   const token = created ?? PLACEHOLDER;
-  const command = `claude mcp add --transport http interview-cracker ${mcpUrl} --header "Authorization: Bearer ${token}"`;
+  const command = `claude mcp add --transport http chickenkiller ${mcpUrl} --header "Authorization: Bearer ${token}"`;
 
   return (
     <div className="space-y-4">

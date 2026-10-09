@@ -1,4 +1,6 @@
-# Interview Cracker
+<img src="web/src/app/icon.svg" alt="ChickenKiller logo" width="96">
+
+# ChickenKiller
 
 Daily interview prep, modeled on LinkedIn Games. Pick the Stacks you're preparing for, such as **Agentic AI Engineer**, **Android Developer** or **Full Stack .NET Developer**. Every day you get a short Daily Challenge, and a researched Syllabus takes you through the field one Lesson at a time.
 
@@ -49,7 +51,7 @@ You can connect Claude (Claude Desktop, claude.ai or Claude Code) to the app. Yo
    In Claude Code, run this command:
 
    ```bash
-   claude mcp add --transport http interview-cracker https://prep.chickenkiller.com/mcp/ --header "Authorization: Bearer <your token>"
+   claude mcp add --transport http chickenkiller https://prep.chickenkiller.com/mcp/ --header "Authorization: Bearer <your token>"
    ```
 
 3. Revoke the token in **Settings** as soon as you no longer need it.

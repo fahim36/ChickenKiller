@@ -1,4 +1,4 @@
-# Developing InterviewCrackerAssistant
+# Developing ChickenKiller
 
 How the app is built, run and checked. How to use it is in the [README](../README.md).
 

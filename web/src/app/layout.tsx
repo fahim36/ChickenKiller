@@ -1,9 +1,9 @@
 import { ClerkProvider, Show, UserButton } from "@clerk/nextjs";
-import { Zap } from "lucide-react";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { cookies } from "next/headers";
 import Link from "next/link";
+import { Logo } from "@/components/Logo";
 import { SiteNav } from "@/components/SiteNav";
 import { parseTheme, THEME_COOKIE } from "@/lib/theme";
 import "./globals.css";
@@ -19,7 +19,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Interview Cracker",
+  title: "ChickenKiller",
   description:
     "Daily self-evaluation quizzes over an always-current study Syllabus.",
 };
@@ -52,10 +52,8 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
                 href="/"
                 className="flex items-center gap-2 font-heading text-base font-semibold tracking-tight"
               >
-                <span className="flex size-7 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
-                  <Zap aria-hidden className="size-4" />
-                </span>
-                Interview Cracker
+                <Logo className="size-7 shadow-sm" />
+                ChickenKiller
               </Link>
               <Show when="signed-in">
                 <div className="flex items-center gap-2">

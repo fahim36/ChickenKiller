@@ -104,7 +104,7 @@ it("lists the Stacks being built, with their step and how to have Claude build t
   const steps = screen.getByRole("list", { name: "Steps" });
   expect(steps.querySelector('[aria-current="step"]')?.textContent).toBe("Quiz setup");
   expect(screen.getByText("1 of 2 Lessons have their Questions")).toBeTruthy();
-  expect(screen.getByText("/mcp__interview-cracker__build_stack platform-engineer")).toBeTruthy();
+  expect(screen.getByText("/mcp__chickenkiller__build_stack platform-engineer")).toBeTruthy();
   expect(screen.getByRole("button", { name: "Delete Platform Engineer" })).toBeTruthy();
 });
 

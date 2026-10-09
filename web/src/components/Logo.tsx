@@ -1,0 +1,35 @@
+/** The ChickenKiller logo. The same drawing is the favicon (app/icon.svg). */
+export function Logo({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 64 64" aria-hidden className={className}>
+      <defs>
+        <clipPath id="ck-logo-tile">
+          <rect width="64" height="64" rx="14" />
+        </clipPath>
+      </defs>
+      <g clipPath="url(#ck-logo-tile)">
+        <rect width="64" height="64" fill="#4f46e5" />
+        <circle cx="22" cy="18" r="5" fill="#ef4444" />
+        <circle cx="29" cy="15" r="5.5" fill="#ef4444" />
+        <circle cx="36" cy="18" r="5" fill="#ef4444" />
+        <path d="M17 40 Q16 54 12 66 L46 66 Q42 54 43 42 Z" fill="#fff" />
+        <circle cx="30" cy="34" r="15" fill="#fff" />
+        <path d="M44 30 L55 35 L44 40 Z" fill="#f59e0b" />
+        <ellipse cx="42" cy="45" rx="3" ry="5" fill="#ef4444" />
+        <path
+          d="M31.5 27.5 L37.5 33.5 M37.5 27.5 L31.5 33.5"
+          stroke="#1e1b4b"
+          strokeWidth="2.6"
+          strokeLinecap="round"
+        />
+        <path
+          d="M14 10 L9 26 H15 L11 38 L22 20 H16 L20 10 Z"
+          fill="#facc15"
+          stroke="#4f46e5"
+          strokeWidth="1.2"
+          strokeLinejoin="round"
+        />
+      </g>
+    </svg>
+  );
+}

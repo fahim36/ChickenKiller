@@ -1097,7 +1097,7 @@ def create_app(
         async with server.session_manager.run():
             yield
 
-    app = FastAPI(title="Learning App API", lifespan=lifespan)
+    app = FastAPI(title="ChickenKiller API", lifespan=lifespan)
     app.state.verifier = app_verifier
     app.state.grader = grader or grading.grader_from_config(config.CLAUDE_BIN)
     app.state.key_box = key_box or llm_keys.KeyBox(config.LLM_KEY_SECRETS)

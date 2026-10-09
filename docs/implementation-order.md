@@ -1,4 +1,4 @@
-# Implementation order: Learning App version 1
+# Implementation order: ChickenKiller version 1
 
 Version 1 proves two loops. The **Daily Challenge loop**: an invited Learner activates one or more Stacks, plays each Stack's Daily Challenge, keeps a Streak, shares a Result Card, and catches up from the Archive. The **Lesson path**: the Learner works through Lessons and Lesson Quizzes, clears Missed Questions with Retakes, and practises in Review. Meanwhile the Admin writes Upcoming Challenges and keeps the Syllabus current with Claude Code. Terms follow [CONTEXT.md](../CONTEXT.md), and the decisions behind the design are in [docs/adr/](adr/), especially [0003](adr/0003-daily-challenge-is-the-core-loop.md), [0004](adr/0004-append-only-question-bank-with-sources.md) and [0005](adr/0005-all-days-are-utc.md).
 

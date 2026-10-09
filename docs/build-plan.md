@@ -1,4 +1,4 @@
-# Build plan: Learning App version 1
+# Build plan: ChickenKiller version 1
 
 Version 1 is six milestones. Each one ends with something you can show a person in under five minutes, tests that prove it works, and a paragraph for your portfolio. The tickets are GitHub issues #1–#13 on [fahim36/InterviewCrackerAssistant](https://github.com/fahim36/InterviewCrackerAssistant/issues), and [implementation-order.md](implementation-order.md) says which ticket blocks which. Terms follow [CONTEXT.md](../CONTEXT.md).
 
