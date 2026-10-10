@@ -153,7 +153,7 @@ A second attempt at a Missed Question, made after reading its Explanation.
 _Avoid_: Retry, redo
 
 **Completed Lesson**:
-A Lesson whose Lesson Quiz met the pass mark and whose Missed Questions have all been answered correctly on Retake.
+A Lesson whose Lesson Quiz met the Pass Mark and whose Retakes have all been answered correctly or waived because the missed Question was retired or no active sibling remains. A waiver records its reason and awards no answer credit.
 _Avoid_: Finished, passed, done
 
 **Review**:

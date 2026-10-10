@@ -39,7 +39,8 @@ export type AnswerRetakeAction = (
  * The Retakes of a passed Lesson Quiz: for each Missed Question, a sibling Question on the same
  * Concept, of any type. A wrong answer shows that sibling's Explanation (and the
  * grader's feedback on a written one) and the API offers another sibling; once every Retake is
- * correct the Lesson is Completed and the next one is Unlocked. If grading fails, nothing was
+ * resolved the Lesson is Completed and the next one is Unlocked. Retired or unavailable
+ * content can waive a requirement without counting an answer. If grading fails, nothing was
  * counted and the Learner submits again.
  */
 export function RetakeFlow({
@@ -106,15 +107,17 @@ export function RetakeFlow({
       <RetakeNotices notices={messages} />
       <p className="text-sm text-muted-foreground">
         Answer a sibling Question on the same Concept for each Missed Question. The Lesson is
-        Completed once every Retake is correct.
+        Completed once every Retake is answered correctly or waived for retired or unavailable content.
       </p>
       <ol className="space-y-5">
         {states.map((s) => (
           <li key={s.id}>
             {s.done ? (
-              <Mark correct className="rounded-2xl border border-success/30 bg-success/8 px-5 py-4 text-base">
-                {s.waived ? "Retake waived" : "Correct"}
-              </Mark>
+              s.waived ? <Notice>Retake waived</Notice> : (
+                <Mark correct className="rounded-2xl border border-success/30 bg-success/8 px-5 py-4 text-base">
+                  Correct
+                </Mark>
+              )
             ) : (
               <RetakeForm
                 key={s.tries}

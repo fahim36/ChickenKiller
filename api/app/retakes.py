@@ -199,7 +199,7 @@ def answer_retake(
         raise RetakeNotFound(retake_id)
     # A joined SELECT may have read the Retake before waiting on the attempt lock.
     session.refresh(retake)
-    if retake.done_at is not None:
+    if retake.done_at is not None and retake.waived_reason is None:
         raise RetakeDone(retake_id)
     attempt = session.get_one(LessonQuizAttempt, retake.lesson_quiz_attempt_id)
     if not attempt.passed:

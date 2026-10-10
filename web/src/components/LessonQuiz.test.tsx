@@ -311,9 +311,9 @@ it("a pass with a Missed Question goes on to its Retake, and a correct one compl
   fireEvent.click(within(sibling).getByRole("radio", { name: "Right 1" }));
   fireEvent.click(screen.getByRole("button", { name: "Submit Retake" }));
 
-  await vi.waitFor(() => expect(answerRetake).toHaveBeenCalledWith("retake-6", "a"));
+  await vi.waitFor(() => expect(answerRetake).toHaveBeenCalledWith("retake-6", "a", "w01-l01-q09"));
   expect(
-    (await screen.findByText(/Every Retake is correct/)).textContent,
+    (await screen.findByText(/Every Retake is resolved/)).textContent,
   ).toContain("this Lesson is Completed and the next one is Unlocked");
 });
 

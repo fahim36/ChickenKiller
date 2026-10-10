@@ -379,7 +379,9 @@ def test_a_retake_with_no_sibling_left_is_waived_without_grading(
     assert resolved.json()["next_question"] is None
     assert resolved.json()["lesson_completed"] is True
     assert "no active sibling" in resolved.json()["notices"][0]["message"]
-    assert code(answer_retake(learner, retake, "a")) == (409, "retake_done")
+    repeated = answer_retake(learner, retake, "a")
+    assert repeated.status_code == 200
+    assert repeated.json() == resolved.json()
     recorded = quizzes.recorded_answers(session, learner_id(session), "mini-stack")
     assert not [answer for answer in recorded if answer.context == "retake"]
 
@@ -406,8 +408,9 @@ def test_retiring_the_original_releases_its_retake_and_preserves_the_quiz_score(
     assert not [answer for answer in recorded if answer.context == "retake"]
 
 
+@pytest.mark.parametrize("retrieve_first", [False, True])
 def test_a_retired_waiting_question_is_replaced_without_scoring_the_stale_response(
-    session: Session, api: TestClient, make_content: ContentFactory
+    session: Session, api: TestClient, make_content: ContentFactory, retrieve_first: bool
 ) -> None:
     setup(session, api, make_content, five_on_concept_a)
     missed, result = pass_missing_one(api)
@@ -416,6 +419,10 @@ def test_a_retired_waiting_question_is_replaced_without_scoring_the_stale_respon
     session.scalars(select(Question).where(Question.id == stale_id)).one().retired_reason = "Old."
     session.commit()
     url = f"{LESSON}/retakes/{retake['id']}/answers"
+    if retrieve_first:
+        pending = api.get(f"{QUIZ}/{result['attempt_id']}/retakes").json()
+        assert pending["retakes"][0]["question"]["id"] in concept_siblings(missed) - {stale_id}
+        assert pending["notices"][0]["waived"] is False
     replaced = api.post(url, json={"answer": "a", "question_id": stale_id}).json()
     assert replaced["correct"] is None
     assert replaced["question"] is None
@@ -432,6 +439,9 @@ def test_a_retired_waiting_question_is_replaced_without_scoring_the_stale_respon
     repeated = api.post(url, json={"answer": "a", "question_id": stale_id}).json()
     assert repeated["correct"] is None
     assert repeated["next_question"] == replaced["next_question"]
+    legacy = api.post(url, json={"answer": "a"}).json()
+    assert legacy["correct"] is None
+    assert legacy["next_question"] == replaced["next_question"]
     current = api.get(f"{QUIZ}/{result['attempt_id']}/retakes").json()
     assert current["notices"] == replaced["notices"]
     assert current["retakes"][0]["question"] == replaced["next_question"]
@@ -453,8 +463,14 @@ def test_retirement_does_not_waive_the_pass_mark(session: Session, learner: Test
     assert lesson_states(learner)["w01-l01"] == "unlocked"
 
 
-def test_concurrent_answers_to_a_retake_only_record_one_answer(
-    engine: Engine, app: FastAPI, admin: TestClient, api: TestClient, make_content: ContentFactory
+@pytest.mark.parametrize("retired", [False, True])
+def test_concurrent_retake_requests_resolve_once(
+    engine: Engine,
+    app: FastAPI,
+    admin: TestClient,
+    api: TestClient,
+    make_content: ContentFactory,
+    retired: bool,
 ) -> None:
     """Use independent transactions in an isolated test schema so PostgreSQL really locks."""
     schema = f"retake_concurrency_{uuid4().hex}"
@@ -482,23 +498,39 @@ def test_concurrent_answers_to_a_retake_only_record_one_answer(
         onboard(api)
         _, result = pass_missing_one(api)
         [retake] = result["retakes"]
+        if retired:
+            with Session(isolated) as content:
+                content.scalars(
+                    select(Question).where(Question.id == retake["question"]["id"])
+                ).one().retired_reason = "Gone."
+                content.commit()
         together = Barrier(2)
 
-        def answer() -> Response:
+        def answer(index: int) -> Response:
             together.wait(timeout=10)
+            if retired and index == 0:
+                return api.get(f"{QUIZ}/{result['attempt_id']}/retakes")
             return api.post(
                 f"{LESSON}/retakes/{retake['id']}/answers",
                 json={"answer": "a", "question_id": retake["question"]["id"]},
             )
 
         with ThreadPoolExecutor(max_workers=2) as pool:
-            requests = [pool.submit(answer) for _ in range(2)]
+            requests = [pool.submit(answer, index) for index in range(2)]
             responses = [request.result(timeout=20) for request in requests]
-        assert sorted(response.status_code for response in responses) == [200, 409]
+        if retired:
+            assert responses[0].status_code == 200
+            assert responses[1].status_code == 200
+            final = api.get(f"{QUIZ}/{result['attempt_id']}/retakes").json()
+            assert len(final["notices"]) == 1
+            assert final["notices"][0]["waived"] is True
+            assert final["retakes"] == []
+        else:
+            assert sorted(response.status_code for response in responses) == [200, 409]
         assert lesson_states(api)["w01-l01"] == "completed"
         with Session(isolated) as read:
             answers = quizzes.recorded_answers(read, learner_id(read), "mini-stack")
-            assert len([a for a in answers if a.context == "retake"]) == 1
+            assert len([a for a in answers if a.context == "retake"]) == (0 if retired else 1)
     finally:
         app.dependency_overrides[get_session] = previous
         with engine.begin() as connection:

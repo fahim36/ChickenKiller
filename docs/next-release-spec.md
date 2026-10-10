@@ -1,6 +1,6 @@
 # Next release: guidance from practice evidence
 
-Status: agreed design, advanced to ticket planning by the request to use to-tickets. The proposed breakdown awaits review; implementation has not started.
+Status: agreed design and local tickets authorized for sequential implementation on `codex/practice-guidance`. Progress and verification are recorded in [practice-guidance-progress.md](practice-guidance-progress.md).
 
 ## Audience, outcome and scope
 
@@ -116,4 +116,4 @@ Observe whether this flow is useful before claiming it improves learning. Where 
 
 ## Completion of the design interview
 
-The decision frontier is closed. The request to use to-tickets advances this agreed specification to ticket planning. The proposed breakdown is in [practice-guidance-ticket-plan.md](practice-guidance-ticket-plan.md), awaiting the review required by that skill before publishing GitHub issues. Further implementation work requires an instruction to implement; ticket approval does not by itself authorize deployment.
+The decision frontier is closed. The breakdown is in [practice-guidance-ticket-plan.md](practice-guidance-ticket-plan.md). The user authorized implementation of the local tickets, with a new branch and a push for each completed ticket. Deployment and merging to main are outside scope.

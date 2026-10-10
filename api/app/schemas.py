@@ -328,6 +328,7 @@ class RetakeAnswerIn(BaseModel):
 
     answer: Response
     question_id: str | None = None
+    """The displayed Question. Omission cannot score a Retake after content replacement."""
 
 
 class RetakeResultOut(BaseModel):
@@ -337,6 +338,7 @@ class RetakeResultOut(BaseModel):
 
     retake_id: uuid.UUID
     correct: bool | None
+    """Null when obsolete content was resolved/refreshed without grading a response."""
     question: AnsweredQuestionOut | None
     next_question: QuizQuestionOut | None
     pending: int
