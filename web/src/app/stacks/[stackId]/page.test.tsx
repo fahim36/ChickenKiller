@@ -1,6 +1,6 @@
 import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import type { Syllabus } from "@/lib/api";
+import type { StackEvidence, Syllabus } from "@/lib/api";
 import { stubApi } from "@/test/stubApi";
 import WeekMapPage from "./page";
 
@@ -80,8 +80,12 @@ afterEach(() => {
 async function renderWeekMap(
   body: Syllabus = syllabus,
   view: "list" | "graph" = "list",
+  evidence: StackEvidence = { stack_id: body.id, as_of: "2026-10-03", concepts: [] },
 ) {
-  stubApi({ "/stacks/agentic-ai-engineer": body });
+  stubApi({
+    "/stacks/agentic-ai-engineer": body,
+    "/stacks/agentic-ai-engineer/concept-evidence": evidence,
+  });
   render(
     await WeekMapPage({
       params: Promise.resolve({ stackId: "agentic-ai-engineer" }),
@@ -89,6 +93,20 @@ async function renderWeekMap(
     } as never),
   );
 }
+
+it.each(["list", "graph"] as const)("shows private Concept evidence alongside the %s Week map", async (view) => {
+  await renderWeekMap(syllabus, view, {
+    stack_id: syllabus.id, as_of: "2026-10-03", concepts: [{
+      id: "concept-a", name: "Evidence example", active_questions: 2,
+      lesson_id: "w01-l01", lesson_title: "Names and objects", status: "weak",
+      recent_missed_questions: 2, latest_miss: "2026-10-02T10:00:00Z", recovery_days: 0, recovery_questions: 0,
+    }],
+  });
+  expect(screen.getByRole("region", { name: "Concept evidence" })).toBeTruthy();
+  expect(screen.getByText("Weak Concept")).toBeTruthy();
+  expect(screen.getByRole("link", { name: "Read Names and objects" }).getAttribute("href"))
+    .toBe("/stacks/agentic-ai-engineer/lessons/w01-l01");
+});
 
 const week = (number: number) =>
   screen.getByRole("region", { name: new RegExp(`^Week ${number}:`) });

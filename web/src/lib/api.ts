@@ -182,6 +182,25 @@ export interface RetakeNotice {
   waived: boolean;
 }
 
+export interface ConceptEvidenceItem {
+  id: string;
+  name: string;
+  active_questions: number;
+  lesson_id: string | null;
+  lesson_title: string | null;
+  status: "weak" | "recovered" | "expired" | "insufficient";
+  recent_missed_questions: number;
+  latest_miss: string | null;
+  recovery_days: number;
+  recovery_questions: number;
+}
+
+export interface StackEvidence {
+  stack_id: string;
+  as_of: string;
+  concepts: ConceptEvidenceItem[];
+}
+
 /**
  * What follows a submitted Lesson Quiz: "completed" (passed with no Missed Question),
  * "retakes" (passed with Missed Questions: the Lesson completes once every Retake is

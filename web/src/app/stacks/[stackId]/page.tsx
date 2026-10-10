@@ -11,10 +11,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Inline } from "@/components/Inline";
+import { ConceptEvidence } from "@/components/ConceptEvidence";
 import { LessonStateBadge } from "@/components/LessonStateBadge";
 import { MilestoneChecklist } from "@/components/MilestoneChecklist";
 import { Crumbs } from "@/components/PageHeader";
-import { api, type Syllabus } from "@/lib/api";
+import { api, type StackEvidence, type Syllabus } from "@/lib/api";
 import { formatMinutes, weekMinutes } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { setMilestoneTicked } from "./actions";
@@ -39,6 +40,7 @@ export default async function WeekMapPage({
     `/stacks/${encodeURIComponent(stackId)}`,
   );
   if (!syllabus) notFound();
+  const evidence = await api<StackEvidence>(`/stacks/${encodeURIComponent(stackId)}/concept-evidence`);
   const tickAction = setMilestoneTicked.bind(null, syllabus.id);
   const lessons = syllabus.weeks.flatMap((w) => w.lessons);
   const done = lessons.filter(
@@ -92,6 +94,8 @@ export default async function WeekMapPage({
           </span>
         </p>
       </div>
+
+      {evidence ? <ConceptEvidence evidence={evidence} /> : <p>Concept evidence is unavailable.</p>}
 
       <nav aria-label="Week map view" className="mb-6 flex justify-end">
         <div className="inline-flex rounded-xl border bg-card p-1 shadow-xs">

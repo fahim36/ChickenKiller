@@ -84,6 +84,25 @@ class SyllabusOut(StackSummary):
     """The Learner's Completed Lessons that a Syllabus Update removed, first completed first."""
 
 
+class ConceptEvidenceOut(BaseModel):
+    id: str
+    name: str
+    active_questions: int
+    lesson_id: str | None
+    lesson_title: str | None
+    status: Literal["weak", "recovered", "expired", "insufficient"]
+    recent_missed_questions: int
+    latest_miss: datetime | None
+    recovery_days: int
+    recovery_questions: int
+
+
+class StackEvidenceOut(BaseModel):
+    stack_id: str
+    as_of: date
+    concepts: list[ConceptEvidenceOut]
+
+
 class WeekRef(BaseModel):
     id: str
     number: int

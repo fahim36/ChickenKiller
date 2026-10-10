@@ -30,6 +30,7 @@ from app import (
     schemas,
     stack_builder,
     updated_lessons,
+    weak_concepts,
 )
 from app.auth import TokenVerifier
 from app.db import SessionLocal
@@ -53,6 +54,31 @@ from app.models import ContentDraft, Learner, Question
 
 # Everything except the health check: only a signed-in, invited Learner gets in (app/deps.py).
 router = APIRouter(dependencies=[Depends(get_current_learner)])
+
+
+@router.get("/stacks/{stack_id}/concept-evidence")
+def get_concept_evidence(
+    active: ActiveStackInPath, session: SessionDep, now: Now
+) -> schemas.StackEvidenceOut:
+    return schemas.StackEvidenceOut(
+        stack_id=active.stack_id,
+        as_of=review.utc_day(now),
+        concepts=[
+            schemas.ConceptEvidenceOut(
+                id=c.id,
+                name=c.name,
+                active_questions=c.active_questions,
+                lesson_id=c.lesson_id,
+                lesson_title=c.lesson_title,
+                status=c.evidence.status,
+                recent_missed_questions=c.evidence.recent_missed_questions,
+                latest_miss=c.evidence.latest_miss,
+                recovery_days=c.evidence.recovery_days,
+                recovery_questions=c.evidence.recovery_questions,
+            )
+            for c in weak_concepts.for_stack(session, active, now)
+        ],
+    )
 
 
 def _me(session: SessionDep, learner: Learner, verifier: VerifierDep) -> schemas.MeOut:
