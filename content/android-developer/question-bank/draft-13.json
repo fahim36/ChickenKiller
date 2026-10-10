@@ -2047,6 +2047,182 @@
         "android-17-behavior-changes"
       ],
       "explanation": "The compatibility framework lets you toggle targetSdk-gated changes one by one with `adb shell am compat`, but only for a debuggable app. Apps targeting Android 17 can't change `static final` fields: reflection throws `IllegalAccessException` and JNI writes crash the app. The lock-free MessageQueue needs Robolectric 4.17+ with `@LooperMode(PAUSED)` (and Espresso 3.7.0+)."
+    },
+    {
+      "id": "w04-l01-q12",
+      "lesson": "w04-l01",
+      "concept": "activity-recreation-on-config-change",
+      "type": "multiple_choice",
+      "prompt": "An Activity uses default handling for orientation changes and stores a draft only in a plain Activity field. The user rotates the device, triggering recreation. What happens to that field?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The old instance stays alive and Android copies its fields automatically."
+        },
+        {
+          "id": "b",
+          "text": "Rotation permanently finishes the task, so no replacement Activity exists."
+        },
+        {
+          "id": "c",
+          "text": "The replacement Activity has no automatic copy of the old draft field."
+        },
+        {
+          "id": "d",
+          "text": "A retained ViewModel automatically captures every Activity field value."
+        }
+      ],
+      "explanation": "Recreation destroys the old Activity and creates a new instance. Plain fields are not automatically copied. Rotation need not finish the task. A ViewModel can retain data deliberately stored in it, but does not inspect and capture Activity fields.",
+      "materials": [
+        "android-process-lifecycle",
+        "android-app-architecture"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/guide/topics/resources/runtime-changes",
+          "title": "Handle configuration changes",
+          "publisher": "Android Developers",
+          "accessed": "2026-10-10",
+          "claim": "Default Activity recreation creates a new instance; configChanges only opts out of specified changes, and embedded Views may need manual resource updates; Compose can observe LocalConfiguration."
+        }
+      ],
+      "answer": "c"
+    },
+    {
+      "id": "w04-l01-q13",
+      "lesson": "w04-l01",
+      "concept": "activity-recreation-on-config-change",
+      "type": "multiple_select",
+      "prompt": "A mixed Compose and AndroidView screen declares `android:configChanges=\"orientation|screenSize\"`. An orientation change covered by that declaration occurs without Activity recreation. Which statements hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The device configuration still changes."
+        },
+        {
+          "id": "b",
+          "text": "The declaration freezes resource configuration at the original orientation."
+        },
+        {
+          "id": "c",
+          "text": "Compose reading `LocalConfiguration` can react to the new configuration."
+        },
+        {
+          "id": "d",
+          "text": "The declaration guarantees survival of process death and every other change."
+        },
+        {
+          "id": "e",
+          "text": "The embedded View may need code to update configuration-dependent resources."
+        }
+      ],
+      "explanation": "A and C: skipping recreation does not stop the change, and Compose can observe updated LocalConfiguration. E: the Activity assumes responsibility for updating embedded Views where needed. B is false because configuration is not frozen. D is false because only declared changes are handled; process death and other causes can still recreate the Activity.",
+      "materials": [
+        "android-process-lifecycle",
+        "android-app-architecture"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/guide/topics/resources/runtime-changes",
+          "title": "Handle configuration changes",
+          "publisher": "Android Developers",
+          "accessed": "2026-10-10",
+          "claim": "Default Activity recreation creates a new instance; configChanges only opts out of specified changes, and embedded Views may need manual resource updates; Compose can observe LocalConfiguration."
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ]
+    },
+    {
+      "id": "w04-l02-q12",
+      "lesson": "w04-l02",
+      "concept": "activity-tasks-launch-modes",
+      "type": "multiple_choice",
+      "prompt": "The same task has `Home → Chat`, with Chat on top and `launchMode=\"singleTop\"`. Another intent starts Chat with no launch flags or custom navigation. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Another Chat instance is pushed because every intent creates an Activity."
+        },
+        {
+          "id": "b",
+          "text": "Home is removed and Chat becomes a fresh root Activity."
+        },
+        {
+          "id": "c",
+          "text": "The intent is ignored because the top Chat already exists."
+        },
+        {
+          "id": "d",
+          "text": "The existing Chat receives `onNewIntent`; the stack stays Home → Chat."
+        }
+      ],
+      "explanation": "singleTop reuses the instance when it is already at the top, delivering onNewIntent. It neither pushes another instance nor clears Home nor ignores the intent. This differs from targeting a singleTop instance below the top.",
+      "materials": [
+        "android-app-architecture",
+        "android-process-lifecycle"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/guide/components/activities/tasks-and-back-stack",
+          "title": "Tasks and the back stack",
+          "publisher": "Android Developers",
+          "accessed": "2026-10-10",
+          "claim": "singleTop reuses the top instance through onNewIntent; CLEAR_TOP clears activities above the target, recreating a standard target unless SINGLE_TOP also applies."
+        }
+      ],
+      "answer": "d"
+    },
+    {
+      "id": "w04-l02-q13",
+      "lesson": "w04-l02",
+      "concept": "activity-tasks-launch-modes",
+      "type": "multiple_select",
+      "prompt": "The same task has `Home → Detail → Comments`. Detail uses the standard launch mode. Compare starting Detail with `CLEAR_TOP` alone against `CLEAR_TOP | SINGLE_TOP`, with no other flags or custom navigation. Which statements hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Comments is removed in either case."
+        },
+        {
+          "id": "b",
+          "text": "CLEAR_TOP alone recreates the standard Detail instance."
+        },
+        {
+          "id": "c",
+          "text": "CLEAR_TOP alone always reuses Detail through onNewIntent."
+        },
+        {
+          "id": "d",
+          "text": "The combined flags reuse Detail through onNewIntent."
+        },
+        {
+          "id": "e",
+          "text": "The combined flags keep Comments above Detail."
+        }
+      ],
+      "explanation": "A: CLEAR_TOP removes the activities above Detail. B: a standard target is also removed and recreated with CLEAR_TOP alone. D: SINGLE_TOP allows the target instance to be reused with onNewIntent. C ignores the standard-mode exception, and E contradicts CLEAR_TOP clearing Comments.",
+      "materials": [
+        "android-app-architecture",
+        "android-process-lifecycle"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/guide/components/activities/tasks-and-back-stack",
+          "title": "Tasks and the back stack",
+          "publisher": "Android Developers",
+          "accessed": "2026-10-10",
+          "claim": "singleTop reuses the top instance through onNewIntent; CLEAR_TOP clears activities above the target, recreating a standard target unless SINGLE_TOP also applies."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "d"
+      ]
     }
   ]
 }

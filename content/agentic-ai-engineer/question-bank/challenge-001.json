@@ -347,6 +347,92 @@
           "claim": "Checkpointers persist graph state snapshots within a single thread; stores persist application-defined key-value data across threads."
         }
       ]
+    },
+    {
+      "id": "c001-q09",
+      "lesson": null,
+      "concept": "c001-langgraph-thread-id",
+      "type": "multiple_choice",
+      "prompt": "A LangGraph server has one live checkpointer. Conversation `ticket-42` has saved checkpoints. A diagnostic endpoint accidentally calls `get_state` with `{\"configurable\": {\"thread_id\": \"ticket-43\"}}`. Which change retrieves the latest saved state of ticket-42?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Pass `thread_id=\"ticket-42\"` to `get_state`."
+        },
+        {
+          "id": "b",
+          "text": "Keep ticket-43 but use the same compiled graph instance."
+        },
+        {
+          "id": "c",
+          "text": "Keep ticket-43 and add the user name as an ordinary state field."
+        },
+        {
+          "id": "d",
+          "text": "Create a new checkpointer for ticket-43 before reading it."
+        }
+      ],
+      "explanation": "get_state looks up the thread specified in configurable. Using ticket-42 selects its latest checkpoint. Graph identity or a user-name field does not redirect a lookup to another thread, and constructing another saver does not select ticket-42.",
+      "materials": [
+        "langgraph-documentation"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.langchain.com/oss/python/langgraph/persistence",
+          "title": "Persistence",
+          "publisher": "LangChain",
+          "accessed": "2026-10-10",
+          "claim": "A checkpointer saves and retrieves state by thread_id; get_state returns the latest thread snapshot by default; in-memory checkpoints do not persist across process restarts."
+        }
+      ],
+      "answer": "a"
+    },
+    {
+      "id": "c001-q10",
+      "lesson": null,
+      "concept": "c001-langgraph-thread-id",
+      "type": "multiple_select",
+      "prompt": "A LangGraph process uses `InMemorySaver` for conversations A and B, with different stable thread IDs. No external storage backs the saver. The process then restarts. Which conclusions follow? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A and B shared all checkpoints because they used one saver."
+        },
+        {
+          "id": "b",
+          "text": "Before restart, each thread ID selected its own saved state."
+        },
+        {
+          "id": "c",
+          "text": "Reusing A's ID after restart recovers its old RAM checkpoints."
+        },
+        {
+          "id": "d",
+          "text": "A durable checkpointer is needed to retain checkpoints across restarts."
+        },
+        {
+          "id": "e",
+          "text": "A stable thread ID chooses a history; it does not make RAM durable."
+        }
+      ],
+      "explanation": "B: checkpoints are scoped to each thread. D and E: InMemorySaver retains them only in the live process; stable identifiers do not persist its memory. A is false because a saver separates threads. C is false because restarting loses the in-memory checkpoints.",
+      "materials": [
+        "langgraph-documentation"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.langchain.com/oss/python/langgraph/persistence",
+          "title": "Persistence",
+          "publisher": "LangChain",
+          "accessed": "2026-10-10",
+          "claim": "A checkpointer saves and retrieves state by thread_id; get_state returns the latest thread snapshot by default; in-memory checkpoints do not persist across process restarts."
+        }
+      ],
+      "answers": [
+        "b",
+        "d",
+        "e"
+      ]
     }
   ]
 }

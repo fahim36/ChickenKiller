@@ -257,6 +257,178 @@
         }
       ],
       "retired": null
+    },
+    {
+      "id": "c065-q07",
+      "lesson": null,
+      "concept": "c065-advisory-lock-lifetimes",
+      "type": "multiple_choice",
+      "prompt": "In PostgreSQL, session A begins a transaction, calls `pg_advisory_lock(42)` twice, calls `pg_advisory_unlock(42)` once, then rolls back. A stays connected. Session B now requests the same exclusive key. What happens?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "B obtains the key because rollback released A's session locks."
+        },
+        {
+          "id": "b",
+          "text": "B waits because A still has one unreleased acquisition."
+        },
+        {
+          "id": "c",
+          "text": "B obtains the key because one unlock clears all nested acquisitions."
+        },
+        {
+          "id": "d",
+          "text": "B raises an error because session locks cannot be acquired inside BEGIN."
+        }
+      ],
+      "explanation": "Session locks can be acquired inside transactions but do not obey transaction rollback. Two acquisitions need two unlocks. One hold remains, so B waits for A to unlock again or end its session. Neither rollback nor a single unlock releases every acquisition.",
+      "materials": [
+        "postgres-explicit-locking"
+      ],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/explicit-locking.html#ADVISORY-LOCKS",
+          "title": "Explicit locking: advisory locks",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-10",
+          "claim": "Session advisory locks survive rollback and require matching unlocks; transaction locks release at transaction end; both scopes conflict on the same key and require cooperation."
+        }
+      ],
+      "answer": "b"
+    },
+    {
+      "id": "c065-q08",
+      "lesson": null,
+      "concept": "c065-advisory-lock-lifetimes",
+      "type": "multiple_select",
+      "prompt": "In PostgreSQL, A holds an exclusive transaction advisory lock for key 42. B, a different session, requests a session advisory lock for key 42. A then commits. Which claims hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "B waits while A holds the same exclusive key."
+        },
+        {
+          "id": "b",
+          "text": "A must explicitly unlock the transaction lock after committing."
+        },
+        {
+          "id": "c",
+          "text": "Committing releases A's transaction advisory lock."
+        },
+        {
+          "id": "d",
+          "text": "The advisory lock automatically rejects every ordinary table write."
+        },
+        {
+          "id": "e",
+          "text": "Code that never requests advisory keys is not coordinated by this lock."
+        }
+      ],
+      "explanation": "A: transaction and session locks conflict on the same exclusive key. C: transaction locks release automatically at transaction end, so B can proceed. E: advisory locking is cooperative. B is false because no manual transaction unlock is required; D is false because ordinary writes do not automatically participate.",
+      "materials": [
+        "postgres-explicit-locking"
+      ],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/explicit-locking.html#ADVISORY-LOCKS",
+          "title": "Explicit locking: advisory locks",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-10",
+          "claim": "Session advisory locks survive rollback and require matching unlocks; transaction locks release at transaction end; both scopes conflict on the same key and require cooperation."
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "e"
+      ]
+    },
+    {
+      "id": "c065-q09",
+      "lesson": null,
+      "concept": "c065-sequence-allocation-and-rollback",
+      "type": "multiple_choice",
+      "prompt": "A PostgreSQL sequence uses increment 1 and CACHE 1. With no other callers or resets, A executes `setval(s, 100, false)` inside a transaction and then rolls back. B next calls `nextval(s)`. Which value does B get?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "100"
+        },
+        {
+          "id": "b",
+          "text": "101"
+        },
+        {
+          "id": "c",
+          "text": "The value from before A called setval."
+        },
+        {
+          "id": "d",
+          "text": "An error until A commits the setval transaction."
+        }
+      ],
+      "explanation": "setval changes are not undone by rollback. Its false is_called argument makes the next nextval return exactly 100 rather than advance to 101. Rollback neither restores the earlier state nor requires A to commit before B can use the sequence.",
+      "materials": [
+        "postgres-sequence-functions"
+      ],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/functions-sequence.html",
+          "title": "Sequence manipulation functions",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-10",
+          "claim": "setval changes are visible to other transactions and not undone by rollback; with is_called false the next nextval returns exactly the specified value."
+        }
+      ],
+      "answer": "a"
+    },
+    {
+      "id": "c065-q10",
+      "lesson": null,
+      "concept": "c065-sequence-allocation-and-rollback",
+      "type": "multiple_select",
+      "prompt": "In PostgreSQL, A gets 10 from `nextval(s)`, then B gets 11 from the same sequence. Neither session resets it. Later an INSERT evaluates `nextval(s)` but uses `ON CONFLICT DO NOTHING`. Which conclusions are valid? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A's `currval(s)` now returns B's value 11."
+        },
+        {
+          "id": "b",
+          "text": "A's `currval(s)` remains 10 until A advances or sets that sequence."
+        },
+        {
+          "id": "c",
+          "text": "The conflicting INSERT can consume a sequence value without inserting a row."
+        },
+        {
+          "id": "d",
+          "text": "Every gap between row IDs proves that a committed row was deleted."
+        },
+        {
+          "id": "e",
+          "text": "Sequences do not guarantee gapless committed row IDs."
+        }
+      ],
+      "explanation": "B: currval is local to the session, so B does not change A's result. C: the tuple and its nextval are evaluated before the conflict is detected. E: aborted or conflicting inserts can leave gaps. A confuses session-local state with the global sequence, and D ignores allocations that never produced committed rows.",
+      "materials": [
+        "postgres-sequence-functions"
+      ],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/functions-sequence.html",
+          "title": "Sequence manipulation functions",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-10",
+          "claim": "nextval allocations are not reclaimed on abort or ON CONFLICT; currval is session-local; sequences are not gapless."
+        }
+      ],
+      "answers": [
+        "b",
+        "c",
+        "e"
+      ]
     }
   ]
 }

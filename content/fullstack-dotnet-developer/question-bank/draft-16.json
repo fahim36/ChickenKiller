@@ -2056,6 +2056,107 @@
           "accessed": "2026-10-03"
         }
       ]
+    },
+    {
+      "id": "w09-l03-q12",
+      "lesson": "w09-l03",
+      "concept": "activitysource-trace-propagation",
+      "type": "multiple_choice",
+      "prompt": "A .NET worker has no current Activity. It receives a message carrying W3C trace context, but its custom broker library does not propagate context. The worker starts a sampled Consumer Activity without extracting a parent. Why is it a separate trace?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Using ActivityKind.Consumer automatically discards every valid remote parent."
+        },
+        {
+          "id": "b",
+          "text": "The exporter must merge traces by matching the message body text."
+        },
+        {
+          "id": "c",
+          "text": "No parent was supplied or current; extract the carrier context and pass it as parent."
+        },
+        {
+          "id": "d",
+          "text": "Custom ActivitySource names must equal the producer name to share a trace."
+        }
+      ],
+      "explanation": "Without a current Activity or an explicit extracted parent, the consumer starts a root trace. A propagator must extract the message carrier and the consumer must use that parent unless a library already does so. ActivityKind and source-name equality do not establish a remote parent, and exporters do not reconstruct it from message text.",
+      "materials": [
+        "dotnet-otel",
+        "opentelemetry-dotnet"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/diagnostics/distributed-tracing-concepts",
+          "title": "Distributed tracing concepts - .NET",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-10",
+          "claim": "Activity.Current flows through normal async calls; activities share a trace ID, have distinct span IDs and parent relationships, and context propagation transmits identifiers rather than all span data."
+        },
+        {
+          "url": "https://opentelemetry.io/docs/concepts/context-propagation/",
+          "title": "Context propagation",
+          "publisher": "OpenTelemetry",
+          "accessed": "2026-10-10",
+          "claim": "Propagators inject context into a carrier and extract it at the receiver; W3C TraceContext carries trace and parent identifiers and flags."
+        }
+      ],
+      "answer": "c"
+    },
+    {
+      "id": "w09-l03-q13",
+      "lesson": "w09-l03",
+      "concept": "activitysource-trace-propagation",
+      "type": "multiple_select",
+      "prompt": "In .NET, sampled Activity A is current. Inside its scope a sampled child B starts, an ordinary `await` completes with execution-context flow enabled, and B is then disposed. Which observations hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "B shares A's trace ID but has its own span ID."
+        },
+        {
+          "id": "b",
+          "text": "The ordinary await necessarily changes B to a new root trace."
+        },
+        {
+          "id": "c",
+          "text": "While B is active, Activity.Current is B in the flowing context."
+        },
+        {
+          "id": "d",
+          "text": "Disposing B restores A as Activity.Current in the enclosing scope."
+        },
+        {
+          "id": "e",
+          "text": "Disposing B itself transmits every remote service's span to the backend."
+        }
+      ],
+      "explanation": "A and C: the current Activity supplies the parent and flows across ordinary async calls. Each span has its own ID within the trace. D: stopping the child restores the previous Activity. B is false under the stated flow assumptions. E is false: disposal does not gather remote spans; instrumentation and export are separate concerns.",
+      "materials": [
+        "dotnet-otel"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/diagnostics/distributed-tracing-concepts",
+          "title": "Distributed tracing concepts - .NET",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-10",
+          "claim": "Activity.Current flows through normal async calls; activities share a trace ID, have distinct span IDs and parent relationships, and context propagation transmits identifiers rather than all span data."
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/diagnostics/distributed-tracing-instrumentation-walkthroughs",
+          "title": "Add distributed tracing instrumentation - .NET",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-10",
+          "claim": "Activities use the current Activity as parent and stopping a child restores the prior current Activity; ActivitySource needs an interested listener."
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "d"
+      ]
     }
   ]
 }
