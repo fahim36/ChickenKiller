@@ -1,6 +1,6 @@
 """Retakes (#8): after a Lesson Quiz that met the Pass Mark with Missed Questions, each Missed
 Question is retaken on a sibling Question (same Concept, never the original), and the Lesson
-becomes a Completed Lesson only when every Retake is correct.
+becomes a Completed Lesson when every Retake is correct or waived for obsolete content.
 
 - **Opening** (`open_retakes`) makes one `Retake` per Missed Question of a passed attempt and
   asks its first sibling. It is idempotent: the submit route calls it right after submitting,
@@ -10,8 +10,9 @@ becomes a Completed Lesson only when every Retake is correct.
   Retake is done, and the last one done completes the Lesson. Wrong: its Explanation, Sources
   and Materials (and the grader's feedback) are shown and another sibling is asked
   (`quiz.pick_sibling`: unused ones first, then cycling, never the original). A Concept with
-  no sibling left, because they were retired after the content check, asks the original
-  again, so no Retake is ever skipped. If grading fails, nothing is recorded and the Learner
+  no active sibling left is waived with a content-gap reason. A retired original also waives
+  its requirement; a retired waiting sibling is replaced. No waiver creates an Answer.
+  If grading fails, nothing is recorded and the Learner
   answers again.
 - Siblings come from the Stack's Question Bank, and are never Retired Questions.
 - Every answer is an `Answer` with `context='retake'`, so a wrong sibling is a Missed Question
@@ -68,15 +69,23 @@ class RetakeState:
     pending: list[PendingRetake]
     """In the order the Missed Questions were asked in the quiz."""
     lesson_completed: bool
+    notices: list["RetakeNotice"]
+
+
+@dataclass(frozen=True)
+class RetakeNotice:
+    retake_id: uuid.UUID
+    message: str
+    waived: bool
 
 
 @dataclass(frozen=True)
 class RetakeResult:
     retake: Retake
-    question: Question
+    question: Question | None
     """The sibling just answered."""
     response: str | None
-    correct: bool
+    correct: bool | None
     feedback: str | None
     """The grader's one line, for a graded written answer."""
     next_question: Question | None
@@ -84,6 +93,8 @@ class RetakeResult:
     pending: int
     """Retakes of the attempt still waiting for a correct answer."""
     lesson_completed: bool
+    notices: list[RetakeNotice]
+    waived: bool = False
 
 
 def open_retakes(
@@ -114,7 +125,7 @@ def open_retakes(
         raise RetakeNotFound(attempt_id)
     if not attempt.passed:
         session.commit()
-        return RetakeState(attempt, [], lesson_completed=False)
+        return RetakeState(attempt, [], lesson_completed=False, notices=[])
 
     missed = session.scalars(
         select(Answer.question_id).where(
@@ -137,20 +148,22 @@ def open_retakes(
                 stack_id=record.stack_id,
                 lesson_quiz_attempt_id=attempt.id,
                 missed_question_id=question_id,
-                asked_question_ids=[sibling],
+                asked_question_ids=[] if sibling is None else [sibling],
                 created_at=now,
             )
             .on_conflict_do_nothing()
         )
 
+    _reconcile(session, attempt, rng, now)
     pending = _pending(session, attempt)
+    notices = _notices(session, attempt)
     if pending:
         session.commit()
-        return RetakeState(attempt, pending, lesson_completed=False)
+        return RetakeState(attempt, pending, lesson_completed=False, notices=notices)
     progress.complete_lesson(
         session, record, attempt.lesson_id, now, attempt.syllabus_version
     )  # commits
-    return RetakeState(attempt, [], lesson_completed=True)
+    return RetakeState(attempt, [], lesson_completed=True, notices=notices)
 
 
 def answer_retake(
@@ -162,6 +175,7 @@ def answer_retake(
     grader: Grader,
     rng: random.Random,
     now: datetime,
+    question_id: str | None = None,
 ) -> RetakeResult:
     """Mark and record the answer to a Retake's waiting sibling: a choice ID or a written
     answer. None (or a blank written answer) is unanswered, so wrong.
@@ -179,13 +193,50 @@ def answer_retake(
             Retake.stack_id == record.stack_id,
             LessonQuizAttempt.lesson_id == lesson_id,
         )
-        .with_for_update(of=Retake)
+        .with_for_update(of=LessonQuizAttempt)
     )
     if retake is None:
         raise RetakeNotFound(retake_id)
+    # A joined SELECT may have read the Retake before waiting on the attempt lock.
+    session.refresh(retake)
     if retake.done_at is not None:
         raise RetakeDone(retake_id)
     attempt = session.get_one(LessonQuizAttempt, retake.lesson_quiz_attempt_id)
+    if not attempt.passed:
+        raise RetakeNotFound(retake_id)
+    waiting = retake.asked_question_ids[-1] if retake.asked_question_ids else None
+    _reconcile(session, attempt, rng, now)
+    current = retake.asked_question_ids[-1] if retake.asked_question_ids else None
+    if (
+        retake.done_at is not None
+        or current != waiting
+        or (question_id is not None and question_id != current)
+        or (question_id is None and retake.replacement_notice is not None)
+    ):
+        pending = len(_pending(session, attempt))
+        completed = pending == 0
+        notices = _notices(session, attempt)
+        refreshed = (
+            None
+            if retake.done_at is not None or current is None
+            else _question(session, attempt, current)
+        )
+        if completed:
+            progress.complete_lesson(session, record, lesson_id, now, attempt.syllabus_version)
+        else:
+            session.commit()
+        return RetakeResult(
+            retake,
+            None,
+            None,
+            None,
+            None,
+            refreshed,
+            pending,
+            completed,
+            notices,
+            retake.waived_reason is not None,
+        )
     question = _question(session, attempt, retake.asked_question_ids[-1])
     try:
         marked = mark(question, response, grader)
@@ -213,12 +264,17 @@ def answer_retake(
     else:
         original = _question(session, attempt, retake.missed_question_id)
         next_id = _next_question(session, original, retake.asked_question_ids, rng)
-        retake.asked_question_ids = [*retake.asked_question_ids, next_id]
-        next_question = _question(session, attempt, next_id)
+        if next_id is None:
+            retake.done_at = now
+            retake.waived_reason = "Retake waived: no active sibling remains on this Concept."
+        else:
+            retake.asked_question_ids = [*retake.asked_question_ids, next_id]
+            next_question = _question(session, attempt, next_id)
     session.flush()
 
     pending = len(_pending(session, attempt))
     completed = pending == 0
+    notices = _notices(session, attempt)
     if completed:
         progress.complete_lesson(
             session, record, attempt.lesson_id, now, attempt.syllabus_version
@@ -226,7 +282,16 @@ def answer_retake(
     else:
         session.commit()
     return RetakeResult(
-        retake, question, response, correct, marked.feedback, next_question, pending, completed
+        retake,
+        question,
+        response,
+        correct,
+        marked.feedback,
+        next_question,
+        pending,
+        completed,
+        notices,
+        retake.waived_reason is not None,
     )
 
 
@@ -250,13 +315,58 @@ def _question(session: Session, attempt: LessonQuizAttempt, question_id: str) ->
 
 def _next_question(
     session: Session, original: Question, asked: Sequence[str], rng: random.Random
-) -> str:
-    """The Question a Retake of `original` asks next: a sibling (`quiz.pick_sibling`), or the
-    original itself when its Concept has no sibling left. The content check keeps two
-    Questions per Concept, but a sibling can be retired after the check, and the Retake must
-    still be answerable rather than skipped."""
+) -> str | None:
+    """An active sibling, never the original. None means the requirement must be waived."""
     sibling = quiz.pick_sibling(_concept_questions(session, original), original.id, asked, rng)
-    return sibling if sibling is not None else original.id
+    return sibling
+
+
+def _reconcile(
+    session: Session, attempt: LessonQuizAttempt, rng: random.Random, now: datetime
+) -> None:
+    """Resolve pending obsolete content while holding the attempt's serialization lock."""
+    rows = session.scalars(
+        select(Retake).where(Retake.lesson_quiz_attempt_id == attempt.id, Retake.done_at.is_(None))
+    ).all()
+    for row in rows:
+        original = _question(session, attempt, row.missed_question_id)
+        if original.retired_reason is not None:
+            row.waived_reason = (
+                f"Retake waived: the missed Question was retired. {original.retired_reason}"
+            )
+            row.done_at = now
+            continue
+        waiting = (
+            _question(session, attempt, row.asked_question_ids[-1])
+            if row.asked_question_ids
+            else None
+        )
+        if waiting is not None and waiting.retired_reason is None:
+            continue
+        sibling = _next_question(session, original, row.asked_question_ids, rng)
+        if sibling is None:
+            row.waived_reason = "Retake waived: no active sibling remains on this Concept."
+            row.done_at = now
+        else:
+            row.asked_question_ids = [*row.asked_question_ids, sibling]
+            row.replacement_notice = (
+                "The waiting Question was retired. Answer its active replacement; "
+                "your old response was not scored."
+            )
+    session.flush()
+
+
+def _notices(session: Session, attempt: LessonQuizAttempt) -> list[RetakeNotice]:
+    rows = session.scalars(
+        select(Retake)
+        .where(Retake.lesson_quiz_attempt_id == attempt.id)
+        .order_by(Retake.created_at, Retake.id)
+    ).all()
+    return [
+        RetakeNotice(row.id, reason, row.waived_reason is not None)
+        for row in rows
+        if (reason := row.waived_reason or row.replacement_notice) is not None
+    ]
 
 
 def _concept_questions(session: Session, original: Question) -> Sequence[str]:

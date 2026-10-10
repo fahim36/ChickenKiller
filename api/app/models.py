@@ -489,8 +489,8 @@ class Retake(Base):
     Each Retake asks a sibling Question (same Concept, never the missed one, never a Retired
     Question). `asked_question_ids` lists the siblings asked so far, in order; the
     last is the one waiting for an answer. Each answer is an `Answer` with `context='retake'`.
-    `done_at` is set by the first correct one; once every Retake of the attempt is done the
-    Lesson is a Completed Lesson.
+    `done_at` is set by the first correct one or a recorded content waiver; once every Retake
+    is done the Lesson is a Completed Lesson.
     """
 
     __tablename__ = "retakes"
@@ -511,8 +511,10 @@ class Retake(Base):
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     done_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), comment="When a Retake was answered correctly."
+        DateTime(timezone=True), comment="When a Retake was answered correctly or waived."
     )
+    waived_reason: Mapped[str | None] = mapped_column(Text)
+    replacement_notice: Mapped[str | None] = mapped_column(Text)
 
 
 class ChallengePlay(Base):

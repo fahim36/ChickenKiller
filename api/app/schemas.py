@@ -273,6 +273,12 @@ class RetakeOut(BaseModel):
     question: QuizQuestionOut
 
 
+class RetakeNoticeOut(BaseModel):
+    retake_id: uuid.UUID
+    message: str
+    waived: bool
+
+
 NextStep = Literal["completed", "retakes", "fresh_quiz"]
 
 
@@ -300,6 +306,7 @@ class LessonQuizResultOut(BaseModel):
     next_step: NextStep
     lesson_completed: bool
     retakes: list[RetakeOut]
+    notices: list[RetakeNoticeOut] = []
     """Pending Retakes, in the order their Missed Questions were asked."""
 
 
@@ -312,6 +319,7 @@ class RetakesOut(BaseModel):
     max_answer_chars: int
     """The longest written answer accepted."""
     retakes: list[RetakeOut]
+    notices: list[RetakeNoticeOut] = []
 
 
 class RetakeAnswerIn(BaseModel):
@@ -319,6 +327,7 @@ class RetakeAnswerIn(BaseModel):
     for unanswered (which counts as wrong)."""
 
     answer: Response
+    question_id: str | None = None
 
 
 class RetakeResultOut(BaseModel):
@@ -327,11 +336,13 @@ class RetakeResultOut(BaseModel):
     Lesson is a Completed Lesson and the next one is Unlocked."""
 
     retake_id: uuid.UUID
-    correct: bool
-    question: AnsweredQuestionOut
+    correct: bool | None
+    question: AnsweredQuestionOut | None
     next_question: QuizQuestionOut | None
     pending: int
     lesson_completed: bool
+    notices: list[RetakeNoticeOut] = []
+    waived: bool = False
 
 
 # --- Review ----------------------------------------------------------------------------------

@@ -41,9 +41,11 @@ export async function answerRetake(
   lessonId: string,
   retakeId: string,
   answer: Answer,
+  questionId: string,
 ): Promise<RetakeResult | GradingFailed> {
   const lesson = lessonPath(stackId, lessonId);
   return apiPostGraded<RetakeResult>(`${lesson}/retakes/${encodeURIComponent(retakeId)}/answers`, {
     answer,
+    question_id: questionId,
   });
 }

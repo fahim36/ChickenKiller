@@ -176,6 +176,12 @@ export interface Retake {
   question: QuizQuestion;
 }
 
+export interface RetakeNotice {
+  retake_id: string;
+  message: string;
+  waived: boolean;
+}
+
 /**
  * What follows a submitted Lesson Quiz: "completed" (passed with no Missed Question),
  * "retakes" (passed with Missed Questions: the Lesson completes once every Retake is
@@ -185,6 +191,7 @@ export type NextStep = "completed" | "retakes" | "fresh_quiz";
 
 /** A submitted Lesson Quiz, scored by the API. */
 export interface LessonQuizResult {
+  notices?: RetakeNotice[];
   attempt_id: string;
   lesson_id: string;
   correct: number;
@@ -215,6 +222,7 @@ export interface GradingFailed {
 
 /** A passed attempt's pending Retakes. */
 export interface Retakes {
+  notices?: RetakeNotice[];
   attempt_id: string;
   lesson_id: string;
   lesson_completed: boolean;
@@ -225,9 +233,11 @@ export interface Retakes {
 
 /** An answered Retake. Wrong: its Explanation and `next_question`, another sibling to try. */
 export interface RetakeResult {
+  notices?: RetakeNotice[];
+  waived?: boolean;
   retake_id: string;
-  correct: boolean;
-  question: AnsweredQuestion;
+  correct: boolean | null;
+  question: AnsweredQuestion | null;
   next_question: QuizQuestion | null;
   /** Retakes still waiting for a correct answer. At 0 the Lesson is Completed. */
   pending: number;

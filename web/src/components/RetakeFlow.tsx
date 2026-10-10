@@ -15,6 +15,7 @@ import type {
   QuizQuestion,
   Retake,
   RetakeResult,
+  RetakeNotice,
 } from "@/lib/api";
 
 interface RetakeState {
@@ -25,11 +26,13 @@ interface RetakeState {
   /** The last wrong sibling, shown with its Explanation. */
   explained: AnsweredQuestion | null;
   done: boolean;
+  waived?: boolean;
 }
 
 export type AnswerRetakeAction = (
   retakeId: string,
   answer: Answer,
+  questionId: string,
 ) => Promise<RetakeResult | GradingFailed>;
 
 /**
@@ -44,24 +47,30 @@ export function RetakeFlow({
   stackId,
   maxAnswerChars,
   answerAction,
+  notices = [],
 }: {
   retakes: Retake[];
   stackId: string;
   /** The longest written answer the API accepts. */
   maxAnswerChars: number;
   answerAction: AnswerRetakeAction;
+  notices?: RetakeNotice[];
 }) {
   const [states, setStates] = useState<RetakeState[]>(() =>
     retakes.map((r) => ({ id: r.id, question: r.question, tries: 0, explained: null, done: false })),
   );
   const [completed, setCompleted] = useState(false);
+  const [messages, setMessages] = useState(notices);
 
   function answered(result: RetakeResult) {
+    setMessages(result.notices ?? []);
     setStates((current) =>
       current.map((s) =>
-        s.id !== result.retake_id
+        (result.notices ?? []).some((n) => n.retake_id === s.id && n.waived)
+          ? { ...s, explained: null, done: true, waived: true }
+          : s.id !== result.retake_id
           ? s
-          : result.correct
+          : result.correct || result.waived
             ? { ...s, explained: null, done: true }
             : {
                 ...s,
@@ -77,7 +86,8 @@ export function RetakeFlow({
   if (completed) {
     return (
       <Notice tone="success" role="status" className="mt-8 text-base">
-        <p>Every Retake is correct: this Lesson is Completed and the next one is Unlocked.</p>
+        <RetakeNotices notices={messages} />
+        <p>Every Retake is resolved: this Lesson is Completed and the next one is Unlocked.</p>
         <p>
           <Button asChild variant="outline" className="no-underline!">
             <Link href={`/stacks/${stackId}`}>
@@ -93,6 +103,7 @@ export function RetakeFlow({
   return (
     <section className="mt-10 space-y-4">
       <h2 className="font-heading text-lg font-semibold tracking-tight">Retakes</h2>
+      <RetakeNotices notices={messages} />
       <p className="text-sm text-muted-foreground">
         Answer a sibling Question on the same Concept for each Missed Question. The Lesson is
         Completed once every Retake is correct.
@@ -102,7 +113,7 @@ export function RetakeFlow({
           <li key={s.id}>
             {s.done ? (
               <Mark correct className="rounded-2xl border border-success/30 bg-success/8 px-5 py-4 text-base">
-                Correct
+                {s.waived ? "Retake waived" : "Correct"}
               </Mark>
             ) : (
               <RetakeForm
@@ -143,7 +154,7 @@ function RetakeForm({
     setGradingFailed(null);
     setSubmitting(true);
     try {
-      const outcome = await answerAction(state.id, submittedAnswer(answer));
+      const outcome = await answerAction(state.id, submittedAnswer(answer), q.id);
       if ("code" in outcome) setGradingFailed(outcome.message);
       else onAnswered(outcome);
     } catch {
@@ -189,4 +200,12 @@ function RetakeForm({
       </Button>
     </form>
   );
+}
+
+export function RetakeNotices({ notices = [] }: { notices?: RetakeNotice[] }) {
+  return notices.length > 0 ? (
+    <div className="space-y-2" aria-label="Retake content changes">
+      {notices.map((notice) => <p key={notice.retake_id}>{notice.message}</p>)}
+    </div>
+  ) : null;
 }

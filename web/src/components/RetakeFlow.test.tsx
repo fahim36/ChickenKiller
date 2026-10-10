@@ -11,6 +11,29 @@ import { RetakeFlow } from "./RetakeFlow";
 
 afterEach(cleanup);
 
+it("shows a retirement waiver without presenting it as a correct answer", async () => {
+  renderFlow(vi.fn<Answer>(async () => ({
+    retake_id: retake.id, correct: null, question: null, next_question: null,
+    pending: 0, lesson_completed: true, waived: true,
+    notices: [{ retake_id: retake.id, waived: true, message: "Retake waived: no active sibling remains." }],
+  })));
+  choose("Right 2");
+  expect((await screen.findByRole("status")).textContent).toContain("Retake waived: no active sibling remains.");
+  expect(screen.queryByText("Correct")).toBeNull();
+});
+
+it("replaces an obsolete form without showing a wrong-answer explanation", async () => {
+  renderFlow(vi.fn<Answer>(async () => ({
+    retake_id: retake.id, correct: null, question: null, next_question: question(3),
+    pending: 1, lesson_completed: false,
+    notices: [{ retake_id: retake.id, waived: false, message: "The waiting Question was retired. Answer its replacement." }],
+  })));
+  choose("Right 2");
+  expect(await screen.findByRole("group", { name: "Sibling 3?" })).toBeTruthy();
+  expect(screen.getByText(/waiting Question was retired/)).toBeTruthy();
+  expect(screen.queryByText(/Not quite/)).toBeNull();
+});
+
 function question(n: number): QuizQuestion {
   return {
     id: `w01-l01-q0${n}`,
@@ -96,7 +119,7 @@ it("submits the chosen answer to the Retake", async () => {
 
   choose("Right 2");
 
-  await vi.waitFor(() => expect(answerAction).toHaveBeenCalledWith("retake-1", "a"));
+  await vi.waitFor(() => expect(answerAction).toHaveBeenCalledWith("retake-1", "a", question(2).id));
 });
 
 it("after a wrong Retake shows its Explanation and offers another sibling", async () => {
@@ -227,7 +250,7 @@ it("answers a written sibling in a text box", async () => {
   expect(writeAnswer("The right idea.").getAttribute("maxlength")).toBe("4000");
   fireEvent.click(screen.getByRole("button", { name: "Submit Retake" }));
 
-  await vi.waitFor(() => expect(answerAction).toHaveBeenCalledWith("retake-w", "The right idea."));
+  await vi.waitFor(() => expect(answerAction).toHaveBeenCalledWith("retake-w", "The right idea.", writtenSibling.id));
   expect(await screen.findByRole("status")).toBeTruthy();
 });
 
@@ -279,5 +302,5 @@ it("says nothing was counted when grading a Retake fails, and lets the Learner s
   fireEvent.click(screen.getByRole("button", { name: "Submit again" }));
 
   expect(await screen.findByRole("status")).toBeTruthy();
-  expect(answerAction).toHaveBeenLastCalledWith("retake-w", "The right idea.");
+  expect(answerAction).toHaveBeenLastCalledWith("retake-w", "The right idea.", writtenSibling.id);
 });

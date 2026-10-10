@@ -6,7 +6,7 @@ import { type FormEvent, useState } from "react";
 import { MissedQuestions } from "@/components/MissedQuestions";
 import { Notice } from "@/components/Notice";
 import { Mark, QuestionAnswer, QuestionCard, Spinner } from "@/components/QuestionCard";
-import { type AnswerRetakeAction, RetakeFlow } from "@/components/RetakeFlow";
+import { type AnswerRetakeAction, RetakeFlow, RetakeNotices } from "@/components/RetakeFlow";
 import { Button } from "@/components/ui/button";
 import { isAnswered } from "@/lib/answers";
 import type {
@@ -146,9 +146,11 @@ export function LessonQuiz({
       </form>
 
       {result && <MissedQuestions missed={result.missed} />}
+      {result && result.next_step !== "retakes" && <RetakeNotices notices={result.notices} />}
       {result && result.next_step === "retakes" && (
         <RetakeFlow
           retakes={result.retakes}
+          notices={result.notices}
           stackId={stackId}
           maxAnswerChars={quiz.max_answer_chars}
           answerAction={answerRetakeAction}

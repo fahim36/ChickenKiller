@@ -31,12 +31,12 @@ it("sends a Retake's answer to that Retake and returns the API's result", async 
   const fetch = vi.fn(async () => Response.json(marked));
   vi.stubGlobal("fetch", fetch);
 
-  const result = await answerRetake("agentic-ai-engineer", "w01-l01", "retake-1", "b");
+  const result = await answerRetake("agentic-ai-engineer", "w01-l01", "retake-1", "b", "q-2");
 
   expect(result).toEqual(marked);
   expect(fetch).toHaveBeenCalledWith(
     "http://localhost:8000/stacks/agentic-ai-engineer/lessons/w01-l01/retakes/retake-1/answers",
-    expect.objectContaining({ method: "POST", body: JSON.stringify({ answer: "b" }) }),
+    expect.objectContaining({ method: "POST", body: JSON.stringify({ answer: "b", question_id: "q-2" }) }),
   );
 });
 
@@ -45,7 +45,7 @@ it("returns the grading failure instead of throwing, so the quiz can offer to re
   vi.stubGlobal("fetch", vi.fn(async () => Response.json({ detail }, { status: 503 })));
 
   await expect(submitLessonQuiz("s", "l", "a", {})).resolves.toEqual(detail);
-  await expect(answerRetake("s", "l", "r", "An answer.")).resolves.toEqual(detail);
+  await expect(answerRetake("s", "l", "r", "An answer.", "q")).resolves.toEqual(detail);
 });
 
 it("fails when the API refuses the answers", async () => {

@@ -5,7 +5,7 @@ import { connection } from "next/server";
 import { LessonQuiz } from "@/components/LessonQuiz";
 import { Notice } from "@/components/Notice";
 import { PageHeader } from "@/components/PageHeader";
-import { RetakeFlow } from "@/components/RetakeFlow";
+import { RetakeFlow, RetakeNotices } from "@/components/RetakeFlow";
 import { Button } from "@/components/ui/button";
 import { api, ApiError, apiPost, type LessonQuiz as Quiz, type Retakes } from "@/lib/api";
 import { answerRetake, submitLessonQuiz } from "./actions";
@@ -49,6 +49,7 @@ export default async function LessonQuizPage({
           />
           <RetakeFlow
             retakes={pending.retakes}
+            notices={pending.notices}
             stackId={stackId}
             maxAnswerChars={pending.max_answer_chars}
             answerAction={answerRetake.bind(null, stackId, lessonId)}
@@ -60,6 +61,7 @@ export default async function LessonQuizPage({
       <main className="mx-auto max-w-3xl space-y-6">
         <PageHeader crumbs={crumbs} title="Lesson Quiz" className="mb-0" />
         <Notice tone={pending?.lesson_completed ? "success" : "error"} role="alert">
+          <RetakeNotices notices={pending?.notices} />
           {pending?.lesson_completed
             ? "You've already completed this Lesson."
             : refusalMessage(error.detail)}

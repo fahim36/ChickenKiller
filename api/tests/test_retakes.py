@@ -4,17 +4,23 @@ the Pass Mark, and the record of Missed Questions Review reads (#9). The sibling
 drawing rules themselves are tested in test_lesson_quiz_rules.py. Written answers are graded
 by the fake grader (conftest.py), which passes an answer saying "right"."""
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier
 from typing import Any
+from uuid import uuid4
 
 import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from httpx2 import Response
-from sqlalchemy import select
+from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session
+from sqlalchemy.schema import CreateSchema, DropSchema
 
 from app import quizzes
 from app.content.importer import import_folder
+from app.db import Base, get_session
 from app.models import Question
 from tests.conftest import (
     LEARNER_EMAIL,
@@ -256,6 +262,7 @@ def test_starting_the_quiz_while_retakes_are_pending_points_at_them(
         "lesson_completed": False,
         "max_answer_chars": 4000,
         "retakes": result["retakes"],
+        "notices": [],
     }
 
 
@@ -354,12 +361,10 @@ def test_a_retake_never_asks_a_retired_sibling(
     assert asked == [waiting] * 3
 
 
-def test_a_retake_with_no_sibling_left_asks_the_missed_question_again(
+def test_a_retake_with_no_sibling_left_is_waived_without_grading(
     session: Session, learner: TestClient
 ) -> None:
-    """The content check keeps two Questions per Concept, but the only sibling can still be
-    retired after the Retake opened. The Retake then asks the Missed Question itself rather
-    than failing or being skipped."""
+    """A retired waiting sibling cannot force a learner to answer the original."""
     missed, result = pass_missing_one(learner, "b")
     [retake] = result["retakes"]
     [sibling] = concept_siblings(missed)
@@ -367,11 +372,137 @@ def test_a_retake_with_no_sibling_left_asks_the_missed_question_again(
     session.scalars(select(Question).where(Question.id == sibling)).one().retired_reason = "Gone."
     session.commit()
 
-    wrong = answer_retake(learner, retake, "b")
-    assert wrong.status_code == 200, wrong.text
-    assert wrong.json()["next_question"]["id"] == missed
+    resolved = answer_retake(learner, retake, "b")
+    assert resolved.status_code == 200, resolved.text
+    assert resolved.json()["correct"] is None
+    assert resolved.json()["question"] is None
+    assert resolved.json()["next_question"] is None
+    assert resolved.json()["lesson_completed"] is True
+    assert "no active sibling" in resolved.json()["notices"][0]["message"]
+    assert code(answer_retake(learner, retake, "a")) == (409, "retake_done")
+    recorded = quizzes.recorded_answers(session, learner_id(session), "mini-stack")
+    assert not [answer for answer in recorded if answer.context == "retake"]
 
-    assert answer_retake(learner, retake, "a").json()["lesson_completed"] is True
+
+def test_retiring_the_original_releases_its_retake_and_preserves_the_quiz_score(
+    session: Session, learner: TestClient
+) -> None:
+    missed, result = pass_missing_one(learner)
+    session.scalars(
+        select(Question).where(Question.id == missed)
+    ).one().retired_reason = "Obsolete."
+    session.commit()
+
+    url = f"{QUIZ}/{result['attempt_id']}/retakes"
+    resolved = learner.get(url).json()
+    assert resolved["retakes"] == []
+    assert resolved["lesson_completed"] is True
+    assert resolved["notices"][0]["waived"] is True
+    assert "Obsolete." in resolved["notices"][0]["message"]
+    assert learner.get(url).json() == resolved
+    assert lesson_states(learner)["w01-l01"] == "completed"
+    recorded = quizzes.recorded_answers(session, learner_id(session), "mini-stack")
+    assert sum(answer.correct is True for answer in recorded) == result["correct"] == 5
+    assert not [answer for answer in recorded if answer.context == "retake"]
+
+
+def test_a_retired_waiting_question_is_replaced_without_scoring_the_stale_response(
+    session: Session, api: TestClient, make_content: ContentFactory
+) -> None:
+    setup(session, api, make_content, five_on_concept_a)
+    missed, result = pass_missing_one(api)
+    [retake] = result["retakes"]
+    stale_id = retake["question"]["id"]
+    session.scalars(select(Question).where(Question.id == stale_id)).one().retired_reason = "Old."
+    session.commit()
+    url = f"{LESSON}/retakes/{retake['id']}/answers"
+    replaced = api.post(url, json={"answer": "a", "question_id": stale_id}).json()
+    assert replaced["correct"] is None
+    assert replaced["question"] is None
+    assert replaced["next_question"]["id"] in concept_siblings(missed) - {stale_id}
+    assert replaced["notices"][0]["waived"] is False
+    assert replaced["lesson_completed"] is False
+    assert not [
+        a
+        for a in quizzes.recorded_answers(session, learner_id(session), "mini-stack")
+        if a.context == "retake"
+    ]
+
+    # A second tab still displaying the old Question cannot grade its response on the replacement.
+    repeated = api.post(url, json={"answer": "a", "question_id": stale_id}).json()
+    assert repeated["correct"] is None
+    assert repeated["next_question"] == replaced["next_question"]
+    current = api.get(f"{QUIZ}/{result['attempt_id']}/retakes").json()
+    assert current["notices"] == replaced["notices"]
+    assert current["retakes"][0]["question"] == replaced["next_question"]
+    answered = api.post(url, json={"answer": "a", "question_id": replaced["next_question"]["id"]})
+    assert answered.json()["lesson_completed"] is True
+
+
+def test_retirement_does_not_waive_the_pass_mark(session: Session, learner: TestClient) -> None:
+    quiz = start(learner)
+    result = submit(learner, quiz, answer_all(quiz, wrong=2)).json()
+    for missed in result["missed"]:
+        session.scalars(
+            select(Question).where(Question.id == missed["id"])
+        ).one().retired_reason = "Old."
+    session.commit()
+    resolved = learner.get(f"{QUIZ}/{result['attempt_id']}/retakes").json()
+    assert resolved["retakes"] == []
+    assert resolved["lesson_completed"] is False
+    assert lesson_states(learner)["w01-l01"] == "unlocked"
+
+
+def test_concurrent_answers_to_a_retake_only_record_one_answer(
+    engine: Engine, app: FastAPI, admin: TestClient, api: TestClient, make_content: ContentFactory
+) -> None:
+    """Use independent transactions in an isolated test schema so PostgreSQL really locks."""
+    schema = f"retake_concurrency_{uuid4().hex}"
+    isolated = engine.execution_options(schema_translate_map={None: schema})
+    with engine.begin() as connection:
+        connection.execute(CreateSchema(schema))
+    previous = app.dependency_overrides[get_session]
+
+    def request_session() -> Iterator[Session]:
+        with Session(isolated, expire_on_commit=False) as current:
+            yield current
+
+    try:
+        Base.metadata.create_all(isolated)
+        app.dependency_overrides[get_session] = request_session
+        admin.post("/invitations", json={"email": LEARNER_EMAIL}).raise_for_status()
+        with Session(isolated) as seed:
+            import_folder(
+                seed,
+                make_content(
+                    own_explanations, extra_banks={"w01-l02": make_bank("w01-l02", "second")}
+                ),
+            )
+            seed.commit()
+        onboard(api)
+        _, result = pass_missing_one(api)
+        [retake] = result["retakes"]
+        together = Barrier(2)
+
+        def answer() -> Response:
+            together.wait(timeout=10)
+            return api.post(
+                f"{LESSON}/retakes/{retake['id']}/answers",
+                json={"answer": "a", "question_id": retake["question"]["id"]},
+            )
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            requests = [pool.submit(answer) for _ in range(2)]
+            responses = [request.result(timeout=20) for request in requests]
+        assert sorted(response.status_code for response in responses) == [200, 409]
+        assert lesson_states(api)["w01-l01"] == "completed"
+        with Session(isolated) as read:
+            answers = quizzes.recorded_answers(read, learner_id(read), "mini-stack")
+            assert len([a for a in answers if a.context == "retake"]) == 1
+    finally:
+        app.dependency_overrides[get_session] = previous
+        with engine.begin() as connection:
+            connection.execute(DropSchema(schema, cascade=True))
 
 
 def test_wrong_retakes_cycle_through_the_siblings_in_use_and_skip_retired_ones(

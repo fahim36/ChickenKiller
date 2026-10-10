@@ -320,6 +320,13 @@ def _retakes_out(pending: list[retakes.PendingRetake]) -> list[schemas.RetakeOut
     ]
 
 
+def _retake_notices_out(notices: list[retakes.RetakeNotice]) -> list[schemas.RetakeNoticeOut]:
+    return [
+        schemas.RetakeNoticeOut(retake_id=n.retake_id, message=n.message, waived=n.waived)
+        for n in notices
+    ]
+
+
 def _answer_too_long(error: marking.AnswerTooLong) -> HTTPException:
     detail = {
         "code": "answer_too_long",
@@ -434,9 +441,11 @@ def submit_lesson_quiz(
     except grading.GradingFailed as error:
         raise HTTPException(503, GRADING_FAILED) from error
     completed, pending = result.lesson_completed, []
+    notices: list[retakes.RetakeNotice] = []
     if result.score.passed and not completed:
         state = retakes.open_retakes(session, active, lesson_id, attempt_uuid, rng, now)
         completed, pending = state.lesson_completed, state.pending
+        notices = state.notices
     next_step: schemas.NextStep = (
         "fresh_quiz" if not result.score.passed else "completed" if completed else "retakes"
     )
@@ -459,6 +468,7 @@ def submit_lesson_quiz(
         next_step=next_step,
         lesson_completed=completed,
         retakes=_retakes_out(pending),
+        notices=_retake_notices_out(notices),
     )
 
 
@@ -488,6 +498,7 @@ def get_retakes(
         lesson_completed=state.lesson_completed,
         max_answer_chars=grading.MAX_ANSWER_CHARS,
         retakes=_retakes_out(state.pending),
+        notices=_retake_notices_out(state.notices),
     )
 
 
@@ -522,6 +533,7 @@ def answer_retake(
             grader,
             rng,
             now,
+            question_id=body.question_id,
         )
     except (ValueError, retakes.RetakeNotFound) as error:
         raise HTTPException(404, "Retake not found") from error
@@ -538,12 +550,16 @@ def answer_retake(
     return schemas.RetakeResultOut(
         retake_id=result.retake.id,
         correct=result.correct,
-        question=_answered_question(result.question, result.response, result.feedback),
+        question=None
+        if result.question is None
+        else _answered_question(result.question, result.response, result.feedback),
         next_question=None
         if result.next_question is None
         else _quiz_question(result.next_question),
         pending=result.pending,
         lesson_completed=result.lesson_completed,
+        notices=_retake_notices_out(result.notices),
+        waived=result.waived,
     )
 
 
