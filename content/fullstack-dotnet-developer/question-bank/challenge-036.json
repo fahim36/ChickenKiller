@@ -1,0 +1,268 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c036-container-listen-port",
+      "name": "ASP.NET container listen port versus port publishing"
+    },
+    {
+      "id": "c036-container-entrypoint-signals",
+      "name": "Exec-form ENTRYPOINT and termination signals"
+    },
+    {
+      "id": "c036-dockerignore-build-inputs",
+      "name": "Dockerignore exclusion from the build context"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c036-q01",
+      "lesson": null,
+      "concept": "c036-container-listen-port",
+      "type": "multiple_choice",
+      "prompt": "An ASP.NET Core app uses the default .NET 8 container image configuration, but deployment maps host port 8000 to container port 80. Why does that mapping fail?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The default app listen port is 8080, not 80"
+        },
+        {
+          "id": "b",
+          "text": "Docker publishes container ports only when the app runs as root"
+        },
+        {
+          "id": "c",
+          "text": "The host port must exactly equal the container listen port"
+        },
+        {
+          "id": "d",
+          "text": "The EXPOSE instruction must list port 80 before any port can be published"
+        }
+      ],
+      "explanation": "The image default moved to 8080. Host and container ports may differ, but the container side must target the actual listener or the app must be explicitly configured for a different port.",
+      "materials": [
+        "docker-get-started"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/compatibility/containers/8.0/aspnet-port",
+          "title": "Default ASP.NET Core container port changed to 8080",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-10",
+          "claim": "Official ASP.NET Core .NET 8+ container images default to port 8080; port publication must target the listen port and port 8080 accommodates non-root execution."
+        }
+      ],
+      "answer": "a"
+    },
+    {
+      "id": "c036-q02",
+      "lesson": null,
+      "concept": "c036-container-entrypoint-signals",
+      "type": "multiple_choice",
+      "prompt": "A Linux container uses shell-form `ENTRYPOINT dotnet App.dll`, and the app misses docker stop's SIGTERM. Which change addresses the documented signal problem?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Add EXPOSE for every port so Docker forwards the stop signal"
+        },
+        {
+          "id": "b",
+          "text": "Use exec-form ENTRYPOINT with dotnet and App.dll arguments"
+        },
+        {
+          "id": "c",
+          "text": "Extend the stop timeout so the shell automatically forwards SIGTERM"
+        },
+        {
+          "id": "d",
+          "text": "Move the same shell-form command into a later Dockerfile layer"
+        }
+      ],
+      "explanation": "Exec form avoids the intermediate shell, allowing the application process to receive the container stop signal. EXPOSE and layer order do not change signal forwarding; a longer timeout does not fix the shell behavior.",
+      "materials": [
+        "docker-get-started"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.docker.com/reference/dockerfile/",
+          "title": "Dockerfile reference",
+          "publisher": "Docker",
+          "accessed": "2026-10-10",
+          "claim": "Shell-form ENTRYPOINT runs under /bin/sh -c and does not forward signals to its child; exec form makes the executable PID 1 and supports stop signal delivery."
+        }
+      ],
+      "answer": "b"
+    },
+    {
+      "id": "c036-q03",
+      "lesson": null,
+      "concept": "c036-dockerignore-build-inputs",
+      "type": "multiple_select",
+      "prompt": "A .NET repository adds bin/, obj/ and a local credentials file to .dockerignore. Which statements hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Ignored build output need not be transferred to the builder"
+        },
+        {
+          "id": "b",
+          "text": "Ignored paths are removed from the sent build context"
+        },
+        {
+          "id": "c",
+          "text": "COPY can still retrieve ignored context files by absolute path"
+        },
+        {
+          "id": "d",
+          "text": "Ignoring credentials helps keep that file out of the build input"
+        },
+        {
+          "id": "e",
+          "text": "The ignore file encrypts credentials inside the resulting image"
+        }
+      ],
+      "explanation": "Ignore rules remove matching paths before the context is sent, reducing transfer and excluding those credentials from that input. They do not encrypt files or let COPY bypass the context exclusion.",
+      "materials": [
+        "docker-get-started"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.docker.com/build/concepts/context/",
+          "title": "Build context",
+          "publisher": "Docker",
+          "accessed": "2026-10-10",
+          "claim": "dockerignore excludes matching paths from the context before it is sent to the builder, preventing COPY from using those context files; a Dockerfile-specific ignore file takes precedence."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "d"
+      ]
+    },
+    {
+      "id": "c036-q04",
+      "lesson": null,
+      "concept": "c036-container-listen-port",
+      "type": "multiple_choice",
+      "prompt": "Why did the default ASP.NET Core container port move to 8080 in .NET 8?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "To require host networking for every supported Linux container"
+        },
+        {
+          "id": "b",
+          "text": "To enable HTTP/3 automatically without any TLS configuration"
+        },
+        {
+          "id": "c",
+          "text": "To make running with a non-root user easier"
+        },
+        {
+          "id": "d",
+          "text": "To stop applications from configuring their own listening ports"
+        }
+      ],
+      "explanation": "Port 8080 avoids the privileged-port issue associated with port 80 for non-root users. It does not force host networking or HTTP/3, and applications can explicitly configure listening ports.",
+      "materials": [
+        "docker-get-started"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/compatibility/containers/8.0/aspnet-port",
+          "title": "Default ASP.NET Core container port changed to 8080",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-10",
+          "claim": "Official ASP.NET Core .NET 8+ container images default to port 8080; port publication must target the listen port and port 8080 accommodates non-root execution."
+        }
+      ],
+      "answer": "c"
+    },
+    {
+      "id": "c036-q05",
+      "lesson": null,
+      "concept": "c036-container-entrypoint-signals",
+      "type": "multiple_choice",
+      "prompt": "A startup shell script must perform setup and then run a .NET service. What should its final launch use so the app receives container termination signals directly?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Launch dotnet as a background child and exit the script"
+        },
+        {
+          "id": "b",
+          "text": "Start a second shell which then runs dotnet as its child"
+        },
+        {
+          "id": "c",
+          "text": "Use a plain dotnet command and keep the script waiting forever"
+        },
+        {
+          "id": "d",
+          "text": "Use exec to replace the shell process with the app"
+        }
+      ],
+      "explanation": "exec replaces the shell with the service process. Keeping the service as an ordinary child requires explicit signal forwarding; backgrounding it or nesting another shell does not provide direct PID 1 signal delivery.",
+      "materials": [
+        "docker-get-started"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.docker.com/reference/dockerfile/",
+          "title": "Dockerfile reference",
+          "publisher": "Docker",
+          "accessed": "2026-10-10",
+          "claim": "Shell-form ENTRYPOINT runs under /bin/sh -c and does not forward signals to its child; exec form makes the executable PID 1 and supports stop signal delivery."
+        }
+      ],
+      "answer": "d"
+    },
+    {
+      "id": "c036-q06",
+      "lesson": null,
+      "concept": "c036-dockerignore-build-inputs",
+      "type": "multiple_select",
+      "prompt": "A build uses build.Dockerfile and has both .dockerignore and build.Dockerfile.dockerignore. Which statements hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Ignoring a file automatically removes it from Git history"
+        },
+        {
+          "id": "b",
+          "text": "Excluded paths remain available as normal COPY context inputs"
+        },
+        {
+          "id": "c",
+          "text": "Exclusion is applied before the context reaches the builder"
+        },
+        {
+          "id": "d",
+          "text": "The Dockerfile-specific ignore file takes precedence"
+        },
+        {
+          "id": "e",
+          "text": "All ignored files can still be copied with a parent-directory path"
+        }
+      ],
+      "explanation": "A Dockerfile-specific ignore file takes precedence over the root ignore file. Excluded paths are removed before transfer and cannot be recovered through ordinary context COPY; ignore rules do not alter Git history.",
+      "materials": [
+        "docker-get-started"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.docker.com/build/concepts/context/",
+          "title": "Build context",
+          "publisher": "Docker",
+          "accessed": "2026-10-10",
+          "claim": "dockerignore excludes matching paths from the context before it is sent to the builder, preventing COPY from using those context files; a Dockerfile-specific ignore file takes precedence."
+        }
+      ],
+      "answers": [
+        "c",
+        "d"
+      ]
+    }
+  ]
+}

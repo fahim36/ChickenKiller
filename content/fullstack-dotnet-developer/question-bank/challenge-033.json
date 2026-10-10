@@ -1,0 +1,268 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c033-forwarded-header-trust",
+      "name": "Trusted proxy handling of forwarded headers"
+    },
+    {
+      "id": "c033-credentialed-cors-origin",
+      "name": "Credentialed CORS and explicit origins"
+    },
+    {
+      "id": "c033-request-body-buffering",
+      "name": "Re-reading request bodies with bounded buffering"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c033-q01",
+      "lesson": null,
+      "concept": "c033-forwarded-header-trust",
+      "type": "multiple_choice",
+      "prompt": "TLS terminates at a trusted proxy, which forwards HTTP to ASP.NET Core. HTTPS redirection loops because the app sees HTTP. Which setup addresses the underlying cause?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Trust all incoming X-Forwarded-Proto values from direct public clients"
+        },
+        {
+          "id": "b",
+          "text": "Set every request scheme to HTTPS without checking its origin"
+        },
+        {
+          "id": "c",
+          "text": "Run HTTPS redirection before processing any forwarded headers"
+        },
+        {
+          "id": "d",
+          "text": "Process configured trusted forwarded headers before redirection"
+        }
+      ],
+      "explanation": "Trusted forwarded headers restore the original HTTPS scheme before HTTPS redirection runs. Blindly trusting public headers permits spoofing, and late middleware cannot fix the redirect decision.",
+      "materials": [
+        "aspnetcore-middleware"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/host-and-deploy/proxy-load-balancer?view=aspnetcore-10.0",
+          "title": "Configure ASP.NET Core for proxy servers",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-10",
+          "claim": "Forwarded headers restore scheme and client information behind trusted proxies; known proxy/network restrictions limit spoofing and middleware must precede HTTPS redirection."
+        }
+      ],
+      "answer": "d"
+    },
+    {
+      "id": "c033-q02",
+      "lesson": null,
+      "concept": "c033-credentialed-cors-origin",
+      "type": "multiple_choice",
+      "prompt": "A cookie-authenticated ASP.NET Core API configures `AllowAnyOrigin().AllowCredentials()`. What is wrong with this CORS policy?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Credentials are sent only after the server removes every cookie"
+        },
+        {
+          "id": "b",
+          "text": "It combines credentials with an insecure unrestricted origin"
+        },
+        {
+          "id": "c",
+          "text": "AllowAnyOrigin validates each origin against the user's role"
+        },
+        {
+          "id": "d",
+          "text": "The wildcard forces all cross-origin requests to become anonymous"
+        }
+      ],
+      "explanation": "An unrestricted origin plus credentials is insecure; ASP.NET Core returns an invalid CORS response for that combination. Use a narrow trusted-origin policy rather than treating CORS as user authorization.",
+      "materials": [
+        "owasp-cheat-sheets"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/security/cors?view=aspnetcore-10.0",
+          "title": "Enable Cross-Origin Requests in ASP.NET Core",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-10",
+          "claim": "AllowAnyOrigin combined with AllowCredentials is insecure and yields an invalid CORS response; credentialed access should allow trusted explicit origins."
+        }
+      ],
+      "answer": "b"
+    },
+    {
+      "id": "c033-q03",
+      "lesson": null,
+      "concept": "c033-request-body-buffering",
+      "type": "multiple_select",
+      "prompt": "Middleware enables ASP.NET Core request-body buffering before reading a large body. Which statements hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Every buffered body remains entirely in managed memory"
+        },
+        {
+          "id": "b",
+          "text": "Bodies above the configured threshold can spill to disk"
+        },
+        {
+          "id": "c",
+          "text": "A configured buffering limit can cause IOException when exceeded"
+        },
+        {
+          "id": "d",
+          "text": "The threshold rejects any request larger than the memory buffer"
+        },
+        {
+          "id": "e",
+          "text": "Buffering can make the request body readable more than once"
+        }
+      ],
+      "explanation": "EnableBuffering supports repeated reads. The threshold controls memory versus disk, not a hard rejection size. A separate buffer limit can throw IOException when the body exceeds it.",
+      "materials": [
+        "aspnetcore-middleware"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/api/microsoft.aspnetcore.http.httprequestrewindextensions.enablebuffering?view=aspnetcore-10.0",
+          "title": "HttpRequestRewindExtensions.EnableBuffering",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-10",
+          "claim": "EnableBuffering allows repeated body reads, spills beyond a memory threshold to disk, and a configured limit causes IOException when exceeded."
+        }
+      ],
+      "answers": [
+        "b",
+        "c",
+        "e"
+      ]
+    },
+    {
+      "id": "c033-q04",
+      "lesson": null,
+      "concept": "c033-forwarded-header-trust",
+      "type": "multiple_choice",
+      "prompt": "A public client supplies a forged X-Forwarded-For header directly to an ASP.NET Core server. Why configure known proxy addresses instead of trusting every sender?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "To accept forwarded identity only through trusted hops"
+        },
+        {
+          "id": "b",
+          "text": "To encrypt the forwarded client IP using the proxy certificate"
+        },
+        {
+          "id": "c",
+          "text": "To prove the remote client owns the IP stated in its header"
+        },
+        {
+          "id": "d",
+          "text": "To use a forwarded client IP as proof that the client is authenticated"
+        }
+      ],
+      "explanation": "Known proxy/network restrictions ensure only trusted forwarders supply that metadata. A header alone proves neither ownership nor authenticity and is not encrypted by this configuration.",
+      "materials": [
+        "aspnetcore-middleware"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/host-and-deploy/proxy-load-balancer?view=aspnetcore-10.0",
+          "title": "Configure ASP.NET Core for proxy servers",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-10",
+          "claim": "Forwarded headers restore scheme and client information behind trusted proxies; known proxy/network restrictions limit spoofing and middleware must precede HTTPS redirection."
+        }
+      ],
+      "answer": "a"
+    },
+    {
+      "id": "c033-q05",
+      "lesson": null,
+      "concept": "c033-credentialed-cors-origin",
+      "type": "multiple_choice",
+      "prompt": "A browser SPA at https://portal.example needs credentialed access to its API. Which CORS origin setup fits this requirement?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Allow every origin and reflect its value while enabling browser credentials"
+        },
+        {
+          "id": "b",
+          "text": "Return a wildcard origin together with permission for cookies"
+        },
+        {
+          "id": "c",
+          "text": "Allow the trusted portal origin explicitly and allow credentials"
+        },
+        {
+          "id": "d",
+          "text": "Remove CORS entirely and rely on the cookie's encryption alone"
+        }
+      ],
+      "explanation": "Credentialed cross-origin access needs an explicitly permitted trusted origin. A wildcard does not grant valid credentialed browser access, and cookie encryption does not replace the browser's CORS checks.",
+      "materials": [
+        "owasp-cheat-sheets"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/security/cors?view=aspnetcore-10.0",
+          "title": "Enable Cross-Origin Requests in ASP.NET Core",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-10",
+          "claim": "AllowAnyOrigin combined with AllowCredentials is insecure and yields an invalid CORS response; credentialed access should allow trusted explicit origins."
+        }
+      ],
+      "answer": "c"
+    },
+    {
+      "id": "c033-q06",
+      "lesson": null,
+      "concept": "c033-request-body-buffering",
+      "type": "multiple_select",
+      "prompt": "A service sets both a memory threshold and a total limit with `EnableBuffering`. Which conclusions are correct? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Reading past the total limit continues automatically using disk storage"
+        },
+        {
+          "id": "b",
+          "text": "Crossing the memory threshold need not reject the request"
+        },
+        {
+          "id": "c",
+          "text": "The total limit automatically raises the threshold to the body size"
+        },
+        {
+          "id": "d",
+          "text": "The buffering strategy can use temporary disk storage"
+        },
+        {
+          "id": "e",
+          "text": "Buffering guarantees that arbitrarily large bodies can be accepted"
+        }
+      ],
+      "explanation": "The threshold changes storage strategy, while the limit bounds accepted buffered data. Temporary files can hold larger bodies, but exceeding the separate total limit may throw; buffering is not unlimited.",
+      "materials": [
+        "aspnetcore-middleware"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/api/microsoft.aspnetcore.http.httprequestrewindextensions.enablebuffering?view=aspnetcore-10.0",
+          "title": "HttpRequestRewindExtensions.EnableBuffering",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-10",
+          "claim": "EnableBuffering allows repeated body reads, spills beyond a memory threshold to disk, and a configured limit causes IOException when exceeded."
+        }
+      ],
+      "answers": [
+        "b",
+        "d"
+      ]
+    }
+  ]
+}

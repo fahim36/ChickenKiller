@@ -1,0 +1,282 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c031-named-argument-evaluation",
+      "name": "Named argument expression evaluation order"
+    },
+    {
+      "id": "c031-iterator-resource-cleanup",
+      "name": "Iterator suspension and resource disposal"
+    },
+    {
+      "id": "c031-exception-filter-search",
+      "name": "Exception filters before stack unwinding"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c031-q01",
+      "lesson": null,
+      "concept": "c031-named-argument-evaluation",
+      "type": "multiple_choice",
+      "prompt": "A C# call writes named arguments in reverse parameter order, and each expression logs a message. In what order are those expressions evaluated?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "In their written order in the argument list"
+        },
+        {
+          "id": "b",
+          "text": "In parameter declaration order, regardless of names"
+        },
+        {
+          "id": "c",
+          "text": "In alphabetical order of the named parameters"
+        },
+        {
+          "id": "d",
+          "text": "In reverse written order before binding to parameters"
+        }
+      ],
+      "explanation": "Names control binding, not evaluation order. The expressions run in the order the caller writes them.",
+      "materials": [
+        "csharp-docs"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/csharp/programming-guide/classes-and-structs/named-and-optional-arguments",
+          "title": "Named and Optional Arguments",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-10",
+          "claim": "Argument expressions are evaluated in their written order, not parameter order; named arguments can supply a later optional parameter."
+        }
+      ],
+      "answer": "a"
+    },
+    {
+      "id": "c031-q02",
+      "lesson": null,
+      "concept": "c031-iterator-resource-cleanup",
+      "type": "multiple_choice",
+      "prompt": "A C# iterator opens a stream in a `using` declaration and yields lines. Its caller exits a `foreach` with `break`. What happens to that stream?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It stays open until a full second enumeration completes"
+        },
+        {
+          "id": "b",
+          "text": "It closes at the first yield before the caller reads a line"
+        },
+        {
+          "id": "c",
+          "text": "It stays open until the garbage collector finalizes it"
+        },
+        {
+          "id": "d",
+          "text": "It is disposed as foreach disposes the enumerator"
+        }
+      ],
+      "explanation": "foreach disposes its enumerator on early exit. That disposal executes iterator cleanup; yield suspension itself does not end the using lifetime.",
+      "materials": [
+        "csharp-docs"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/statements/yield",
+          "title": "yield statement",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-10",
+          "claim": "Calling an iterator defers execution; using resources survive yield suspension and are disposed when enumeration completes or the enumerator is disposed."
+        }
+      ],
+      "answer": "d"
+    },
+    {
+      "id": "c031-q03",
+      "lesson": null,
+      "concept": "c031-exception-filter-search",
+      "type": "multiple_select",
+      "prompt": "A C# service uses `catch (IOException ex) when (ShouldHandle(ex))`. Which behaviors hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A throwing filter is treated as evaluating to false"
+        },
+        {
+          "id": "b",
+          "text": "The filter is evaluated before stack unwinding"
+        },
+        {
+          "id": "c",
+          "text": "A false filter skips this catch and continues the search"
+        },
+        {
+          "id": "d",
+          "text": "The filter executes after this catch body has completed"
+        },
+        {
+          "id": "e",
+          "text": "A true filter suppresses execution of this catch body"
+        }
+      ],
+      "explanation": "The filter participates in handler selection before unwinding. False skips the handler; true selects its body. If filter evaluation throws, that filter is treated as false rather than replacing the original exception.",
+      "materials": [
+        "csharp-docs"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/statements/exception-handling-statements",
+          "title": "Exception-handling statements",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-10",
+          "claim": "A when filter is evaluated before stack unwinding; false skips the catch and a throwing filter is treated as false."
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/language-specification/statements",
+          "title": "Statements - C# language specification",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-10",
+          "claim": "If an exception filter throws, its evaluation is treated as false and handler search continues for the original exception."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "c"
+      ]
+    },
+    {
+      "id": "c031-q04",
+      "lesson": null,
+      "concept": "c031-named-argument-evaluation",
+      "type": "multiple_choice",
+      "prompt": "In C#, `Mark` logs its string argument and returns an integer, and `Write` declares parameters `(int first, int second)`. What is the log order for `Write(second: Mark(\"B\"), first: Mark(\"A\"))`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A then B, following the declared parameter order"
+        },
+        {
+          "id": "b",
+          "text": "A then B, following the named arguments alphabetically"
+        },
+        {
+          "id": "c",
+          "text": "B then A, following the written argument order"
+        },
+        {
+          "id": "d",
+          "text": "Either order, because named expressions are unordered"
+        }
+      ],
+      "explanation": "The argument expressions execute in written order: Mark(\"B\") before Mark(\"A\"). Their values then bind to second and first respectively; parameter declaration order and alphabetical order do not control evaluation.",
+      "materials": [
+        "csharp-docs"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/csharp/programming-guide/classes-and-structs/named-and-optional-arguments",
+          "title": "Named and Optional Arguments",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-10",
+          "claim": "Argument expressions are evaluated in their written order, not parameter order; named arguments can supply a later optional parameter."
+        }
+      ],
+      "answer": "c"
+    },
+    {
+      "id": "c031-q05",
+      "lesson": "w01-l03",
+      "concept": "c031-iterator-resource-cleanup",
+      "type": "multiple_choice",
+      "prompt": "A method returns `IEnumerable<string>` using `yield return`, and its body opens a file before yielding. When does the file-opening code first run?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "When the caller first advances the enumerator"
+        },
+        {
+          "id": "b",
+          "text": "When the iterator method returns its enumerable object"
+        },
+        {
+          "id": "c",
+          "text": "When the caller stores the enumerable in a local variable"
+        },
+        {
+          "id": "d",
+          "text": "When the compiler generates the iterator state machine"
+        }
+      ],
+      "explanation": "An iterator call creates the deferred iteration machinery. Execution begins when enumeration advances, not when the enumerable is stored.",
+      "materials": [
+        "csharp-docs"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/statements/yield",
+          "title": "yield statement",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-10",
+          "claim": "Calling an iterator defers execution; using resources survive yield suspension and are disposed when enumeration completes or the enumerator is disposed."
+        }
+      ],
+      "answer": "a"
+    },
+    {
+      "id": "c031-q06",
+      "lesson": null,
+      "concept": "c031-exception-filter-search",
+      "type": "multiple_select",
+      "prompt": "A diagnostic filter logs an exception and returns false. Which statements describe this design? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The filter can inspect state before stack unwinding"
+        },
+        {
+          "id": "b",
+          "text": "This catch body executes before the search continues"
+        },
+        {
+          "id": "c",
+          "text": "False replaces the original exception with a new filter exception"
+        },
+        {
+          "id": "d",
+          "text": "The logging itself means the exception is now handled"
+        },
+        {
+          "id": "e",
+          "text": "The handler search continues past this catch clause"
+        }
+      ],
+      "explanation": "Returning false declines this handler while retaining the original exception. Logging does not handle it, and this catch body never runs. The filter executes during the search before unwinding.",
+      "materials": [
+        "csharp-docs"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/statements/exception-handling-statements",
+          "title": "Exception-handling statements",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-10",
+          "claim": "A when filter is evaluated before stack unwinding; false skips the catch and a throwing filter is treated as false."
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/language-specification/statements",
+          "title": "Statements - C# language specification",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-10",
+          "claim": "If an exception filter throws, its evaluation is treated as false and handler search continues for the original exception."
+        }
+      ],
+      "answers": [
+        "a",
+        "e"
+      ]
+    }
+  ]
+}

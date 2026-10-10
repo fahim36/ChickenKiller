@@ -1,0 +1,268 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c035-fallback-authorization-policy",
+      "name": "Fallback policy for endpoints without authorization metadata"
+    },
+    {
+      "id": "c035-samesite-cross-site-cookie",
+      "name": "SameSite=None and Secure for cross-site cookies"
+    },
+    {
+      "id": "c035-sliding-cookie-renewal",
+      "name": "Cookie sliding expiration midpoint renewal"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c035-q01",
+      "lesson": null,
+      "concept": "c035-fallback-authorization-policy",
+      "type": "multiple_choice",
+      "prompt": "An ASP.NET Core team wants endpoints without explicit authorization metadata to require an authenticated user by default. Which configuration serves that purpose?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Set the CORS policy to require credentials for every origin"
+        },
+        {
+          "id": "b",
+          "text": "Configure FallbackPolicy to require an authenticated user"
+        },
+        {
+          "id": "c",
+          "text": "Set a cookie expiration date without an authorization policy"
+        },
+        {
+          "id": "d",
+          "text": "Register a role handler but omit every endpoint policy"
+        }
+      ],
+      "explanation": "FallbackPolicy covers requests without explicit authorization metadata. Authentication, role-handler registration, and CORS alone do not impose that default authorization requirement.",
+      "materials": [
+        "aspnetcore-authorization"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/security/authorization/secure-data?view=aspnetcore-10.0",
+          "title": "Create an app with data protected by authorization",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-10",
+          "claim": "A fallback policy can require authentication on endpoints without authorization metadata; AllowAnonymous bypasses authorization."
+        }
+      ],
+      "answer": "b"
+    },
+    {
+      "id": "c035-q02",
+      "lesson": null,
+      "concept": "c035-samesite-cross-site-cookie",
+      "type": "multiple_choice",
+      "prompt": "An authentication flow needs a cookie on a cross-site POST callback. Under the modern SameSite standard, which cookie attributes permit that use?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "SameSite=None and Secure on the cookie"
+        },
+        {
+          "id": "b",
+          "text": "SameSite=Strict with Secure removed for the callback"
+        },
+        {
+          "id": "c",
+          "text": "SameSite=Lax with HttpOnly removed for the callback"
+        },
+        {
+          "id": "d",
+          "text": "SameSite=None without Secure to support HTTP callbacks"
+        }
+      ],
+      "explanation": "None permits cross-site use and requires Secure. Strict and Lax can block cross-site POST cookies; HttpOnly addresses script access, not this SameSite restriction.",
+      "materials": [
+        "aspnetcore-authentication"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/security/samesite?view=aspnetcore-10.0",
+          "title": "Work with SameSite cookies in ASP.NET Core",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-10",
+          "claim": "SameSite=None permits cross-site cookie use and requires Secure under the 2019 standard; Strict or Lax can disrupt cross-site POST authentication flows."
+        }
+      ],
+      "answer": "a"
+    },
+    {
+      "id": "c035-q03",
+      "lesson": null,
+      "concept": "c035-sliding-cookie-renewal",
+      "type": "multiple_select",
+      "prompt": "Cookie authentication enables sliding expiration with a 20-minute expiration window. Which behaviors match that option? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The option renews cookies in browsers without incoming requests"
+        },
+        {
+          "id": "b",
+          "text": "A request early in the window need not cause sliding renewal"
+        },
+        {
+          "id": "c",
+          "text": "Every request renews the cookie from the very first minute"
+        },
+        {
+          "id": "d",
+          "text": "A request after the window's midpoint can reissue the cookie"
+        },
+        {
+          "id": "e",
+          "text": "A renewed cookie receives a new expiration time"
+        }
+      ],
+      "explanation": "Sliding renewal is request-driven and occurs after more than half the window has elapsed. It reissues the cookie with a new expiration; it is not renewal on every request or a background browser timer.",
+      "materials": [
+        "aspnetcore-authentication"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/api/microsoft.aspnetcore.authentication.cookies.cookieauthenticationoptions.slidingexpiration?view=aspnetcore-10.0",
+          "title": "CookieAuthenticationOptions.SlidingExpiration",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-10",
+          "claim": "Sliding expiration reissues the cookie with a new expiration when a request is processed more than halfway through its expiration window."
+        }
+      ],
+      "answers": [
+        "b",
+        "d",
+        "e"
+      ]
+    },
+    {
+      "id": "c035-q04",
+      "lesson": "w05-l02",
+      "concept": "c035-fallback-authorization-policy",
+      "type": "multiple_choice",
+      "prompt": "A fallback policy requires authentication globally. A login endpoint is explicitly marked AllowAnonymous. What does that marker do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It overrides the bypass when the caller has an expired cookie"
+        },
+        {
+          "id": "b",
+          "text": "It asks the fallback policy to enforce the default user role"
+        },
+        {
+          "id": "c",
+          "text": "It bypasses authorization for this endpoint"
+        },
+        {
+          "id": "d",
+          "text": "It requires both the fallback policy and a named login policy"
+        }
+      ],
+      "explanation": "AllowAnonymous permits the endpoint without authorization even when a fallback policy is configured. Otherwise a global authenticated-user requirement could block the login route itself.",
+      "materials": [
+        "aspnetcore-authorization"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/security/authorization/secure-data?view=aspnetcore-10.0",
+          "title": "Create an app with data protected by authorization",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-10",
+          "claim": "A fallback policy can require authentication on endpoints without authorization metadata; AllowAnonymous bypasses authorization."
+        }
+      ],
+      "answer": "c"
+    },
+    {
+      "id": "c035-q05",
+      "lesson": null,
+      "concept": "c035-samesite-cross-site-cookie",
+      "type": "multiple_choice",
+      "prompt": "A team changes every authentication cookie to SameSite=Strict. Why can a third-party login flow using a cross-site POST callback break?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Strict requires JavaScript to manually append the cookie header"
+        },
+        {
+          "id": "b",
+          "text": "Strict causes the browser to delete the cookie before each redirect"
+        },
+        {
+          "id": "c",
+          "text": "Strict makes the cookie valid only for cross-origin API requests"
+        },
+        {
+          "id": "d",
+          "text": "Strict can prevent the cookie from accompanying the callback"
+        }
+      ],
+      "explanation": "SameSite restricts cross-site transmission. The callback may need a cookie that Strict withholds; this is distinct from cookie deletion or a JavaScript header mechanism.",
+      "materials": [
+        "aspnetcore-authentication"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/security/samesite?view=aspnetcore-10.0",
+          "title": "Work with SameSite cookies in ASP.NET Core",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-10",
+          "claim": "SameSite=None permits cross-site cookie use and requires Secure under the 2019 standard; Strict or Lax can disrupt cross-site POST authentication flows."
+        }
+      ],
+      "answer": "d"
+    },
+    {
+      "id": "c035-q06",
+      "lesson": null,
+      "concept": "c035-sliding-cookie-renewal",
+      "type": "multiple_select",
+      "prompt": "An ASP.NET Core app relies on sliding cookie expiration. Which claims are accurate? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A new expiration can be issued after the midpoint is passed"
+        },
+        {
+          "id": "b",
+          "text": "Sliding renewal always happens immediately after sign-in"
+        },
+        {
+          "id": "c",
+          "text": "The option periodically contacts browsers while they are idle"
+        },
+        {
+          "id": "d",
+          "text": "Early requests always extend the expiration window immediately"
+        },
+        {
+          "id": "e",
+          "text": "Renewal is evaluated when the app processes a request"
+        }
+      ],
+      "explanation": "Requests processed beyond the midpoint can trigger reissuance and a new expiration. The option does not independently contact idle browsers and does not require extension for early requests.",
+      "materials": [
+        "aspnetcore-authentication"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/api/microsoft.aspnetcore.authentication.cookies.cookieauthenticationoptions.slidingexpiration?view=aspnetcore-10.0",
+          "title": "CookieAuthenticationOptions.SlidingExpiration",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-10",
+          "claim": "Sliding expiration reissues the cookie with a new expiration when a request is processed more than halfway through its expiration window."
+        }
+      ],
+      "answers": [
+        "a",
+        "e"
+      ]
+    }
+  ]
+}

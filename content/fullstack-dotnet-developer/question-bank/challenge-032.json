@@ -1,0 +1,268 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c032-filtered-include-fixup",
+      "name": "Filtered Include and tracking navigation fixup"
+    },
+    {
+      "id": "c032-pooled-context-request-state",
+      "name": "Request-specific state in pooled DbContext instances"
+    },
+    {
+      "id": "c032-compiled-model-startup",
+      "name": "Compiled EF models and first-operation startup cost"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c032-q01",
+      "lesson": null,
+      "concept": "c032-filtered-include-fixup",
+      "type": "multiple_choice",
+      "prompt": "An EF Core context already tracks an order with total 10. A tracking query includes that customer's orders filtered to totals above 100, yet the total-10 order appears in the navigation. Why?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Include translated the predicate into an unrestricted SQL join"
+        },
+        {
+          "id": "b",
+          "text": "Navigation fixup connected the previously tracked order"
+        },
+        {
+          "id": "c",
+          "text": "Tracking queries discard every predicate on related entities"
+        },
+        {
+          "id": "d",
+          "text": "The database changed the order total after the query ran"
+        }
+      ],
+      "explanation": "Tracking fixup connects already tracked related entities even if they fail the Include filter. The filter can still be present in SQL; use no tracking or a new context when this matters.",
+      "materials": [
+        "efcore-performance"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/ef/core/querying/related-data/eager",
+          "title": "Eager Loading of Related Data",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-10",
+          "claim": "Previously tracked related entities can appear in filtered Include results despite not matching the filter; the tracking navigation is considered loaded."
+        }
+      ],
+      "answer": "b"
+    },
+    {
+      "id": "c032-q02",
+      "lesson": null,
+      "concept": "c032-pooled-context-request-state",
+      "type": "multiple_choice",
+      "prompt": "A pooled EF Core context gets its tenant ID in `OnConfiguring`. Later requests for other tenants reuse the same instance. What is the core problem?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Pooling shares one connection and therefore one database user"
+        },
+        {
+          "id": "b",
+          "text": "The query compiler strips tenant predicates from pooled contexts"
+        },
+        {
+          "id": "c",
+          "text": "OnConfiguring does not run again for every request"
+        },
+        {
+          "id": "d",
+          "text": "OnConfiguring runs once for each query rather than each request"
+        }
+      ],
+      "explanation": "A pooled instance is reused and OnConfiguring runs only when it is first created. Request-specific state needs deliberate initialization on each checkout, such as through a scoped factory.",
+      "materials": [
+        "efcore-performance"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/ef/core/performance/advanced-performance-topics",
+          "title": "Advanced Performance Topics",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-10",
+          "claim": "Pooled contexts are reused across scopes, OnConfiguring runs once per instance, and request-specific tenant state must be supplied for each checkout."
+        }
+      ],
+      "answer": "c"
+    },
+    {
+      "id": "c032-q03",
+      "lesson": null,
+      "concept": "c032-compiled-model-startup",
+      "type": "multiple_select",
+      "prompt": "An EF Core service has a very large model and slow first-operation startup. Which compiled-model statements hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Constructing a context always initializes the entire model"
+        },
+        {
+          "id": "b",
+          "text": "Compiled models target model-initialization startup cost"
+        },
+        {
+          "id": "c",
+          "text": "Generating a compiled model removes the need for database indexes"
+        },
+        {
+          "id": "d",
+          "text": "A model change requires regenerating the compiled model"
+        },
+        {
+          "id": "e",
+          "text": "dotnet ef dbcontext optimize can generate a compiled model"
+        }
+      ],
+      "explanation": "Compiled models target model initialization at first use, not ordinary SQL indexing or all context construction. The optimize command generates the model, and changes to its definition or configuration require regeneration.",
+      "materials": [
+        "efcore-performance"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/ef/core/performance/advanced-performance-topics",
+          "title": "Advanced Performance Topics",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-10",
+          "claim": "Compiled models target first-operation model initialization for large models and must be regenerated when model definition or configuration changes."
+        }
+      ],
+      "answers": [
+        "b",
+        "d",
+        "e"
+      ]
+    },
+    {
+      "id": "c032-q04",
+      "lesson": "w04-l02",
+      "concept": "c032-filtered-include-fixup",
+      "type": "multiple_choice",
+      "prompt": "After a tracking filtered Include loads only some posts, code expects lazy loading to fill the remaining posts. What does EF Core consider that navigation?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Unloaded until its collection count equals a database count"
+        },
+        {
+          "id": "b",
+          "text": "Partially loaded, with automatic lazy loading of missing rows"
+        },
+        {
+          "id": "c",
+          "text": "Unloaded because Include used a Where predicate on the posts"
+        },
+        {
+          "id": "d",
+          "text": "Loaded, so lazy loading does not fill the missing posts"
+        }
+      ],
+      "explanation": "Filtered Include marks the navigation loaded in tracking queries even if the collection is incomplete. Lazy or explicit loading does not automatically refill it.",
+      "materials": [
+        "efcore-performance"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/ef/core/querying/related-data/eager",
+          "title": "Eager Loading of Related Data",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-10",
+          "claim": "Previously tracked related entities can appear in filtered Include results despite not matching the filter; the tracking navigation is considered loaded."
+        }
+      ],
+      "answer": "d"
+    },
+    {
+      "id": "c032-q05",
+      "lesson": null,
+      "concept": "c032-pooled-context-request-state",
+      "type": "multiple_choice",
+      "prompt": "How should a multitenant service supply changing tenant state to contexts obtained from a pooled factory?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Use a scoped wrapper that sets tenant state on checkout"
+        },
+        {
+          "id": "b",
+          "text": "Put the current tenant in OnConfiguring for every pooled query"
+        },
+        {
+          "id": "c",
+          "text": "Assume returning a context resets every custom application field"
+        },
+        {
+          "id": "d",
+          "text": "Set one singleton tenant value before the first request arrives"
+        }
+      ],
+      "explanation": "The documented approach wraps the pooled factory with a scoped factory that supplies the current tenant. Pooling cannot infer or reset arbitrary application state, and a singleton tenant would cross request boundaries.",
+      "materials": [
+        "efcore-performance"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/ef/core/performance/advanced-performance-topics",
+          "title": "Advanced Performance Topics",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-10",
+          "claim": "Pooled contexts are reused across scopes, OnConfiguring runs once per instance, and request-specific tenant state must be supplied for each checkout."
+        }
+      ],
+      "answer": "a"
+    },
+    {
+      "id": "c032-q06",
+      "lesson": null,
+      "concept": "c032-compiled-model-startup",
+      "type": "multiple_select",
+      "prompt": "A team changes EF model configuration after generating a compiled model. Which conclusions are sound? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A compiled model guarantees faster SQL for every query shape"
+        },
+        {
+          "id": "b",
+          "text": "Constructing a context always initializes its entire model immediately"
+        },
+        {
+          "id": "c",
+          "text": "Regenerate the compiled model for that configuration change"
+        },
+        {
+          "id": "d",
+          "text": "The old generated model automatically rewrites itself at runtime"
+        },
+        {
+          "id": "e",
+          "text": "Measure first-operation cost to assess the optimization"
+        }
+      ],
+      "explanation": "Generated models must stay synchronized through regeneration. Their benefit is model initialization, so measure first-use cost; they neither rewrite themselves nor guarantee faster SQL. Constructing a context alone need not initialize its model.",
+      "materials": [
+        "efcore-performance"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/ef/core/performance/advanced-performance-topics",
+          "title": "Advanced Performance Topics",
+          "publisher": "Microsoft Learn",
+          "accessed": "2026-10-10",
+          "claim": "Compiled models target first-operation model initialization for large models and must be regenerated when model definition or configuration changes."
+        }
+      ],
+      "answers": [
+        "c",
+        "e"
+      ]
+    }
+  ]
+}

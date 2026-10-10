@@ -1,0 +1,257 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c032-pointer-hit-chain",
+      "name": "Pointer hit-testing retains the initial dispatch chain"
+    },
+    {
+      "id": "c032-single-child-measure",
+      "name": "Single measurement per child in a layout pass"
+    },
+    {
+      "id": "c032-pointer-consumption-propagation",
+      "name": "Consumption marks pointer changes without stopping propagation"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c032-q01",
+      "lesson": null,
+      "concept": "c032-pointer-hit-chain",
+      "type": "multiple_choice",
+      "prompt": "In Compose, a finger presses inside a custom draggable and then moves outside its bounds without lifting. What happens to subsequent events for that pointer?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Every composable under the new position joins the original chain"
+        },
+        {
+          "id": "b",
+          "text": "All pointer events stop when the finger leaves those bounds"
+        },
+        {
+          "id": "c",
+          "text": "They continue through the original hit-tested chain"
+        },
+        {
+          "id": "d",
+          "text": "Each move performs a new hit-test and replaces that chain"
+        }
+      ],
+      "explanation": "For non-hover pointer events, Compose hit-tests the pointer initially and retains that chain. Moving outside bounds does not automatically stop delivery or enroll new nodes. Hover has different rules.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/touch-input/pointer-input/understand-gestures",
+          "title": "Understand gestures",
+          "publisher": "Android Developers (Google)",
+          "accessed": "2026-10-10",
+          "claim": "A pointer is hit-tested initially and later non-hover events follow that chain even outside bounds; consuming an event does not stop propagation, so custom handlers must check isConsumed."
+        }
+      ],
+      "answer": "c"
+    },
+    {
+      "id": "c032-q02",
+      "lesson": null,
+      "concept": "c032-single-child-measure",
+      "type": "multiple_choice",
+      "prompt": "A custom Compose `Layout` measures the same child with small constraints, then measures it again with larger constraints during the same measurement pass. What is wrong?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Compose forbids measuring that child twice in one pass"
+        },
+        {
+          "id": "b",
+          "text": "Compose permits it when both measurements run on the main thread"
+        },
+        {
+          "id": "c",
+          "text": "Compose requires three measurements before placing each child"
+        },
+        {
+          "id": "d",
+          "text": "Compose permits it if the child uses a stable data model"
+        }
+      ],
+      "explanation": "Compose does not support multi-pass measurement of the same child in a layout pass. Main-thread execution or stability does not waive the rule; measure children, choose size, then place them.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/layouts/custom",
+          "title": "Custom layouts",
+          "publisher": "Android Developers (Google)",
+          "accessed": "2026-10-10",
+          "claim": "Compose does not allow measuring the same child multiple times in one layout measurement pass; measure children, choose parent size, then place the measured children."
+        }
+      ],
+      "answer": "a"
+    },
+    {
+      "id": "c032-q03",
+      "lesson": null,
+      "concept": "c032-pointer-consumption-propagation",
+      "type": "multiple_select",
+      "prompt": "A custom Compose child handler calls `PointerInputChange.consume()`, but its parent custom handler still reacts. Which statements explain the behavior? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Consumed changes are invisible to every later pointer handler"
+        },
+        {
+          "id": "b",
+          "text": "Consumption marks the change instead of stopping propagation"
+        },
+        {
+          "id": "c",
+          "text": "Consumption removes the parent from the pointer dispatch chain"
+        },
+        {
+          "id": "d",
+          "text": "The parent should check `isConsumed` before acting on the change"
+        },
+        {
+          "id": "e",
+          "text": "Custom gesture code must handle consumption explicitly"
+        }
+      ],
+      "explanation": "consume marks the change and downstream handlers can observe isConsumed. Custom handlers must check it and choose not to act. Consumption neither removes nodes from the chain nor hides the event from subsequent handlers.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/touch-input/pointer-input/understand-gestures",
+          "title": "Understand gestures",
+          "publisher": "Android Developers (Google)",
+          "accessed": "2026-10-10",
+          "claim": "A pointer is hit-tested initially and later non-hover events follow that chain even outside bounds; consuming an event does not stop propagation, so custom handlers must check isConsumed."
+        }
+      ],
+      "answers": [
+        "b",
+        "d",
+        "e"
+      ]
+    },
+    {
+      "id": "c032-q04",
+      "lesson": null,
+      "concept": "c032-pointer-hit-chain",
+      "type": "multiple_choice",
+      "prompt": "Two overlapping Compose buttons are siblings at the same level. With default pointer dispatch, which button is hit when a finger presses inside both?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Both siblings, regardless of their z-index values"
+        },
+        {
+          "id": "b",
+          "text": "The eligible sibling with the largest measured area"
+        },
+        {
+          "id": "c",
+          "text": "The eligible sibling with the highest z-index"
+        },
+        {
+          "id": "d",
+          "text": "The eligible sibling declared first in source order"
+        }
+      ],
+      "explanation": "Default hit-testing chooses the highest-z eligible sibling. It does not broadcast to all overlapping siblings or choose by declaration order or area; custom pointer nodes can change sibling-sharing behavior.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/touch-input/pointer-input/understand-gestures",
+          "title": "Understand gestures",
+          "publisher": "Android Developers (Google)",
+          "accessed": "2026-10-10",
+          "claim": "A pointer is hit-tested initially and later non-hover events follow that chain even outside bounds; consuming an event does not stop propagation, so custom handlers must check isConsumed."
+        }
+      ],
+      "answer": "c"
+    },
+    {
+      "id": "c032-q05",
+      "lesson": null,
+      "concept": "c032-single-child-measure",
+      "type": "multiple_choice",
+      "prompt": "After measuring children in a custom Compose layout, what is the normal next sequence?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Place unmeasured children, then determine all their sizes"
+        },
+        {
+          "id": "b",
+          "text": "Draw every child before deciding the parent layout dimensions"
+        },
+        {
+          "id": "c",
+          "text": "Measure every child repeatedly until its preferred size stabilizes"
+        },
+        {
+          "id": "d",
+          "text": "Determine the parent size, then place the measured children"
+        }
+      ],
+      "explanation": "The documented sequence is measure children, decide the layout size, then place children. Placement follows measurement; repeated measurement and drawing first are not that layout protocol.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/layouts/custom",
+          "title": "Custom layouts",
+          "publisher": "Android Developers (Google)",
+          "accessed": "2026-10-10",
+          "claim": "Compose does not allow measuring the same child multiple times in one layout measurement pass; measure children, choose parent size, then place the measured children."
+        }
+      ],
+      "answer": "d"
+    },
+    {
+      "id": "c032-q06",
+      "lesson": null,
+      "concept": "c032-pointer-consumption-propagation",
+      "type": "multiple_select",
+      "prompt": "Custom Compose gesture handlers listen to pointer-event passes. Which statements hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Consuming a change automatically removes parents from every later pass"
+        },
+        {
+          "id": "b",
+          "text": "Final clears all consumption flags before parent handlers can see them"
+        },
+        {
+          "id": "c",
+          "text": "Custom handlers should check consumption before reacting"
+        },
+        {
+          "id": "d",
+          "text": "Initial travels from the root toward the leaves"
+        },
+        {
+          "id": "e",
+          "text": "Main travels from leaves toward the root, giving children precedence"
+        }
+      ],
+      "explanation": "Main travels upward and Initial downward. Consumption remains observable through propagation; custom handlers must respect it. Final does not clear the flag, and consume does not remove parents.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/touch-input/pointer-input/understand-gestures",
+          "title": "Understand gestures",
+          "publisher": "Android Developers (Google)",
+          "accessed": "2026-10-10",
+          "claim": "A pointer is hit-tested initially and later non-hover events follow that chain even outside bounds; consuming an event does not stop propagation, so custom handlers must check isConsumed."
+        }
+      ],
+      "answers": [
+        "c",
+        "d",
+        "e"
+      ]
+    }
+  ]
+}

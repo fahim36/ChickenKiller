@@ -1,0 +1,257 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c034-notification-channel-user-control",
+      "name": "User control of an existing notification channel"
+    },
+    {
+      "id": "c034-notification-runtime-denial",
+      "name": "Notification permission denial and foreground services"
+    },
+    {
+      "id": "c034-notification-group-summary",
+      "name": "Manual notification grouping and summary alerts"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c034-q01",
+      "lesson": null,
+      "concept": "c034-notification-channel-user-control",
+      "type": "multiple_choice",
+      "prompt": "On Android 8.0+, a user silences a notification channel. The app calls `createNotificationChannel()` again with the same ID and higher importance. What should the developer expect?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Recreation deletes the old channel and all its user preferences"
+        },
+        {
+          "id": "b",
+          "text": "Recreation resets the channel to the app's requested importance"
+        },
+        {
+          "id": "c",
+          "text": "Each notification's compatibility priority overrides the channel"
+        },
+        {
+          "id": "d",
+          "text": "The app cannot override the user's channel behavior this way"
+        }
+      ],
+      "explanation": "After creation, the app cannot change channel importance or behavior; the user controls those settings. Recreating the channel does not reset preferences, and per-notification priority is the pre-Android-8 mechanism.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/notifications/channels",
+          "title": "Create and manage notification channels",
+          "publisher": "Android Developers (Google)",
+          "accessed": "2026-10-10",
+          "claim": "On Android 8.0+, channel importance controls interruption; after creation the app cannot change importance or channel behavior, but the user can change settings and the app can open channel settings."
+        }
+      ],
+      "answer": "d"
+    },
+    {
+      "id": "c034-q02",
+      "lesson": null,
+      "concept": "c034-notification-runtime-denial",
+      "type": "multiple_choice",
+      "prompt": "On Android 13+, a user denies `POST_NOTIFICATIONS`. Which statement about starting a foreground service is correct?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Permission denial forbids every foreground service from starting"
+        },
+        {
+          "id": "b",
+          "text": "Denial removes the requirement to provide any notification for that service"
+        },
+        {
+          "id": "c",
+          "text": "Permission is not required to start it, but its notification is required"
+        },
+        {
+          "id": "d",
+          "text": "Providing the service notification automatically grants permission"
+        }
+      ],
+      "explanation": "A foreground service does not require POST_NOTIFICATIONS to launch, but it must still include a notification and satisfy other service restrictions. Denial neither waives that notification nor auto-grants permission.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/notifications/notification-permission",
+          "title": "Notification runtime permission",
+          "publisher": "Android Developers (Google)",
+          "accessed": "2026-10-10",
+          "claim": "Android 13+ requires POST_NOTIFICATIONS for non-exempt notifications; denial blocks those notifications, and launching a foreground service does not require permission but still requires its notification."
+        }
+      ],
+      "answer": "c"
+    },
+    {
+      "id": "c034-q03",
+      "lesson": null,
+      "concept": "c034-notification-group-summary",
+      "type": "multiple_select",
+      "prompt": "An Android email app manually groups independently actionable notifications and wants only the summary to alert. Which configuration matches the documented API? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Use a notification channel group instead of a summary notification"
+        },
+        {
+          "id": "b",
+          "text": "Set `GROUP_ALERT_SUMMARY` on children to suppress child alerts"
+        },
+        {
+          "id": "c",
+          "text": "Give each child a different group key to join one notification group"
+        },
+        {
+          "id": "d",
+          "text": "Mark a separate notification with `setGroupSummary(true)`"
+        },
+        {
+          "id": "e",
+          "text": "Give the children and summary the same `setGroup()` key"
+        }
+      ],
+      "explanation": "Manual grouping uses a shared group key and an explicit summary. Children configured with GROUP_ALERT_SUMMARY leave alerts to the summary. Different keys separate groups, and channel groups organize settings rather than replacing notification groups.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/views/notifications/group",
+          "title": "Create a group of notifications",
+          "publisher": "Android Developers (Google)",
+          "accessed": "2026-10-10",
+          "claim": "Manual notification groups use setGroup with a common key and a separate summary with setGroupSummary(true); GROUP_ALERT_SUMMARY on children suppresses child alerts, and the summary ID stays constant for updates."
+        }
+      ],
+      "answers": [
+        "b",
+        "d",
+        "e"
+      ]
+    },
+    {
+      "id": "c034-q04",
+      "lesson": null,
+      "concept": "c034-notification-channel-user-control",
+      "type": "multiple_choice",
+      "prompt": "On Android 8.0+, an app detects that its notification channel is too quiet for the user's chosen reminder behavior. What action respects the channel model?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Set a higher compatibility priority on every new notification"
+        },
+        {
+          "id": "b",
+          "text": "Change that channel's sound programmatically after creation"
+        },
+        {
+          "id": "c",
+          "text": "Offer a link to that channel's system notification settings"
+        },
+        {
+          "id": "d",
+          "text": "Recreate that channel each time with a higher importance level"
+        }
+      ],
+      "explanation": "The app can inspect settings and open ACTION_CHANNEL_NOTIFICATION_SETTINGS so the user can change them. It cannot override established channel importance or sound by recreation or per-notification priority.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/notifications/channels",
+          "title": "Create and manage notification channels",
+          "publisher": "Android Developers (Google)",
+          "accessed": "2026-10-10",
+          "claim": "On Android 8.0+, channel importance controls interruption; after creation the app cannot change importance or channel behavior, but the user can change settings and the app can open channel settings."
+        }
+      ],
+      "answer": "c"
+    },
+    {
+      "id": "c034-q05",
+      "lesson": null,
+      "concept": "c034-notification-runtime-denial",
+      "type": "multiple_choice",
+      "prompt": "A freshly installed Android 13+ app wants to send ordinary, non-exempt notifications. What is required besides creating its notification channel?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Add a notification group summary to bypass permission checks"
+        },
+        {
+          "id": "b",
+          "text": "Obtain the runtime `POST_NOTIFICATIONS` permission"
+        },
+        {
+          "id": "c",
+          "text": "Choose a high-importance channel to bypass permission checks"
+        },
+        {
+          "id": "d",
+          "text": "Start a foreground service to grant ordinary notification access"
+        }
+      ],
+      "explanation": "Ordinary notifications require POST_NOTIFICATIONS on Android 13+. Importance, foreground-service use and grouping do not grant that permission or exempt ordinary notifications.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/compose/notifications/notification-permission",
+          "title": "Notification runtime permission",
+          "publisher": "Android Developers (Google)",
+          "accessed": "2026-10-10",
+          "claim": "Android 13+ requires POST_NOTIFICATIONS for non-exempt notifications; denial blocks those notifications, and launching a foreground service does not require permission but still requires its notification."
+        }
+      ],
+      "answer": "b"
+    },
+    {
+      "id": "c034-q06",
+      "lesson": null,
+      "concept": "c034-notification-group-summary",
+      "type": "multiple_select",
+      "prompt": "An Android app updates a manually grouped set of notifications. Which statements hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Give the summary and children the same notification group key"
+        },
+        {
+          "id": "b",
+          "text": "Keep the summary notification ID constant for later updates"
+        },
+        {
+          "id": "c",
+          "text": "Assign a new summary ID for every update to replace the previous one"
+        },
+        {
+          "id": "d",
+          "text": "Use `setGroupSummary(true)` on the separate summary notification"
+        },
+        {
+          "id": "e",
+          "text": "Use a different summary group key to collect all notification groups"
+        }
+      ],
+      "explanation": "A constant summary ID updates the existing notification. The summary and children share a group key, and the summary is explicitly marked. A new ID creates another notification; a different group key separates groups.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/ui/views/notifications/group",
+          "title": "Create a group of notifications",
+          "publisher": "Android Developers (Google)",
+          "accessed": "2026-10-10",
+          "claim": "Manual notification groups use setGroup with a common key and a separate summary with setGroupSummary(true); GROUP_ALERT_SUMMARY on children suppresses child alerts, and the summary ID stays constant for updates."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "d"
+      ]
+    }
+  ]
+}

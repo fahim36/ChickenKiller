@@ -1,0 +1,256 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c033-fileprovider-temporary-grant",
+      "name": "Sharing private files with content URI grants"
+    },
+    {
+      "id": "c033-backup-excluded-directories",
+      "name": "Auto Backup exclusions for private app files"
+    },
+    {
+      "id": "c033-photo-picker-persist-grant",
+      "name": "Persisting photo-picker access for background work"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c033-q01",
+      "lesson": null,
+      "concept": "c033-fileprovider-temporary-grant",
+      "type": "multiple_choice",
+      "prompt": "An Android app shares a private PDF with another app using FileProvider. How should it give the recipient read access?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Send the private file path and request broad storage permission"
+        },
+        {
+          "id": "b",
+          "text": "Send the content URI with a temporary read-URI permission flag"
+        },
+        {
+          "id": "c",
+          "text": "Replace the content URI with a file URI to bypass access checks"
+        },
+        {
+          "id": "d",
+          "text": "Mark the PDF directory world-readable before sending its path"
+        }
+      ],
+      "explanation": "FileProvider content URIs plus FLAG_GRANT_READ_URI_PERMISSION grant scoped temporary access. A private raw path is not a grant; file URIs and world-readable storage bypass the documented secure-sharing design.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://developer.android.com/training/secure-file-sharing/share-file",
+          "title": "Sharing a file",
+          "publisher": "Android Developers (Google)",
+          "accessed": "2026-10-10",
+          "claim": "FileProvider creates content URIs for configured paths; an Intent read-URI grant gives the receiving app temporary access without exposing a raw file URI or granting broad storage access."
+        }
+      ],
+      "answer": "b"
+    },
+    {
+      "id": "c033-q02",
+      "lesson": null,
+      "concept": "c033-backup-excluded-directories",
+      "type": "multiple_choice",
+      "prompt": "A device-specific secret must not be included in Android Auto Backup. Which directory is specifically intended for files excluded from that backup?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The directory returned by `getNoBackupFilesDir()`"
+        },
+        {
+          "id": "b",
+          "text": "The shared-preferences directory without custom backup rules"
+        },
+        {
+          "id": "c",
+          "text": "The directory returned by `getFilesDir()` without custom rules"
+        },
+        {
+          "id": "d",
+          "text": "The database directory without any custom backup exclusion rules"
+        }
+      ],
+      "explanation": "Auto Backup excludes getNoBackupFilesDir. Internal files, databases and shared preferences are normally included, so putting the secret there without exclusions does not meet this requirement.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://developer.android.com/identity/data/autobackup",
+          "title": "Back up user data with Auto Backup",
+          "publisher": "Android Developers (Google)",
+          "accessed": "2026-10-10",
+          "claim": "Auto Backup normally includes shared preferences, internal files and databases, but excludes cache, code-cache and getNoBackupFilesDir directories; rules can exclude particular files."
+        }
+      ],
+      "answer": "a"
+    },
+    {
+      "id": "c033-q03",
+      "lesson": null,
+      "concept": "c033-photo-picker-persist-grant",
+      "type": "multiple_select",
+      "prompt": "An Android app selects a video through the photo picker and queues a background upload that may run after the app stops. Which statements hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Default picker access can end when the app stops or the device restarts"
+        },
+        {
+          "id": "b",
+          "text": "Photo selection automatically grants read access to the entire library"
+        },
+        {
+          "id": "c",
+          "text": "Persist the selected URI read grant with `takePersistableUriPermission`"
+        },
+        {
+          "id": "d",
+          "text": "The picker provides scoped access to user-selected media files"
+        },
+        {
+          "id": "e",
+          "text": "A stored URI string alone guarantees read access after the app stops"
+        }
+      ],
+      "explanation": "Persisting the read grant supports longer-running work. The picker grants selected-media access rather than whole-library permission. Default access has a limited lifetime; storing the URI text does not preserve the permission itself.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://developer.android.com/training/data-storage/shared/photo-picker",
+          "title": "Photo picker",
+          "publisher": "Android Developers (Google)",
+          "accessed": "2026-10-10",
+          "claim": "Photo picker grants access to selected media rather than the entire library; takePersistableUriPermission with a read flag extends access for long-running background work."
+        }
+      ],
+      "answers": [
+        "a",
+        "c",
+        "d"
+      ]
+    },
+    {
+      "id": "c033-q04",
+      "lesson": null,
+      "concept": "c033-fileprovider-temporary-grant",
+      "type": "multiple_choice",
+      "prompt": "Why use a FileProvider content URI rather than a raw private file path for an Android share operation?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It permanently gives every installed app access to that file"
+        },
+        {
+          "id": "b",
+          "text": "It supports a temporary grant to the particular receiving app"
+        },
+        {
+          "id": "c",
+          "text": "It makes the whole internal storage directory public to all apps"
+        },
+        {
+          "id": "d",
+          "text": "It removes the need to configure which file paths can be shared"
+        }
+      ],
+      "explanation": "The content URI lets Android enforce a recipient-specific temporary grant. FileProvider still needs configured shareable paths; it does not expose all internal storage or grant permanent universal access.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://developer.android.com/training/secure-file-sharing/share-file",
+          "title": "Sharing a file",
+          "publisher": "Android Developers (Google)",
+          "accessed": "2026-10-10",
+          "claim": "FileProvider creates content URIs for configured paths; an Intent read-URI grant gives the receiving app temporary access without exposing a raw file URI or granting broad storage access."
+        }
+      ],
+      "answer": "b"
+    },
+    {
+      "id": "c033-q05",
+      "lesson": null,
+      "concept": "c033-backup-excluded-directories",
+      "type": "multiple_choice",
+      "prompt": "An Android developer stores a critical restore token only in `getCacheDir()` and relies on default Auto Backup. What is the flaw?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Cache directories are included whenever the token is small"
+        },
+        {
+          "id": "b",
+          "text": "Cache directories are backed up before shared preferences"
+        },
+        {
+          "id": "c",
+          "text": "Cache directories are backed up only when the app is stopped"
+        },
+        {
+          "id": "d",
+          "text": "Cache directories are excluded from Auto Backup"
+        }
+      ],
+      "explanation": "Auto Backup excludes cache and code-cache directories irrespective of token size. Backup ordering or stopping the app does not turn a cache file into backed-up persistent data.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://developer.android.com/identity/data/autobackup",
+          "title": "Back up user data with Auto Backup",
+          "publisher": "Android Developers (Google)",
+          "accessed": "2026-10-10",
+          "claim": "Auto Backup normally includes shared preferences, internal files and databases, but excludes cache, code-cache and getNoBackupFilesDir directories; rules can exclude particular files."
+        }
+      ],
+      "answer": "d"
+    },
+    {
+      "id": "c033-q06",
+      "lesson": null,
+      "concept": "c033-photo-picker-persist-grant",
+      "type": "multiple_select",
+      "prompt": "An Android app needs to upload photo-picker media after the app stops. Which choices preserve the relevant permission correctly? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Assume a WorkManager network constraint preserves the URI grant"
+        },
+        {
+          "id": "b",
+          "text": "Call `takePersistableUriPermission` on the selected URI"
+        },
+        {
+          "id": "c",
+          "text": "Treat a saved URI string as a permanent replacement for a permission"
+        },
+        {
+          "id": "d",
+          "text": "Use `FLAG_GRANT_READ_URI_PERMISSION` for persisted read access"
+        },
+        {
+          "id": "e",
+          "text": "Read the media once to make the temporary grant automatically permanent"
+        }
+      ],
+      "explanation": "Persist the URI permission with ContentResolver.takePersistableUriPermission and the read flag. Saving a string, adding constraints or reading once does not extend the temporary grant.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://developer.android.com/training/data-storage/shared/photo-picker",
+          "title": "Photo picker",
+          "publisher": "Android Developers (Google)",
+          "accessed": "2026-10-10",
+          "claim": "Photo picker grants access to selected media rather than the entire library; takePersistableUriPermission with a read flag extends access for long-running background work."
+        }
+      ],
+      "answers": [
+        "b",
+        "d"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,256 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c036-work-input-key-collisions",
+      "name": "Input-merger collisions after parallel predecessors"
+    },
+    {
+      "id": "c036-work-data-small-payload",
+      "name": "WorkManager Data is a bounded payload container"
+    },
+    {
+      "id": "c036-periodic-flex-timing",
+      "name": "Periodic work flex windows and non-exact timing"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c036-q01",
+      "lesson": null,
+      "concept": "c036-work-input-key-collisions",
+      "type": "multiple_choice",
+      "prompt": "Two parallel WorkManager predecessors both output `imageUri`, and the next worker uses the default input merger. What is the hazard?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The first request listed in the chain always supplies the winning value"
+        },
+        {
+          "id": "b",
+          "text": "One colliding value overwrites the other without a guaranteed winner"
+        },
+        {
+          "id": "c",
+          "text": "The dependent worker rejects every input containing duplicate keys"
+        },
+        {
+          "id": "d",
+          "text": "Both colliding values become an array under the default input merger"
+        }
+      ],
+      "explanation": "OverwritingInputMerger is the default. Collisions overwrite earlier merged values, and parallel completion order is not guaranteed. ArrayCreatingInputMerger collects arrays; list order is not a reliable winner and duplicate keys do not automatically reject work.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/background-work/background-tasks/persistent/how-to/chain-work",
+          "title": "Chaining work",
+          "publisher": "Android Developers (Google)",
+          "accessed": "2026-10-10",
+          "claim": "OverwritingInputMerger is the default and replaces colliding keys; parallel predecessor completion order is not guaranteed, while ArrayCreatingInputMerger combines values into arrays."
+        }
+      ],
+      "answer": "b"
+    },
+    {
+      "id": "c036-q02",
+      "lesson": null,
+      "concept": "c036-work-data-small-payload",
+      "type": "multiple_choice",
+      "prompt": "An Android developer puts an entire large image into WorkManager `Data` rather than storing a file reference. Why is that a poor fit?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`Data` silently streams arbitrary payload sizes into a database"
+        },
+        {
+          "id": "b",
+          "text": "`Data` stores every object by preserving its original JVM identity"
+        },
+        {
+          "id": "c",
+          "text": "`Data` grows its serialized-size limit for each worker request"
+        },
+        {
+          "id": "d",
+          "text": "`Data` is a bounded lightweight payload, not bulk storage"
+        }
+      ],
+      "explanation": "Data supports a restricted set of lightweight values and enforces MAX_DATA_BYTES on serialized payloads; exceeding it throws IllegalStateException. It is not a streaming store, an elastic container or general object-identity persistence. Store bulk content separately and pass a reference.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://developer.android.com/reference/androidx/work/Data",
+          "title": "Data",
+          "publisher": "Android Developers (Google)",
+          "accessed": "2026-10-10",
+          "claim": "WorkManager Data is a lightweight key/value container with supported primitive, string and array values, not a database; serialized size is limited by MAX_DATA_BYTES and exceeding the limit throws IllegalStateException."
+        }
+      ],
+      "answer": "d"
+    },
+    {
+      "id": "c036-q03",
+      "lesson": null,
+      "concept": "c036-periodic-flex-timing",
+      "type": "multiple_select",
+      "prompt": "An Android app uses periodic WorkManager work with a one-hour repeat interval and a 15-minute flex interval. Which statements hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The worker is guaranteed to start at the exact beginning of its flex window"
+        },
+        {
+          "id": "b",
+          "text": "The flex window is the ending 15 minutes of an interval"
+        },
+        {
+          "id": "c",
+          "text": "A one-minute repeat interval is supported for frequent polling"
+        },
+        {
+          "id": "d",
+          "text": "System optimizations can affect the actual execution timing"
+        },
+        {
+          "id": "e",
+          "text": "Constraints can prevent execution during a particular interval"
+        }
+      ],
+      "explanation": "Flex begins at repeatInterval minus flexInterval and extends to the interval end. Constraints and system scheduling affect execution, so neither a precise start time nor a run in every constrained interval is guaranteed. Periodic work has a 15-minute minimum repeat interval.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/background-work/background-tasks/persistent/getting-started/define-work",
+          "title": "Define work requests",
+          "publisher": "Android Developers (Google)",
+          "accessed": "2026-10-10",
+          "claim": "Periodic work has a minimum 15-minute interval; flex runs within the ending part of an interval, and constraints and system optimizations affect timing so exact execution times are not guaranteed."
+        }
+      ],
+      "answers": [
+        "b",
+        "d",
+        "e"
+      ]
+    },
+    {
+      "id": "c036-q04",
+      "lesson": null,
+      "concept": "c036-work-input-key-collisions",
+      "type": "multiple_choice",
+      "prompt": "A WorkManager join needs all string values emitted under the same key by parallel predecessor workers. Which built-in input merger fits?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "No input merger, because each predecessor sends a separate callback"
+        },
+        {
+          "id": "b",
+          "text": "The default input merger, which sorts strings by predecessor order"
+        },
+        {
+          "id": "c",
+          "text": "`OverwritingInputMerger`, which retains every colliding string value"
+        },
+        {
+          "id": "d",
+          "text": "`ArrayCreatingInputMerger`, which collects those values into arrays"
+        }
+      ],
+      "explanation": "ArrayCreatingInputMerger combines inputs into arrays as needed. OverwritingInputMerger loses earlier colliding values; default merging does not sort them, and dependent workers receive merged input rather than independent predecessor callbacks.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/background-work/background-tasks/persistent/how-to/chain-work",
+          "title": "Chaining work",
+          "publisher": "Android Developers (Google)",
+          "accessed": "2026-10-10",
+          "claim": "OverwritingInputMerger is the default and replaces colliding keys; parallel predecessor completion order is not guaranteed, while ArrayCreatingInputMerger combines values into arrays."
+        }
+      ],
+      "answer": "d"
+    },
+    {
+      "id": "c036-q05",
+      "lesson": null,
+      "concept": "c036-work-data-small-payload",
+      "type": "multiple_choice",
+      "prompt": "A WorkManager worker receives a file-location string through `Data`. What should it use for the actual large file contents?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A larger `Data` object whose size limit expands after deserialization"
+        },
+        {
+          "id": "b",
+          "text": "A separate persistent file or store referenced by that small payload"
+        },
+        {
+          "id": "c",
+          "text": "Several large byte arrays that bypass the combined serialized limit"
+        },
+        {
+          "id": "d",
+          "text": "An arbitrary activity object inserted into the `Data` key/value map"
+        }
+      ],
+      "explanation": "Data is intended for lightweight input/output, so keep bulk content in separate storage and pass its reference. Its serialized cap does not expand, arbitrary activity objects are not supported values, and splitting into arrays does not bypass the total limit.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://developer.android.com/reference/androidx/work/Data",
+          "title": "Data",
+          "publisher": "Android Developers (Google)",
+          "accessed": "2026-10-10",
+          "claim": "WorkManager Data is a lightweight key/value container with supported primitive, string and array values, not a database; serialized size is limited by MAX_DATA_BYTES and exceeding the limit throws IllegalStateException."
+        }
+      ],
+      "answer": "b"
+    },
+    {
+      "id": "c036-q06",
+      "lesson": null,
+      "concept": "c036-periodic-flex-timing",
+      "type": "multiple_select",
+      "prompt": "An Android app considers periodic WorkManager work for hourly sync. Which statements hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Every interval must execute even when required constraints remain unmet"
+        },
+        {
+          "id": "b",
+          "text": "The minimum repeat interval is fifteen minutes"
+        },
+        {
+          "id": "c",
+          "text": "A flex window guarantees an exact clock time for the worker to begin"
+        },
+        {
+          "id": "d",
+          "text": "Constraints and system scheduling can affect actual execution timing"
+        },
+        {
+          "id": "e",
+          "text": "A one-hour repeat interval is rejected because fifteen minutes is the maximum"
+        }
+      ],
+      "explanation": "Periodic work has a 15-minute minimum interval, not a maximum. It is deferrable: constraints and system scheduling affect timing. Flex describes an allowed window, not an exact start guarantee or a requirement to run despite unmet constraints.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://developer.android.com/develop/background-work/background-tasks/persistent/getting-started/define-work",
+          "title": "Define work requests",
+          "publisher": "Android Developers (Google)",
+          "accessed": "2026-10-10",
+          "claim": "Periodic work has a minimum 15-minute interval; flex runs within the ending part of an interval, and constraints and system optimizations affect timing so exact execution times are not guaranteed."
+        }
+      ],
+      "answers": [
+        "b",
+        "d"
+      ]
+    }
+  ]
+}

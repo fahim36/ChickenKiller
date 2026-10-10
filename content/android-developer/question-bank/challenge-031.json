@@ -1,0 +1,255 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c031-tailrec-final-call",
+      "name": "Tail recursion requires the self-call to be final"
+    },
+    {
+      "id": "c031-enum-persistent-code",
+      "name": "Stable identifiers versus enum ordinals"
+    },
+    {
+      "id": "c031-destructuring-skipped-components",
+      "name": "Destructuring calls and underscore elision"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c031-q01",
+      "lesson": null,
+      "concept": "c031-tailrec-final-call",
+      "type": "multiple_choice",
+      "prompt": "A Kotlin recursive function returns `1 + visit(next)`. Why does adding `tailrec` fail to remove its recursive stack growth?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The addition still runs after the recursive call returns"
+        },
+        {
+          "id": "b",
+          "text": "Returning an integer prevents optimization of recursive calls"
+        },
+        {
+          "id": "c",
+          "text": "A function parameter prevents optimization of recursive calls"
+        },
+        {
+          "id": "d",
+          "text": "The recursive call must appear at the start of the function"
+        }
+      ],
+      "explanation": "The addition is work after the self-call, so that call is not the final operation. Returning integers or using parameters is allowed; placing recursion first does not make it tail recursion.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/functions.html",
+          "title": "Functions",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-10",
+          "claim": "A tailrec function is optimized into a loop when its self-call is the final operation; code after that call, try/catch/finally and open functions prevent tail recursion."
+        }
+      ],
+      "answer": "a"
+    },
+    {
+      "id": "c031-q02",
+      "lesson": null,
+      "concept": "c031-enum-persistent-code",
+      "type": "multiple_choice",
+      "prompt": "An Android app persists `Status.ordinal` in its database. A release reorders the enum constants. Which design prevents old rows from silently changing meaning?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Persist an explicit stable code assigned to each constant"
+        },
+        {
+          "id": "b",
+          "text": "Read the saved ordinal from the reordered `entries` collection"
+        },
+        {
+          "id": "c",
+          "text": "Persist the ordinal plus the current number of enum constants"
+        },
+        {
+          "id": "d",
+          "text": "Persist the ordinal after converting its value to a string"
+        }
+      ],
+      "explanation": "Ordinal records declaration position, which changes on reordering. A stable explicit code preserves meaning; a count, entries lookup or string conversion leaves the same positional coupling.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/enum-classes.html",
+          "title": "Enum classes",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-10",
+          "claim": "An enum ordinal is its zero-based declaration position; use an explicit code property for identifiers that must survive reordering, and valueOf requires an exact name."
+        }
+      ],
+      "answer": "a"
+    },
+    {
+      "id": "c031-q03",
+      "lesson": null,
+      "concept": "c031-destructuring-skipped-components",
+      "type": "multiple_select",
+      "prompt": "A Kotlin class defines `operator fun component1()` and `operator fun component2()` with logging. Consider `val (_, value) = item`. Which statements hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`component1()` is skipped for the underscore"
+        },
+        {
+          "id": "b",
+          "text": "The underscore shifts `component2()` into the first position"
+        },
+        {
+          "id": "c",
+          "text": "`component2()` supplies the value of `value`"
+        },
+        {
+          "id": "d",
+          "text": "Both component functions run before the first value is discarded"
+        },
+        {
+          "id": "e",
+          "text": "The variable name `value` selects a matching property by name"
+        }
+      ],
+      "explanation": "Destructuring is positional: the second slot calls component2. An underscore suppresses its own component call, rather than discarding an already-computed value. Variable names do not select properties, and skipping a slot does not renumber later slots.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/destructuring-declarations.html",
+          "title": "Destructuring declarations",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-10",
+          "claim": "Destructuring uses operator componentN functions in positional order; an underscore skips the corresponding component function call."
+        }
+      ],
+      "answers": [
+        "a",
+        "c"
+      ]
+    },
+    {
+      "id": "c031-q04",
+      "lesson": null,
+      "concept": "c031-tailrec-final-call",
+      "type": "multiple_choice",
+      "prompt": "A Kotlin traversal has deep recursion and a self-call as its final operation. What does a valid `tailrec` modifier enable?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Optimizing any recursion regardless of code after the self-call"
+        },
+        {
+          "id": "b",
+          "text": "Removing stack frames for every helper function the traversal calls"
+        },
+        {
+          "id": "c",
+          "text": "Launching each recursive invocation on a different worker thread"
+        },
+        {
+          "id": "d",
+          "text": "Compilation into a loop that avoids a frame for each self-call"
+        }
+      ],
+      "explanation": "When its formal conditions hold, tailrec transforms self-recursion into a loop. It neither creates threads nor eliminates arbitrary helper calls, and post-call work prevents this optimization.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/functions.html",
+          "title": "Functions",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-10",
+          "claim": "A tailrec function is optimized into a loop when its self-call is the final operation; code after that call, try/catch/finally and open functions prevent tail recursion."
+        }
+      ],
+      "answer": "d"
+    },
+    {
+      "id": "c031-q05",
+      "lesson": null,
+      "concept": "c031-enum-persistent-code",
+      "type": "multiple_choice",
+      "prompt": "A Kotlin enum stores `code: Int` for a wire protocol. The server sends one of those codes. Which lookup matches that protocol?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Find the enum entry whose explicit `code` equals the received value"
+        },
+        {
+          "id": "b",
+          "text": "Compare the received value with each enum constant's `ordinal`"
+        },
+        {
+          "id": "c",
+          "text": "Pass the received numeric code as a string to the generated enum `valueOf`"
+        },
+        {
+          "id": "d",
+          "text": "Use the received value as an index into the current enum `entries`"
+        }
+      ],
+      "explanation": "Explicit properties can represent stable protocol codes. entries indices and ordinal are declaration positions. valueOf looks up an exact enum name, not a numeric property.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/enum-classes.html",
+          "title": "Enum classes",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-10",
+          "claim": "An enum ordinal is its zero-based declaration position; use an explicit code property for identifiers that must survive reordering, and valueOf requires an exact name."
+        }
+      ],
+      "answer": "a"
+    },
+    {
+      "id": "c031-q06",
+      "lesson": null,
+      "concept": "c031-destructuring-skipped-components",
+      "type": "multiple_select",
+      "prompt": "A Kotlin destructuring declaration is `val (label, id) = record`. Which statements describe its component mapping? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Variable names select matching record properties through reflection"
+        },
+        {
+          "id": "b",
+          "text": "The second slot receives the result of `component2()`"
+        },
+        {
+          "id": "c",
+          "text": "Component positions follow alphabetical ordering of property names"
+        },
+        {
+          "id": "d",
+          "text": "Reading `id` first reverses the order of the component function calls"
+        },
+        {
+          "id": "e",
+          "text": "The first slot receives the result of `component1()`"
+        }
+      ],
+      "explanation": "Destructuring uses positional component functions: first component1, then component2. Local names, alphabetical property order and later reads do not alter that mapping.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/docs/destructuring-declarations.html",
+          "title": "Destructuring declarations",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-10",
+          "claim": "Destructuring uses operator componentN functions in positional order; an underscore skips the corresponding component function call."
+        }
+      ],
+      "answers": [
+        "b",
+        "e"
+      ]
+    }
+  ]
+}

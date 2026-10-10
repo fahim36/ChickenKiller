@@ -1,0 +1,255 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c035-result-registration-order",
+      "name": "Stable unconditional activity-result registration"
+    },
+    {
+      "id": "c035-result-launch-lifecycle",
+      "name": "Activity-result registration versus launch lifecycle"
+    },
+    {
+      "id": "c035-result-extra-state-restoration",
+      "name": "Restoring state needed to interpret an activity result"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c035-q01",
+      "lesson": null,
+      "concept": "c035-result-registration-order",
+      "type": "multiple_choice",
+      "prompt": "An Android activity registers a camera result callback only inside the camera button's click listener. What change supports delivery after process recreation?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Register the callback unconditionally on every activity creation"
+        },
+        {
+          "id": "b",
+          "text": "Register the callback only when the saved-state bundle is null"
+        },
+        {
+          "id": "c",
+          "text": "Register a new callback inside each returned-result callback"
+        },
+        {
+          "id": "d",
+          "text": "Register the callback only when the camera activity is already running"
+        }
+      ],
+      "explanation": "The callback must exist after recreation even when no new click occurs. Registration is unconditional; launching can remain conditional. Waiting for a running camera, registering on result or skipping restored creations misses that requirement.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://developer.android.com/training/basics/intents/result",
+          "title": "Get a result from an activity",
+          "publisher": "Android Developers (Google)",
+          "accessed": "2026-10-10",
+          "claim": "Activity-result callbacks must register unconditionally in the same order on each recreation; registration occurs before creation, launching waits until CREATED, and extra state needed for processing results must be saved separately."
+        }
+      ],
+      "answer": "a"
+    },
+    {
+      "id": "c035-q02",
+      "lesson": null,
+      "concept": "c035-result-launch-lifecycle",
+      "type": "multiple_choice",
+      "prompt": "A ComponentActivity stores the launcher returned by `registerForActivityResult()` in a member initializer. When may it call that launcher's `launch()`?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Only after the activity lifecycle reaches `STARTED`"
+        },
+        {
+          "id": "b",
+          "text": "Only after the activity lifecycle reaches `RESUMED`"
+        },
+        {
+          "id": "c",
+          "text": "After the activity lifecycle reaches `CREATED`"
+        },
+        {
+          "id": "d",
+          "text": "Immediately in the initializer before the activity is created"
+        }
+      ],
+      "explanation": "Registration can precede activity creation, but launching must wait until CREATED. The APIs separate registering a callback from launching. STARTED and RESUMED are later lifecycle states, not the minimum required by the launcher; invoking it before creation is too early.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://developer.android.com/training/basics/intents/result",
+          "title": "Get a result from an activity",
+          "publisher": "Android Developers (Google)",
+          "accessed": "2026-10-10",
+          "claim": "Activity-result callbacks must register unconditionally in the same order on each recreation; registration occurs before creation, launching waits until CREATED, and extra state needed for processing results must be saved separately."
+        }
+      ],
+      "answer": "c"
+    },
+    {
+      "id": "c035-q03",
+      "lesson": null,
+      "concept": "c035-result-extra-state-restoration",
+      "type": "multiple_select",
+      "prompt": "An Android app launches an editor for a selected database row and stores the row ID only in an activity field. The process dies before the editor returns. Which statements hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Re-registering the result callback recreates arbitrary activity fields"
+        },
+        {
+          "id": "b",
+          "text": "The callback must be available in the recreated activity"
+        },
+        {
+          "id": "c",
+          "text": "State needed to interpret the result must be saved separately"
+        },
+        {
+          "id": "d",
+          "text": "The original activity field is guaranteed to survive process death"
+        },
+        {
+          "id": "e",
+          "text": "The Activity Result APIs automatically persist the selected row object"
+        }
+      ],
+      "explanation": "Activity Result APIs support callback delivery after recreation, but additional application state needs its own saved/restored mechanism. Unconditionally re-register the callback and restore the row ID. Arbitrary fields and selected objects are not automatically persisted and the original activity instance is gone.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://developer.android.com/training/basics/intents/result",
+          "title": "Get a result from an activity",
+          "publisher": "Android Developers (Google)",
+          "accessed": "2026-10-10",
+          "claim": "Activity-result callbacks must register unconditionally in the same order on each recreation; registration occurs before creation, launching waits until CREATED, and extra state needed for processing results must be saved separately."
+        }
+      ],
+      "answers": [
+        "b",
+        "c"
+      ]
+    },
+    {
+      "id": "c035-q04",
+      "lesson": null,
+      "concept": "c035-result-registration-order",
+      "type": "multiple_choice",
+      "prompt": "An Android activity registers two result launchers, but reverses their registration order after recreation. What is the risk?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The framework automatically sorts registration by callback names"
+        },
+        {
+          "id": "b",
+          "text": "An in-flight result may be routed to the wrong callback"
+        },
+        {
+          "id": "c",
+          "text": "Registration order matters only when both launchers run simultaneously"
+        },
+        {
+          "id": "d",
+          "text": "Both launchers become safe because contracts determine every routing key"
+        }
+      ],
+      "explanation": "The documentation requires the same registration order on each creation to route in-flight results correctly. Contract types and callback names do not replace that ordering requirement, even if only one request is in flight.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://developer.android.com/training/basics/intents/result",
+          "title": "Get a result from an activity",
+          "publisher": "Android Developers (Google)",
+          "accessed": "2026-10-10",
+          "claim": "Activity-result callbacks must register unconditionally in the same order on each recreation; registration occurs before creation, launching waits until CREATED, and extra state needed for processing results must be saved separately."
+        }
+      ],
+      "answer": "b"
+    },
+    {
+      "id": "c035-q05",
+      "lesson": null,
+      "concept": "c035-result-launch-lifecycle",
+      "type": "multiple_choice",
+      "prompt": "What does calling Android's `registerForActivityResult()` do by itself?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Invokes the callback immediately with the last persisted result"
+        },
+        {
+          "id": "b",
+          "text": "Starts the external activity immediately using the contract defaults"
+        },
+        {
+          "id": "c",
+          "text": "Registers the callback and returns a launcher for a later request"
+        },
+        {
+          "id": "d",
+          "text": "Advances the activity lifecycle so the external request can launch"
+        }
+      ],
+      "explanation": "Registration sets up handling and returns an ActivityResultLauncher. Calling launch starts a request; registration does not itself start an external activity, force a callback or advance lifecycle state.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://developer.android.com/training/basics/intents/result",
+          "title": "Get a result from an activity",
+          "publisher": "Android Developers (Google)",
+          "accessed": "2026-10-10",
+          "claim": "Activity-result callbacks must register unconditionally in the same order on each recreation; registration occurs before creation, launching waits until CREATED, and extra state needed for processing results must be saved separately."
+        }
+      ],
+      "answer": "c"
+    },
+    {
+      "id": "c035-q06",
+      "lesson": null,
+      "concept": "c035-result-extra-state-restoration",
+      "type": "multiple_select",
+      "prompt": "An Android activity-result callback needs a draft ID after process recreation. Which statements hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The original activity instance field remains available after process death"
+        },
+        {
+          "id": "b",
+          "text": "Register the result callback on the recreated activity too"
+        },
+        {
+          "id": "c",
+          "text": "Save and restore the draft ID separately from launcher registration"
+        },
+        {
+          "id": "d",
+          "text": "The launcher automatically persists every local variable captured by a callback"
+        },
+        {
+          "id": "e",
+          "text": "The result contract reconstructs arbitrary application draft selections"
+        }
+      ],
+      "explanation": "Additional state needs a separate save/restore mechanism, and the callback must be registered on recreation. Registration does not persist arbitrary closures or application selection; the original activity instance cannot survive process death.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://developer.android.com/training/basics/intents/result",
+          "title": "Get a result from an activity",
+          "publisher": "Android Developers (Google)",
+          "accessed": "2026-10-10",
+          "claim": "Activity-result callbacks must register unconditionally in the same order on each recreation; registration occurs before creation, launching waits until CREATED, and extra state needed for processing results must be saved separately."
+        }
+      ],
+      "answers": [
+        "b",
+        "c"
+      ]
+    }
+  ]
+}

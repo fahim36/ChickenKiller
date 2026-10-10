@@ -1,0 +1,282 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c034-useid-accessibility",
+      "name": "useId for hydration-safe accessibility relationships"
+    },
+    {
+      "id": "c034-external-store-snapshot",
+      "name": "Stable snapshots for useSyncExternalStore"
+    },
+    {
+      "id": "c034-effect-event-nonreactive",
+      "name": "Effect Events for non-reactive effect logic"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c034-q01",
+      "lesson": null,
+      "concept": "c034-useid-accessibility",
+      "type": "multiple_choice",
+      "prompt": "A React form rendered on the server needs stable IDs linking each field to its help text during hydration. Which approach fits?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Generate a new random UUID on every independent server and client render"
+        },
+        {
+          "id": "b",
+          "text": "Use the array index as every help element's document ID"
+        },
+        {
+          "id": "c",
+          "text": "Use useId within each field for the accessibility relationship"
+        },
+        {
+          "id": "d",
+          "text": "Use useId as the form's database record primary key"
+        }
+      ],
+      "explanation": "useId is intended for accessibility relationships and supports server hydration with matching component trees. Random per-render IDs can mismatch; it is not a persistent database identity or list-key generator.",
+      "materials": [
+        "react-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/reference/react/useId",
+          "title": "useId",
+          "publisher": "React",
+          "accessed": "2026-10-10",
+          "claim": "useId supports accessibility attribute IDs and server hydration but should not generate list keys; matching server/client component trees are required."
+        }
+      ],
+      "answer": "c"
+    },
+    {
+      "id": "c034-q02",
+      "lesson": null,
+      "concept": "c034-external-store-snapshot",
+      "type": "multiple_choice",
+      "prompt": "A React external store has not changed, but `getSnapshot` returns a fresh object on every call. Why can useSyncExternalStore repeatedly re-render?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "React treats each fresh snapshot as a changed value"
+        },
+        {
+          "id": "b",
+          "text": "React compares snapshot fields deeply and discovers hidden mutations"
+        },
+        {
+          "id": "c",
+          "text": "Returning an object silently removes the subscription callback"
+        },
+        {
+          "id": "d",
+          "text": "The hook polls until the snapshot object becomes mutable"
+        }
+      ],
+      "explanation": "React requires the snapshot result to be cached when nothing changed. Fresh object identity looks like a new snapshot and can trigger repeated updates; this is not deep structural comparison.",
+      "materials": [
+        "react-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/reference/react/useSyncExternalStore",
+          "title": "useSyncExternalStore",
+          "publisher": "React",
+          "accessed": "2026-10-10",
+          "claim": "getSnapshot must return a cached immutable snapshot when the store is unchanged; subscribe returns an unsubscribe function."
+        }
+      ],
+      "answer": "a"
+    },
+    {
+      "id": "c034-q03",
+      "lesson": null,
+      "concept": "c034-effect-event-nonreactive",
+      "type": "multiple_select",
+      "prompt": "In React 19.2+, an effect should reconnect only when roomId changes but log the latest theme when a connection event fires. Which useEffectEvent statements hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "roomId remains a dependency when it controls reconnection"
+        },
+        {
+          "id": "b",
+          "text": "Effect Events are called from effects, not arbitrary click handlers"
+        },
+        {
+          "id": "c",
+          "text": "An Effect Event freezes theme at the component's initial render"
+        },
+        {
+          "id": "d",
+          "text": "An Effect Event can read the latest committed theme"
+        },
+        {
+          "id": "e",
+          "text": "An Effect Event should replace every dependency in the effect"
+        }
+      ],
+      "explanation": "An Effect Event separates non-reactive logic that reads current values. The room still determines the reactive connection lifecycle. It is not a dependency escape hatch or a normal event-handler callback, and it does not freeze initial state.",
+      "materials": [
+        "react-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/reference/react/useEffectEvent",
+          "title": "useEffectEvent",
+          "publisher": "React",
+          "accessed": "2026-10-10",
+          "claim": "Effect Events read latest committed props and state without making that logic reactive; they are not a shortcut for omitting true dependencies and are called from effects."
+        },
+        {
+          "url": "https://react.dev/blog/2025/10/01/react-19-2",
+          "title": "React 19.2",
+          "publisher": "React",
+          "accessed": "2026-10-10",
+          "claim": "React 19.2 introduced useEffectEvent to separate effect-fired event logic from reactive synchronization dependencies."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "d"
+      ]
+    },
+    {
+      "id": "c034-q04",
+      "lesson": null,
+      "concept": "c034-useid-accessibility",
+      "type": "multiple_choice",
+      "prompt": "A React list already has stable database IDs for its items. Should a component call useId to generate their list keys?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Yes, because useId sorts keys into server rendering order"
+        },
+        {
+          "id": "b",
+          "text": "No, list keys should come from the item data"
+        },
+        {
+          "id": "c",
+          "text": "Yes, because generated IDs persist when an item leaves the list"
+        },
+        {
+          "id": "d",
+          "text": "No, because list keys must always equal an array index"
+        }
+      ],
+      "explanation": "useId is for generated accessibility IDs. List identity belongs to the data, so use the stable item IDs rather than generated IDs or array positions.",
+      "materials": [
+        "react-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/reference/react/useId",
+          "title": "useId",
+          "publisher": "React",
+          "accessed": "2026-10-10",
+          "claim": "useId supports accessibility attribute IDs and server hydration but should not generate list keys; matching server/client component trees are required."
+        }
+      ],
+      "answer": "b"
+    },
+    {
+      "id": "c034-q05",
+      "lesson": null,
+      "concept": "c034-external-store-snapshot",
+      "type": "multiple_choice",
+      "prompt": "An external store internally mutates an array. What should its useSyncExternalStore getSnapshot function return while that array has not changed?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A new copied array on every call, even without a store update"
+        },
+        {
+          "id": "b",
+          "text": "The mutable array, changed in place without a new snapshot identity"
+        },
+        {
+          "id": "c",
+          "text": "A promise that resolves after the next store mutation arrives"
+        },
+        {
+          "id": "d",
+          "text": "The same cached immutable snapshot until the data changes"
+        }
+      ],
+      "explanation": "Mutable stores need immutable snapshots, cached until the underlying data changes. Both unnecessary new objects and changing one mutable object in place break the snapshot contract.",
+      "materials": [
+        "react-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/reference/react/useSyncExternalStore",
+          "title": "useSyncExternalStore",
+          "publisher": "React",
+          "accessed": "2026-10-10",
+          "claim": "getSnapshot must return a cached immutable snapshot when the store is unchanged; subscribe returns an unsubscribe function."
+        }
+      ],
+      "answer": "d"
+    },
+    {
+      "id": "c034-q06",
+      "lesson": null,
+      "concept": "c034-effect-event-nonreactive",
+      "type": "multiple_select",
+      "prompt": "A developer uses useEffectEvent to hide a value that should trigger an effect to resynchronize. Which review conclusions fit its contract? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Effect Events intentionally always read only the first render's state"
+        },
+        {
+          "id": "b",
+          "text": "True reactive dependencies should remain in the effect"
+        },
+        {
+          "id": "c",
+          "text": "The hook is a universal replacement for useCallback in UI handlers"
+        },
+        {
+          "id": "d",
+          "text": "Non-reactive effect logic may read the latest committed values"
+        },
+        {
+          "id": "e",
+          "text": "Using it to conceal reactive dependencies is the recommended pattern"
+        }
+      ],
+      "explanation": "Effect Events provide current values to non-reactive effect logic. They are not a universal callback utility or a way to conceal values that truly require resynchronization, and they do not read only initial state.",
+      "materials": [
+        "react-reference"
+      ],
+      "sources": [
+        {
+          "url": "https://react.dev/reference/react/useEffectEvent",
+          "title": "useEffectEvent",
+          "publisher": "React",
+          "accessed": "2026-10-10",
+          "claim": "Effect Events read latest committed props and state without making that logic reactive; they are not a shortcut for omitting true dependencies and are called from effects."
+        },
+        {
+          "url": "https://react.dev/blog/2025/10/01/react-19-2",
+          "title": "React 19.2",
+          "publisher": "React",
+          "accessed": "2026-10-10",
+          "claim": "React 19.2 introduced useEffectEvent to separate effect-fired event logic from reactive synchronization dependencies."
+        }
+      ],
+      "answers": [
+        "b",
+        "d"
+      ]
+    }
+  ]
+}
