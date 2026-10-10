@@ -1,0 +1,256 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c076-cte-materialization",
+      "name": "CTE materialization decisions"
+    },
+    {
+      "id": "c076-upsert-returning-filter",
+      "name": "Conditional upsert returning"
+    },
+    {
+      "id": "c076-jsonb-gin-operator-classes",
+      "name": "JSONB index operator classes"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c076-q01",
+      "lesson": null,
+      "concept": "c076-cte-materialization",
+      "type": "multiple_choice",
+      "prompt": "A PostgreSQL 18 non-recursive CTE is a SELECT with no volatile functions and is referenced once. What is the default optimization behavior?",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/queries-with.html",
+          "title": "PostgreSQL: WITH Queries (Common Table Expressions)",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-10",
+          "claim": "A side-effect-free, non-recursive CTE referenced once is folded by default. CTE syntax alone does not require a temporary table, an optimization fence or duplicate execution."
+        }
+      ],
+      "explanation": "A side-effect-free, non-recursive CTE referenced once is folded by default. CTE syntax alone does not require a temporary table, an optimization fence or duplicate execution.",
+      "answer": "a",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It can be folded into the parent query for joint optimization."
+        },
+        {
+          "id": "b",
+          "text": "It must be stored in a temporary table before the parent query starts."
+        },
+        {
+          "id": "c",
+          "text": "It must be evaluated independently because every CTE is an optimization fence."
+        },
+        {
+          "id": "d",
+          "text": "It is always run twice so PostgreSQL can compare the resulting row sets."
+        }
+      ]
+    },
+    {
+      "id": "c076-q02",
+      "lesson": null,
+      "concept": "c076-upsert-returning-filter",
+      "type": "multiple_choice",
+      "prompt": "A PostgreSQL 18 `INSERT ... ON CONFLICT DO UPDATE ... WHERE` finds a conflicting row, but the update WHERE condition is false. What does `RETURNING` include for that row?",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/sql-insert.html",
+          "title": "PostgreSQL: INSERT",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-10",
+          "claim": "RETURNING includes rows actually inserted or updated. A conflicting row locked but not updated by the condition is omitted, not returned as an existing, proposed or NULL placeholder row."
+        }
+      ],
+      "explanation": "RETURNING includes rows actually inserted or updated. A conflicting row locked but not updated by the condition is omitted, not returned as an existing, proposed or NULL placeholder row.",
+      "answer": "b",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The existing row, because every conflicting row is automatically returned."
+        },
+        {
+          "id": "b",
+          "text": "No row: the conflict row was locked but not updated."
+        },
+        {
+          "id": "c",
+          "text": "The proposed insertion row, because RETURNING ignores the update condition."
+        },
+        {
+          "id": "d",
+          "text": "A row of NULL values, because filtering conflicts creates a placeholder."
+        }
+      ]
+    },
+    {
+      "id": "c076-q03",
+      "lesson": null,
+      "concept": "c076-jsonb-gin-operator-classes",
+      "type": "multiple_select",
+      "prompt": "You choose a PostgreSQL 18 GIN operator class for a `jsonb` column. Which capabilities are documented? Select all that apply.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/datatype-json.html",
+          "title": "PostgreSQL: JSON Types",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-10",
+          "claim": "B and E: path_ops supports containment and the jsonpath match operators. A is false because the default operator class supports key existence. C is false because path_ops omits key-exists support. D is false because the operator must apply to an indexed expression."
+        }
+      ],
+      "explanation": "B and E: path_ops supports containment and the jsonpath match operators. A is false because the default operator class supports key existence. C is false because path_ops omits key-exists support. D is false because the operator must apply to an indexed expression.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Default `jsonb_ops` omits GIN support for the key-exists operator `?`."
+        },
+        {
+          "id": "b",
+          "text": "`jsonb_path_ops` supports containment with `@>`."
+        },
+        {
+          "id": "c",
+          "text": "`jsonb_path_ops` supports every key-exists operator supported by `jsonb_ops`."
+        },
+        {
+          "id": "d",
+          "text": "A GIN index automatically indexes any nested expression in any query shape."
+        },
+        {
+          "id": "e",
+          "text": "`jsonb_path_ops` supports jsonpath match operators `@?` and `@@`."
+        }
+      ],
+      "answers": [
+        "b",
+        "e"
+      ]
+    },
+    {
+      "id": "c076-q04",
+      "lesson": null,
+      "concept": "c076-cte-materialization",
+      "type": "multiple_choice",
+      "prompt": "A PostgreSQL 18 side-effect-free CTE is referenced twice. Why might `NOT MATERIALIZED` improve performance?",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/queries-with.html",
+          "title": "PostgreSQL: WITH Queries (Common Table Expressions)",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-10",
+          "claim": "NOT MATERIALIZED permits folding, which can push restrictions into each use but duplicate calculations. It does not guarantee one calculation, write a disk cache or bypass predicates."
+        }
+      ],
+      "explanation": "NOT MATERIALIZED permits folding, which can push restrictions into each use but duplicate calculations. It does not guarantee one calculation, write a disk cache or bypass predicates.",
+      "answer": "b",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It guarantees one calculation while forcing every reference to scan all rows."
+        },
+        {
+          "id": "b",
+          "text": "It permits joint optimization, at the risk of duplicate computation."
+        },
+        {
+          "id": "c",
+          "text": "It writes the CTE to disk so the parent query can skip all index maintenance."
+        },
+        {
+          "id": "d",
+          "text": "It bypasses SQL predicates so both references receive the same cached results."
+        }
+      ]
+    },
+    {
+      "id": "c076-q05",
+      "lesson": null,
+      "concept": "c076-upsert-returning-filter",
+      "type": "multiple_choice",
+      "prompt": "PostgreSQL 18 `INSERT ... ON CONFLICT DO NOTHING RETURNING id` encounters an existing key. How should the caller interpret an empty result?",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/sql-insert.html",
+          "title": "PostgreSQL: INSERT",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-10",
+          "claim": "DO NOTHING inserts nothing on that conflict, so RETURNING has no inserted row. It neither deletes the existing row nor implicitly returns its id."
+        }
+      ],
+      "explanation": "DO NOTHING inserts nothing on that conflict, so RETURNING has no inserted row. It neither deletes the existing row nor implicitly returns its id.",
+      "answer": "c",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The existing key cannot be present because RETURNING would always show it."
+        },
+        {
+          "id": "b",
+          "text": "The database deleted the conflicting row before evaluating RETURNING."
+        },
+        {
+          "id": "c",
+          "text": "That statement inserted no row to return."
+        },
+        {
+          "id": "d",
+          "text": "The existing id was returned implicitly as an out-of-band result value."
+        }
+      ]
+    },
+    {
+      "id": "c076-q06",
+      "lesson": null,
+      "concept": "c076-jsonb-gin-operator-classes",
+      "type": "multiple_select",
+      "prompt": "A PostgreSQL 18 application mainly tests JSON containment and occasionally tests top-level key existence. Which index-design claims are correct? Select all that apply.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/datatype-json.html",
+          "title": "PostgreSQL: JSON Types",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-10",
+          "claim": "A and B follow the documented operator coverage. D: path_ops indexes path/value combinations and often yields smaller, more specific containment searches. C is false because entries differ; E is false because key-exists is unsupported by path_ops."
+        }
+      ],
+      "explanation": "A and B follow the documented operator coverage. D: path_ops indexes path/value combinations and often yields smaller, more specific containment searches. C is false because entries differ; E is false because key-exists is unsupported by path_ops.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Switching to `jsonb_path_ops` removes GIN support for key-exists operators."
+        },
+        {
+          "id": "b",
+          "text": "The default `jsonb_ops` can support both containment and key-exists queries."
+        },
+        {
+          "id": "c",
+          "text": "Both operator classes produce identical entries for every JSON document."
+        },
+        {
+          "id": "d",
+          "text": "`jsonb_path_ops` can be more specific and smaller for containment workloads."
+        },
+        {
+          "id": "e",
+          "text": "A `jsonb_path_ops` index makes every key-exists query use that index automatically."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "d"
+      ]
+    }
+  ]
+}

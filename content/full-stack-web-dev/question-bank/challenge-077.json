@@ -1,0 +1,256 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c077-oauth-pkce-binding",
+      "name": "OAuth PKCE binding"
+    },
+    {
+      "id": "c077-webhook-raw-signature",
+      "name": "Webhook raw-body signatures"
+    },
+    {
+      "id": "c077-password-hash-cost",
+      "name": "Password hashing parameters"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c077-q01",
+      "lesson": null,
+      "concept": "c077-oauth-pkce-binding",
+      "type": "multiple_choice",
+      "prompt": "An OAuth client uses PKCE with S256. What binds the token exchange to its authorization request?",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc7636.html",
+          "title": "RFC 7636: Proof Key for Code Exchange by OAuth Public Clients",
+          "publisher": "RFC Editor",
+          "accessed": "2026-10-10",
+          "claim": "The authorization request sends a challenge derived from a secret verifier. At exchange the server checks the verifier transformation against that challenge. The challenge is not an access token or a password hash, and the raw verifier is not sent at the first step."
+        }
+      ],
+      "explanation": "The authorization request sends a challenge derived from a secret verifier. At exchange the server checks the verifier transformation against that challenge. The challenge is not an access token or a password hash, and the raw verifier is not sent at the first step.",
+      "answer": "b",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The client sends the challenge as the access token without a token exchange."
+        },
+        {
+          "id": "b",
+          "text": "The server compares the transformed verifier to the saved challenge."
+        },
+        {
+          "id": "c",
+          "text": "The server compares the authorization code directly to the password hash."
+        },
+        {
+          "id": "d",
+          "text": "The client publishes the raw verifier in the initial authorization request."
+        }
+      ]
+    },
+    {
+      "id": "c077-q02",
+      "lesson": null,
+      "concept": "c077-webhook-raw-signature",
+      "type": "multiple_choice",
+      "prompt": "An Express endpoint parses a Stripe webhook as JSON and then serializes the object before verifying its signature. Why can verification fail?",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://docs.stripe.com/webhooks",
+          "title": "Stripe: Receive Stripe events in your webhook endpoint",
+          "publisher": "Stripe",
+          "accessed": "2026-10-10",
+          "claim": "Stripe signs the raw payload; parser/serializer changes can change its bytes. Verification does not use only event type or require reserialization. Preserve the original body rather than impose a universal JSON field order."
+        }
+      ],
+      "explanation": "Stripe signs the raw payload; parser/serializer changes can change its bytes. Verification does not use only event type or require reserialization. Preserve the original body rather than impose a universal JSON field order.",
+      "answer": "c",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Verification uses only the parsed event type and ignores the request body."
+        },
+        {
+          "id": "b",
+          "text": "Verification expects every request to contain the same whitespace and field order."
+        },
+        {
+          "id": "c",
+          "text": "Verification needs the original raw request body."
+        },
+        {
+          "id": "d",
+          "text": "Verification treats JSON serialization as a required canonicalization step."
+        }
+      ]
+    },
+    {
+      "id": "c077-q03",
+      "lesson": null,
+      "concept": "c077-password-hash-cost",
+      "type": "multiple_select",
+      "prompt": "A service stores login passwords. Which storage practices follow OWASP guidance? Select all that apply.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html",
+          "title": "OWASP Password Storage Cheat Sheet",
+          "publisher": "OWASP Foundation",
+          "accessed": "2026-10-10",
+          "claim": "A and B resist offline guessing and precomputed attacks. E permits cost upgrades after successful verification. C is false because fast hashes enable rapid guesses. D is false because excessive cost can exhaust server resources; measure it."
+        }
+      ],
+      "explanation": "A and B resist offline guessing and precomputed attacks. E permits cost upgrades after successful verification. C is false because fast hashes enable rapid guesses. D is false because excessive cost can exhaust server resources; measure it.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Use a slow password-hashing algorithm with a suitable work factor."
+        },
+        {
+          "id": "b",
+          "text": "Use a unique salt for each stored password hash."
+        },
+        {
+          "id": "c",
+          "text": "Use fast SHA-256 alone because rapid verification also prevents guessing."
+        },
+        {
+          "id": "d",
+          "text": "Increase cost without benchmarking because higher cost cannot harm availability."
+        },
+        {
+          "id": "e",
+          "text": "Rehash at login when the stored work factor needs upgrading."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "e"
+      ]
+    },
+    {
+      "id": "c077-q04",
+      "lesson": null,
+      "concept": "c077-oauth-pkce-binding",
+      "type": "multiple_choice",
+      "prompt": "An attacker steals an authorization code from a PKCE S256 flow but does not know the verifier. Why should the token endpoint reject the exchange?",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc7636.html",
+          "title": "RFC 7636: Proof Key for Code Exchange by OAuth Public Clients",
+          "publisher": "RFC Editor",
+          "accessed": "2026-10-10",
+          "claim": "PKCE requires the matching verifier at redemption. A stolen code alone is insufficient. The code is not an encrypted password, and the challenge is not a reusable token."
+        }
+      ],
+      "explanation": "PKCE requires the matching verifier at redemption. A stolen code alone is insufficient. The code is not an encrypted password, and the challenge is not a reusable token.",
+      "answer": "c",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The authorization code becomes an encrypted password that only the browser can decrypt."
+        },
+        {
+          "id": "b",
+          "text": "The token endpoint needs no proof because an intercepted code is never usable."
+        },
+        {
+          "id": "c",
+          "text": "The attacker cannot supply the verifier matching the saved challenge."
+        },
+        {
+          "id": "d",
+          "text": "The challenge is a reusable access token that must replace the authorization code."
+        }
+      ]
+    },
+    {
+      "id": "c077-q05",
+      "lesson": null,
+      "concept": "c077-webhook-raw-signature",
+      "type": "multiple_choice",
+      "prompt": "An Express app must verify Stripe webhook signatures while other routes accept parsed JSON. What should the webhook path preserve for verification?",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://docs.stripe.com/webhooks",
+          "title": "Stripe: Receive Stripe events in your webhook endpoint",
+          "publisher": "Stripe",
+          "accessed": "2026-10-10",
+          "claim": "Signature verification needs the raw body, so arrange webhook middleware to preserve it before transformations. Re-serialization, field extraction and sorting do not preserve the original signed bytes."
+        }
+      ],
+      "explanation": "Signature verification needs the raw body, so arrange webhook middleware to preserve it before transformations. Re-serialization, field extraction and sorting do not preserve the original signed bytes.",
+      "answer": "d",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A newly serialized object after global JSON middleware has transformed it."
+        },
+        {
+          "id": "b",
+          "text": "Only the event id and type extracted from the globally parsed JSON object."
+        },
+        {
+          "id": "c",
+          "text": "A sorted JSON object that replaces the original whitespace and field ordering."
+        },
+        {
+          "id": "d",
+          "text": "The original request payload before JSON middleware transforms it."
+        }
+      ]
+    },
+    {
+      "id": "c077-q06",
+      "lesson": null,
+      "concept": "c077-password-hash-cost",
+      "type": "multiple_select",
+      "prompt": "A team increases its password-hashing work factor as hardware improves. Which upgrade statements follow OWASP guidance? Select all that apply.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html",
+          "title": "OWASP Password Storage Cheat Sheet",
+          "publisher": "OWASP Foundation",
+          "accessed": "2026-10-10",
+          "claim": "A: higher work factors make hashing more expensive. C: successful authentication provides the password needed to compute an upgraded hash. B is false because old hashes remain unchanged. D and E ignore resource exhaustion, hardware differences and measured verification latency."
+        }
+      ],
+      "explanation": "A: higher work factors make hashing more expensive. C: successful authentication provides the password needed to compute an upgraded hash. B is false because old hashes remain unchanged. D and E ignore resource exhaustion, hardware differences and measured verification latency.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Higher work factors increase the cost of each password guess."
+        },
+        {
+          "id": "b",
+          "text": "Every stored hash changes automatically when the application setting increases."
+        },
+        {
+          "id": "c",
+          "text": "Rehash a password after a successful login when its stored factor is outdated."
+        },
+        {
+          "id": "d",
+          "text": "Choose unlimited cost because password verification cannot affect availability."
+        },
+        {
+          "id": "e",
+          "text": "Choose the same work factor for every server without measuring its verification cost."
+        }
+      ],
+      "answers": [
+        "a",
+        "c"
+      ]
+    }
+  ]
+}

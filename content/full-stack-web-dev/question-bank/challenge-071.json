@@ -1,0 +1,290 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c071-structured-clone-support",
+      "name": "Structured clone support"
+    },
+    {
+      "id": "c071-transferable-buffer-ownership",
+      "name": "Transferable buffer ownership"
+    },
+    {
+      "id": "c071-async-iterator-closing",
+      "name": "Async iterator closing"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c071-q01",
+      "type": "multiple_choice",
+      "lesson": null,
+      "concept": "c071-structured-clone-support",
+      "prompt": "A browser app needs to clone a data graph containing a cycle and a Map without transferring anything. Which supported result can structuredClone produce?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The same graph with nested aliases."
+        },
+        {
+          "id": "b",
+          "text": "The same graph object with every nested object still shared with the source."
+        },
+        {
+          "id": "c",
+          "text": "A clone only after every Map has been rewritten into enumerable properties."
+        },
+        {
+          "id": "d",
+          "text": "An independent graph retaining the cycle and Map."
+        }
+      ],
+      "answer": "d",
+      "explanation": "Structured cloning supports cycles and Maps and creates a separate graph. It is not JSON serialization and does not retain ordinary nested object aliases to the source.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://html.spec.whatwg.org/multipage/structured-data.html",
+          "title": "HTML Standard",
+          "publisher": "WHATWG",
+          "accessed": "2026-10-10",
+          "claim": "The structured clone algorithm preserves cycles and supported built-in data such as Map but rejects function objects with DataCloneError."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "c071-q02",
+      "type": "multiple_choice",
+      "lesson": null,
+      "concept": "c071-transferable-buffer-ownership",
+      "prompt": "An app calls structuredClone on an ArrayBuffer and includes that buffer in the transfer list. What happens to the original buffer?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It becomes detached."
+        },
+        {
+          "id": "b",
+          "text": "It stays readable on both sides."
+        },
+        {
+          "id": "c",
+          "text": "It is converted to a SharedArrayBuffer so both sides may write freely."
+        },
+        {
+          "id": "d",
+          "text": "It retains a private byte copy until the cloned buffer is garbage collected."
+        }
+      ],
+      "answer": "a",
+      "explanation": "ArrayBuffer transfer moves ownership of its data and detaches the original. Sharing or keeping an independent source copy would be different operations.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://html.spec.whatwg.org/multipage/structured-data.html",
+          "title": "HTML Standard",
+          "publisher": "WHATWG",
+          "accessed": "2026-10-10",
+          "claim": "Transferring an ArrayBuffer moves its backing data and detaches the original buffer; transfer-list entries must be reachable in the serialized value to appear in the result."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "c071-q03",
+      "type": "multiple_select",
+      "lesson": null,
+      "concept": "c071-async-iterator-closing",
+      "prompt": "An async generator manages a resource in try/finally, and its consumer uses for await...of. Which behaviors are specified? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The loop awaits the result of an asynchronous return method."
+        },
+        {
+          "id": "b",
+          "text": "A synchronous iterable can also be consumed by for await...of."
+        },
+        {
+          "id": "c",
+          "text": "break discards the generator without running its finally cleanup."
+        },
+        {
+          "id": "d",
+          "text": "Every iteration is launched concurrently before any yielded value is awaited."
+        },
+        {
+          "id": "e",
+          "text": "Breaking from the loop invokes the iterator's return method when present."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "e"
+      ],
+      "explanation": "A is correct: AsyncIteratorClose awaits completion before the early exit finishes. B is correct: the language wraps its iterator using an async-from-sync adapter. C is incorrect: closing via return allows generator finally cleanup to execute. D is incorrect: for-await consumption processes the iterator steps sequentially. E is correct: early loop exit performs iterator closing.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://tc39.es/ecma262/multipage/control-abstraction-objects.html",
+          "title": "ECMAScript® 2027 Language Specification",
+          "publisher": "Ecma International",
+          "accessed": "2026-10-10",
+          "claim": "for-await-of closes an iterator on early exit and awaits asynchronous iterator return completion; it consumes async iterables and wraps sync iterables."
+        },
+        {
+          "url": "https://tc39.es/ecma262/multipage/ecmascript-language-statements-and-declarations.html",
+          "title": "ECMAScript® 2027 Language Specification",
+          "publisher": "Ecma International",
+          "accessed": "2026-10-10",
+          "claim": "The for-await-of evaluation closes the iterator on early exit and ends normally when the iterator reports done."
+        },
+        {
+          "url": "https://tc39.es/ecma262/multipage/abstract-operations.html",
+          "title": "ECMAScript® 2027 Language Specification",
+          "publisher": "Ecma International",
+          "accessed": "2026-10-10",
+          "claim": "AsyncIteratorClose obtains the return method and awaits its result before completing the close."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "c071-q04",
+      "type": "multiple_choice",
+      "lesson": null,
+      "concept": "c071-structured-clone-support",
+      "prompt": "A plain data object passed to browser structuredClone has an own property whose value is a function. What should the caller expect?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A successful function-and-closure clone."
+        },
+        {
+          "id": "b",
+          "text": "A DataCloneError."
+        },
+        {
+          "id": "c",
+          "text": "A successful clone that replaces the function with its executable source code."
+        },
+        {
+          "id": "d",
+          "text": "An automatic transfer of the function into a dedicated browser worker first."
+        }
+      ],
+      "answer": "b",
+      "explanation": "Function objects are not serializable by the structured clone algorithm. It throws rather than copying code and closures or creating a worker.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://html.spec.whatwg.org/multipage/structured-data.html",
+          "title": "HTML Standard",
+          "publisher": "WHATWG",
+          "accessed": "2026-10-10",
+          "claim": "The structured clone algorithm preserves cycles and supported built-in data such as Map but rejects function objects with DataCloneError."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "c071-q05",
+      "type": "multiple_choice",
+      "lesson": null,
+      "concept": "c071-transferable-buffer-ownership",
+      "prompt": "A browser clones an object without a transfer list, and the object contains an ArrayBuffer. Which ownership result applies?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The original is detached automatically."
+        },
+        {
+          "id": "b",
+          "text": "Both objects receive a shared backing store with atomic synchronization."
+        },
+        {
+          "id": "c",
+          "text": "The buffer data is copied."
+        },
+        {
+          "id": "d",
+          "text": "The buffer is omitted because ArrayBuffers can only be transferred, not cloned."
+        }
+      ],
+      "answer": "c",
+      "explanation": "ArrayBuffers can be cloned or transferred. Ordinary cloning copies the data; detachment requires transferring that buffer.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://html.spec.whatwg.org/multipage/structured-data.html",
+          "title": "HTML Standard",
+          "publisher": "WHATWG",
+          "accessed": "2026-10-10",
+          "claim": "Transferring an ArrayBuffer moves its backing data and detaches the original buffer; transfer-list entries must be reachable in the serialized value to appear in the result."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "c071-q06",
+      "type": "multiple_select",
+      "lesson": null,
+      "concept": "c071-async-iterator-closing",
+      "prompt": "A custom async iterator supplies next and return methods. Which statements describe for await...of consumption? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "An async return promise is always ignored during an early loop exit."
+        },
+        {
+          "id": "b",
+          "text": "The construct automatically parallelizes the iterator's next calls."
+        },
+        {
+          "id": "c",
+          "text": "An early return from the consuming function can trigger iterator closing."
+        },
+        {
+          "id": "d",
+          "text": "Normal exhaustion does not require an extra return call."
+        },
+        {
+          "id": "e",
+          "text": "A synchronous iterator is rejected solely because it lacks Symbol.asyncIterator."
+        }
+      ],
+      "answers": [
+        "c",
+        "d"
+      ],
+      "explanation": "A is incorrect: the closing algorithm awaits that result. B is incorrect: the loop awaits successive steps instead of requesting all steps concurrently. C is correct: abrupt completion leaving the loop closes the iterator. D is correct: the done result completes the loop without the early-exit close path. E is incorrect: for-await can obtain and wrap a synchronous iterator.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://tc39.es/ecma262/multipage/control-abstraction-objects.html",
+          "title": "ECMAScript® 2027 Language Specification",
+          "publisher": "Ecma International",
+          "accessed": "2026-10-10",
+          "claim": "for-await-of closes an iterator on early exit and awaits asynchronous iterator return completion; it consumes async iterables and wraps sync iterables."
+        },
+        {
+          "url": "https://tc39.es/ecma262/multipage/ecmascript-language-statements-and-declarations.html",
+          "title": "ECMAScript® 2027 Language Specification",
+          "publisher": "Ecma International",
+          "accessed": "2026-10-10",
+          "claim": "The for-await-of evaluation closes the iterator on early exit and ends normally when the iterator reports done."
+        },
+        {
+          "url": "https://tc39.es/ecma262/multipage/abstract-operations.html",
+          "title": "ECMAScript® 2027 Language Specification",
+          "publisher": "Ecma International",
+          "accessed": "2026-10-10",
+          "claim": "AsyncIteratorClose obtains the return method and awaits its result before completing the close."
+        }
+      ],
+      "retired": null
+    }
+  ]
+}

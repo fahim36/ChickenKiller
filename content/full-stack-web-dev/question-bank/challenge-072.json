@@ -1,0 +1,262 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c072-react-useid-accessibility-ids",
+      "name": "React useId accessibility IDs"
+    },
+    {
+      "id": "c072-layout-effect-paint-timing",
+      "name": "Layout effect paint timing"
+    },
+    {
+      "id": "c072-imperative-ref-handles",
+      "name": "Imperative ref handles"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c072-q01",
+      "type": "multiple_choice",
+      "lesson": null,
+      "concept": "c072-react-useid-accessibility-ids",
+      "prompt": "A React form component renders several times on one page and needs distinct label/input ID pairs. Which API is intended for this purpose?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "useId"
+        },
+        {
+          "id": "b",
+          "text": "A random render-time value."
+        },
+        {
+          "id": "c",
+          "text": "An array index reused as the same DOM identifier in every form instance."
+        },
+        {
+          "id": "d",
+          "text": "A random value computed independently during server and client rendering."
+        }
+      ],
+      "answer": "a",
+      "explanation": "useId supplies unique IDs for accessibility relationships. Render-time counters and independently generated random IDs can break stability or hydration matching.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://react.dev/reference/react/useId",
+          "title": "useId – React",
+          "publisher": "Meta",
+          "accessed": "2026-10-10",
+          "claim": "useId creates accessibility IDs, is not for list keys, and supports consistent server/client IDs when the component trees match."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "c072-q02",
+      "type": "multiple_choice",
+      "lesson": null,
+      "concept": "c072-layout-effect-paint-timing",
+      "prompt": "A React tooltip must measure its rendered size and correct its position before the user sees that frame. Which effect timing supports this?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "useEffect after paint."
+        },
+        {
+          "id": "b",
+          "text": "useLayoutEffect before paint."
+        },
+        {
+          "id": "c",
+          "text": "A server-only Effect that reads the final client viewport during SSR."
+        },
+        {
+          "id": "d",
+          "text": "A useMemo callback that reads committed DOM nodes while rendering."
+        }
+      ],
+      "answer": "b",
+      "explanation": "useLayoutEffect can measure after DOM placement and update before repaint. It blocks paint, so expensive work in it can harm responsiveness.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://react.dev/reference/react/useLayoutEffect",
+          "title": "useLayoutEffect – React",
+          "publisher": "Meta",
+          "accessed": "2026-10-10",
+          "claim": "useLayoutEffect runs before browser paint and blocks repaint; effects do not run on the server, where layout information is unavailable."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "c072-q03",
+      "type": "multiple_select",
+      "lesson": null,
+      "concept": "c072-imperative-ref-handles",
+      "prompt": "A React component uses useImperativeHandle to expose focus and scroll methods. Which statements are accurate? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "In React 19, a function component can receive ref as a prop."
+        },
+        {
+          "id": "b",
+          "text": "The hook automatically exposes every internal state setter to the parent."
+        },
+        {
+          "id": "c",
+          "text": "An empty dependency list guarantees methods capture future state values."
+        },
+        {
+          "id": "d",
+          "text": "The handle may expose methods instead of the entire DOM node."
+        },
+        {
+          "id": "e",
+          "text": "Reactive values used to build the handle belong in its dependency list."
+        }
+      ],
+      "answers": [
+        "a",
+        "d",
+        "e"
+      ],
+      "explanation": "A is correct: React 19 supports the ref prop; older versions use forwardRef for this pattern. B is incorrect: only the returned handle is exposed. C is incorrect: unchanged handles retain their closures unless they use another current-value mechanism. D is correct: the hook customizes the ref value and can restrict its public API. E is correct: dependencies control recreating the handle with current closures.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://react.dev/reference/react/useImperativeHandle",
+          "title": "useImperativeHandle – React",
+          "publisher": "Meta",
+          "accessed": "2026-10-10",
+          "claim": "useImperativeHandle customizes the value exposed through a ref; reactive dependencies govern rebuilding the handle; React 19 permits ref as a prop."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "c072-q04",
+      "type": "multiple_choice",
+      "lesson": null,
+      "concept": "c072-react-useid-accessibility-ids",
+      "prompt": "A React list contains records with stable database IDs. A developer proposes calling useId to generate each list key. What should the review recommend?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Use a new random key on each render."
+        },
+        {
+          "id": "b",
+          "text": "Replace every record key with one useId shared by the whole list component."
+        },
+        {
+          "id": "c",
+          "text": "Use the records' stable IDs as keys."
+        },
+        {
+          "id": "d",
+          "text": "Generate a different random key on every render to keep the rows distinct."
+        }
+      ],
+      "answer": "c",
+      "explanation": "useId is for IDs used in accessibility relationships, not list keys. Keys should come from stable data; calling Hooks in a variable-length map also breaks Hook ordering.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://react.dev/reference/react/useId",
+          "title": "useId – React",
+          "publisher": "Meta",
+          "accessed": "2026-10-10",
+          "claim": "useId creates accessibility IDs, is not for list keys, and supports consistent server/client IDs when the component trees match."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "c072-q05",
+      "type": "multiple_choice",
+      "lesson": null,
+      "concept": "c072-layout-effect-paint-timing",
+      "prompt": "A React server-rendering component depends on useLayoutEffect to measure element geometry. What limitation must its author handle?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Server Effects read the client viewport."
+        },
+        {
+          "id": "b",
+          "text": "React serializes the client viewport into every server Effect automatically."
+        },
+        {
+          "id": "c",
+          "text": "useLayoutEffect runs on the server but useEffect alone is client-only."
+        },
+        {
+          "id": "d",
+          "text": "The server has no layout information."
+        }
+      ],
+      "answer": "d",
+      "explanation": "Effects run on the client. The server cannot supply browser layout measurements, so server rendering must use a suitable fallback or defer that component until the client.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://react.dev/reference/react/useLayoutEffect",
+          "title": "useLayoutEffect – React",
+          "publisher": "Meta",
+          "accessed": "2026-10-10",
+          "claim": "useLayoutEffect runs before browser paint and blocks repaint; effects do not run on the server, where layout information is unavailable."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "c072-q06",
+      "type": "multiple_select",
+      "lesson": null,
+      "concept": "c072-imperative-ref-handles",
+      "prompt": "A React 19 input wrapper returns a small imperative handle from useImperativeHandle. Which design claims hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "React 19 ref-as-prop support also makes this pattern work unchanged in React 18."
+        },
+        {
+          "id": "b",
+          "text": "The parent sees the returned handle through its ref."
+        },
+        {
+          "id": "c",
+          "text": "A changed dependency can cause React to create a new handle."
+        },
+        {
+          "id": "d",
+          "text": "Returning a focus method causes React to invoke it during every render."
+        },
+        {
+          "id": "e",
+          "text": "The hook requires the handle to be a DOM element and forbids plain objects."
+        }
+      ],
+      "answers": [
+        "b",
+        "c"
+      ],
+      "explanation": "A is incorrect: earlier React versions need forwardRef to receive the ref. B is correct: the returned object is the customized ref value. C is correct: Object.is comparison of the dependency list governs re-execution. D is incorrect: the parent or other caller invokes the exposed method explicitly. E is incorrect: custom objects containing methods are a standard use case.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://react.dev/reference/react/useImperativeHandle",
+          "title": "useImperativeHandle – React",
+          "publisher": "Meta",
+          "accessed": "2026-10-10",
+          "claim": "useImperativeHandle customizes the value exposed through a ref; reactive dependencies govern rebuilding the handle; React 19 permits ref as a prop."
+        }
+      ],
+      "retired": null
+    }
+  ]
+}

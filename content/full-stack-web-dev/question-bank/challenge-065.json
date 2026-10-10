@@ -1,0 +1,262 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c065-sequence-allocation-and-rollback",
+      "name": "Sequence allocation and rollback"
+    },
+    {
+      "id": "c065-transactional-notify-delivery",
+      "name": "Transactional NOTIFY delivery"
+    },
+    {
+      "id": "c065-advisory-lock-lifetimes",
+      "name": "Advisory lock lifetimes"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c065-q01",
+      "type": "multiple_choice",
+      "lesson": null,
+      "concept": "c065-sequence-allocation-and-rollback",
+      "prompt": "A PostgreSQL transaction allocates an invoice ID with `nextval` and then rolls back. What happens to that allocation?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The value is reused after rollback."
+        },
+        {
+          "id": "b",
+          "text": "The sequence value stays consumed."
+        },
+        {
+          "id": "c",
+          "text": "The rollback rewinds every session to the previous sequence value."
+        },
+        {
+          "id": "d",
+          "text": "The sequence keeps the value only if the failed insert reached commit."
+        }
+      ],
+      "answer": "b",
+      "explanation": "Sequence allocation is not rolled back, so gaps are expected. Atomic allocation prevents concurrent sessions from receiving the same nextval result.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/functions-sequence.html",
+          "title": "PostgreSQL: Documentation: 18: 9.17. Sequence Manipulation Functions",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-10",
+          "claim": "nextval is atomic and is not rolled back; currval is session-local and requires a previous nextval in that session."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "c065-q02",
+      "type": "multiple_choice",
+      "lesson": null,
+      "concept": "c065-transactional-notify-delivery",
+      "prompt": "A PostgreSQL transaction issues `NOTIFY jobs` and stays open. When may listening sessions receive that notification?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Immediately, before the sender commits."
+        },
+        {
+          "id": "b",
+          "text": "After the next checkpoint, even if the sender rolls back its changes."
+        },
+        {
+          "id": "c",
+          "text": "After the sender commits."
+        },
+        {
+          "id": "d",
+          "text": "Only after all listening sessions disconnect and reconnect again."
+        }
+      ],
+      "answer": "c",
+      "explanation": "NOTIFY participates in transaction commit. An aborted transaction sends nothing; checkpoints and listener reconnections do not control delivery.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/sql-notify.html",
+          "title": "PostgreSQL: Documentation: 18: NOTIFY",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-10",
+          "claim": "NOTIFY is delivered only after commit; notifications with the same channel and payload within one transaction may be folded into one."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "c065-q03",
+      "type": "multiple_select",
+      "lesson": null,
+      "concept": "c065-advisory-lock-lifetimes",
+      "prompt": "A PostgreSQL service coordinates work with advisory locks. Which properties should its design account for? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Session-level advisory locks survive a transaction rollback."
+        },
+        {
+          "id": "b",
+          "text": "Transaction-level advisory locks release when the transaction ends."
+        },
+        {
+          "id": "c",
+          "text": "Application code must cooperate on the same lock keys."
+        },
+        {
+          "id": "d",
+          "text": "Ordinary table writes are blocked whenever any advisory key is locked."
+        },
+        {
+          "id": "e",
+          "text": "Rolling back a transaction releases every session-level advisory lock it acquired."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "c"
+      ],
+      "explanation": "A is correct: session locks follow session lifetime rather than transaction rollback. B is correct: commit or rollback releases transaction locks. C is correct: advisory locks do not automatically enforce business rules. D is incorrect: advisory locks are separate from automatic table and row locks. E is incorrect: session locks require explicit release or session termination.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/explicit-locking.html",
+          "title": "PostgreSQL: Documentation: 18: 13.3. Explicit Locking",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-10",
+          "claim": "Session advisory locks survive transaction rollback; transaction advisory locks release at transaction end; advisory locks are cooperative."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "c065-q04",
+      "type": "multiple_choice",
+      "lesson": null,
+      "concept": "c065-sequence-allocation-and-rollback",
+      "prompt": "A fresh PostgreSQL session calls `currval` for a sequence it has never advanced. What should its caller expect?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The latest value from any session."
+        },
+        {
+          "id": "b",
+          "text": "The sequence start value even if another session has advanced it."
+        },
+        {
+          "id": "c",
+          "text": "The most recent committed row ID from a table using that sequence."
+        },
+        {
+          "id": "d",
+          "text": "An error in that session."
+        }
+      ],
+      "answer": "d",
+      "explanation": "currval reports the value last obtained by nextval in the current session. It is undefined before that session has called nextval, regardless of other sessions.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/functions-sequence.html",
+          "title": "PostgreSQL: Documentation: 18: 9.17. Sequence Manipulation Functions",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-10",
+          "claim": "nextval is atomic and is not rolled back; currval is session-local and requires a previous nextval in that session."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "c065-q05",
+      "type": "multiple_choice",
+      "lesson": null,
+      "concept": "c065-transactional-notify-delivery",
+      "prompt": "One PostgreSQL transaction sends the same channel and payload three times with NOTIFY. Which delivery behavior is documented?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Duplicate notifications can be folded."
+        },
+        {
+          "id": "b",
+          "text": "Three deliveries are always required."
+        },
+        {
+          "id": "c",
+          "text": "All notifications on that channel are discarded until another payload appears."
+        },
+        {
+          "id": "d",
+          "text": "The payload is concatenated three times into one notification automatically."
+        }
+      ],
+      "answer": "a",
+      "explanation": "Identical channel/payload notifications in one transaction can be combined. Different payloads remain distinct, and folding does not concatenate their contents.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/sql-notify.html",
+          "title": "PostgreSQL: Documentation: 18: NOTIFY",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-10",
+          "claim": "NOTIFY is delivered only after commit; notifications with the same channel and payload within one transaction may be folded into one."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "c065-q06",
+      "type": "multiple_select",
+      "lesson": null,
+      "concept": "c065-advisory-lock-lifetimes",
+      "prompt": "A connection pool uses PostgreSQL session advisory locks for tenant jobs. Which statements are accurate? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A transaction advisory lock needs a matching manual unlock after commit."
+        },
+        {
+          "id": "b",
+          "text": "An unrelated SQL client must acquire the advisory key before updating rows."
+        },
+        {
+          "id": "c",
+          "text": "A session advisory lock becomes transaction-scoped whenever BEGIN is used."
+        },
+        {
+          "id": "d",
+          "text": "Explicit unlock calls matter before a pooled connection is reused."
+        },
+        {
+          "id": "e",
+          "text": "Repeated acquisition of one session lock requires matching unlocks."
+        }
+      ],
+      "answers": [
+        "d",
+        "e"
+      ],
+      "explanation": "A is incorrect: transaction locks release automatically at transaction end. B is incorrect: advisory locking is voluntary and does not impose that SQL prerequisite. C is incorrect: BEGIN does not change the lifetime of a session-level lock. D is correct: session locks can outlive one borrower transaction. E is correct: session advisory lock requests stack.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/explicit-locking.html",
+          "title": "PostgreSQL: Documentation: 18: 13.3. Explicit Locking",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-10",
+          "claim": "Session advisory locks survive transaction rollback; transaction advisory locks release at transaction end; advisory locks are cooperative."
+        }
+      ],
+      "retired": null
+    }
+  ]
+}

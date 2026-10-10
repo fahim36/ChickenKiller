@@ -1,0 +1,256 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c079-playwright-route-chain",
+      "name": "Playwright route chaining"
+    },
+    {
+      "id": "c079-service-worker-routing",
+      "name": "Service-worker request interception"
+    },
+    {
+      "id": "c079-browser-clock-control",
+      "name": "Browser clock control"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c079-q01",
+      "lesson": null,
+      "concept": "c079-playwright-route-chain",
+      "type": "multiple_choice",
+      "prompt": "Two Playwright route handlers match a request. The newest registered handler calls `route.fallback()`. What happens?",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://playwright.dev/docs/api/class-route",
+          "title": "Playwright Route API",
+          "publisher": "Microsoft Playwright",
+          "accessed": "2026-10-10",
+          "claim": "Handlers run in reverse registration order; fallback delegates to the next matching handler. It does not remove registrations or bypass the remaining chain."
+        }
+      ],
+      "explanation": "Handlers run in reverse registration order; fallback delegates to the next matching handler. It does not remove registrations or bypass the remaining chain.",
+      "answer": "d",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The request immediately goes to the network and skips all other handlers."
+        },
+        {
+          "id": "b",
+          "text": "The earliest registered handler is removed from the routing table permanently."
+        },
+        {
+          "id": "c",
+          "text": "The browser retries the request with no route handlers registered at all."
+        },
+        {
+          "id": "d",
+          "text": "The next matching handler can handle the request."
+        }
+      ]
+    },
+    {
+      "id": "c079-q02",
+      "lesson": null,
+      "concept": "c079-service-worker-routing",
+      "type": "multiple_choice",
+      "prompt": "A Playwright test needs ordinary deterministic network mocking and does not test service-worker behavior. How can it avoid service-worker interception hiding requests from routing?",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://playwright.dev/docs/service-workers",
+          "title": "Playwright Service Workers",
+          "publisher": "Microsoft Playwright",
+          "accessed": "2026-10-10",
+          "claim": "Blocking service workers prevents their interception from bypassing ordinary route mocks. Broader patterns do not alter ownership, page routing is not guaranteed to see intercepted traffic, and localStorage clearing does not block service workers."
+        }
+      ],
+      "explanation": "Blocking service workers prevents their interception from bypassing ordinary route mocks. Broader patterns do not alter ownership, page routing is not guaranteed to see intercepted traffic, and localStorage clearing does not block service workers.",
+      "answer": "a",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Create the context with `serviceWorkers: 'block'`."
+        },
+        {
+          "id": "b",
+          "text": "Enable every service worker and replace route patterns with broader patterns."
+        },
+        {
+          "id": "c",
+          "text": "Use page.route only, because it always overrides every service-worker fetch handler."
+        },
+        {
+          "id": "d",
+          "text": "Clear localStorage because service-worker activation requires its stored values."
+        }
+      ]
+    },
+    {
+      "id": "c079-q03",
+      "lesson": null,
+      "concept": "c079-browser-clock-control",
+      "type": "multiple_select",
+      "prompt": "A Playwright test uses `page.clock`. Which time-control statements are correct? Select all that apply.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://playwright.dev/docs/clock",
+          "title": "Playwright Clock",
+          "publisher": "Microsoft Playwright",
+          "accessed": "2026-10-10",
+          "claim": "A: fixed time controls Date without stopping timers. B and C: install provides timer control and should precede other clock operations. D confuses fixed Date with frozen timers; E is false because page clock controls browser APIs, not backend clocks."
+        }
+      ],
+      "explanation": "A: fixed time controls Date without stopping timers. B and C: install provides timer control and should precede other clock operations. D confuses fixed Date with frozen timers; E is false because page clock controls browser APIs, not backend clocks.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`setFixedTime` fixes Date readings while timers continue normally."
+        },
+        {
+          "id": "b",
+          "text": "`install` enables control of time-related browser APIs and timers."
+        },
+        {
+          "id": "c",
+          "text": "Install the fake clock before relying on its other timer-control operations."
+        },
+        {
+          "id": "d",
+          "text": "`setFixedTime` freezes every interval and animation callback automatically."
+        },
+        {
+          "id": "e",
+          "text": "A browser clock override automatically freezes time on the backend server."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "c"
+      ]
+    },
+    {
+      "id": "c079-q04",
+      "lesson": null,
+      "concept": "c079-playwright-route-chain",
+      "type": "multiple_choice",
+      "prompt": "A Playwright route handler calls `route.continue()` for a matching request. How does that differ from fallback?",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://playwright.dev/docs/api/class-route",
+          "title": "Playwright Route API",
+          "publisher": "Microsoft Playwright",
+          "accessed": "2026-10-10",
+          "claim": "Continue immediately proceeds to the network; fallback allows other matching handlers to run. There is no all-handler barrier or automatic request duplication."
+        }
+      ],
+      "explanation": "Continue immediately proceeds to the network; fallback allows other matching handlers to run. There is no all-handler barrier or automatic request duplication.",
+      "answer": "a",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It sends the request to the network without invoking other handlers."
+        },
+        {
+          "id": "b",
+          "text": "It always delegates to the next route so all matching handlers can modify it."
+        },
+        {
+          "id": "c",
+          "text": "It queues the request until every matching route has called continue once."
+        },
+        {
+          "id": "d",
+          "text": "It sends a duplicate request for every registered handler that matches its URL."
+        }
+      ]
+    },
+    {
+      "id": "c079-q05",
+      "lesson": null,
+      "concept": "c079-service-worker-routing",
+      "type": "multiple_choice",
+      "prompt": "A Playwright response was supplied through a service-worker fetch handler. Which response method identifies that fact?",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://playwright.dev/docs/service-workers",
+          "title": "Playwright Service Workers",
+          "publisher": "Microsoft Playwright",
+          "accessed": "2026-10-10",
+          "claim": "fromServiceWorker reports whether a fetch handler handled the request. Success status and URL do not establish ownership; network responses can have the same URL and status."
+        }
+      ],
+      "explanation": "fromServiceWorker reports whether a fetch handler handled the request. Success status and URL do not establish ownership; network responses can have the same URL and status.",
+      "answer": "b",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Call `response.ok()` because all successful responses imply worker ownership."
+        },
+        {
+          "id": "b",
+          "text": "Call `response.fromServiceWorker()`."
+        },
+        {
+          "id": "c",
+          "text": "Call `response.status()` and treat every 200 response as a service-worker response."
+        },
+        {
+          "id": "d",
+          "text": "Call `response.url()` because worker responses always use a distinct URL scheme."
+        }
+      ]
+    },
+    {
+      "id": "c079-q06",
+      "lesson": null,
+      "concept": "c079-browser-clock-control",
+      "type": "multiple_select",
+      "prompt": "A Playwright browser-clock test fixes the current Date and waits for a UI timeout. Which claims are valid? Select all that apply.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://playwright.dev/docs/clock",
+          "title": "Playwright Clock",
+          "publisher": "Microsoft Playwright",
+          "accessed": "2026-10-10",
+          "claim": "B distinguishes fixed Date from the installed timer controller. D describes the scope of page.clock. A is false because setFixedTime leaves timers running. C and E are false because browser API overrides neither rewrite database records nor control remote server time."
+        }
+      ],
+      "explanation": "B distinguishes fixed Date from the installed timer controller. D describes the scope of page.clock. A is false because setFixedTime leaves timers running. C and E are false because browser API overrides neither rewrite database records nor control remote server time.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Fixing the browser Date automatically pauses every pending timeout callback."
+        },
+        {
+          "id": "b",
+          "text": "Use an installed clock when the test needs explicit timer advancement."
+        },
+        {
+          "id": "c",
+          "text": "A fixed browser Date rewrites stored timestamps in the application database."
+        },
+        {
+          "id": "d",
+          "text": "The override changes native time APIs in the page under test."
+        },
+        {
+          "id": "e",
+          "text": "The override guarantees that remote API servers observe the same fake time."
+        }
+      ],
+      "answers": [
+        "b",
+        "d"
+      ]
+    }
+  ]
+}

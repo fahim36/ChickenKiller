@@ -1,0 +1,262 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c074-timer-references-and-process-lifetime",
+      "name": "Timer references and process lifetime"
+    },
+    {
+      "id": "c074-node-dns-resolution-paths",
+      "name": "Node DNS resolution paths"
+    },
+    {
+      "id": "c074-http-server-timeout-boundaries",
+      "name": "HTTP server timeout boundaries"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c074-q01",
+      "type": "multiple_choice",
+      "lesson": null,
+      "concept": "c074-timer-references-and-process-lifetime",
+      "prompt": "A Node housekeeping timer calls unref(), and no other work keeps the event loop active. What can happen to the process?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It must wait for that timer."
+        },
+        {
+          "id": "b",
+          "text": "It cancels the timer and permanently prevents its callback from executing."
+        },
+        {
+          "id": "c",
+          "text": "It can exit before the timer fires."
+        },
+        {
+          "id": "d",
+          "text": "It creates a worker thread that keeps the process alive until timeout."
+        }
+      ],
+      "answer": "c",
+      "explanation": "unref changes whether the timer keeps the event loop running. It does not cancel it; a process with no other active work may exit before its callback.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://nodejs.org/api/timers.html",
+          "title": "Timers | Node.js v26.11.1 Documentation",
+          "publisher": "Node.js",
+          "accessed": "2026-10-10",
+          "claim": "Node timer unref prevents that timer alone from keeping the event loop active; it does not cancel the timer or guarantee execution."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "c074-q02",
+      "type": "multiple_choice",
+      "lesson": null,
+      "concept": "c074-node-dns-resolution-paths",
+      "prompt": "A Node app resolves a hostname with dns.lookup and expects an /etc/hosts entry to apply. Which resolution path explains this expectation?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Direct DNS-protocol resolution."
+        },
+        {
+          "id": "b",
+          "text": "A process-local hostname cache that bypasses operating-system resolver configuration."
+        },
+        {
+          "id": "c",
+          "text": "An authoritative DNS lookup that ignores local host mappings and operating-system resolver settings."
+        },
+        {
+          "id": "d",
+          "text": "Operating-system name resolution."
+        }
+      ],
+      "answer": "d",
+      "explanation": "dns.lookup uses the operating system facilities, which can consult hosts configuration. dns.resolve uses DNS protocol queries and a different resolution path.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://nodejs.org/api/dns.html",
+          "title": "DNS | Node.js v26.11.1 Documentation",
+          "publisher": "Node.js",
+          "accessed": "2026-10-10",
+          "claim": "dns.lookup uses operating-system resolution with libuv thread-pool work; dns.resolve queries DNS without using the same OS lookup path."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "c074-q03",
+      "type": "multiple_select",
+      "lesson": null,
+      "concept": "c074-http-server-timeout-boundaries",
+      "prompt": "A Node HTTP server configures distinct timeouts for slow clients. Which meanings are accurate? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "keepAliveTimeout is the maximum duration of every active response body."
+        },
+        {
+          "id": "b",
+          "text": "headersTimeout limits the time to receive complete request headers."
+        },
+        {
+          "id": "c",
+          "text": "requestTimeout limits the time to receive the entire request."
+        },
+        {
+          "id": "d",
+          "text": "keepAliveTimeout concerns an idle connection after a response finishes."
+        },
+        {
+          "id": "e",
+          "text": "requestTimeout is a guaranteed deadline for all application handler work."
+        }
+      ],
+      "answers": [
+        "b",
+        "c",
+        "d"
+      ],
+      "explanation": "A is incorrect: its idle period applies after response completion. B is correct: it protects the header-receiving phase. C is correct: it concerns inbound request reception rather than handler completion. D is correct: it sets the wait for additional incoming data on a reusable connection. E is incorrect: it times receipt of the request, not completion of arbitrary application processing.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://nodejs.org/api/http.html",
+          "title": "HTTP | Node.js v26.11.1 Documentation",
+          "publisher": "Node.js",
+          "accessed": "2026-10-10",
+          "claim": "headersTimeout bounds receiving complete headers; requestTimeout bounds receiving the full request; keepAliveTimeout follows response completion before idle socket destruction."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "c074-q04",
+      "type": "multiple_choice",
+      "lesson": null,
+      "concept": "c074-timer-references-and-process-lifetime",
+      "prompt": "A Node service unrefs a timeout while other requests keep the process alive. Which statement about that timeout is correct?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Its callback can still execute."
+        },
+        {
+          "id": "b",
+          "text": "Its callback is immediately cancelled."
+        },
+        {
+          "id": "c",
+          "text": "It becomes an interval that repeats until ref is called again."
+        },
+        {
+          "id": "d",
+          "text": "It is forced to execute synchronously before unref returns to the caller."
+        }
+      ],
+      "answer": "a",
+      "explanation": "An unrefed timer remains scheduled but does not keep the process alive on its own. clearTimeout is the separate cancellation operation.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://nodejs.org/api/timers.html",
+          "title": "Timers | Node.js v26.11.1 Documentation",
+          "publisher": "Node.js",
+          "accessed": "2026-10-10",
+          "claim": "Node timer unref prevents that timer alone from keeping the event loop active; it does not cancel the timer or guarantee execution."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "c074-q05",
+      "type": "multiple_choice",
+      "lesson": null,
+      "concept": "c074-node-dns-resolution-paths",
+      "prompt": "A Node app performs many dns.lookup calls alongside other libuv-pool operations. Which shared resource can become contended?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The request-handler JavaScript thread."
+        },
+        {
+          "id": "b",
+          "text": "The libuv worker pool."
+        },
+        {
+          "id": "c",
+          "text": "The asynchronous DNS-query path used by dns.resolve, independent of the libuv thread pool."
+        },
+        {
+          "id": "d",
+          "text": "A dedicated permanent thread created for each unique hostname lookup."
+        }
+      ],
+      "answer": "b",
+      "explanation": "dns.lookup uses getaddrinfo on the shared libuv worker pool. dns.resolve uses asynchronous DNS queries without that pool; dns.lookup does not create one dedicated thread per hostname.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://nodejs.org/api/dns.html",
+          "title": "DNS | Node.js v26.11.1 Documentation",
+          "publisher": "Node.js",
+          "accessed": "2026-10-10",
+          "claim": "dns.lookup uses operating-system resolution with libuv thread-pool work; dns.resolve queries DNS without using the same OS lookup path."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "c074-q06",
+      "type": "multiple_select",
+      "lesson": null,
+      "concept": "c074-http-server-timeout-boundaries",
+      "prompt": "A Node API accepts a slow upload and then performs lengthy application processing. Which timeout distinctions should its operator retain? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Application processing may need its own explicit deadline."
+        },
+        {
+          "id": "b",
+          "text": "requestTimeout starts only after the handler has sent its response."
+        },
+        {
+          "id": "c",
+          "text": "A larger keepAliveTimeout automatically gives a handler more CPU execution time."
+        },
+        {
+          "id": "d",
+          "text": "headersTimeout measures how long response headers take to reach the client."
+        },
+        {
+          "id": "e",
+          "text": "A header timeout does not by itself cap the whole upload body duration."
+        }
+      ],
+      "answers": [
+        "a",
+        "e"
+      ],
+      "explanation": "A is correct: requestTimeout limits receiving the request rather than arbitrary processing. B is incorrect: it governs incoming request reception. C is incorrect: that setting controls post-response idle connection handling. D is incorrect: it limits receiving the client's request headers. E is correct: headersTimeout applies to header reception; full-request timing has a separate control.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://nodejs.org/api/http.html",
+          "title": "HTTP | Node.js v26.11.1 Documentation",
+          "publisher": "Node.js",
+          "accessed": "2026-10-10",
+          "claim": "headersTimeout bounds receiving complete headers; requestTimeout bounds receiving the full request; keepAliveTimeout follows response completion before idle socket destruction."
+        }
+      ],
+      "retired": null
+    }
+  ]
+}

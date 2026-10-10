@@ -1,0 +1,256 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c078-container-child-reaping",
+      "name": "Container child process reaping"
+    },
+    {
+      "id": "c078-docker-health-state",
+      "name": "Docker health check state"
+    },
+    {
+      "id": "c078-fork-workflow-trust",
+      "name": "Fork pull-request workflow trust"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c078-q01",
+      "lesson": null,
+      "concept": "c078-container-child-reaping",
+      "type": "multiple_choice",
+      "prompt": "A container application starts children but does not reap them reliably. What does Docker `--init` add?",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://docs.docker.com/engine/containers/multi-service_container/",
+          "title": "Docker: Run multiple processes in a container",
+          "publisher": "Docker",
+          "accessed": "2026-10-10",
+          "claim": "Docker --init inserts a tiny init process as the main process to handle reaping. It neither installs a full init system, creates VMs nor prevents child processes."
+        }
+      ],
+      "explanation": "Docker --init inserts a tiny init process as the main process to handle reaping. It neither installs a full init system, creates VMs nor prevents child processes.",
+      "answer": "c",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A complete systemd installation that automatically supervises every service."
+        },
+        {
+          "id": "b",
+          "text": "A separate virtual machine that runs each child outside the container."
+        },
+        {
+          "id": "c",
+          "text": "A tiny init process that handles child-process reaping."
+        },
+        {
+          "id": "d",
+          "text": "A replacement application runtime that prevents any child from starting."
+        }
+      ]
+    },
+    {
+      "id": "c078-q02",
+      "lesson": null,
+      "concept": "c078-docker-health-state",
+      "type": "multiple_choice",
+      "prompt": "A Docker container is running but its HEALTHCHECK fails repeatedly beyond the retry threshold. What state does that check establish?",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://docs.docker.com/reference/dockerfile/",
+          "title": "Dockerfile reference: HEALTHCHECK",
+          "publisher": "Docker",
+          "accessed": "2026-10-10",
+          "claim": "HEALTHCHECK maintains health state independently of process execution. Repeated failures mark unhealthy. The instruction does not itself remove a container, replace its image or declare it healthy merely because PID 1 runs."
+        }
+      ],
+      "explanation": "HEALTHCHECK maintains health state independently of process execution. Repeated failures mark unhealthy. The instruction does not itself remove a container, replace its image or declare it healthy merely because PID 1 runs.",
+      "answer": "d",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The container automatically receives a new image and restarts with it."
+        },
+        {
+          "id": "b",
+          "text": "The container is removed because a failing check is an exit instruction."
+        },
+        {
+          "id": "c",
+          "text": "The container is healthy if its main process has not exited unexpectedly."
+        },
+        {
+          "id": "d",
+          "text": "The container health status becomes unhealthy."
+        }
+      ]
+    },
+    {
+      "id": "c078-q03",
+      "lesson": null,
+      "concept": "c078-fork-workflow-trust",
+      "type": "multiple_select",
+      "prompt": "For a public GitHub repository using default fork pull-request settings, which workflow security statements hold? Select all that apply.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://docs.github.com/en/actions/reference/events-that-trigger-workflows",
+          "title": "GitHub Actions: Events that trigger workflows",
+          "publisher": "GitHub",
+          "accessed": "2026-10-10",
+          "claim": "A describes the default restricted fork context. C explains why pull_request_target needs extra care. B is false because the default fork token is read-only. D and E are false: untrusted contributor code remains untrusted and the event does not sanitize it."
+        }
+      ],
+      "explanation": "A describes the default restricted fork context. C explains why pull_request_target needs extra care. B is false because the default fork token is read-only. D and E are false: untrusted contributor code remains untrusted and the event does not sanitize it.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Ordinary fork `pull_request` runs do not receive repository secrets."
+        },
+        {
+          "id": "b",
+          "text": "The default fork pull-request token has write access to repository contents."
+        },
+        {
+          "id": "c",
+          "text": "`pull_request_target` runs in the trusted base-repository context."
+        },
+        {
+          "id": "d",
+          "text": "Untrusted head code is safe to execute with secrets because a maintainer opened the workflow."
+        },
+        {
+          "id": "e",
+          "text": "Switching to `pull_request_target` automatically sanitizes contributor scripts."
+        }
+      ],
+      "answers": [
+        "a",
+        "c"
+      ]
+    },
+    {
+      "id": "c078-q04",
+      "lesson": null,
+      "concept": "c078-container-child-reaping",
+      "type": "multiple_choice",
+      "prompt": "A container starts several subprocesses. Which process-lifecycle responsibility does Docker document for its main process?",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://docs.docker.com/engine/containers/multi-service_container/",
+          "title": "Docker: Run multiple processes in a container",
+          "publisher": "Docker",
+          "accessed": "2026-10-10",
+          "claim": "The main container process is responsible for managing children. An init helper can address deficient reaping. Children are not independent containers, and rebuilding an image is not lifecycle cleanup."
+        }
+      ],
+      "explanation": "The main container process is responsible for managing children. An init helper can address deficient reaping. Children are not independent containers, and rebuilding an image is not lifecycle cleanup.",
+      "answer": "d",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Delegate every child to the host shell, which always reaps it immediately."
+        },
+        {
+          "id": "b",
+          "text": "Leave every terminated child in place until the container image is rebuilt."
+        },
+        {
+          "id": "c",
+          "text": "Treat each child as an independent container with its own automatic lifecycle."
+        },
+        {
+          "id": "d",
+          "text": "Manage the processes it starts, including their cleanup."
+        }
+      ]
+    },
+    {
+      "id": "c078-q05",
+      "lesson": null,
+      "concept": "c078-docker-health-state",
+      "type": "multiple_choice",
+      "prompt": "During a Docker HEALTHCHECK start period, one check succeeds before later checks fail. What changes after that success?",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://docs.docker.com/reference/dockerfile/",
+          "title": "Dockerfile reference: HEALTHCHECK",
+          "publisher": "Docker",
+          "accessed": "2026-10-10",
+          "claim": "A success during the start period marks startup complete; later consecutive failures count. The grace period is not restarted per failure, and one success does not disable checking."
+        }
+      ],
+      "explanation": "A success during the start period marks startup complete; later consecutive failures count. The grace period is not restarted per failure, and one success does not disable checking.",
+      "answer": "a",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Later failures count toward the unhealthy retry threshold."
+        },
+        {
+          "id": "b",
+          "text": "Every later failure is ignored until the original start period has elapsed."
+        },
+        {
+          "id": "c",
+          "text": "The start period begins again after every later failing health check."
+        },
+        {
+          "id": "d",
+          "text": "The successful check disables health checking until the container restarts."
+        }
+      ]
+    },
+    {
+      "id": "c078-q06",
+      "lesson": null,
+      "concept": "c078-fork-workflow-trust",
+      "type": "multiple_select",
+      "prompt": "A privileged `pull_request_target` workflow labels pull requests. Which boundaries should its author understand? Select all that apply.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://docs.github.com/en/actions/reference/events-that-trigger-workflows",
+          "title": "GitHub Actions: Events that trigger workflows",
+          "publisher": "GitHub",
+          "accessed": "2026-10-10",
+          "claim": "A: the event uses the base repository. B: privileged execution of untrusted head code risks secrets and other resources. E: labeling is a suitable metadata task. C is false because the event confers no code trust; D ignores its different privileges."
+        }
+      ],
+      "explanation": "A: the event uses the base repository. B: privileged execution of untrusted head code risks secrets and other resources. E: labeling is a suitable metadata task. C is false because the event confers no code trust; D ignores its different privileges.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Its context is the base repository rather than the fork merge branch."
+        },
+        {
+          "id": "b",
+          "text": "Checking out and running contributor code can expose privileged resources."
+        },
+        {
+          "id": "c",
+          "text": "Its event name guarantees that downloaded pull-request scripts are trusted."
+        },
+        {
+          "id": "d",
+          "text": "It always has the same secret restrictions as default fork `pull_request`."
+        },
+        {
+          "id": "e",
+          "text": "It can perform metadata tasks without executing untrusted head code."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "e"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,256 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c080-postgres-rls-bypass",
+      "name": "PostgreSQL row-security bypass"
+    },
+    {
+      "id": "c080-skip-locked-queue",
+      "name": "SKIP LOCKED queue selection"
+    },
+    {
+      "id": "c080-vacuum-space-visibility",
+      "name": "Vacuum visibility and space reuse"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c080-q01",
+      "lesson": null,
+      "concept": "c080-postgres-rls-bypass",
+      "type": "multiple_choice",
+      "prompt": "A PostgreSQL 18 table owner enables row-level security and runs a query as that owner. Why might the owner still see every row?",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/ddl-rowsecurity.html",
+          "title": "PostgreSQL: Row Security Policies",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-10",
+          "claim": "Owners normally bypass RLS; FORCE ROW LEVEL SECURITY can subject them to policies. RLS does affect SELECT and has no row-count threshold or cross-database grant effect."
+        }
+      ],
+      "explanation": "Owners normally bypass RLS; FORCE ROW LEVEL SECURITY can subject them to policies. RLS does affect SELECT and has no row-count threshold or cross-database grant effect.",
+      "answer": "a",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Table owners normally bypass RLS unless FORCE ROW LEVEL SECURITY applies."
+        },
+        {
+          "id": "b",
+          "text": "RLS applies only to INSERT statements and never restricts SELECT statements."
+        },
+        {
+          "id": "c",
+          "text": "Enabling RLS automatically grants every owner access to every other database."
+        },
+        {
+          "id": "d",
+          "text": "RLS becomes active only after the table has at least one million stored rows."
+        }
+      ]
+    },
+    {
+      "id": "c080-q02",
+      "lesson": null,
+      "concept": "c080-skip-locked-queue",
+      "type": "multiple_choice",
+      "prompt": "Several PostgreSQL 18 workers use `FOR UPDATE SKIP LOCKED` to claim queue rows. What is its trade-off?",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/sql-select.html",
+          "title": "PostgreSQL: SELECT",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-10",
+          "claim": "SKIP LOCKED skips row locks to reduce queue contention but does not give a general consistent view. It neither waits for those rows nor deletes them, and ordinary table-level locking still applies."
+        }
+      ],
+      "explanation": "SKIP LOCKED skips row locks to reduce queue contention but does not give a general consistent view. It neither waits for those rows nor deletes them, and ordinary table-level locking still applies.",
+      "answer": "b",
+      "choices": [
+        {
+          "id": "a",
+          "text": "It waits for every locked row, giving all consumers a complete consistent queue view."
+        },
+        {
+          "id": "b",
+          "text": "It skips locked rows, giving an inconsistent view suitable for queue consumers."
+        },
+        {
+          "id": "c",
+          "text": "It deletes locked rows, making each queued task permanently disappear before processing."
+        },
+        {
+          "id": "d",
+          "text": "It ignores every lock in PostgreSQL, eliminating both row and table contention."
+        }
+      ]
+    },
+    {
+      "id": "c080-q03",
+      "lesson": null,
+      "concept": "c080-vacuum-space-visibility",
+      "type": "multiple_select",
+      "prompt": "A PostgreSQL 18 table has many dead row versions. Which routine vacuuming statements hold? Select all that apply.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/routine-vacuuming.html",
+          "title": "PostgreSQL: Routine Vacuuming",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-10",
+          "claim": "A and B: ordinary vacuum reclaims reusable space, generally without shrinking the file; free tail pages are a limited exception. C is false because FULL requires an exclusive lock. D overstates OS reclamation; E is false because autovacuum never runs VACUUM FULL."
+        }
+      ],
+      "explanation": "A and B: ordinary vacuum reclaims reusable space, generally without shrinking the file; free tail pages are a limited exception. C is false because FULL requires an exclusive lock. D overstates OS reclamation; E is false because autovacuum never runs VACUUM FULL.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Standard VACUUM makes dead-tuple space available for reuse."
+        },
+        {
+          "id": "b",
+          "text": "Standard VACUUM generally keeps the table file allocated rather than fully shrinking it."
+        },
+        {
+          "id": "c",
+          "text": "VACUUM FULL rewrites the table without requiring an exclusive table lock."
+        },
+        {
+          "id": "d",
+          "text": "Standard VACUUM always returns every freed byte immediately to the operating system."
+        },
+        {
+          "id": "e",
+          "text": "Autovacuum routinely performs VACUUM FULL to compact every table."
+        }
+      ],
+      "answers": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "c080-q04",
+      "lesson": null,
+      "concept": "c080-postgres-rls-bypass",
+      "type": "multiple_choice",
+      "prompt": "A role with PostgreSQL 18 BYPASSRLS queries a table whose owner enabled FORCE ROW LEVEL SECURITY. What is the documented behavior?",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/ddl-rowsecurity.html",
+          "title": "PostgreSQL: Row Security Policies",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-10",
+          "claim": "BYPASSRLS roles and superusers always bypass row security. FORCE changes the normal owner exemption; it does not remove role attributes, reject such roles or require ownership."
+        }
+      ],
+      "explanation": "BYPASSRLS roles and superusers always bypass row security. FORCE changes the normal owner exemption; it does not remove role attributes, reject such roles or require ownership.",
+      "answer": "b",
+      "choices": [
+        {
+          "id": "a",
+          "text": "FORCE removes BYPASSRLS from every role for the duration of that statement."
+        },
+        {
+          "id": "b",
+          "text": "The BYPASSRLS role still bypasses row security."
+        },
+        {
+          "id": "c",
+          "text": "FORCE causes the database to reject queries from every role with BYPASSRLS."
+        },
+        {
+          "id": "d",
+          "text": "The role must be the table owner before its BYPASSRLS attribute has any effect."
+        }
+      ]
+    },
+    {
+      "id": "c080-q05",
+      "lesson": null,
+      "concept": "c080-skip-locked-queue",
+      "type": "multiple_choice",
+      "prompt": "A PostgreSQL 18 query uses `FOR UPDATE SKIP LOCKED`. Which lock can still make it wait despite the row-skipping clause?",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/sql-select.html",
+          "title": "PostgreSQL: SELECT",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-10",
+          "claim": "NOWAIT and SKIP LOCKED affect row locks, not the required table lock. The clause skips conflicting row locks, does not disable locking and does not move its effect to another database."
+        }
+      ],
+      "explanation": "NOWAIT and SKIP LOCKED affect row locks, not the required table lock. The clause skips conflicting row locks, does not disable locking and does not move its effect to another database.",
+      "answer": "c",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Every row lock, because SKIP LOCKED changes only the order of row processing."
+        },
+        {
+          "id": "b",
+          "text": "No lock, because SKIP LOCKED disables the locking system for the statement."
+        },
+        {
+          "id": "c",
+          "text": "The ordinary required table-level lock."
+        },
+        {
+          "id": "d",
+          "text": "Only a lock on a different database, because local table locks are bypassed."
+        }
+      ]
+    },
+    {
+      "id": "c080-q06",
+      "lesson": null,
+      "concept": "c080-vacuum-space-visibility",
+      "type": "multiple_select",
+      "prompt": "Why does PostgreSQL 18 maintain a visibility map during vacuuming? Select the supported consequences. Select all that apply.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/routine-vacuuming.html",
+          "title": "PostgreSQL: Routine Vacuuming",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-10",
+          "claim": "A and B describe visibility-map optimizations. D: vacuum maintains it. C is false because MVCC visibility is not authorization; E is false because the map records page visibility, not indexed values or replacement indexes."
+        }
+      ],
+      "explanation": "A and B describe visibility-map optimizations. D: vacuum maintains it. C is false because MVCC visibility is not authorization; E is false because the map records page visibility, not indexed values or replacement indexes.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "All-visible pages can let index-only scans avoid heap visibility checks."
+        },
+        {
+          "id": "b",
+          "text": "VACUUM can skip pages already known not to need relevant cleanup."
+        },
+        {
+          "id": "c",
+          "text": "An all-visible map bit proves every transaction can ignore row-level policies."
+        },
+        {
+          "id": "d",
+          "text": "Visibility-map maintenance is one responsibility of routine VACUUM."
+        },
+        {
+          "id": "e",
+          "text": "The map replaces indexes and stores every indexed column value itself."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "d"
+      ]
+    }
+  ]
+}

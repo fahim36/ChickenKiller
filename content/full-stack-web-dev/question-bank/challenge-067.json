@@ -1,0 +1,262 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c067-asynclocalstorage-request-context",
+      "name": "AsyncLocalStorage request context"
+    },
+    {
+      "id": "c067-eventemitter-error-semantics",
+      "name": "EventEmitter error semantics"
+    },
+    {
+      "id": "c067-buffer-allocation-and-memory-sharing",
+      "name": "Buffer allocation and memory sharing"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c067-q01",
+      "type": "multiple_choice",
+      "lesson": null,
+      "concept": "c067-asynclocalstorage-request-context",
+      "prompt": "A Node request handler wraps its work in `storage.run({requestId}, callback)`. A timer created inside callback later reads `storage.getStore()`. What is the intended result?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The context ends before the timer runs."
+        },
+        {
+          "id": "b",
+          "text": "The timer reads whichever request most recently called run globally."
+        },
+        {
+          "id": "c",
+          "text": "The store is serialized into the timer arguments by the runtime first."
+        },
+        {
+          "id": "d",
+          "text": "That request context is available."
+        }
+      ],
+      "answer": "d",
+      "explanation": "AsyncLocalStorage propagates the store to asynchronous operations created within run. It does not use one global latest request or require explicit timer argument serialization.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://nodejs.org/api/async_context.html",
+          "title": "Asynchronous context tracking | Node.js v26.11.1 Documentation",
+          "publisher": "Node.js",
+          "accessed": "2026-10-10",
+          "claim": "AsyncLocalStorage.run propagates its store to async operations created inside the callback; an instance without a defaultValue returns undefined when no store is provided."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "c067-q02",
+      "type": "multiple_choice",
+      "lesson": null,
+      "concept": "c067-eventemitter-error-semantics",
+      "prompt": "A Node EventEmitter emits `error` without any error listener. Which behavior should its owner expect?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The error is thrown."
+        },
+        {
+          "id": "b",
+          "text": "The event is silently ignored."
+        },
+        {
+          "id": "c",
+          "text": "The emitter automatically retries the previous event on the next tick."
+        },
+        {
+          "id": "d",
+          "text": "The event is converted into a handled promise rejection automatically."
+        }
+      ],
+      "answer": "a",
+      "explanation": "error is special: without a listener the error is thrown and the process can exit. Normal events without listeners do not have that behavior.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://nodejs.org/api/events.html",
+          "title": "Events | Node.js v26.11.1 Documentation",
+          "publisher": "Node.js",
+          "accessed": "2026-10-10",
+          "claim": "EventEmitter listeners execute synchronously in registration order; an unhandled error event throws and may terminate the process."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "c067-q03",
+      "type": "multiple_select",
+      "lesson": null,
+      "concept": "c067-buffer-allocation-and-memory-sharing",
+      "prompt": "A Node service allocates and slices Buffers before returning data to clients. Which statements are accurate? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Buffer.slice creates a view sharing the original memory."
+        },
+        {
+          "id": "b",
+          "text": "Buffer.slice always makes an independent copy of its bytes."
+        },
+        {
+          "id": "c",
+          "text": "The Unsafe suffix changes bounds checking while still always clearing memory."
+        },
+        {
+          "id": "d",
+          "text": "Buffer.alloc produces a zero-filled allocation."
+        },
+        {
+          "id": "e",
+          "text": "Buffer.allocUnsafe requires every exposed byte to be initialized first."
+        }
+      ],
+      "answers": [
+        "a",
+        "d",
+        "e"
+      ],
+      "explanation": "A is correct: writing the slice can affect the source buffer. B is incorrect: Buffer slice retains view semantics unlike TypedArray slice. C is incorrect: the important distinction is that the allocated memory is not initialized. D is correct: alloc initializes the allocated bytes. E is correct: its old memory content may otherwise leak.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://nodejs.org/api/buffer.html",
+          "title": "Buffer | Node.js v26.11.1 Documentation",
+          "publisher": "Node.js",
+          "accessed": "2026-10-10",
+          "claim": "Buffer.alloc zero-fills; allocUnsafe may expose old memory; Buffer.slice creates a shared-memory view; TypedArray.slice copies."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "c067-q04",
+      "type": "multiple_choice",
+      "lesson": null,
+      "concept": "c067-asynclocalstorage-request-context",
+      "prompt": "A Node log helper uses `new AsyncLocalStorage()` without constructor options and calls getStore before any context is established. What does it receive?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A newly created empty store object."
+        },
+        {
+          "id": "b",
+          "text": "undefined"
+        },
+        {
+          "id": "c",
+          "text": "The store from the last request completed anywhere in the process."
+        },
+        {
+          "id": "d",
+          "text": "A rejected promise whose reason contains the missing request identifier."
+        }
+      ],
+      "answer": "b",
+      "explanation": "getStore returns undefined outside an initialized context. It neither creates a default object nor retrieves another request's store.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://nodejs.org/api/async_context.html",
+          "title": "Asynchronous context tracking | Node.js v26.11.1 Documentation",
+          "publisher": "Node.js",
+          "accessed": "2026-10-10",
+          "claim": "AsyncLocalStorage.run propagates its store to async operations created inside the callback; an instance without a defaultValue returns undefined when no store is provided."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "c067-q05",
+      "type": "multiple_choice",
+      "lesson": null,
+      "concept": "c067-eventemitter-error-semantics",
+      "prompt": "Two ordinary Node EventEmitter listeners are registered in order and perform synchronous work. What does `emit` do?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Queue both as microtasks instead."
+        },
+        {
+          "id": "b",
+          "text": "Run both on worker threads and wait for their synchronous work to finish."
+        },
+        {
+          "id": "c",
+          "text": "Call both in registration order."
+        },
+        {
+          "id": "d",
+          "text": "Choose one listener at random so event delivery can be load balanced."
+        }
+      ],
+      "answer": "c",
+      "explanation": "EventEmitter calls listeners synchronously in registration order. A listener may separately schedule async work, but emit does not offload it automatically.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://nodejs.org/api/events.html",
+          "title": "Events | Node.js v26.11.1 Documentation",
+          "publisher": "Node.js",
+          "accessed": "2026-10-10",
+          "claim": "EventEmitter listeners execute synchronously in registration order; an unhandled error event throws and may terminate the process."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "c067-q06",
+      "type": "multiple_select",
+      "lesson": null,
+      "concept": "c067-buffer-allocation-and-memory-sharing",
+      "prompt": "A Node parser needs a private byte copy and handles potentially sensitive allocations. Which properties matter? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A Buffer.slice mutation is isolated from the source buffer by default."
+        },
+        {
+          "id": "b",
+          "text": "Buffer.from(anExistingBuffer) copies its bytes."
+        },
+        {
+          "id": "c",
+          "text": "Mutating a Buffer.subarray view can modify the original buffer."
+        },
+        {
+          "id": "d",
+          "text": "An allocUnsafe buffer is safe to send before all its bytes are written."
+        },
+        {
+          "id": "e",
+          "text": "Buffer.alloc and Buffer.allocUnsafe promise identical initialization behavior."
+        }
+      ],
+      "answers": [
+        "b",
+        "c"
+      ],
+      "explanation": "A is incorrect: slice returns a shared view. B is correct: the buffer overload creates a separate copy. C is correct: subarray shares the same underlying memory. D is incorrect: uninitialized memory may contain sensitive previous data. E is incorrect: alloc zero-fills whereas allocUnsafe does not.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://nodejs.org/api/buffer.html",
+          "title": "Buffer | Node.js v26.11.1 Documentation",
+          "publisher": "Node.js",
+          "accessed": "2026-10-10",
+          "claim": "Buffer.alloc zero-fills; allocUnsafe may expose old memory; Buffer.slice creates a shared-memory view; TypedArray.slice copies."
+        }
+      ],
+      "retired": null
+    }
+  ]
+}

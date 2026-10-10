@@ -1,0 +1,262 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c068-http-write-preconditions",
+      "name": "HTTP write preconditions"
+    },
+    {
+      "id": "c068-byte-range-responses",
+      "name": "Byte range responses"
+    },
+    {
+      "id": "c068-stale-cache-extensions",
+      "name": "Stale cache extensions"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c068-q01",
+      "type": "multiple_choice",
+      "lesson": null,
+      "concept": "c068-http-write-preconditions",
+      "prompt": "An API requires a strong ETag in If-Match before replacing a document. The supplied tag no longer matches the current representation. Which status normally reports this failure?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "412 Precondition Failed"
+        },
+        {
+          "id": "b",
+          "text": "304 Not Modified."
+        },
+        {
+          "id": "c",
+          "text": "206 Partial Content, because part of the document may still match."
+        },
+        {
+          "id": "d",
+          "text": "416 Range Not Satisfiable, because the validator is no longer current."
+        }
+      ],
+      "answer": "a",
+      "explanation": "If-Match is a precondition for performing the method and uses strong comparison. A false precondition normally yields 412 rather than cache or range statuses.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc9110.html",
+          "title": "RFC 9110: HTTP Semantics",
+          "publisher": "IETF",
+          "accessed": "2026-10-10",
+          "claim": "If-Match uses strong comparison for lost-update protection and a failed precondition normally produces 412."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "c068-q02",
+      "type": "multiple_choice",
+      "lesson": null,
+      "concept": "c068-byte-range-responses",
+      "prompt": "A server supports byte ranges and honors `Range: bytes=0-99` on a sufficiently long representation. Which status identifies that partial response?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "201 Created."
+        },
+        {
+          "id": "b",
+          "text": "206 Partial Content"
+        },
+        {
+          "id": "c",
+          "text": "304 Not Modified, because a Range request is always conditional."
+        },
+        {
+          "id": "d",
+          "text": "412 Precondition Failed, because a request selected only some bytes."
+        }
+      ],
+      "answer": "b",
+      "explanation": "An honored satisfiable byte-range request uses 206. Range is not itself a cache validator or a failed write precondition.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc9110.html",
+          "title": "RFC 9110: HTTP Semantics",
+          "publisher": "IETF",
+          "accessed": "2026-10-10",
+          "claim": "A satisfiable byte Range request may produce 206 with Content-Range; an unsatisfiable range may produce 416 with the current length."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "c068-q03",
+      "type": "multiple_select",
+      "lesson": null,
+      "concept": "c068-stale-cache-extensions",
+      "prompt": "An HTTP response carries stale-while-revalidate and stale-if-error directives. Which interpretations follow RFC 5861? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "stale-while-revalidate requires every client request to block until validation completes."
+        },
+        {
+          "id": "b",
+          "text": "stale-if-error authorizes stale responses only when origin validation succeeds."
+        },
+        {
+          "id": "c",
+          "text": "stale-while-revalidate can permit a stale response while revalidation runs."
+        },
+        {
+          "id": "d",
+          "text": "stale-if-error can allow stale content when an origin request encounters an error."
+        },
+        {
+          "id": "e",
+          "text": "Either directive makes a response fresh for an unlimited period."
+        }
+      ],
+      "answers": [
+        "c",
+        "d"
+      ],
+      "explanation": "A is incorrect: avoiding that blocking is the purpose of its stale window. B is incorrect: it applies to error conditions, not successful validation. C is correct: that extension permits serving stale content without blocking on revalidation within its window. D is correct: the extension covers errors such as network failures and server errors. E is incorrect: the extensions bound allowed stale use and do not redefine unlimited freshness.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc5861.html",
+          "title": "stalecache",
+          "publisher": "IETF",
+          "accessed": "2026-10-10",
+          "claim": "stale-while-revalidate allows bounded stale responses during background revalidation; stale-if-error permits bounded stale responses on defined errors."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "c068-q04",
+      "type": "multiple_choice",
+      "lesson": null,
+      "concept": "c068-http-write-preconditions",
+      "prompt": "A client sends only a weak validator in If-Match for a resource replacement. Which comparison rule governs matching?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Weak comparison."
+        },
+        {
+          "id": "b",
+          "text": "Lexicographic comparison that accepts any numerically newer validator."
+        },
+        {
+          "id": "c",
+          "text": "Strong comparison."
+        },
+        {
+          "id": "d",
+          "text": "A timestamp comparison inferred from the characters inside the tag."
+        }
+      ],
+      "answer": "c",
+      "explanation": "If-Match uses strong entity-tag comparison, so a weak tag cannot satisfy it. ETags are opaque rather than ordered values or encoded timestamps.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc9110.html",
+          "title": "RFC 9110: HTTP Semantics",
+          "publisher": "IETF",
+          "accessed": "2026-10-10",
+          "claim": "If-Match uses strong comparison for lost-update protection and a failed precondition normally produces 412."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "c068-q05",
+      "type": "multiple_choice",
+      "lesson": null,
+      "concept": "c068-byte-range-responses",
+      "prompt": "A single-part 206 response contains bytes 0 through 99 of a 1,000-byte representation. What does Content-Range describe?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "bytes 0-100/100."
+        },
+        {
+          "id": "b",
+          "text": "bytes 100-1000/1000, because it records bytes the server omitted."
+        },
+        {
+          "id": "c",
+          "text": "bytes 0-99/*, because a server must hide every known total length."
+        },
+        {
+          "id": "d",
+          "text": "bytes 0-99/1000"
+        }
+      ],
+      "answer": "d",
+      "explanation": "Content-Range names the inclusive start and end and, when known, the complete representation length. The final byte position is not exclusive.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc9110.html",
+          "title": "RFC 9110: HTTP Semantics",
+          "publisher": "IETF",
+          "accessed": "2026-10-10",
+          "claim": "A satisfiable byte Range request may produce 206 with Content-Range; an unsatisfiable range may produce 416 with the current length."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "c068-q06",
+      "type": "multiple_select",
+      "lesson": null,
+      "concept": "c068-stale-cache-extensions",
+      "prompt": "A cache operator separates normal revalidation latency from origin outages. Which directive behaviors are correct? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A stale-while-revalidate window is expressed as a number of seconds."
+        },
+        {
+          "id": "b",
+          "text": "A stale-if-error window limits how old an error fallback may be."
+        },
+        {
+          "id": "c",
+          "text": "Without traffic, a stale-while-revalidate window need not trigger proactive fetches."
+        },
+        {
+          "id": "d",
+          "text": "An error fallback is allowed forever once stale-if-error appears once."
+        },
+        {
+          "id": "e",
+          "text": "stale-while-revalidate removes the need for ordinary freshness calculations."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "c"
+      ],
+      "explanation": "A is correct: the delta-seconds bound stale serving after freshness expires. B is correct: its delta-seconds restrict permitted staleness. C is correct: the specification discusses revalidation prompted by requests during the window. D is incorrect: the specified time bound still applies. E is incorrect: the extension starts from a response becoming stale.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc5861.html",
+          "title": "stalecache",
+          "publisher": "IETF",
+          "accessed": "2026-10-10",
+          "claim": "stale-while-revalidate allows bounded stale responses during background revalidation; stale-if-error permits bounded stale responses on defined errors."
+        }
+      ],
+      "retired": null
+    }
+  ]
+}

@@ -1,0 +1,262 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c069-partial-index-predicate-implication",
+      "name": "Partial index predicate implication"
+    },
+    {
+      "id": "c069-expression-index-maintenance",
+      "name": "Expression index maintenance"
+    },
+    {
+      "id": "c069-concurrent-index-build-failures",
+      "name": "Concurrent index build failures"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c069-q01",
+      "type": "multiple_choice",
+      "lesson": null,
+      "concept": "c069-partial-index-predicate-implication",
+      "prompt": "A PostgreSQL partial index covers rows where `x < 2`. A generic prepared query filters `x < $1`, with arbitrary parameter values. Why can that index fail to be usable?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Prepared queries cannot use partial indexes."
+        },
+        {
+          "id": "b",
+          "text": "The predicate is not implied for every parameter value."
+        },
+        {
+          "id": "c",
+          "text": "The index stores rows with x greater than 2 after preparation completes."
+        },
+        {
+          "id": "d",
+          "text": "PostgreSQL must execute every partial-index query as a sequential scan."
+        }
+      ],
+      "answer": "b",
+      "explanation": "The planner must prove predicate implication at planning time. x < $1 does not imply x < 2 for every possible value; this is not a blanket ban on prepared queries.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/indexes-partial.html",
+          "title": "PostgreSQL: Documentation: 18: 11.8. Partial Indexes",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-10",
+          "claim": "A partial index can be used only when the planner can prove the query condition implies its predicate; parameterized conditions generally cannot establish that implication."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "c069-q02",
+      "type": "multiple_choice",
+      "lesson": null,
+      "concept": "c069-expression-index-maintenance",
+      "prompt": "A PostgreSQL index stores `lower(email)`. During an indexed lookup using that expression, where is the indexed expression value obtained?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "By recomputing it for every table row."
+        },
+        {
+          "id": "b",
+          "text": "From a separate generated SQL function created for each lookup request."
+        },
+        {
+          "id": "c",
+          "text": "From the stored index entry."
+        },
+        {
+          "id": "d",
+          "text": "By changing the stored email column permanently to lowercase first."
+        }
+      ],
+      "answer": "c",
+      "explanation": "Expression index entries hold the computed result. This speeds suitable searches but shifts computation and maintenance cost to writes.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/indexes-expressional.html",
+          "title": "PostgreSQL: Documentation: 18: 11.7. Indexes on Expressions",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-10",
+          "claim": "Expression indexes store computed values and incur expression computation at inserts and non-HOT updates; lookups use stored index values."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "c069-q03",
+      "type": "multiple_select",
+      "lesson": null,
+      "concept": "c069-concurrent-index-build-failures",
+      "prompt": "A PostgreSQL migration uses CREATE INDEX CONCURRENTLY on a busy table. Which constraints or failure modes matter? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A build failure always removes every trace of the index automatically."
+        },
+        {
+          "id": "b",
+          "text": "It cannot run inside a transaction block."
+        },
+        {
+          "id": "c",
+          "text": "A failed build can leave an invalid index behind."
+        },
+        {
+          "id": "d",
+          "text": "It performs more work than an ordinary index build."
+        },
+        {
+          "id": "e",
+          "text": "CONCURRENTLY guarantees the build never waits for other transactions."
+        }
+      ],
+      "answers": [
+        "b",
+        "c",
+        "d"
+      ],
+      "explanation": "A is incorrect: an invalid catalog index can remain after failure. B is correct: concurrent index creation has transaction-management restrictions. C is correct: the invalid index may need to be dropped and rebuilt. D is correct: multiple scans and transaction waits add overhead. E is incorrect: it can wait for transactions and snapshots at documented stages.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/sql-createindex.html",
+          "title": "PostgreSQL: Documentation: 18: CREATE INDEX",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-10",
+          "claim": "CREATE INDEX CONCURRENTLY performs multiple scans, cannot run in a transaction block, and can leave an invalid index after failure."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "c069-q04",
+      "type": "multiple_choice",
+      "lesson": null,
+      "concept": "c069-partial-index-predicate-implication",
+      "prompt": "A PostgreSQL partial index includes only unbilled orders. A query does not restrict billing status. Why can that index not by itself answer the complete query?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Its rows are invisible to SELECT."
+        },
+        {
+          "id": "b",
+          "text": "The query must first turn the partial index into an ordinary full index."
+        },
+        {
+          "id": "c",
+          "text": "Partial indexes cannot store the same column values as full indexes."
+        },
+        {
+          "id": "d",
+          "text": "It omits rows the query may need."
+        }
+      ],
+      "answer": "d",
+      "explanation": "A partial index contains a subset. Queries must imply its predicate before the planner can rely on it for a complete answer.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/indexes-partial.html",
+          "title": "PostgreSQL: Documentation: 18: 11.8. Partial Indexes",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-10",
+          "claim": "A partial index can be used only when the planner can prove the query condition implies its predicate; parameterized conditions generally cannot establish that implication."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "c069-q05",
+      "type": "multiple_choice",
+      "lesson": null,
+      "concept": "c069-expression-index-maintenance",
+      "prompt": "A write-heavy PostgreSQL table adds several expression indexes. Which cost should its owner include in the write path?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Computing and maintaining index expressions."
+        },
+        {
+          "id": "b",
+          "text": "Re-running all SELECT queries before commit."
+        },
+        {
+          "id": "c",
+          "text": "Converting all indexed expressions into stored table columns automatically."
+        },
+        {
+          "id": "d",
+          "text": "Disabling all index maintenance until the next server-wide checkpoint."
+        }
+      ],
+      "answer": "a",
+      "explanation": "Expression indexes calculate expressions on insert and non-HOT updates and maintain their index entries. They are not free computed lookup metadata.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/indexes-expressional.html",
+          "title": "PostgreSQL: Documentation: 18: 11.7. Indexes on Expressions",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-10",
+          "claim": "Expression indexes store computed values and incur expression computation at inserts and non-HOT updates; lookups use stored index values."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "c069-q06",
+      "type": "multiple_select",
+      "lesson": null,
+      "concept": "c069-concurrent-index-build-failures",
+      "prompt": "A PostgreSQL concurrent index build fails during a production migration. Which statements are correct? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "An invalid index can still impose update overhead."
+        },
+        {
+          "id": "b",
+          "text": "Wrapping a concurrent rebuild in BEGIN makes its multi-scan work atomic."
+        },
+        {
+          "id": "c",
+          "text": "Two concurrent index builds may run on the same table simultaneously without restriction."
+        },
+        {
+          "id": "d",
+          "text": "CONCURRENTLY means every table write is blocked for the entire build."
+        },
+        {
+          "id": "e",
+          "text": "An invalid index is ignored for query planning."
+        }
+      ],
+      "answers": [
+        "a",
+        "e"
+      ],
+      "explanation": "A is correct: its maintenance can consume write work despite being unusable for queries. B is incorrect: CREATE INDEX CONCURRENTLY cannot run inside a transaction block. C is incorrect: only one concurrent index build on a table can run at a time. D is incorrect: its purpose is to avoid the ordinary build lock that prevents writes, though other waits remain. E is correct: the planner cannot use an invalid index as a usable access path.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/sql-createindex.html",
+          "title": "PostgreSQL: Documentation: 18: CREATE INDEX",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-10",
+          "claim": "CREATE INDEX CONCURRENTLY performs multiple scans, cannot run in a transaction block, and can leave an invalid index after failure."
+        }
+      ],
+      "retired": null
+    }
+  ]
+}

@@ -1,0 +1,262 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c073-null-equality-in-unique-constraints",
+      "name": "Null equality in unique constraints"
+    },
+    {
+      "id": "c073-deferrable-constraint-checks",
+      "name": "Deferrable constraint checks"
+    },
+    {
+      "id": "c073-check-constraint-null-semantics",
+      "name": "CHECK constraint null semantics"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c073-q01",
+      "type": "multiple_choice",
+      "lesson": null,
+      "concept": "c073-null-equality-in-unique-constraints",
+      "prompt": "A nullable PostgreSQL column has an ordinary UNIQUE constraint. Two rows both contain NULL in that column. What does the default null treatment allow?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The second NULL is rejected."
+        },
+        {
+          "id": "b",
+          "text": "Both rows can exist."
+        },
+        {
+          "id": "c",
+          "text": "The first NULL is automatically replaced with a generated non-null value."
+        },
+        {
+          "id": "d",
+          "text": "Both rows are deleted when the constraint is validated at transaction end."
+        }
+      ],
+      "answer": "b",
+      "explanation": "PostgreSQL treats nulls as distinct for uniqueness by default. NULLS NOT DISTINCT changes that behavior; ordinary uniqueness does not substitute or delete values.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/ddl-constraints.html",
+          "title": "PostgreSQL: Documentation: 18: 5.5. Constraints",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-10",
+          "claim": "PostgreSQL unique constraints treat nulls as distinct by default; NULLS NOT DISTINCT changes null equality for uniqueness."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "c073-q02",
+      "type": "multiple_choice",
+      "lesson": null,
+      "concept": "c073-deferrable-constraint-checks",
+      "prompt": "A PostgreSQL transaction temporarily violates a DEFERRABLE foreign key set to DEFERRED, then repairs it before commit. When is that deferred check required?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Before every modified row."
+        },
+        {
+          "id": "b",
+          "text": "Only after the next VACUUM has scanned the referenced table."
+        },
+        {
+          "id": "c",
+          "text": "At transaction end."
+        },
+        {
+          "id": "d",
+          "text": "Never, because DEFERRABLE permanently disables the foreign key."
+        }
+      ],
+      "answer": "c",
+      "explanation": "Deferral postpones constraint checking to transaction end, allowing a temporary violation that is repaired before commit. It does not remove the constraint.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/sql-createtable.html",
+          "title": "PostgreSQL: Documentation: 18: CREATE TABLE",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-10",
+          "claim": "DEFERRABLE constraints can be checked at transaction end; CHECK and NOT NULL constraints cannot be deferred."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "c073-q03",
+      "type": "multiple_select",
+      "lesson": null,
+      "concept": "c073-check-constraint-null-semantics",
+      "prompt": "A PostgreSQL table uses CHECK (price > 0) on a nullable price column. Which properties matter? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The CHECK alone rejects every NULL price automatically."
+        },
+        {
+          "id": "b",
+          "text": "The CHECK is re-evaluated on every other row whenever any price changes."
+        },
+        {
+          "id": "c",
+          "text": "A NULL price satisfies this CHECK constraint."
+        },
+        {
+          "id": "d",
+          "text": "NOT NULL is needed separately if missing prices must be rejected."
+        },
+        {
+          "id": "e",
+          "text": "Cross-row consistency should use a suitable relational constraint instead of CHECK."
+        }
+      ],
+      "answers": [
+        "c",
+        "d",
+        "e"
+      ],
+      "explanation": "A is incorrect: a null result satisfies CHECK. B is incorrect: CHECK constraints concern the inserted or updated row, not a cross-row invariant scan. C is correct: a CHECK passes when its result is true or null. D is correct: the comparison CHECK does not reject a null result. E is correct: CHECK is not supported as a reliable constraint over other rows.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/ddl-constraints.html",
+          "title": "PostgreSQL: Documentation: 18: 5.5. Constraints",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-10",
+          "claim": "A CHECK constraint is satisfied by true or null and does not enforce NOT NULL; PostgreSQL does not support CHECK constraints relying on other rows for consistency."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "c073-q04",
+      "type": "multiple_choice",
+      "lesson": null,
+      "concept": "c073-null-equality-in-unique-constraints",
+      "prompt": "A PostgreSQL 15+ design needs a nullable unique key to permit at most one NULL. Which constraint option directly changes the null comparison?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "UNIQUE DEFERRABLE."
+        },
+        {
+          "id": "b",
+          "text": "UNIQUE USING INDEX, which always prohibits any null entry."
+        },
+        {
+          "id": "c",
+          "text": "UNIQUE NOT VALID, which treats every missing value as the same key."
+        },
+        {
+          "id": "d",
+          "text": "UNIQUE NULLS NOT DISTINCT"
+        }
+      ],
+      "answer": "d",
+      "explanation": "NULLS NOT DISTINCT makes nulls compare equal for the uniqueness check. Deferring a check changes its timing rather than its null equality.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/ddl-constraints.html",
+          "title": "PostgreSQL: Documentation: 18: 5.5. Constraints",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-10",
+          "claim": "PostgreSQL unique constraints treat nulls as distinct by default; NULLS NOT DISTINCT changes null equality for uniqueness."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "c073-q05",
+      "type": "multiple_choice",
+      "lesson": null,
+      "concept": "c073-deferrable-constraint-checks",
+      "prompt": "A PostgreSQL team wants to defer a CHECK constraint until commit by declaring it DEFERRABLE. Which limitation applies?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "CHECK constraints cannot be deferred."
+        },
+        {
+          "id": "b",
+          "text": "Every CHECK is already deferred."
+        },
+        {
+          "id": "c",
+          "text": "Deferral is supported only when the CHECK refers to another table."
+        },
+        {
+          "id": "d",
+          "text": "The CHECK becomes deferrable automatically if its expression returns NULL."
+        }
+      ],
+      "answer": "a",
+      "explanation": "PostgreSQL supports deferral for eligible uniqueness, primary key, exclusion and foreign key constraints. CHECK and NOT NULL constraints are not deferrable.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/sql-createtable.html",
+          "title": "PostgreSQL: Documentation: 18: CREATE TABLE",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-10",
+          "claim": "DEFERRABLE constraints can be checked at transaction end; CHECK and NOT NULL constraints cannot be deferred."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "c073-q06",
+      "type": "multiple_select",
+      "lesson": null,
+      "concept": "c073-check-constraint-null-semantics",
+      "prompt": "A PostgreSQL designer treats CHECK constraints as persistent assertions. Which statements are accurate? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A false CHECK expression rejects the candidate row."
+        },
+        {
+          "id": "b",
+          "text": "PostgreSQL assumes the CHECK condition is immutable for a given row."
+        },
+        {
+          "id": "c",
+          "text": "A CHECK function may change behavior later without any need to revalidate old rows."
+        },
+        {
+          "id": "d",
+          "text": "CHECK guarantees a cross-table count stays below a threshold after every commit."
+        },
+        {
+          "id": "e",
+          "text": "CHECK (value > 0) is equivalent to value NOT NULL plus the positivity rule."
+        }
+      ],
+      "answers": [
+        "a",
+        "b"
+      ],
+      "explanation": "A is correct: false violates the check constraint. B is correct: it does not continuously reevaluate unchanged rows when external function behavior changes. C is incorrect: changing such behavior can leave old rows violating the intended condition. D is incorrect: checks over other rows or tables do not provide that supported guarantee. E is incorrect: the CHECK accepts null whereas NOT NULL rejects it.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/ddl-constraints.html",
+          "title": "PostgreSQL: Documentation: 18: 5.5. Constraints",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-10",
+          "claim": "A CHECK constraint is satisfied by true or null and does not enforce NOT NULL; PostgreSQL does not support CHECK constraints relying on other rows for consistency."
+        }
+      ],
+      "retired": null
+    }
+  ]
+}

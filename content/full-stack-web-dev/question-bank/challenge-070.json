@@ -1,0 +1,276 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c070-back-forward-cache-restoration",
+      "name": "Back-forward cache restoration"
+    },
+    {
+      "id": "c070-intersection-observer-thresholds",
+      "name": "Intersection observer thresholds"
+    },
+    {
+      "id": "c070-resize-observer-feedback-loops",
+      "name": "Resize observer feedback loops"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c070-q01",
+      "type": "multiple_choice",
+      "lesson": null,
+      "concept": "c070-back-forward-cache-restoration",
+      "prompt": "A browser restores a page from the back-forward cache. Which event property can distinguish this from an ordinary page load?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "DOMContentLoaded fires again."
+        },
+        {
+          "id": "b",
+          "text": "load.persisted is true only after every script has executed again."
+        },
+        {
+          "id": "c",
+          "text": "pageshow.persisted is true."
+        },
+        {
+          "id": "d",
+          "text": "beforeunload reports a restore flag after the previous page is destroyed."
+        }
+      ],
+      "answer": "c",
+      "explanation": "pageshow fires on normal loads and bfcache restores, and persisted identifies a restore. A restoration reuses the page rather than reparsing and rerunning every script.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://web.dev/articles/bfcache",
+          "title": "Back/forward cache  |  Articles  |  web.dev",
+          "publisher": "Google",
+          "accessed": "2026-10-10",
+          "claim": "pageshow with persisted true identifies a back-forward cache restoration; page state including the JS heap can be retained."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "c070-q02",
+      "type": "multiple_choice",
+      "lesson": null,
+      "concept": "c070-intersection-observer-thresholds",
+      "prompt": "An infinite-scroll sentinel crosses an IntersectionObserver threshold. What delivery model should the callback code expect?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Synchronous delivery on style changes."
+        },
+        {
+          "id": "b",
+          "text": "A callback on every animation frame even when no threshold has changed."
+        },
+        {
+          "id": "c",
+          "text": "A worker-thread callback with direct access to the browser DOM nodes."
+        },
+        {
+          "id": "d",
+          "text": "Asynchronous observation delivery."
+        }
+      ],
+      "answer": "d",
+      "explanation": "IntersectionObserver queues observations asynchronously as intersection thresholds change. It is not synchronous layout instrumentation or an every-frame DOM worker API.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.w3.org/TR/intersection-observer/",
+          "title": "Intersection Observer",
+          "publisher": "W3C",
+          "accessed": "2026-10-10",
+          "claim": "IntersectionObserver delivers asynchronous threshold-crossing observations; it measures intersection rather than proving actual visibility."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "c070-q03",
+      "type": "multiple_select",
+      "lesson": null,
+      "concept": "c070-resize-observer-feedback-loops",
+      "prompt": "A ResizeObserver callback changes the observed element's width on every notification. Which statements describe this feedback problem? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The callback can cause another size change that needs observation."
+        },
+        {
+          "id": "b",
+          "text": "The browser can report undelivered notifications when a resize loop is detected."
+        },
+        {
+          "id": "c",
+          "text": "Observing an element automatically prohibits code from changing its size."
+        },
+        {
+          "id": "d",
+          "text": "The callback always runs on a worker thread outside browser layout."
+        },
+        {
+          "id": "e",
+          "text": "A loop error proves the browser has fixed the application's layout logic."
+        }
+      ],
+      "answers": [
+        "a",
+        "b"
+      ],
+      "explanation": "A is correct: layout writes can feed back into the observed size. B is correct: the processing algorithm limits cycles and reports its loop error. C is incorrect: observation does not make its style or geometry read-only. D is incorrect: ResizeObserver delivery participates in the rendering update processing. E is incorrect: the browser limits delivery but does not repair a recurring application loop.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.w3.org/TR/resize-observer/",
+          "title": "Resize Observer",
+          "publisher": "W3C",
+          "accessed": "2026-10-10",
+          "claim": "ResizeObserver reports box-size changes and can detect resize feedback loops; deferring expected layout mutations can break same-cycle loops."
+        },
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/API/ResizeObserver",
+          "title": "ResizeObserver - Web APIs | MDN",
+          "publisher": "Mozilla",
+          "accessed": "2026-10-10",
+          "claim": "Resize feedback may produce loop errors; requestAnimationFrame defers resizing, while expected-size checks prevent repeated changes."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "c070-q04",
+      "type": "multiple_choice",
+      "lesson": null,
+      "concept": "c070-back-forward-cache-restoration",
+      "prompt": "A dashboard resumes from the browser back-forward cache with old account data in memory. What is a suitable place to refresh sensitive or stale state on restoration?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Handle pageshow when persisted is true."
+        },
+        {
+          "id": "b",
+          "text": "Rely on DOMContentLoaded running again."
+        },
+        {
+          "id": "c",
+          "text": "Assume the browser rebuilt the JavaScript heap from a fresh document."
+        },
+        {
+          "id": "d",
+          "text": "Wait for beforeunload to fire after the restored page becomes visible."
+        }
+      ],
+      "answer": "a",
+      "explanation": "A bfcache restore can preserve heap state and does not rerun the ordinary load pipeline. The pageshow restoration signal can trigger necessary state refresh.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://web.dev/articles/bfcache",
+          "title": "Back/forward cache  |  Articles  |  web.dev",
+          "publisher": "Google",
+          "accessed": "2026-10-10",
+          "claim": "pageshow with persisted true identifies a back-forward cache restoration; page state including the JS heap can be retained."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "c070-q05",
+      "type": "multiple_choice",
+      "lesson": null,
+      "concept": "c070-intersection-observer-thresholds",
+      "prompt": "A sentinel is geometrically intersecting the viewport but covered by another element. What does ordinary IntersectionObserver intersection establish?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Guaranteed unobscured pixels."
+        },
+        {
+          "id": "b",
+          "text": "Geometric intersection, not guaranteed visibility."
+        },
+        {
+          "id": "c",
+          "text": "That the user has already seen and read the content inside the sentinel."
+        },
+        {
+          "id": "d",
+          "text": "That pointer events will reach the sentinel before any overlapping element."
+        }
+      ],
+      "answer": "b",
+      "explanation": "Ordinary intersection information is geometric. It does not establish that overlapping content, opacity or user attention permits actual visibility.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.w3.org/TR/intersection-observer/",
+          "title": "Intersection Observer",
+          "publisher": "W3C",
+          "accessed": "2026-10-10",
+          "claim": "IntersectionObserver delivers asynchronous threshold-crossing observations; it measures intersection rather than proving actual visibility."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "c070-q06",
+      "type": "multiple_select",
+      "lesson": null,
+      "concept": "c070-resize-observer-feedback-loops",
+      "prompt": "A component needs to respond to observed size without endlessly resizing itself. Which design statements are accurate? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Box-size observations concern geometry rather than user attention."
+        },
+        {
+          "id": "b",
+          "text": "ResizeObserver fires only when the browser window is resized."
+        },
+        {
+          "id": "c",
+          "text": "Deferring a perpetually growing width makes the growth terminate automatically."
+        },
+        {
+          "id": "d",
+          "text": "Avoiding a write when the target size is already reached can stop feedback."
+        },
+        {
+          "id": "e",
+          "text": "Scheduling a needed write for a later animation frame can avoid same-cycle feedback."
+        }
+      ],
+      "answers": [
+        "a",
+        "d",
+        "e"
+      ],
+      "explanation": "A is correct: ResizeObserver observes element box dimensions. B is incorrect: element sizes can change independently of the window. C is incorrect: deferral can shift the loop across frames but an unbounded growth rule still needs correction. D is correct: idempotent size handling avoids repeating an unnecessary geometry change. E is correct: deferring mutations separates the observer delivery from that write cycle.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.w3.org/TR/resize-observer/",
+          "title": "Resize Observer",
+          "publisher": "W3C",
+          "accessed": "2026-10-10",
+          "claim": "ResizeObserver reports box-size changes and can detect resize feedback loops; deferring expected layout mutations can break same-cycle loops."
+        },
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/API/ResizeObserver",
+          "title": "ResizeObserver - Web APIs | MDN",
+          "publisher": "Mozilla",
+          "accessed": "2026-10-10",
+          "claim": "Resize feedback may produce loop errors; requestAnimationFrame defers resizing, while expected-size checks prevent repeated changes."
+        }
+      ],
+      "retired": null
+    }
+  ]
+}

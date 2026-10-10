@@ -1,0 +1,262 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c066-external-store-snapshot-consistency",
+      "name": "External-store snapshot consistency"
+    },
+    {
+      "id": "c066-deferred-rendering-priorities",
+      "name": "Deferred rendering priorities"
+    },
+    {
+      "id": "c066-transition-update-constraints",
+      "name": "Transition update constraints"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c066-q01",
+      "type": "multiple_choice",
+      "lesson": null,
+      "concept": "c066-external-store-snapshot-consistency",
+      "prompt": "A React external-store adapter returns a newly allocated object from `getSnapshot` on every call, even when nothing changed. What should be corrected?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Return a fresh wrapper on every read."
+        },
+        {
+          "id": "b",
+          "text": "Read the store only inside an Effect and omit getSnapshot altogether."
+        },
+        {
+          "id": "c",
+          "text": "Cache snapshots until the store changes."
+        },
+        {
+          "id": "d",
+          "text": "Mutate the last snapshot object in place while preserving its identity."
+        }
+      ],
+      "answer": "c",
+      "explanation": "React compares snapshots with Object.is. A fresh object on every read can cause repeated renders; a mutable store needs a cached immutable snapshot.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://react.dev/reference/react/useSyncExternalStore",
+          "title": "useSyncExternalStore – React",
+          "publisher": "Meta",
+          "accessed": "2026-10-10",
+          "claim": "useSyncExternalStore requires cached immutable snapshots until the store changes and an unsubscribe-returning subscribe function."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "c066-q02",
+      "type": "multiple_choice",
+      "lesson": null,
+      "concept": "c066-deferred-rendering-priorities",
+      "prompt": "A React search page defers the query used by an expensive result list with useDeferredValue. What does this API guarantee about request debouncing?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A fixed half-second request debounce."
+        },
+        {
+          "id": "b",
+          "text": "It merges all pending network requests into one HTTP request automatically."
+        },
+        {
+          "id": "c",
+          "text": "It prevents every request until the user stops typing for one event-loop turn."
+        },
+        {
+          "id": "d",
+          "text": "It supplies no request debounce."
+        }
+      ],
+      "answer": "d",
+      "explanation": "Deferring rendering has no fixed debounce interval and does not prevent network requests per keystroke. Request scheduling needs its own policy.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://react.dev/reference/react/useDeferredValue",
+          "title": "useDeferredValue – React",
+          "publisher": "Meta",
+          "accessed": "2026-10-10",
+          "claim": "useDeferredValue lets background rendering lag without a fixed delay and does not itself reduce network requests."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "c066-q03",
+      "type": "multiple_select",
+      "lesson": null,
+      "concept": "c066-transition-update-constraints",
+      "prompt": "A React 19.2 app uses useTransition for expensive view changes. Which constraints apply? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A transition cannot be used to control a text input."
+        },
+        {
+          "id": "b",
+          "text": "A state setter after await currently needs another startTransition to mark it."
+        },
+        {
+          "id": "c",
+          "text": "startTransition postpones calling its callback until the browser becomes idle."
+        },
+        {
+          "id": "d",
+          "text": "Every state setter anywhere in the process becomes a transition until commit."
+        },
+        {
+          "id": "e",
+          "text": "Transition updates can be interrupted by more urgent updates."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "e"
+      ],
+      "explanation": "A is correct: the text input value must update synchronously. B is correct: the async boundary requires wrapping those state updates again. C is incorrect: React calls the supplied action immediately. D is incorrect: transition marking is scoped to the supported action update context. E is correct: React can restart non-blocking rendering after urgent work.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://react.dev/reference/react/useTransition",
+          "title": "useTransition – React",
+          "publisher": "Meta",
+          "accessed": "2026-10-10",
+          "claim": "In React 19.2, transition updates are non-blocking, cannot control text inputs, and state updates after await need another startTransition."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "c066-q04",
+      "type": "multiple_choice",
+      "lesson": null,
+      "concept": "c066-external-store-snapshot-consistency",
+      "prompt": "An external React store listener is registered by `subscribe` passed to useSyncExternalStore. What should subscribe return?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A function that removes the listener."
+        },
+        {
+          "id": "b",
+          "text": "The current snapshot object."
+        },
+        {
+          "id": "c",
+          "text": "A promise that resolves only after the component permanently unmounts."
+        },
+        {
+          "id": "d",
+          "text": "The last rendered JSX element so React can skip future subscriptions."
+        }
+      ],
+      "answer": "a",
+      "explanation": "subscribe must return cleanup that unsubscribes the callback. Snapshot reading belongs in getSnapshot; JSX and a lifetime promise are not unsubscribe functions.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://react.dev/reference/react/useSyncExternalStore",
+          "title": "useSyncExternalStore – React",
+          "publisher": "Meta",
+          "accessed": "2026-10-10",
+          "claim": "useSyncExternalStore requires cached immutable snapshots until the store changes and an unsubscribe-returning subscribe function."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "c066-q05",
+      "type": "multiple_choice",
+      "lesson": null,
+      "concept": "c066-deferred-rendering-priorities",
+      "prompt": "A user types while React is rendering a deferred result list. How can React handle the unfinished background render?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Finish it before handling newer input."
+        },
+        {
+          "id": "b",
+          "text": "Interrupt it for the newer input."
+        },
+        {
+          "id": "c",
+          "text": "Commit every obsolete result in order before displaying the latest result."
+        },
+        {
+          "id": "d",
+          "text": "Freeze the input value until all deferred renders have completed together."
+        }
+      ],
+      "answer": "b",
+      "explanation": "Deferred rendering is interruptible. React can prioritize input and restart background work with the newer value rather than commit every obsolete render.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://react.dev/reference/react/useDeferredValue",
+          "title": "useDeferredValue – React",
+          "publisher": "Meta",
+          "accessed": "2026-10-10",
+          "claim": "useDeferredValue lets background rendering lag without a fixed delay and does not itself reduce network requests."
+        }
+      ],
+      "retired": null
+    },
+    {
+      "id": "c066-q06",
+      "type": "multiple_select",
+      "lesson": null,
+      "concept": "c066-transition-update-constraints",
+      "prompt": "A React 19.2 developer replaces a timer with startTransition and expects input updates to become delayed. Which observations are valid? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "An update inside a later setTimeout is automatically marked by the earlier call."
+        },
+        {
+          "id": "b",
+          "text": "A transition prevents React from interrupting an expensive render."
+        },
+        {
+          "id": "c",
+          "text": "The action passed to startTransition runs immediately."
+        },
+        {
+          "id": "d",
+          "text": "A controlled input should use an urgent state update for its value."
+        },
+        {
+          "id": "e",
+          "text": "startTransition is a debounce with a fixed waiting interval."
+        }
+      ],
+      "answers": [
+        "c",
+        "d"
+      ],
+      "explanation": "A is incorrect: the setter in the timer needs its own transition wrapping. B is incorrect: non-blocking work is specifically interruptible. C is correct: non-blocking priority applies to updates, not delayed callback execution. D is correct: transition updates cannot control text inputs. E is incorrect: it schedules rendering priority without a debounce interval.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://react.dev/reference/react/useTransition",
+          "title": "useTransition – React",
+          "publisher": "Meta",
+          "accessed": "2026-10-10",
+          "claim": "In React 19.2, transition updates are non-blocking, cannot control text inputs, and state updates after await need another startTransition."
+        }
+      ],
+      "retired": null
+    }
+  ]
+}

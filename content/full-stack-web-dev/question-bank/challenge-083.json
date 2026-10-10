@@ -1,0 +1,257 @@
+{
+  "schema_version": 2,
+  "concepts": [
+    {
+      "id": "c083-window-frame-boundaries",
+      "name": "Window frame boundaries"
+    },
+    {
+      "id": "c083-lateral-correlated-items",
+      "name": "Lateral correlated FROM items"
+    },
+    {
+      "id": "c083-recursive-query-termination",
+      "name": "Recursive query termination"
+    }
+  ],
+  "questions": [
+    {
+      "id": "c083-q01",
+      "lesson": null,
+      "concept": "c083-window-frame-boundaries",
+      "type": "multiple_choice",
+      "prompt": "A PostgreSQL 18 query uses `last_value(value) OVER (ORDER BY ts)` with unique timestamps. Why can it return the current row instead of the partition final value?",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/functions-window.html",
+          "title": "PostgreSQL: Window Functions",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-10",
+          "claim": "The default ordered frame ends at the current row peer group. With unique timestamps that is the current row. last_value reads the frame, not automatically the whole partition; it does not ignore ordering or restrict to NULL rows."
+        }
+      ],
+      "explanation": "The default ordered frame ends at the current row peer group. With unique timestamps that is the current row. last_value reads the frame, not automatically the whole partition; it does not ignore ordering or restrict to NULL rows.",
+      "answer": "d",
+      "choices": [
+        {
+          "id": "a",
+          "text": "last_value always ignores ORDER BY and returns an arbitrary partition value."
+        },
+        {
+          "id": "b",
+          "text": "The default frame always contains only rows with NULL ordering values."
+        },
+        {
+          "id": "c",
+          "text": "Every window function automatically rewrites its frame to the full partition."
+        },
+        {
+          "id": "d",
+          "text": "The default frame ends at the current row last peer."
+        }
+      ]
+    },
+    {
+      "id": "c083-q02",
+      "lesson": null,
+      "concept": "c083-lateral-correlated-items",
+      "type": "multiple_choice",
+      "prompt": "A PostgreSQL 18 FROM subquery needs columns from an earlier FROM item. Which keyword permits that correlation?",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/queries-table-expressions.html",
+          "title": "PostgreSQL: Table Expressions",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-10",
+          "claim": "LATERAL enables references to preceding FROM items. DISTINCT changes duplicate handling, ORDER BY changes order, and UNION combines results rather than granting this correlation scope."
+        }
+      ],
+      "explanation": "LATERAL enables references to preceding FROM items. DISTINCT changes duplicate handling, ORDER BY changes order, and UNION combines results rather than granting this correlation scope.",
+      "answer": "a",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`LATERAL` on the referencing subquery."
+        },
+        {
+          "id": "b",
+          "text": "`DISTINCT` on the referencing subquery to enable cross-item scope."
+        },
+        {
+          "id": "c",
+          "text": "`ORDER BY` on the earlier item to export its columns into every subquery."
+        },
+        {
+          "id": "d",
+          "text": "`UNION` on the referencing subquery to copy the previous item bindings."
+        }
+      ]
+    },
+    {
+      "id": "c083-q03",
+      "lesson": null,
+      "concept": "c083-recursive-query-termination",
+      "type": "multiple_select",
+      "prompt": "A PostgreSQL 18 recursive CTE walks a graph that can contain cycles. Which termination statements are correct? Select all that apply.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/queries-with.html",
+          "title": "PostgreSQL: WITH Queries (Common Table Expressions)",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-10",
+          "claim": "A and B distinguish set and bag behavior. D handles cycles that whole-row deduplication misses. C is false because changing depth makes rows distinct; E is false because termination depends on the query, not a universal iteration cap."
+        }
+      ],
+      "explanation": "A and B distinguish set and bag behavior. D handles cycles that whole-row deduplication misses. C is false because changing depth makes rows distinct; E is false because termination depends on the query, not a universal iteration cap.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "UNION removes duplicate result rows during recursive evaluation."
+        },
+        {
+          "id": "b",
+          "text": "UNION ALL by itself does not eliminate revisited rows."
+        },
+        {
+          "id": "c",
+          "text": "Adding a changing depth column guarantees UNION detects every graph cycle."
+        },
+        {
+          "id": "d",
+          "text": "Track visited keys or use CYCLE when duplicate whole-row detection is insufficient."
+        },
+        {
+          "id": "e",
+          "text": "Every recursive CTE stops after a fixed automatic iteration count."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "d"
+      ]
+    },
+    {
+      "id": "c083-q04",
+      "lesson": null,
+      "concept": "c083-window-frame-boundaries",
+      "type": "multiple_choice",
+      "prompt": "A PostgreSQL 18 last_value calculation should see the last row of the entire ordered partition. Which frame expresses that requirement?",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/functions-window.html",
+          "title": "PostgreSQL: Window Functions",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-10",
+          "claim": "Unbounded following extends the frame to the partition end. Current-row endpoints exclude later rows, and a one-row lookback cannot include the full partition."
+        }
+      ],
+      "explanation": "Unbounded following extends the frame to the partition end. Current-row endpoints exclude later rows, and a one-row lookback cannot include the full partition.",
+      "answer": "a",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING`."
+        },
+        {
+          "id": "b",
+          "text": "`ROWS BETWEEN CURRENT ROW AND CURRENT ROW` for the entire ordered partition."
+        },
+        {
+          "id": "c",
+          "text": "`ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW` for every later row."
+        },
+        {
+          "id": "d",
+          "text": "`ROWS BETWEEN 1 PRECEDING AND CURRENT ROW` to include all future partition rows."
+        }
+      ]
+    },
+    {
+      "id": "c083-q05",
+      "lesson": null,
+      "concept": "c083-lateral-correlated-items",
+      "type": "multiple_choice",
+      "prompt": "A PostgreSQL 18 LATERAL subquery can return zero rows for a parent. Which join preserves that parent in the result?",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/queries-table-expressions.html",
+          "title": "PostgreSQL: Table Expressions",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-10",
+          "claim": "LEFT JOIN preserves an unmatched left row with NULL right columns. Cross and inner joins do not create a right-side row when the subquery is empty; false inner-join conditions remove matches."
+        }
+      ],
+      "explanation": "LEFT JOIN preserves an unmatched left row with NULL right columns. Cross and inner joins do not create a right-side row when the subquery is empty; false inner-join conditions remove matches.",
+      "answer": "b",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`CROSS JOIN LATERAL (...)` because cross joins keep unmatched parents."
+        },
+        {
+          "id": "b",
+          "text": "`LEFT JOIN LATERAL (...) ON true`."
+        },
+        {
+          "id": "c",
+          "text": "`INNER JOIN LATERAL (...) ON true` because true creates missing rows."
+        },
+        {
+          "id": "d",
+          "text": "`JOIN LATERAL (...) ON false` because false preserves the outer row."
+        }
+      ]
+    },
+    {
+      "id": "c083-q06",
+      "lesson": null,
+      "concept": "c083-recursive-query-termination",
+      "type": "multiple_select",
+      "prompt": "A PostgreSQL 18 recursive graph query emits both node id and increasing depth. Which cycle-handling claims hold? Select all that apply.",
+      "materials": [],
+      "sources": [
+        {
+          "url": "https://www.postgresql.org/docs/current/queries-with.html",
+          "title": "PostgreSQL: WITH Queries (Common Table Expressions)",
+          "publisher": "PostgreSQL Global Development Group",
+          "accessed": "2026-10-10",
+          "claim": "A: duplicate elimination compares complete output rows. B and D provide cycle-aware handling. C falsely ignores depth. E is false because joins or sorts can force complete recursive evaluation; outer LIMIT is not a universal safety strategy."
+        }
+      ],
+      "explanation": "A: duplicate elimination compares complete output rows. B and D provide cycle-aware handling. C falsely ignores depth. E is false because joins or sorts can force complete recursive evaluation; outer LIMIT is not a universal safety strategy.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "A repeated node with a new depth can remain a distinct UNION row."
+        },
+        {
+          "id": "b",
+          "text": "A visited-node path can prevent recursion through a previously visited node."
+        },
+        {
+          "id": "c",
+          "text": "UNION deduplicates solely by node id even when depth is another output column."
+        },
+        {
+          "id": "d",
+          "text": "The CYCLE clause can mark cycles and help stop the recursive walk."
+        },
+        {
+          "id": "e",
+          "text": "LIMIT outside the CTE guarantees safe termination for every joined and sorted query."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "d"
+      ]
+    }
+  ]
+}
