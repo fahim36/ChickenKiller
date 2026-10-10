@@ -1,0 +1,3 @@
+# Retirement removes pending Retake blockers without rewriting scores
+
+Accepted design; implementation pending. Historical scores remain recorded when a Question is retired, while retired Questions leave future practice and Weak Concept evidence. A retired pending Retake is replaced with an active sibling; if its original missed Question is retired, or no active sibling can replace the retired pending Question, its requirement is removed with a recorded retirement or content-gap reason. This deliberately permits completion of an already-passed Lesson Quiz without that Retake, because obsolete or unavailable content must not block learning; it does not award quiz points, waive the Pass Mark, or undo Completed Lessons.

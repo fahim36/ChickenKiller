@@ -140,6 +140,10 @@ _Avoid_: Skip test, entrance exam, test-out
 A Learner's challenge to how a written answer was graded. It waits for the Admin's decision, and until then the answer counts as missed.
 _Avoid_: Appeal, report, complaint
 
+**Question Report**:
+A Learner's report that a Question or its Source is wrong, ambiguous, out of date or broken, awaiting the Admin's review. Filing it does not change the Learner's result; it is distinct from a Dispute about written-answer grading.
+_Avoid_: Dispute, grading appeal, complaint
+
 **Missed Question**:
 A Question the Learner answered wrongly, or left unanswered in a quiz they submitted. A Daily Challenge the Learner never played, or replayed, creates no Missed Questions.
 _Avoid_: Mistake, error, wrong answer
@@ -157,8 +161,12 @@ An optional queue of Questions to practise, in sets of up to 10, whenever the Le
 _Avoid_: Daily Review, revision, daily quiz
 
 **Weak Concept**:
-One of the Concepts the Learner has missed most often, shown with a link to the Lesson that teaches it.
+A Concept whose recent answer evidence indicates a need for practice, taking subsequent recovery into account and shown with a link to its Lesson. Repeated misses on the same Question do not inflate the signal, and the displayed evidence is not a mastery score.
 _Avoid_: Gap, weakness, problem area
+
+**Next Action**:
+One optional learning activity recommended to a Learner across their Active Stacks, with a reason explaining why it is useful now.
+_Avoid_: Assignment, required task, daily obligation
 
 **Unlocked Lesson**:
 The next Lesson after the Learner's last Completed Lesson in a Stack. Only completion sets the pace; nothing else locks it. If a Syllabus Update removes that Completed Lesson, it is the next Lesson after it that is still in the Syllabus.
