@@ -6,11 +6,11 @@
 
 **Status:** complete (verified locally; branch push tracked in docs/practice-guidance-progress.md)
 
-- [ ] Choose oldest pending Retake first, then eligible due Review for the highest-ranked Weak Concept, then an Unlocked Lesson in the most recently practised Stack.
-- [ ] If no Lessons remain, offer ordinary due Review; with no eligible activity, show completion and links to Materials/Milestones.
-- [ ] Break remaining ties deterministically; Stacks with no recorded practice use stable ordering.
-- [ ] A weak-Concept Review action opens practice for that Concept drawn only from the existing due queue, and submissions retain normal eligibility checks; do not expose a new non-due practice bypass.
-- [ ] Show a reason, evidence and working links; preserve other activities, shared Daily Challenges, Streak rules and optional Review.
-- [ ] Handle retirement-safe pending Retakes and sparse/empty evidence without dead recommendations.
-- [ ] API/UI and integrated checks demonstrate ordering, tie handling, targeted due Review, fully completed Stacks and empty queues.
+- [x] Choose oldest pending Retake first, then eligible due Review for the highest-ranked Weak Concept, then an Unlocked Lesson in the most recently practised Stack.
+- [x] If no Lessons remain, offer ordinary due Review; with no eligible activity, show completion and links to Materials/Milestones.
+- [x] Break remaining ties deterministically; Stacks with no recorded practice use stable ordering.
+- [x] A weak-Concept Review action opens practice for that Concept drawn only from the existing due queue, and submissions retain normal eligibility checks; do not expose a new non-due practice bypass.
+- [x] Show a reason, evidence and working links; preserve other activities, shared Daily Challenges, Streak rules and optional Review.
+- [x] Handle retirement-safe pending Retakes and sparse/empty evidence without dead recommendations.
+- [x] API/UI and integrated checks demonstrate ordering, tie handling, targeted due Review, fully completed Stacks and empty queues.
 
