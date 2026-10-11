@@ -9,7 +9,14 @@ from sqlalchemy.orm import Session
 from app.content.importer import import_folder
 from app.content.interviews import read_prompts
 from app.models import InterviewContent, InterviewSession
-from tests.conftest import FakeClock, complete_lessons, onboard
+from tests.conftest import (
+    ADMIN_EMAIL,
+    LEARNER_EMAIL,
+    FakeClock,
+    TokenFactory,
+    complete_lessons,
+    onboard,
+)
 
 ROOT = Path(__file__).resolve().parents[2] / "content"
 STACKS = [
@@ -21,13 +28,15 @@ STACKS = [
 
 
 def test_launch_batch_eligibility_three_topics_manual_choice_and_private_coverage(
-    session: Session, api: TestClient, admin: TestClient, clock: FakeClock
+    session: Session, api: TestClient, admin: TestClient, clock: FakeClock, make_token: TokenFactory
 ) -> None:
     for stack in STACKS:
         path = ROOT / stack / "v2026-10-10"
         import_folder(session, path)
         import_folder(session, path)
     assert session.scalar(select(func.count()).select_from(InterviewContent)) == 16
+    api.headers["Authorization"] = f"Bearer {make_token(LEARNER_EMAIL)}"
+    admin.headers["Authorization"] = f"Bearer {make_token(ADMIN_EMAIL)}"
     onboard(api, *STACKS)
     for stack in STACKS:
         prompts = read_prompts(ROOT / stack)
