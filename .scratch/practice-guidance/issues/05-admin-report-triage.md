@@ -4,12 +4,12 @@
 
 **Blocked by:** 04: Let Learners submit and track private Question Reports.
 
-**Status:** draft (proposed ready-for-agent; not published to GitHub)
+**Status:** complete (verified locally; branch push tracked in docs/practice-guidance-progress.md)
 
-- [ ] Group private reports by Question in an Admin-only queue while keeping other reporters hidden from each Learner.
-- [ ] Allow Open reports to become Accepted, awaiting publication, or Closed for declined/duplicate reports; require an Admin explanation.
-- [ ] Reporter status views display the decision and explanation, and accepted reports can no longer be edited.
-- [ ] Accepting a report neither publishes content nor marks it Resolved; route corrections through the existing reviewed immutable-content pipeline.
-- [ ] Transitions are validated and repeated/concurrent decisions cannot silently overwrite an already decided report.
-- [ ] API/UI checks demonstrate grouped review, explanation validation, privacy, transition protection and unchanged learning results.
+- [x] Group private reports by Question in an Admin-only queue while keeping other reporters hidden from each Learner.
+- [x] Allow Open reports to become Accepted, awaiting publication, or Closed for declined/duplicate reports; require an Admin explanation.
+- [x] Reporter status views display the decision and explanation, and accepted reports can no longer be edited.
+- [x] Accepting a report neither publishes content nor marks it Resolved; route corrections through the existing reviewed immutable-content pipeline.
+- [x] Transitions are validated and repeated/concurrent decisions cannot silently overwrite an already decided report.
+- [x] API/UI checks demonstrate grouped review, explanation validation, privacy, transition protection and unchanged learning results.
 
