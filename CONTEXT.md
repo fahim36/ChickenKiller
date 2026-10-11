@@ -144,6 +144,10 @@ _Avoid_: Appeal, report, complaint
 A Learner's report that a Question or its Source is wrong, ambiguous, out of date or broken, awaiting the Admin's review. Filing it does not change the Learner's result; it is distinct from a Dispute about written-answer grading.
 _Avoid_: Dispute, grading appeal, complaint
 
+**Content Health**:
+Evidence about a Stack's Question coverage, Lesson Quiz composition, Source access dates, link availability and unresolved Question Reports. It describes content maintenance needs, not Learner mastery or proof that a sourced claim remains correct.
+_Avoid_: Quality score, mastery score, readiness score
+
 **Missed Question**:
 A Question the Learner answered wrongly, or left unanswered in a quiz they submitted. A Daily Challenge the Learner never played, or replayed, creates no Missed Questions.
 _Avoid_: Mistake, error, wrong answer

@@ -651,6 +651,87 @@
         }
       ],
       "retired": null
+    },
+    {
+      "id": "w02-l03-q15",
+      "lesson": "w02-l03",
+      "concept": "w02-l03-blocking-calls",
+      "materials": [
+        "python-docs-coroutines-and-tasks"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/library/asyncio-task.html#asyncio.to_thread",
+          "title": "Coroutines and Tasks",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-10-11",
+          "claim": "asyncio.to_thread returns a coroutine that runs the supplied function in a separate thread when driven."
+        }
+      ],
+      "type": "multiple_choice",
+      "prompt": "A heartbeat coroutine must stay responsive while synchronous `read_file(path)` waits for disk I/O. Which replacement moves that call off the event-loop thread?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "`await async_wrapper_that_calls_read_file(path)`"
+        },
+        {
+          "id": "b",
+          "text": "`asyncio.create_task(async_wrapper_that_calls_read_file(path))`"
+        },
+        {
+          "id": "c",
+          "text": "`await asyncio.to_thread(read_file, path)`"
+        },
+        {
+          "id": "d",
+          "text": "`await asyncio.to_thread(read_file(path))`"
+        }
+      ],
+      "answer": "c",
+      "explanation": "to_thread takes the function and its arguments, then runs the blocking function in a worker. An async wrapper or create_task still runs its synchronous code on the loop thread. Calling read_file while preparing the argument blocks before to_thread can help."
+    },
+    {
+      "id": "w02-l03-q16",
+      "lesson": "w02-l03",
+      "concept": "w02-l03-blocking-calls",
+      "materials": [
+        "python-docs-coroutines-and-tasks"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/library/asyncio-task.html#asyncio.to_thread",
+          "title": "Coroutines and Tasks",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-10-11",
+          "claim": "asyncio.to_thread returns a coroutine that runs the supplied function in a separate thread when driven."
+        }
+      ],
+      "type": "multiple_select",
+      "prompt": "Inside a running coroutine, code constructs `job=asyncio.to_thread(read_file, path)` but neither awaits nor schedules job. Which claims hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The file read completes during construction before job is assigned."
+        },
+        {
+          "id": "b",
+          "text": "When driven, read_file must execute on the event-loop thread."
+        },
+        {
+          "id": "c",
+          "text": "Construction alone has not run read_file."
+        },
+        {
+          "id": "d",
+          "text": "Awaiting or scheduling job enables the worker call."
+        }
+      ],
+      "answers": [
+        "c",
+        "d"
+      ],
+      "explanation": "to_thread returns a coroutine, so construction alone does not execute its body. Awaiting or scheduling drives that coroutine and submits work to a separate thread; it does not run the blocking function on the event-loop thread."
     }
   ]
 }

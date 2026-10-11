@@ -676,6 +676,92 @@
         }
       ],
       "retired": null
+    },
+    {
+      "id": "w02-l04-q16",
+      "lesson": "w02-l04",
+      "concept": "w02-l04-cancellation-cleanup",
+      "materials": [
+        "python-docs-coroutines-and-tasks"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/library/asyncio-task.html#task-cancellation",
+          "title": "Coroutines and Tasks",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-10-11",
+          "claim": "CancelledError normally propagates after cleanup; try/finally supports cleanup and a task exits cancelled when cancellation is not suppressed."
+        }
+      ],
+      "type": "multiple_choice",
+      "prompt": "One cancellation interrupts a worker await. Its except block records caught and reraises CancelledError; finally synchronously records released. The awaiting caller catches cancellation and records caller. What is the order?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "caught, caller, released"
+        },
+        {
+          "id": "b",
+          "text": "released, caller; except is skipped"
+        },
+        {
+          "id": "c",
+          "text": "caught, released; caller receives a normal result"
+        },
+        {
+          "id": "d",
+          "text": "caught, released, caller"
+        }
+      ],
+      "answer": "d",
+      "explanation": "The worker handles the exception, runs finally while unwinding, then propagates cancellation to its awaiting caller. Re-raising does not skip finally or turn cancellation into a successful result."
+    },
+    {
+      "id": "w02-l04-q17",
+      "lesson": "w02-l04",
+      "concept": "w02-l04-cancellation-cleanup",
+      "materials": [
+        "python-docs-coroutines-and-tasks"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/library/asyncio-task.html#task-cancellation",
+          "title": "Coroutines and Tasks",
+          "publisher": "Python Software Foundation",
+          "accessed": "2026-10-11",
+          "claim": "CancelledError normally propagates after cleanup; try/finally supports cleanup and a task exits cancelled when cancellation is not suppressed."
+        }
+      ],
+      "type": "multiple_select",
+      "prompt": "One cancellation interrupts an await inside try/finally. finally synchronously releases a semaphore and does not suppress exceptions. Which claims hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Releasing the semaphore clears the task cancellation."
+        },
+        {
+          "id": "b",
+          "text": "cancel() synchronously bypasses all coroutine cleanup."
+        },
+        {
+          "id": "c",
+          "text": "The semaphore release runs during unwinding."
+        },
+        {
+          "id": "d",
+          "text": "The awaiting caller receives CancelledError."
+        },
+        {
+          "id": "e",
+          "text": "The task ends cancelled if it exits through CancelledError."
+        }
+      ],
+      "answers": [
+        "c",
+        "d",
+        "e"
+      ],
+      "explanation": "finally releases the resource while cancellation propagates to the caller. A task that exits through CancelledError is cancelled. Resource cleanup does not clear cancellation; cancel requests injection at an opportunity rather than skipping cleanup."
     }
   ]
 }

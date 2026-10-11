@@ -1996,6 +1996,192 @@
         "d",
         "e"
       ]
+    },
+    {
+      "id": "w02-l01-q12",
+      "lesson": "w02-l01",
+      "concept": "sync-over-async-context-deadlock",
+      "materials": [
+        "dotnet-async"
+      ],
+      "sources": [
+        {
+          "url": "https://devblogs.microsoft.com/dotnet/configureawait-faq/",
+          "title": "ConfigureAwait FAQ",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-11",
+          "claim": "ConfigureAwait affects its await, not nested awaits, and does not force a thread switch for an already completed task."
+        }
+      ],
+      "type": "multiple_choice",
+      "prompt": "A WPF UI thread calls `LoadAsync().ConfigureAwait(false).GetAwaiter().GetResult()` without message pumping. Inside LoadAsync, a normal await of incomplete I/O needs the captured UI context. What risk remains?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "No deadlock: the outer ConfigureAwait rewrites every inner await."
+        },
+        {
+          "id": "b",
+          "text": "No deadlock: GetResult asynchronously yields the UI thread to events."
+        },
+        {
+          "id": "c",
+          "text": "Deadlock: the inner continuation still needs the blocked UI thread."
+        },
+        {
+          "id": "d",
+          "text": "No deadlock: background I/O completion guarantees UI continuation progress."
+        }
+      ],
+      "answer": "c",
+      "explanation": "Outer ConfigureAwait does not alter the awaits inside LoadAsync. Blocking the UI thread prevents the captured continuation from executing. GetResult blocks rather than yielding; background completion does not execute the UI continuation for it."
+    },
+    {
+      "id": "w02-l01-q13",
+      "lesson": "w02-l01",
+      "concept": "sync-over-async-context-deadlock",
+      "materials": [
+        "dotnet-async"
+      ],
+      "sources": [
+        {
+          "url": "https://devblogs.microsoft.com/dotnet/configureawait-faq/",
+          "title": "ConfigureAwait FAQ",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-11",
+          "claim": "ConfigureAwait affects its await, not nested awaits, and does not force a thread switch for an already completed task."
+        }
+      ],
+      "type": "multiple_select",
+      "prompt": "A library called on a WPF UI thread first awaits Task.CompletedTask.ConfigureAwait(false), then normally awaits incomplete I/O. Which claims hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The completed-task await guarantees migration to a thread-pool thread."
+        },
+        {
+          "id": "b",
+          "text": "The first await can continue synchronously on the UI thread."
+        },
+        {
+          "id": "c",
+          "text": "The later normal await can still capture the UI context."
+        },
+        {
+          "id": "d",
+          "text": "An asynchronously awaiting caller avoids blocking that UI thread."
+        },
+        {
+          "id": "e",
+          "text": "The first ConfigureAwait(false) permanently disables later capture."
+        }
+      ],
+      "answers": [
+        "b",
+        "c",
+        "d"
+      ],
+      "explanation": "An already completed task need not suspend or move threads. ConfigureAwait applies to that await only, so a later await may capture the still-current UI context. Awaiting instead of synchronously blocking lets UI continuations run."
+    },
+    {
+      "id": "w02-l03-q12",
+      "lesson": "w02-l03",
+      "concept": "span-memory-arraypool-ownership",
+      "materials": [
+        "dotnet-memory-and-spans"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/standard/memory-and-spans/memory-t-usage-guidelines",
+          "title": "Memory<T> and Span<T> usage guidelines",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-11",
+          "claim": "A borrowed Memory buffer must remain valid until a Task-returning consumer terminates; a read-only view does not transfer ownership."
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/api/system.buffers.arraypool-1.return?view=net-10.0",
+          "title": "ArrayPool<T>.Return Method",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-11",
+          "claim": "Returning a rental relinquishes ownership; the caller must stop using it and return it once."
+        }
+      ],
+      "type": "multiple_choice",
+      "prompt": "Code rents an array, creates a Memory slice, starts borrowed-buffer SendAsync, then returns the rental before awaiting the send. The send has not finished. Which change respects the lease?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Keep a Memory slice and return the rental before awaiting send."
+        },
+        {
+          "id": "b",
+          "text": "Return after creating the Task because creation ends the borrow."
+        },
+        {
+          "id": "c",
+          "text": "Return immediately because managed references protect the pooled lease."
+        },
+        {
+          "id": "d",
+          "text": "Await send before returning the rental in finally."
+        }
+      ],
+      "answer": "d",
+      "explanation": "The asynchronous consumer borrows the buffer until its Task terminates. A Memory slice shares storage rather than copying, and a managed reference does not preserve a returned pool lease. Await before returning, with finally for cleanup."
+    },
+    {
+      "id": "w02-l03-q13",
+      "lesson": "w02-l03",
+      "concept": "span-memory-arraypool-ownership",
+      "materials": [
+        "dotnet-memory-and-spans"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/standard/memory-and-spans/memory-t-usage-guidelines",
+          "title": "Memory<T> and Span<T> usage guidelines",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-11",
+          "claim": "A borrowed Memory buffer must remain valid until a Task-returning consumer terminates; a read-only view does not transfer ownership."
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/api/system.buffers.arraypool-1.return?view=net-10.0",
+          "title": "ArrayPool<T>.Return Method",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-11",
+          "claim": "Returning a rental relinquishes ownership; the caller must stop using it and return it once."
+        }
+      ],
+      "type": "multiple_select",
+      "prompt": "An asynchronous parser borrows ReadOnlyMemory from a rental until its Task completes. Which claims hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Keep the rental while the parser Task is still running."
+        },
+        {
+          "id": "b",
+          "text": "A read-only view does not extend the pool ownership lease."
+        },
+        {
+          "id": "c",
+          "text": "Return once in finally after awaiting parser termination."
+        },
+        {
+          "id": "d",
+          "text": "ReadOnlyMemory prevents another renter from mutating the backing array."
+        },
+        {
+          "id": "e",
+          "text": "The borrowed view may be retained after the consumer Task completes."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "c"
+      ],
+      "explanation": "The owner retains the rental through the consumer lifetime and returns it once after termination. Read-only restricts access through the view, not all aliases or future renters. A borrowed Task-returning consumer must not keep using the view afterward."
     }
   ]
 }

@@ -15,6 +15,7 @@ from app import (
     access_tokens,
     challenges,
     config,
+    content_health,
     grading,
     home_guidance,
     learners,
@@ -987,6 +988,11 @@ NOT_IN_REVIEW = {
     "code": "not_in_review",
     "message": "This Question isn't in your Review right now.",
 }
+
+
+@router.get("/admin/content-health")
+def get_content_health(_: AdminLearner, session: SessionDep) -> list[content_health.StackHealth]:
+    return content_health.overview(session)
 
 
 @router.get("/admin/practice-outcomes")

@@ -1999,6 +1999,192 @@
           "accessed": "2026-10-03"
         }
       ]
+    },
+    {
+      "id": "w01-l01-q12",
+      "lesson": "w01-l01",
+      "concept": "boxing-hidden-interface-conversion",
+      "materials": [
+        "csharp-docs"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/api/system.object.referenceequals?view=net-10.0",
+          "title": "Object.ReferenceEquals Method",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-11",
+          "claim": "Value arguments to ReferenceEquals are boxed separately; reference identity differs from value equality."
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/csharp/programming-guide/types/boxing-and-unboxing",
+          "title": "Boxing and unboxing",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-11",
+          "claim": "Value-to-interface conversion boxes a copy; assigning the boxed reference preserves identity."
+        }
+      ],
+      "type": "multiple_choice",
+      "prompt": "In .NET 10, `int n=8; object cached=n;` is followed by `ReferenceEquals(n,n)` and `ReferenceEquals(cached,cached)`. What are the two results?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "False, then True."
+        },
+        {
+          "id": "b",
+          "text": "True, then True."
+        },
+        {
+          "id": "c",
+          "text": "False, then False."
+        },
+        {
+          "id": "d",
+          "text": "True, then False."
+        }
+      ],
+      "answer": "a",
+      "explanation": "Each int argument is independently boxed for the first call, creating distinct references. cached already refers to one box, so the second call passes that same object twice. Numeric equality does not imply reference identity."
+    },
+    {
+      "id": "w01-l01-q13",
+      "lesson": "w01-l01",
+      "concept": "boxing-hidden-interface-conversion",
+      "materials": [
+        "csharp-docs"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/api/system.object.referenceequals?view=net-10.0",
+          "title": "Object.ReferenceEquals Method",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-11",
+          "claim": "Value arguments to ReferenceEquals are boxed separately; reference identity differs from value equality."
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/csharp/programming-guide/types/boxing-and-unboxing",
+          "title": "Boxing and unboxing",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-11",
+          "claim": "Value-to-interface conversion boxes a copy; assigning the boxed reference preserves identity."
+        }
+      ],
+      "type": "multiple_select",
+      "prompt": "`int n=12; IComparable comparable=n; object alias=comparable; object separate=n;` executes in .NET 10. Which claims hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "separate refers to a different box containing the same numeric value."
+        },
+        {
+          "id": "b",
+          "text": "Assigning comparable to alias boxes that existing reference again."
+        },
+        {
+          "id": "c",
+          "text": "Equal numeric values make separate and alias reference-identical."
+        },
+        {
+          "id": "d",
+          "text": "The interface conversion boxes the value of n."
+        },
+        {
+          "id": "e",
+          "text": "alias refers to the same box as comparable."
+        }
+      ],
+      "answers": [
+        "a",
+        "d",
+        "e"
+      ],
+      "explanation": "The value-to-interface conversion boxes n. Assigning that interface reference to object preserves the same box; converting n again creates another. Equal values do not merge object identities."
+    },
+    {
+      "id": "w01-l03-q12",
+      "lesson": "w01-l03",
+      "concept": "linq-deferred-multiple-enumeration",
+      "materials": [
+        "csharp-docs"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/csharp/linq/get-started/introduction-to-linq-queries",
+          "title": "Introduction to LINQ queries",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-11",
+          "claim": "Deferred queries execute when enumerated; materialization stores its own results but does not cache the original query."
+        }
+      ],
+      "type": "multiple_choice",
+      "prompt": "`checks=0; q=new[]{1,2,3}.Where(x=>{checks++;return x>1;}); saved=q.ToArray();` then a foreach enumerates saved, and `again=q.ToArray()` runs. What is checks afterward?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "9: query construction also evaluated all three elements."
+        },
+        {
+          "id": "b",
+          "text": "6: the original query evaluated its predicate twice."
+        },
+        {
+          "id": "c",
+          "text": "3: the first ToArray permanently cached the original q."
+        },
+        {
+          "id": "d",
+          "text": "9: enumerating saved reran the predicate before again."
+        }
+      ],
+      "answer": "b",
+      "explanation": "Where is deferred. Each ToArray enumerates q and checks three source elements, totaling six. Enumerating the already materialized array runs no predicate. Materializing does not change q into a cached query."
+    },
+    {
+      "id": "w01-l03-q13",
+      "lesson": "w01-l03",
+      "concept": "linq-deferred-multiple-enumeration",
+      "materials": [
+        "csharp-docs"
+      ],
+      "sources": [
+        {
+          "url": "https://learn.microsoft.com/en-us/dotnet/csharp/linq/get-started/introduction-to-linq-queries",
+          "title": "Introduction to LINQ queries",
+          "publisher": "Microsoft",
+          "accessed": "2026-10-11",
+          "claim": "Deferred queries execute when enumerated; materialization stores its own results but does not cache the original query."
+        }
+      ],
+      "type": "multiple_select",
+      "prompt": "A deferred OrderBy query wraps a finite custom enumerable that records source visits. Two foreach loops enumerate the original query. Which claims hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The first traversal automatically caches results for all later loops."
+        },
+        {
+          "id": "b",
+          "text": "Deferred sorting yields its first result before reading all input."
+        },
+        {
+          "id": "c",
+          "text": "Constructing the query makes no source visits."
+        },
+        {
+          "id": "d",
+          "text": "The source is traversed again for the second enumeration."
+        },
+        {
+          "id": "e",
+          "text": "Sorting reads all input before producing its first result."
+        }
+      ],
+      "answers": [
+        "c",
+        "d",
+        "e"
+      ],
+      "explanation": "OrderBy is deferred but nonstreaming: each enumeration first reads the input needed for sorting. Query construction does not traverse it, and the original query does not cache the first enumeration for later loops."
     }
   ]
 }

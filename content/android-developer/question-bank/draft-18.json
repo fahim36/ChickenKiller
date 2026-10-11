@@ -2099,6 +2099,306 @@
         }
       ],
       "retired": null
+    },
+    {
+      "id": "w02-l02-q12",
+      "lesson": "w02-l02",
+      "concept": "coroutinescope-vs-supervisorscope-failure",
+      "materials": [
+        "kotlin-coroutines-guide"
+      ],
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/supervisor-scope.html",
+          "title": "supervisorScope",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-11",
+          "claim": "A child failure does not alone cancel supervisor siblings, but failure escaping the supervisor block cancels its children."
+        },
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/-deferred/await.html",
+          "title": "Deferred.await",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-11",
+          "claim": "Await rethrows the failed Deferred exception."
+        }
+      ],
+      "type": "multiple_choice",
+      "prompt": "A supervisorScope starts optional async metadata and a primary sibling that remains suspended. Metadata fails with IOException. The block calls optional.await() without catching it. What happens when that exception escapes the block?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The scope converts the failure to null and returns normally."
+        },
+        {
+          "id": "b",
+          "text": "The scope fails and cancels its still-suspended sibling."
+        },
+        {
+          "id": "c",
+          "text": "await suppresses the failure because the parent is supervised."
+        },
+        {
+          "id": "d",
+          "text": "The sibling survives because supervision prevents every cancellation."
+        }
+      ],
+      "answer": "b",
+      "explanation": "Await rethrows the failed Deferred exception. Supervision isolates child failure, but an exception escaping the supervisor block fails that scope and cancels its children. It neither supplies null nor suppresses await exceptions."
+    },
+    {
+      "id": "w02-l02-q13",
+      "lesson": "w02-l02",
+      "concept": "coroutinescope-vs-supervisorscope-failure",
+      "materials": [
+        "kotlin-coroutines-guide"
+      ],
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/supervisor-scope.html",
+          "title": "supervisorScope",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-11",
+          "claim": "A child failure does not alone cancel supervisor siblings, but failure escaping the supervisor block cancels its children."
+        },
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/-deferred/await.html",
+          "title": "Deferred.await",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-11",
+          "claim": "Await rethrows the failed Deferred exception."
+        }
+      ],
+      "type": "multiple_select",
+      "prompt": "A supervisorScope catches metadata IOException around optional.await(), supplies fallback metadata, and awaits the healthy primary sibling. Which claims hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The supervisor scope is detached from its caller lifetime."
+        },
+        {
+          "id": "b",
+          "text": "Optional child failure alone does not cancel the primary sibling."
+        },
+        {
+          "id": "c",
+          "text": "Catching the expected await failure supports a local fallback."
+        },
+        {
+          "id": "d",
+          "text": "Caller cancellation still cancels the supervisor scope."
+        },
+        {
+          "id": "e",
+          "text": "supervisorScope automatically retries the failed metadata request."
+        }
+      ],
+      "answers": [
+        "b",
+        "c",
+        "d"
+      ],
+      "explanation": "Supervision isolates child failures, and a catch keeps the expected metadata failure from escaping the block. Structured parent cancellation still applies. Supervision does not imply automatic retry or a detached lifetime."
+    },
+    {
+      "id": "w02-l03-q12",
+      "lesson": "w02-l03",
+      "concept": "swallowed-cancellationexception",
+      "materials": [
+        "android-coroutines-best-practices"
+      ],
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/run-catching.html",
+          "title": "runCatching",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-11",
+          "claim": "runCatching catches Throwable, so cancellation can become a Result failure instead of propagating."
+        },
+        {
+          "url": "https://developer.android.com/kotlin/coroutines/coroutines-best-practices",
+          "title": "Best practices for coroutines in Android",
+          "publisher": "Google",
+          "accessed": "2026-10-11",
+          "claim": "Do not consume CancellationException; narrow exception handling preserves cancellation."
+        },
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/ensure-active.html",
+          "title": "ensureActive",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-11",
+          "claim": "ensureActive throws cancellation when the coroutine context is inactive."
+        }
+      ],
+      "type": "multiple_choice",
+      "prompt": "refresh throws CancellationException inside `runCatching { refresh() }.getOrElse { cached }`. Nonsuspending analytics then runs. Why can execution reach analytics?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Returning cached data reactivated the cancelled coroutine Job."
+        },
+        {
+          "id": "b",
+          "text": "CancellationException never interrupts a suspending operation."
+        },
+        {
+          "id": "c",
+          "text": "runCatching captured cancellation and the fallback swallowed it."
+        },
+        {
+          "id": "d",
+          "text": "getOrElse automatically rethrew cancellation before analytics ran."
+        }
+      ],
+      "answer": "c",
+      "explanation": "runCatching catches Throwable, including cancellation, and getOrElse can turn that failure into fallback data. Nonsuspending code can then continue, but this does not reactivate an already cancelled Job. Cancellation must be propagated deliberately."
+    },
+    {
+      "id": "w02-l03-q13",
+      "lesson": "w02-l03",
+      "concept": "swallowed-cancellationexception",
+      "materials": [
+        "android-coroutines-best-practices"
+      ],
+      "sources": [
+        {
+          "url": "https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/run-catching.html",
+          "title": "runCatching",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-11",
+          "claim": "runCatching catches Throwable, so cancellation can become a Result failure instead of propagating."
+        },
+        {
+          "url": "https://developer.android.com/kotlin/coroutines/coroutines-best-practices",
+          "title": "Best practices for coroutines in Android",
+          "publisher": "Google",
+          "accessed": "2026-10-11",
+          "claim": "Do not consume CancellationException; narrow exception handling preserves cancellation."
+        },
+        {
+          "url": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/ensure-active.html",
+          "title": "ensureActive",
+          "publisher": "JetBrains",
+          "accessed": "2026-10-11",
+          "claim": "ensureActive throws cancellation when the coroutine context is inactive."
+        }
+      ],
+      "type": "multiple_select",
+      "prompt": "A cancelled download is handled by a retry helper that broadly catches Exception. Which changes support cooperative cancellation? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "Rethrow CancellationException before a broad catch handles it."
+        },
+        {
+          "id": "b",
+          "text": "Retry expected IOException failures rather than every Exception."
+        },
+        {
+          "id": "c",
+          "text": "Check current-context ensureActive before CPU-only work."
+        },
+        {
+          "id": "d",
+          "text": "Convert cancellation into IOException so the helper retries it."
+        },
+        {
+          "id": "e",
+          "text": "Catch Throwable to reset the cancelled Job to active."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "c"
+      ],
+      "explanation": "Rethrowing cancellation preserves propagation; narrow expected failures avoid treating cancellation as retryable. ensureActive detects inactive coroutine context before CPU-only work. Wrapping cancellation as IOException hides it, and catching Throwable does not reset a Job."
+    },
+    {
+      "id": "w02-l04-q12",
+      "lesson": "w02-l04",
+      "concept": "standard-vs-unconfined-test-dispatcher",
+      "materials": [
+        "android-coroutines"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/kotlin/coroutines/test",
+          "title": "Test Kotlin coroutines on Android",
+          "publisher": "Google",
+          "accessed": "2026-10-11",
+          "claim": "Unconfined test launches enter eagerly until suspension; Standard queues launches and runCurrent runs current-time tasks."
+        }
+      ],
+      "type": "multiple_choice",
+      "prompt": "In runTest(UnconfinedTestDispatcher()), phase starts at 0. A top-level default launch sets phase=1, calls delay(100), then sets phase=2. Immediately after launch returns, before advancing time, what is phase?",
+      "choices": [
+        {
+          "id": "a",
+          "text": "0: every test launch is queued without entering its body."
+        },
+        {
+          "id": "b",
+          "text": "2: eager entry guarantees completion through every delay."
+        },
+        {
+          "id": "c",
+          "text": "2: UnconfinedTestDispatcher disables virtual-time suspension."
+        },
+        {
+          "id": "d",
+          "text": "1: eager entry reached the first suspension."
+        }
+      ],
+      "answer": "d",
+      "explanation": "A top-level Unconfined test launch enters eagerly but suspends at delay, so phase is 1. Eager entry is not eager completion and does not disable virtual time; queued entry is the Standard default behavior."
+    },
+    {
+      "id": "w02-l04-q13",
+      "lesson": "w02-l04",
+      "concept": "standard-vs-unconfined-test-dispatcher",
+      "materials": [
+        "android-coroutines"
+      ],
+      "sources": [
+        {
+          "url": "https://developer.android.com/kotlin/coroutines/test",
+          "title": "Test Kotlin coroutines on Android",
+          "publisher": "Google",
+          "accessed": "2026-10-11",
+          "claim": "Unconfined test launches enter eagerly until suspension; Standard queues launches and runCurrent runs current-time tasks."
+        }
+      ],
+      "type": "multiple_select",
+      "prompt": "A StandardTestDispatcher sharing runTest testScheduler launches code recording started, delaying 100, then recording finished. After runCurrent(), which claims hold? Select all that apply.",
+      "choices": [
+        {
+          "id": "a",
+          "text": "The finished event is still pending at the future delay."
+        },
+        {
+          "id": "b",
+          "text": "advanceUntilIdle can run the finite remaining work."
+        },
+        {
+          "id": "c",
+          "text": "runCurrent advances virtual time through all future delays."
+        },
+        {
+          "id": "d",
+          "text": "Thread.sleep advances the shared testScheduler clock."
+        },
+        {
+          "id": "e",
+          "text": "The started event has been recorded."
+        }
+      ],
+      "answers": [
+        "a",
+        "b",
+        "e"
+      ],
+      "explanation": "runCurrent runs tasks scheduled at the current virtual time, so it reaches delay but does not finish it. advanceUntilIdle processes finite pending work and advances as needed. Wall-clock sleep does not advance the test scheduler."
     }
   ]
 }
