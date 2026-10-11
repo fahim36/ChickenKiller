@@ -3,6 +3,7 @@
 import {
   type Answer,
   apiPostGraded,
+  apiPost,
   type GradingFailed,
   type ReviewAnswerResult,
 } from "@/lib/api";
@@ -22,4 +23,25 @@ export async function answerReviewQuestion(
     question_id: questionId,
     answer,
   });
+}
+
+export async function answerTargetedReviewQuestion(
+  conceptId: string,
+  stackId: string,
+  questionId: string,
+  answer: Answer,
+): Promise<ReviewAnswerResult | GradingFailed> {
+  return apiPostGraded<ReviewAnswerResult>("/review/answers", {
+    stack_id: stackId,
+    question_id: questionId,
+    answer,
+    target_concept_id: conceptId,
+  });
+}
+
+export async function recordTargetedReviewVisit(
+  stackId: string,
+  conceptId: string,
+) {
+  await apiPost("/review/uptake", { stack_id: stackId, concept_id: conceptId });
 }

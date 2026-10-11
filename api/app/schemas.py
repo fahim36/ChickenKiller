@@ -455,6 +455,27 @@ class ReviewAnswerIn(BaseModel):
     stack_id: str
     question_id: str
     answer: Response
+    target_concept_id: str | None = None
+
+
+class TargetedReviewIn(BaseModel):
+    stack_id: str
+    concept_id: str
+
+
+class PracticeOutcomesOut(BaseModel):
+    qualifying_answers: int
+    correct_answers: int
+    accuracy: float | None
+    learners: int
+    concepts: int
+    uptake_days: int
+    uptake_learners: int
+    completed_practice_answers: int
+    practice_learners: int
+    retakes_total: int
+    retakes_completed: int
+    retakes_waived: int
 
 
 class ReviewAnswerOut(BaseModel):

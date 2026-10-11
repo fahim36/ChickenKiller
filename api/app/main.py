@@ -23,6 +23,7 @@ from app import (
     marking,
     mcp_server,
     onboarding,
+    practice_outcomes,
     progress,
     question_reports,
     quiz,
@@ -988,6 +989,27 @@ NOT_IN_REVIEW = {
 }
 
 
+@router.get("/admin/practice-outcomes")
+def get_practice_outcomes(
+    _: AdminLearner, session: SessionDep, now: Now
+) -> schemas.PracticeOutcomesOut:
+    return schemas.PracticeOutcomesOut(**asdict(practice_outcomes.summary(session, now)))
+
+
+@router.post("/review/uptake")
+def record_review_uptake(
+    body: schemas.TargetedReviewIn, learner: CurrentLearner, session: SessionDep, now: Now
+) -> dict[str, bool]:
+    record = get_active_stack_in_path(body.stack_id, learner, session)
+    due = reviews.review_set(
+        session, [record], now, stack_id=body.stack_id, concept_id=body.concept_id
+    )
+    if not due:
+        return {"recorded": False}
+    practice_outcomes.record_visit(session, record, body.concept_id, now)
+    return {"recorded": True}
+
+
 @router.get("/review")
 def get_review_set(
     learner: CurrentLearner,
@@ -1055,10 +1077,18 @@ def answer_review_question(
     record = get_active_stack_in_path(body.stack_id, learner, session)
     try:
         result = reviews.answer_question(
-            session, record, body.question_id, marking.response_text(body.answer), grader, now
+            session,
+            record,
+            body.question_id,
+            marking.response_text(body.answer),
+            grader,
+            now,
+            target_concept_id=body.target_concept_id,
         )
     except reviews.NotInReview as error:
         raise HTTPException(409, NOT_IN_REVIEW) from error
+    except reviews.WrongTargetConcept as error:
+        raise HTTPException(422, "Targeted practice must match the Question's Concept.") from error
     except marking.NotAChoice as error:
         raise _not_a_choice(error) from error
     except marking.AnswerTooLong as error:

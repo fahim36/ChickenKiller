@@ -65,6 +65,7 @@ export default async function SettingsPage() {
             </Link>
           </Button>
           <Button asChild variant="outline" size="sm"><Link href="/admin/question-reports">Question Reports</Link></Button>
+          <Button asChild variant="outline" size="sm"><Link href="/admin/practice-outcomes">Practice outcomes</Link></Button>
         </div>
       )}
 

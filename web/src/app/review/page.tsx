@@ -4,7 +4,8 @@ import { Notice } from "@/components/Notice";
 import { PageHeader } from "@/components/PageHeader";
 import { ReviewFlow } from "@/components/ReviewFlow";
 import { api, type ReviewSet } from "@/lib/api";
-import { answerReviewQuestion } from "./actions";
+import { answerReviewQuestion, answerTargetedReviewQuestion } from "./actions";
+import { TargetedReviewVisit } from "./TargetedReviewVisit";
 
 /**
  * Review: a set of up to ten Questions across all the Learner's Active Stacks, answered one at
@@ -62,12 +63,21 @@ export default async function ReviewPage({
         }
       />
       {reviewSet && questions.length > 0 ? (
-        <ReviewFlow
-          key={href}
-          reviewSet={reviewSet}
-          answerAction={answerReviewQuestion}
-          nextSetHref={href}
-        />
+        <>
+          {validTarget && (
+            <TargetedReviewVisit stack={stack} concept={concept} />
+          )}
+          <ReviewFlow
+            key={href}
+            reviewSet={reviewSet}
+            answerAction={
+              validTarget
+                ? answerTargetedReviewQuestion.bind(null, concept)
+                : answerReviewQuestion
+            }
+            nextSetHref={href}
+          />
+        </>
       ) : (
         <Notice role="status">
           {!reviewSet

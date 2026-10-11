@@ -566,6 +566,27 @@ class ChallengePlay(Base):
     )
 
 
+class TargetedReviewVisit(Base):
+    """One loaded targeted Review per Learner/Stack/Concept/UTC Day, not completion."""
+
+    __tablename__ = "targeted_review_visits"
+    __table_args__ = (_of_learner_stack(),)
+    learner_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    stack_id: Mapped[str] = mapped_column(ID, primary_key=True)
+    concept_id: Mapped[str] = mapped_column(ID, primary_key=True)
+    day: Mapped[date] = mapped_column(Date, primary_key=True)
+
+
+class TargetedPractice(Base):
+    """An actually answered, graded targeted Review; stores no answer text or keys."""
+
+    __tablename__ = "targeted_practices"
+    answer_id: Mapped[int] = mapped_column(
+        ForeignKey("answers.id", ondelete="CASCADE"), primary_key=True
+    )
+    concept_id: Mapped[str] = mapped_column(ID)
+
+
 class Answer(Base):
     """One answer a Learner gave to one Question, wherever it was asked.
 

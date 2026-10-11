@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { answerReviewQuestion } from "./actions";
+import { answerReviewQuestion, answerTargetedReviewQuestion } from "./actions";
 
 vi.mock("@clerk/nextjs/server", () => ({
   auth: async () => ({ getToken: async () => "session-token" }),
@@ -29,4 +29,14 @@ it("returns the grading failure instead of throwing, so the Learner can resubmit
   vi.stubGlobal("fetch", vi.fn(async () => Response.json({ detail }, { status: 503 })));
 
   await expect(answerReviewQuestion("s", "q", "An answer.")).resolves.toEqual(detail);
+});
+
+it("records the selected Concept with a targeted answer", async () => {
+  const fetch = vi.fn(async () => Response.json({ correct: true }));
+  vi.stubGlobal("fetch", fetch);
+  await answerTargetedReviewQuestion("concept-a", "mini-stack", "q01", "a");
+  expect(fetch).toHaveBeenCalledWith("http://localhost:8000/review/answers",
+    expect.objectContaining({ method: "POST", body: JSON.stringify({
+      stack_id: "mini-stack", question_id: "q01", answer: "a", target_concept_id: "concept-a",
+    }) }));
 });

@@ -688,6 +688,21 @@ export async function api<T>(path: string): Promise<T | null> {
 }
 
 /** POST JSON to the API. Throws ApiError on any error status, including 404. */
+export type PracticeOutcomes = {
+  qualifying_answers: number;
+  correct_answers: number;
+  accuracy: number | null;
+  learners: number;
+  concepts: number;
+  uptake_days: number;
+  uptake_learners: number;
+  completed_practice_answers: number;
+  practice_learners: number;
+  retakes_total: number;
+  retakes_completed: number;
+  retakes_waived: number;
+};
+
 export async function apiPost<T>(path: string, body: unknown): Promise<T> {
   const res = await request("POST", path, body);
   if (res.status === 404) throw new ApiError(404, "Not found", `POST ${path}`);

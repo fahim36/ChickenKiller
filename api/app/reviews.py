@@ -36,7 +36,7 @@ from sqlalchemy.orm import Session, selectinload
 from app import challenges, progress, quizzes, review, updated_lessons
 from app.grading import Grader
 from app.marking import AnswerTooLong, GradingFailed, NotAChoice, mark
-from app.models import Answer, LearnerStack, Lesson, Question, Stack
+from app.models import Answer, LearnerStack, Lesson, Question, Stack, TargetedPractice
 from app.review import QuestionRef
 
 REVIEW = "review"
@@ -49,6 +49,10 @@ class NotInReview(Exception):
     def __init__(self, question_id: str) -> None:
         super().__init__(question_id)
         self.question_id = question_id
+
+
+class WrongTargetConcept(Exception):
+    """Targeted practice must name the Concept of the Question actually answered."""
 
 
 @dataclass(frozen=True)
@@ -124,6 +128,8 @@ def answer_question(
     response: str | None,
     grader: Grader,
     now: datetime,
+    *,
+    target_concept_id: str | None = None,
 ) -> AnswerResult:
     """Mark and record the answer to one Question of the Learner's Review queue on this Active
     Stack: a choice ID or a written answer. None (or a blank written answer) is unanswered, so
@@ -148,23 +154,28 @@ def answer_question(
         raise NotInReview(question_id)
 
     question = bank[question_id]
+    if target_concept_id is not None and target_concept_id != question.concept.id:
+        session.rollback()
+        raise WrongTargetConcept
     try:
         marked = mark(question, response, grader)
     except (NotAChoice, AnswerTooLong, GradingFailed):
         session.rollback()  # releases the lock; nothing was written
         raise
-    session.add(
-        Answer(
-            learner_id=record.learner_id,
-            stack_id=record.stack_id,
-            question_id=question.id,
-            context=REVIEW,
-            response=response,
-            correct=marked.correct,
-            feedback=marked.feedback,
-            answered_at=now,
-        )
+    answer = Answer(
+        learner_id=record.learner_id,
+        stack_id=record.stack_id,
+        question_id=question.id,
+        context=REVIEW,
+        response=response,
+        correct=marked.correct,
+        feedback=marked.feedback,
+        answered_at=now,
     )
+    session.add(answer)
+    if target_concept_id is not None and response is not None and response.strip():
+        session.flush()
+        session.add(TargetedPractice(answer_id=answer.id, concept_id=question.concept.id))
     session.commit()
     return AnswerResult(question, response, marked.correct, marked.feedback)
 
