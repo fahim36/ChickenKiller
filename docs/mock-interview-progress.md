@@ -11,7 +11,7 @@ Automation: `resume-mock-interview-tickets`, active every 30 minutes. Check usag
 | 01 | #21 | Verified; implementation commits 24453a1 and 3188ce5 |
 | 02 | #22 | Verified: 0df4352, 5dac168 and final test correction |
 | 03 | #23 | Verified: 6332080 and c169299 |
-| 04 | #24 | Next: recorded audio and explicit transcript confirmation |
+| 04 | #24 | Verified: ee9e810 and 687d860 |
 | 05 | #25 | Pending |
 | 06 | #26 | Pending |
 | 07 | #27 | Pending |
@@ -37,4 +37,10 @@ Own saved Gemini key explicitly enabled with free-project attestation and proces
 
 Checks: nine feedback tests including quota18, idempotency, overlap, deletion during processing, malformed provider envelopes and interrupted recovery; 29 earlier feedback/legacy grading checks; self-review/migration regression checks; four frontend interaction tests; strict mypy (105 files), ruff, frontend typecheck/lint/build. Reviews caught delete-guard and stranded-operation defects, both fixed and re-reviewed with no remaining blockers. No real Gemini requests made.
 
-Next: ticket 04. Three tickets are complete; remaining five require implementation. Automatic runs must read actual working changes before continuing.
+## Ticket 04 evidence
+
+Main voice responses support bounded browser recording, owner-only playback, decoded format/byte/duration checks, consented own-key Gemini transcription, transcript correction/confirmation and immediate audio deletion. Upload receipts enforce one replacement even after discard. Awaiting audio expires after 24 hours; cleanup physically removes it, late provider results cannot recreate discarded recordings. Device speech keeps text visible. FFmpeg is included in the API image; Server Actions allow a deliberately bounded 5 MB transport. No live Gemini calls.
+
+Checks: 20 audio/feedback/migration tests including a late-discard regression; eight frontend interactions; strict mypy (107 files), ruff, frontend lint/typecheck/production build. Standards review found no blockers (shared reservation-policy extraction suggested as a maintenance improvement). Spec review found stale replacement playback; corrected and regression-tested, then re-reviewed. Follow-up/retry progression and server-derived 45/60-second recording limits remain ticket 06 work; these turns are not available yet.
+
+Next: ticket 05. Four tickets are complete; remaining four require implementation. Automatic runs must read actual working changes before continuing.
