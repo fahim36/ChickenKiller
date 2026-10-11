@@ -8,10 +8,18 @@ from sqlalchemy.orm import Session
 
 from app import challenges, progress, weak_concepts
 from app.content.interviews import InterviewPrompt
-from app.models import Concept, InterviewContent, InterviewSession, LearnerStack, Question
+from app.models import (
+    Concept,
+    InterviewContent,
+    InterviewRecording,
+    InterviewSession,
+    LearnerStack,
+    Question,
+)
 
 
 def expire(session: Session, now: datetime) -> None:
+    session.execute(delete(InterviewRecording).where(InterviewRecording.expires_at <= now))
     session.execute(delete(InterviewSession).where(InterviewSession.expires_at <= now))
 
 

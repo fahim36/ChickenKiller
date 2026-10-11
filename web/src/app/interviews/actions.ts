@@ -1,7 +1,62 @@
 "use server";
 
-import { apiPost, apiDelete } from "@/lib/api";
-import type { InterviewSession, InterviewOperation } from "./types";
+import { api, apiPost, apiDelete } from "@/lib/api";
+import type {
+  InterviewSession,
+  InterviewOperation,
+  InterviewRecording,
+} from "./types";
+
+export async function uploadInterviewAudio(
+  id: string,
+  promptId: string,
+  recordingId: string,
+  form: FormData,
+) {
+  const file = form.get("audio");
+  if (!(file instanceof File) || file.size > 3000000)
+    throw Error("Unsupported recording size");
+  return apiPost<InterviewRecording>(
+    `/me/interviews/${encodeURIComponent(id)}/audio`,
+    {
+      recording_id: recordingId,
+      prompt_id: promptId,
+      mime: file.type.split(";")[0],
+      data: Buffer.from(await file.arrayBuffer()).toString("base64"),
+    },
+  );
+}
+export async function transcribeInterviewAudio(
+  id: string,
+  recordingId: string,
+  operationId: string,
+) {
+  return apiPost<InterviewRecording>(
+    `/me/interviews/${encodeURIComponent(id)}/audio/${encodeURIComponent(recordingId)}/transcribe`,
+    { operation_id: operationId },
+  );
+}
+export async function loadInterviewAudio(id: string, recordingId: string) {
+  return api<{ mime: string; data: string }>(
+    `/me/interviews/${encodeURIComponent(id)}/audio/${encodeURIComponent(recordingId)}`,
+  );
+}
+export async function cancelInterviewAudio(id: string, recordingId: string) {
+  await apiDelete(
+    `/me/interviews/${encodeURIComponent(id)}/audio/${encodeURIComponent(recordingId)}`,
+  );
+}
+export async function confirmInterviewTranscript(
+  id: string,
+  recordingId: string,
+  promptId: string,
+  text: string,
+) {
+  return apiPost<InterviewSession>(
+    `/me/interviews/${encodeURIComponent(id)}/responses`,
+    { recording_id: recordingId, prompt_id: promptId, text, confirmed: true },
+  );
+}
 
 export async function requestInterviewFeedback(
   id: string,

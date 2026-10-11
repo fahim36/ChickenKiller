@@ -3,6 +3,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { requestInterviewFeedback } from "./actions";
 import type { InterviewOperation } from "./types";
+import { DeviceSpeech } from "./DeviceSpeech";
 
 export function InterviewFeedback({
   sessionId,
@@ -29,6 +30,13 @@ export function InterviewFeedback({
       {feedback ? (
         <>
           <h3>AI feedback</h3>
+          <DeviceSpeech
+            text={
+              feedback.criteria.map((c) => c.finding).join(" ") +
+              " " +
+              feedback.next_steps.join(" ")
+            }
+          />
           {feedback.criteria.map((c) => (
             <p key={c.dimension}>
               <strong>{c.dimension}: </strong>

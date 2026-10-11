@@ -9,6 +9,8 @@ import {
 } from "./actions";
 import type { InterviewSession, Topics } from "./types";
 import { InterviewFeedback } from "./InterviewFeedback";
+import { VoiceResponse } from "./VoiceResponse";
+import { DeviceSpeech } from "./DeviceSpeech";
 
 export function InterviewPractice({
   stack,
@@ -128,6 +130,22 @@ export function InterviewPractice({
               }}
             >
               <h2>{prompt.scenario}</h2>
+              <DeviceSpeech text={prompt.scenario} />
+              <VoiceResponse
+                key={`${current.id}-${prompt.id}`}
+                sessionId={current.id}
+                promptId={prompt.id}
+                initial={current.recordings?.find(
+                  (r) => r.prompt_id === prompt.id,
+                )}
+                onConfirmed={(row) => {
+                  setCurrent(row);
+                  setSessions((rows) =>
+                    rows.map((s) => (s.id === row.id ? row : s)),
+                  );
+                  setText("");
+                }}
+              />
               <label className="block">
                 Your response (optional)
                 <textarea

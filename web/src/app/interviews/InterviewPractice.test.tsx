@@ -73,6 +73,13 @@ it("saves a response and shows reviewed guidance without an AI key", async () =>
     "Use a token.",
   );
   expect(screen.getByRole("status").textContent).toContain("Practice complete");
+  await waitFor(() =>
+    expect(
+      screen
+        .getByRole("button", { name: "Delete session" })
+        .hasAttribute("disabled"),
+    ).toBe(false),
+  );
   fireEvent.click(screen.getByRole("button", { name: "Delete session" }));
   await waitFor(() =>
     expect(screen.queryByText("Coordinate shared updates.")).toBeNull(),

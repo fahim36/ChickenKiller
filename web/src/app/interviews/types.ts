@@ -13,6 +13,14 @@ export interface InterviewSession {
   prompts: InterviewPrompt[];
   responses: Record<string, string | null>;
   operations?: InterviewOperation[];
+  recordings?: InterviewRecording[];
+}
+export interface InterviewRecording {
+  id: string;
+  prompt_id: string;
+  expires_at: string;
+  transcript: string | null;
+  state?: string;
 }
 export interface InterviewOperation {
   id: string;

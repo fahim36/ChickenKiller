@@ -8,10 +8,10 @@ from fastapi import APIRouter, HTTPException, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
-from app import interview_feedback, interviews
+from app import interview_audio, interview_feedback, interviews
 from app.deps import ActiveStackInPath, AdminLearner, CurrentLearner, KeyBoxDep, Now, SessionDep
 from app.interview_coverage import coverage
-from app.models import InterviewContent, InterviewOperation, InterviewSession
+from app.models import InterviewContent, InterviewOperation, InterviewRecording, InterviewSession
 
 router = APIRouter()
 
@@ -26,6 +26,90 @@ class FeedbackIn(BaseModel):
     operation_id: uuid.UUID
     prompt_id: str
     confirmed: bool
+
+
+class AudioIn(BaseModel):
+    recording_id: uuid.UUID
+    prompt_id: str
+    mime: str = Field(max_length=50)
+    data: str = Field(max_length=4_000_000)
+
+
+class TranscribeIn(BaseModel):
+    operation_id: uuid.UUID
+
+
+@router.post("/me/interviews/{interview_id}/audio")
+def upload_audio(
+    interview_id: uuid.UUID, body: AudioIn, learner: CurrentLearner, session: SessionDep, now: Now
+) -> dict[str, Any]:
+    try:
+        return interview_audio.upload(
+            session,
+            learner,
+            interview_id,
+            body.recording_id,
+            body.prompt_id,
+            body.mime,
+            body.data,
+            now,
+        )
+    except interview_feedback.Refused as error:
+        session.rollback()
+        raise HTTPException(error.status, error.message) from None
+
+
+@router.get("/me/interviews/{interview_id}/audio/{recording_id}")
+def playback_audio(
+    interview_id: uuid.UUID,
+    recording_id: uuid.UUID,
+    learner: CurrentLearner,
+    session: SessionDep,
+    now: Now,
+) -> dict[str, str]:
+    import base64
+
+    try:
+        clip = interview_audio.recording(session, learner.id, interview_id, recording_id, now)
+    except interview_feedback.Refused as error:
+        raise HTTPException(error.status, error.message) from None
+    return {"mime": clip.mime, "data": base64.b64encode(clip.audio).decode()}
+
+
+@router.delete("/me/interviews/{interview_id}/audio/{recording_id}", status_code=204)
+def cancel_audio(
+    interview_id: uuid.UUID,
+    recording_id: uuid.UUID,
+    learner: CurrentLearner,
+    session: SessionDep,
+    now: Now,
+) -> Response:
+    try:
+        clip = interview_audio.recording(session, learner.id, interview_id, recording_id, now)
+    except interview_feedback.Refused as error:
+        raise HTTPException(error.status, error.message) from None
+    session.delete(clip)
+    session.commit()
+    return Response(status_code=204)
+
+
+@router.post("/me/interviews/{interview_id}/audio/{recording_id}/transcribe")
+def transcribe_audio(
+    interview_id: uuid.UUID,
+    recording_id: uuid.UUID,
+    body: TranscribeIn,
+    learner: CurrentLearner,
+    session: SessionDep,
+    box: KeyBoxDep,
+    now: Now,
+) -> dict[str, Any]:
+    try:
+        return interview_audio.transcribe(
+            session, learner, box, interview_id, recording_id, body.operation_id, now
+        )
+    except interview_feedback.Refused as error:
+        session.rollback()
+        raise HTTPException(error.status, error.message) from None
 
 
 @router.get("/me/interview-settings")
@@ -80,6 +164,8 @@ class StartIn(BaseModel):
 class ResponseIn(BaseModel):
     prompt_id: str
     text: str | None = Field(default=None, max_length=12000)
+    recording_id: uuid.UUID | None = None
+    confirmed: bool = False
 
 
 class SessionOut(BaseModel):
@@ -89,9 +175,10 @@ class SessionOut(BaseModel):
     prompts: list[dict[str, Any]]
     responses: dict[str, str | None]
     operations: list[dict[str, Any]] = Field(default_factory=list)
+    recordings: list[dict[str, Any]] = Field(default_factory=list)
 
 
-def output(row: InterviewSession, session: SessionDep) -> SessionOut:
+def output(row: InterviewSession, session: SessionDep, now: datetime) -> SessionOut:
     return SessionOut(
         id=row.id,
         stack_id=row.stack_id,
@@ -104,6 +191,15 @@ def output(row: InterviewSession, session: SessionDep) -> SessionOut:
                 select(InterviewOperation)
                 .where(InterviewOperation.interview_id == row.id)
                 .order_by(InterviewOperation.created_at)
+            )
+        ],
+        recordings=[
+            interview_audio.recording_out(clip)
+            for clip in session.scalars(
+                select(InterviewRecording).where(
+                    InterviewRecording.interview_id == row.id,
+                    InterviewRecording.expires_at > now,
+                )
             )
         ],
     )
@@ -133,13 +229,13 @@ def start(body: StartIn, active: ActiveStackInPath, session: SessionDep, now: No
     except ValueError as error:
         raise HTTPException(422, str(error)) from error
     session.commit()
-    return output(row, session)
+    return output(row, session, now)
 
 
 @router.get("/me/interviews")
 def history(learner: CurrentLearner, session: SessionDep, now: Now) -> list[SessionOut]:
     return [
-        output(row, session)
+        output(row, session, now)
         for row in session.scalars(
             select(InterviewSession)
             .where(
@@ -159,7 +255,7 @@ def detail(
     row = interviews.owned(session, learner.id, interview_id, now)
     if row is None:
         raise HTTPException(404, "Interview unavailable.")
-    return output(row, session)
+    return output(row, session, now)
 
 
 @router.post("/me/interviews/{interview_id}/responses")
@@ -177,12 +273,28 @@ def respond(
         raise HTTPException(422, "This scenario is not part of your session.")
     if body.prompt_id in row.responses:
         raise HTTPException(409, "This response is already saved.")
+    if body.recording_id is not None:
+        try:
+            clip = interview_audio.recording(
+                session, learner.id, interview_id, body.recording_id, now
+            )
+        except interview_feedback.Refused as error:
+            raise HTTPException(error.status, error.message) from None
+        if clip.prompt_id != body.prompt_id or not body.confirmed:
+            raise HTTPException(422, "Confirm or correct the transcript before saving it.")
+    for clip in session.scalars(
+        select(InterviewRecording).where(
+            InterviewRecording.interview_id == row.id,
+            InterviewRecording.prompt_id == body.prompt_id,
+        )
+    ):
+        session.delete(clip)
     row.responses = {
         **row.responses,
         body.prompt_id: body.text.strip() if body.text and body.text.strip() else None,
     }
     session.commit()
-    return output(row, session)
+    return output(row, session, now)
 
 
 @router.delete("/me/interviews/{interview_id}", status_code=204)
