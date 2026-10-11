@@ -59,7 +59,7 @@ def generate(key: str, parts: list[dict[str, Any]], *, schema: dict[str, Any]) -
             raise ProviderUnavailable("provider_unavailable")
         payload = response.json()
         return str(payload["candidates"][0]["content"]["parts"][0]["text"])
-    except (httpx.HTTPError, ValueError, KeyError, IndexError):
+    except (httpx.HTTPError, ValueError, KeyError, IndexError, TypeError):
         raise ProviderUnavailable("provider_unavailable") from None
 
 

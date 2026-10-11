@@ -2,10 +2,12 @@
 
 import hashlib
 import uuid
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text, update
 from sqlalchemy.orm import Session
 
 from app import interview_provider, interviews, onboarding
@@ -103,11 +105,57 @@ def request_feedback(
     confirmed: bool,
     now: datetime,
 ) -> dict[str, Any]:
+    with provider_lease(session, learner.id):
+        return _request_feedback(
+            session, box, learner, interview_id, operation_id, prompt_id, confirmed, now
+        )
+
+
+@contextmanager
+def provider_lease(session: Session, learner_id: int) -> Iterator[None]:
+    """An owner-level lock independent of deletable private evidence.
+
+    A dedicated connection keeps the lock across reservation commits and network I/O.
+    PostgreSQL releases it if the process dies; no timeout can release a live request.
+    """
+    with session.get_bind().engine.connect() as connection:
+        acquired = connection.scalar(
+            text("SELECT pg_try_advisory_lock(731924, :owner)"), {"owner": learner_id}
+        )
+        connection.commit()
+        if not acquired:
+            raise Refused(409, "A Gemini request is already in progress. Wait before retrying.")
+        try:
+            yield
+        finally:
+            connection.execute(
+                text("SELECT pg_advisory_unlock(731924, :owner)"), {"owner": learner_id}
+            )
+            connection.commit()
+
+
+def _request_feedback(
+    session: Session,
+    box: KeyBox,
+    learner: Learner,
+    interview_id: uuid.UUID,
+    operation_id: uuid.UUID,
+    prompt_id: str,
+    confirmed: bool,
+    now: datetime,
+) -> dict[str, Any]:
     # Serialize reservations on the owner, including across separate sessions/tabs.
     session.execute(select(Learner.id).where(Learner.id == learner.id).with_for_update())
     interview = interviews.owned(session, learner.id, interview_id, now, lock=True)
     if interview is None:
         raise Refused(404, "Interview unavailable.")
+    # Acquiring the owner lease proves no previous application request is still live.
+    # Keep abandoned attempts charged and require a new manual idempotency ID to retry.
+    session.execute(
+        update(InterviewOperation)
+        .where(InterviewOperation.learner_id == learner.id, InterviewOperation.state == "running")
+        .values(state="interrupted")
+    )
     existing = session.get(InterviewOperation, operation_id)
     if existing is not None:
         if (

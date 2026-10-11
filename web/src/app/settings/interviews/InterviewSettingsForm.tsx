@@ -82,8 +82,8 @@ export function InterviewSettingsForm({
         recordings to Google for processing.
       </label>
       <p>
-        Gemini free-tier processing includes product-improvement use. Google's
-        retention and processing are separate from the app's 30-day private
+        Gemini free-tier processing includes product-improvement use. Google&apos;s
+        retention and processing are separate from the app&apos;s 30-day private
         history and temporary audio deletion. Decline or disable AI to keep
         reviewed self-review available.
       </p>
@@ -98,3 +98,4 @@ export function InterviewSettingsForm({
     </form>
   );
 }
+

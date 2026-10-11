@@ -5,6 +5,7 @@ import uuid
 from typing import Any
 from unittest.mock import patch
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import func, select
@@ -122,6 +123,52 @@ def test_inflight_reservation_blocks_other_session_and_key_removal(
         assert provider.call_count == 1
     assert api.get("/me/interview-settings").json()["enabled"] is False
     assert api.post(second + "/feedback", json=body()).status_code == 409
+
+
+def test_deleting_active_session_does_not_release_owner_guard(
+    api: TestClient, session: Session, make_content: ContentFactory
+) -> None:
+    path = setup(api, session, make_content)
+    enable(api)
+    second = "/me/interviews/" + api.post("/stacks/mini-stack/interviews", json={}).json()["id"]
+    api.post(
+        second + "/responses", json={"prompt_id": "race-condition", "text": "A token."}
+    ).raise_for_status()
+
+    def during_request(*_: object) -> dict[str, Any]:
+        api.delete(path).raise_for_status()
+        assert api.post(second + "/feedback", json=body()).status_code == 409
+        return FEEDBACK
+
+    with patch("app.interview_provider.feedback", side_effect=during_request):
+        assert api.post(path + "/feedback", json=body()).status_code == 404
+    with patch("app.interview_provider.feedback", return_value=FEEDBACK):
+        assert api.post(second + "/feedback", json=body()).json()["state"] == "complete"
+
+
+def test_abandoned_attempt_stays_charged_and_needs_manual_new_id(
+    api: TestClient, session: Session, make_content: ContentFactory
+) -> None:
+    path = setup(api, session, make_content)
+    enable(api)
+    with patch("app.interview_provider.feedback", side_effect=RuntimeError("process interrupted")):
+        with pytest.raises(RuntimeError):
+            request = body()
+            api.post(path + "/feedback", json=request)
+    with patch("app.interview_provider.feedback", return_value=FEEDBACK) as provider:
+        assert api.post(path + "/feedback", json=request).json()["state"] == "interrupted"
+        assert provider.call_count == 0
+        assert api.post(path + "/feedback", json=body()).json()["state"] == "complete"
+        assert provider.call_count == 1
+    assert session.scalar(select(func.count()).select_from(InterviewOperation)) == 2
+
+
+def test_malformed_provider_envelope_becomes_retriable_failure() -> None:
+    transport = httpx.MockTransport(lambda request: httpx.Response(200, json={"candidates": None}))
+    with patch("app.interview_provider.httpx.HTTPTransport", return_value=transport):
+        with pytest.raises(interview_provider.ProviderUnavailable) as error:
+            interview_provider.generate(KEY, [{"text": "test"}], schema={})
+        assert error.value.state == "provider_unavailable"
 
 
 @pytest.mark.parametrize("field", ["quote", "follow_up", "dimension"])
