@@ -172,6 +172,18 @@ _Avoid_: Gap, weakness, problem area
 One optional learning activity recommended to a Learner across their Active Stacks, with a reason explaining why it is useful now.
 _Avoid_: Assignment, required task, daily obligation
 
+**Mock Interview**:
+An optional practice session in which a Learner explains their reasoning in their own words and receives feedback. Guided practice gives feedback after each answer and allows another attempt.
+_Avoid_: Lesson Quiz, Retake, readiness test
+
+**Interview Feedback**:
+An assessment of a Learner's interview response against its practice rubric, with suggestions for improvement. It is separate from Question correctness, Lesson completion, Streaks and Weak Concept evidence.
+_Avoid_: Pass Mark, Model Answer, readiness score
+
+**Interview Prompt**:
+A reviewed interview scenario linked to a Concept, with a practice rubric and reviewed follow-up options. It is separate from a Question in the append-only Question Bank.
+_Avoid_: Written Question, Daily Challenge, Model Answer
+
 **Unlocked Lesson**:
 The next Lesson after the Learner's last Completed Lesson in a Stack. Only completion sets the pace; nothing else locks it. If a Syllabus Update removes that Completed Lesson, it is the next Lesson after it that is still in the Syllabus.
 _Avoid_: Available, open, scheduled
