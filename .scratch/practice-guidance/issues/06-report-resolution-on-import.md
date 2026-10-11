@@ -4,12 +4,12 @@
 
 **Blocked by:** 05: Let Admins review Question Reports grouped by Question.
 
-**Status:** draft (proposed ready-for-agent; not published to GitHub)
+**Status:** complete (verified on codex/practice-guidance; local ticket)
 
-- [ ] Associate an accepted report with its expected retirement/replacement outcome using permanent Question IDs, and make the association reviewable by the Admin.
-- [ ] After import confirms that exact outcome, mark the associated accepted report Resolved and expose the resolution in reporter/Admin views.
-- [ ] An unrelated import, an unimported content draft, failed import or Admin acceptance alone cannot resolve a report.
-- [ ] Repeated imports/transitions are idempotent; correction verification and resolution cannot claim success before the relevant import commits.
-- [ ] Keep the existing reviewed content pipeline and immutable-Question rules; preserve recorded scores and report privacy.
-- [ ] Import/API/UI checks cover correct and unrelated imports, missing replacement, transaction failure, retries and in-app status updates.
+- [x] Associate an accepted report with its expected retirement/replacement outcome using permanent Question IDs, and make the association reviewable by the Admin.
+- [x] After import confirms that exact outcome, mark the associated accepted report Resolved and expose the resolution in reporter/Admin views.
+- [x] An unrelated import, an unimported content draft, failed import or Admin acceptance alone cannot resolve a report.
+- [x] Repeated imports/transitions are idempotent; correction verification and resolution cannot claim success before the relevant import commits.
+- [x] Keep the existing reviewed content pipeline and immutable-Question rules; preserve recorded scores and report privacy.
+- [x] Import/API/UI checks cover correct and unrelated imports, missing replacement, transaction failure, retries and in-app status updates.
 

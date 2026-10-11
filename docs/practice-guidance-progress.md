@@ -11,8 +11,8 @@ Order: **01 → 02 → 07 → 03 → 04 → 05 → 06 → 08**. Specification: [
 | 07 Question variants | Complete | `ca3a0f1` and validation fix; pushed to `origin/codex/practice-guidance` |
 | 03 Home Next Action | Complete | `d8254d9`, `eca5f1d`, `f8729ae`; pushed to `origin/codex/practice-guidance` |
 | 04 Private Question Reports | Complete | `f8065ca`, `8289299`, `1937f12`; pushed to `origin/codex/practice-guidance` |
-| 05 Admin report triage | Complete | `20cdcfc`; verified, push checkpoint below |
-| 06 Resolution after import | In progress | Exact correction association and import checks next |
+| 05 Admin report triage | Complete | `20cdcfc`, `8c87bfa`; pushed to `origin/codex/practice-guidance` |
+| 06 Resolution after import | Complete | `12528bd`; verified, push checkpoint below |
 | 08 Delayed outcomes | Queued | — |
 
 ## Continuation
@@ -35,3 +35,7 @@ Heartbeat automation `resume-practice-guidance-tickets` checks every 30 minutes.
 - Ticket 05 is complete at `20cdcfc`: **690 API tests passed**, lint/formatting/strict mypy passed; **227 frontend tests passed**, lint/typechecking/build passed. Standards and Spec reviews have no findings. Admin reports are grouped by Question, decisions require explanations and can only move Open reports to Accepted/Closed. Genuine concurrent decisions cannot overwrite each other; reporter edits share the report lock. Acceptance changes no content, scores or completion. No database migration was needed for 05.
 - Next: ticket 06, associate accepted reports with an exact expected retirement/replacement and resolve only when that correction is imported and committed. Verify unrelated/failed imports and retries, then review, commit and push before ticket 08. Untracked variant working helpers are not deliverables; do not rerun write-variants.py (it appends another batch) or stage unrelated scratch work.
 - No production database migration or deployment has been run. API tests use dedicated `learning_test`, including temporary isolated schemas for genuine concurrent transactions.
+
+- Ticket 06 candidate `12528bd` implements Admin correction associations, matching retirement/replacement verification and transactional import-linked resolution. All 17 focused report/migration checks pass, API lint/formatting/strict mypy pass, 230 frontend tests and production build pass, frontend lint/typechecking pass. Standards and Spec reviews have no findings. Full API suite is running; do not mark complete or push until it passes.
+
+- Ticket 06 is complete: **693 API tests passed**, API lint/formatting/strict mypy passed; **230 frontend tests passed**, lint/typechecking/production build passed. Standards and Spec reviews have no findings. Migration `0021_report_corrections` verified in learning_test. Resolution changes commit with the matching content import and roll back if later import checks fail; retries preserve resolution timestamps. Next: ticket 08 delayed outcomes. No deployment or production migration performed.
