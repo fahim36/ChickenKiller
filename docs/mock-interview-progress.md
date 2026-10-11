@@ -12,7 +12,7 @@ Automation: `resume-mock-interview-tickets`, active every 30 minutes. Check usag
 | 02 | #22 | Verified: 0df4352, 5dac168 and final test correction |
 | 03 | #23 | Verified: 6332080 and c169299 |
 | 04 | #24 | Verified: ee9e810 and 687d860 |
-| 05 | #25 | Pending |
+| 05 | #25 | Verified: bdfa748; Whisper disabled with documented unverified gate |
 | 06 | #26 | Pending |
 | 07 | #27 | Pending |
 | 08 | #28 | Pending |
@@ -43,4 +43,10 @@ Main voice responses support bounded browser recording, owner-only playback, dec
 
 Checks: 20 audio/feedback/migration tests including a late-discard regression; eight frontend interactions; strict mypy (107 files), ruff, frontend lint/typecheck/production build. Standards review found no blockers (shared reservation-policy extraction suggested as a maintenance improvement). Spec review found stale replacement playback; corrected and regression-tested, then re-reviewed. Follow-up/retry progression and server-derived 45/60-second recording limits remain ticket 06 work; these turns are not available yet.
 
-Next: ticket 05. Four tickets are complete; remaining four require implementation. Automatic runs must read actual working changes before continuing.
+## Ticket 05 evidence
+
+Whisper remains disabled: no permissioned representative corpus or deployment spare-capacity evidence is available. `docs/mock-interview-whisper-gate.md` records the infeasible benchmark decision, all unmeasured criteria and requirements before later enablement; no synthetic fixture is represented as recognition evidence. No worker, model download, production load test or new provider is installed. Authenticated path metadata and learner messaging truthfully identify Gemini audio and its shared attempt cost, with playback/typing alternatives.
+
+Checks: 21 audio/feedback tests including zero-spend path metadata, quota18, playback preservation, no hidden retry/fallback and shared feedback budget; eight frontend interaction tests; mypy (107 files), ruff and frontend typecheck/lint. Both parallel reviews found no blockers. Ticket 05 explicitly accepts this disabled outcome; it does not promise measured Whisper performance.
+
+Next: ticket 06. Five tickets are complete; remaining three require implementation. Automatic runs must read actual working changes before continuing.
