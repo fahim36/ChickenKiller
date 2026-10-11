@@ -4,7 +4,7 @@
 
 **Blocked by:** 01: Prevent retired Questions from blocking Lesson completion; 02: Show Weak Concept evidence on each Stack page.
 
-**Status:** draft (proposed ready-for-agent; not published to GitHub)
+**Status:** complete (verified locally; branch push tracked in docs/practice-guidance-progress.md)
 
 - [ ] Choose oldest pending Retake first, then eligible due Review for the highest-ranked Weak Concept, then an Unlocked Lesson in the most recently practised Stack.
 - [ ] If no Lessons remain, offer ordinary due Review; with no eligible activity, show completion and links to Materials/Milestones.
