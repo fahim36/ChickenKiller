@@ -9,10 +9,16 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from app import interviews
-from app.deps import ActiveStackInPath, CurrentLearner, Now, SessionDep
+from app.deps import ActiveStackInPath, AdminLearner, CurrentLearner, Now, SessionDep
+from app.interview_coverage import coverage
 from app.models import InterviewContent, InterviewSession
 
 router = APIRouter()
+
+
+@router.get("/admin/interview-coverage")
+def admin_coverage(_: AdminLearner, session: SessionDep) -> list[dict[str, Any]]:
+    return coverage(session)
 
 
 class StartIn(BaseModel):

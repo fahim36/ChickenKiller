@@ -67,6 +67,7 @@ export default async function ContentHealthPage() {
       >
         <Link href="/admin/question-reports">Question Reports</Link>
         <Link href="/admin/challenges">Upcoming Challenges</Link>
+        <Link href="/admin/interview-coverage">Interview coverage</Link>
         <a href="https://github.com/fahim36/ChickenKiller/actions/workflows/content-links.yml">
           Saved link-check reports in Actions
         </a>
