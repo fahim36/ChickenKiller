@@ -38,9 +38,11 @@ export type AnswerReviewAction = (
 export function ReviewFlow({
   reviewSet,
   answerAction,
+  nextSetHref = "/review",
 }: {
   reviewSet: ReviewSet;
   answerAction: AnswerReviewAction;
+  nextSetHref?: string;
 }) {
   const [position, setPosition] = useState(0);
   const [outcome, setOutcome] = useState<ReviewAnswerResult | null>(null);
@@ -76,7 +78,7 @@ export function ReviewFlow({
         <p>
           {/* A full page load, so the server draws the next set. */}
           <Button asChild size="lg" className="px-4">
-            <a href="/review">
+            <a href={nextSetHref}>
               Next set
               <ArrowRight aria-hidden />
             </a>
@@ -96,12 +98,18 @@ export function ReviewFlow({
       {outcome ? (
         <div className="space-y-5">
           {outcome.correct ? (
-            <Mark correct className="rounded-xl bg-success/10 px-4 py-3 text-base">
+            <Mark
+              correct
+              className="rounded-xl bg-success/10 px-4 py-3 text-base"
+            >
               Correct
             </Mark>
           ) : (
             <>
-              <Mark correct={false} className="rounded-xl bg-destructive/10 px-4 py-3 text-base">
+              <Mark
+                correct={false}
+                className="rounded-xl bg-destructive/10 px-4 py-3 text-base"
+              >
                 Not quite. Read the Explanation before moving on.
               </Mark>
               <AnsweredQuestionDetail question={outcome.question} />
@@ -150,7 +158,11 @@ function QuestionForm({
     setGradingFailed(null);
     setSubmitting(true);
     try {
-      const outcome = await answerAction(q.stack_id, q.id, submittedAnswer(answer));
+      const outcome = await answerAction(
+        q.stack_id,
+        q.id,
+        submittedAnswer(answer),
+      );
       if ("code" in outcome) setGradingFailed(outcome.message);
       else onAnswered(outcome);
     } catch {
@@ -185,9 +197,19 @@ function QuestionForm({
       <div className="flex flex-wrap gap-2">
         <Button type="submit" size="lg" className="px-4" disabled={submitting}>
           {submitting && <Spinner />}
-          {submitting ? "Grading…" : gradingFailed ? "Submit again" : "Submit answer"}
+          {submitting
+            ? "Grading…"
+            : gradingFailed
+              ? "Submit again"
+              : "Submit answer"}
         </Button>{" "}
-        <Button type="button" variant="ghost" size="lg" onClick={onSkip} disabled={submitting}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="lg"
+          onClick={onSkip}
+          disabled={submitting}
+        >
           <SkipForward aria-hidden />
           Skip
         </Button>

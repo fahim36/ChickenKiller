@@ -407,6 +407,32 @@ class ReviewAnswerOut(BaseModel):
     question: AnsweredQuestionOut
 
 
+class NextActionOut(BaseModel):
+    kind: Literal["retake", "concept_review", "lesson", "review", "complete"]
+    title: str
+    reason: str
+    stack_id: str | None = None
+    lesson_id: str | None = None
+    attempt_id: str | None = None
+    concept_id: str | None = None
+
+
+class HomeWeakConceptOut(ConceptEvidenceOut):
+    stack_id: str
+    stack_name: str
+
+
+class GuidanceStackOut(BaseModel):
+    stack_id: str
+    stack_name: str
+
+
+class HomeGuidanceOut(BaseModel):
+    action: NextActionOut
+    weak_concepts: list[HomeWeakConceptOut]
+    stacks: list[GuidanceStackOut]
+
+
 # --- Daily Challenges ------------------------------------------------------------------------
 
 ChallengeOutcome = Literal["correct", "wrong", "ungraded"]

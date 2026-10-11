@@ -12,9 +12,37 @@ import { answerReviewQuestion } from "./actions";
  * has no rounds or timers, and never locks anything. Each load draws a fresh set; with nothing
  * due, the page says so.
  */
-export default async function ReviewPage() {
+export default async function ReviewPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
+} = {}) {
   await connection();
-  const reviewSet = await api<ReviewSet>("/review");
+  const query: { [key: string]: string | string[] | undefined } =
+    await (searchParams ?? Promise.resolve({}));
+  const stack = query.stack_id;
+  const concept = query.concept_id;
+  const hasTarget = stack !== undefined || concept !== undefined;
+  const validTarget =
+    typeof stack === "string" &&
+    !!stack &&
+    typeof concept === "string" &&
+    !!concept;
+  if (hasTarget && !validTarget) {
+    return (
+      <main>
+        <PageHeader title="Review" />
+        <Notice>
+          Select a Stack and Concept together.{" "}
+          <Link href="/review">Open ordinary Review</Link>.
+        </Notice>
+      </main>
+    );
+  }
+  const href = validTarget
+    ? `/review?stack_id=${encodeURIComponent(stack)}&concept_id=${encodeURIComponent(concept)}`
+    : "/review";
+  const reviewSet = await api<ReviewSet>(href);
   const questions = reviewSet?.questions ?? [];
 
   return (
@@ -26,18 +54,27 @@ export default async function ReviewPage() {
           reviewSet &&
           questions.length > 0 && (
             <p>
-              Optional: practise whenever you like. Missed Questions come first, then Questions
-              from your Completed Lessons.
+              {validTarget
+                ? "Optional: practise this Concept using only Questions currently due in Review."
+                : "Optional: practise whenever you like. Missed Questions come first, then Questions from your Completed Lessons."}
             </p>
           )
         }
       />
       {reviewSet && questions.length > 0 ? (
-        <ReviewFlow reviewSet={reviewSet} answerAction={answerReviewQuestion} />
+        <ReviewFlow
+          key={href}
+          reviewSet={reviewSet}
+          answerAction={answerReviewQuestion}
+          nextSetHref={href}
+        />
       ) : (
         <Notice role="status">
-          Nothing to review right now. Missed Questions and Questions from your Completed Lessons
-          come back here.
+          {!reviewSet
+            ? "Review couldn't be loaded. Reload the page to try again."
+            : validTarget
+              ? "Nothing is due for this Concept right now. You can choose another activity."
+              : "Nothing to review right now. Missed Questions and Questions from your Completed Lessons come back here."}
         </Notice>
       )}
     </main>

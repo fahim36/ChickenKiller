@@ -14,9 +14,17 @@ import { redirect, unstable_rethrow } from "next/navigation";
 import { connection } from "next/server";
 import type { ReactNode } from "react";
 import { PageHeader } from "@/components/PageHeader";
+import { HomeGuidance } from "@/components/HomeGuidance";
+import { Notice } from "@/components/Notice";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { api, type CatchUp, type Me, type TodaysChallenge } from "@/lib/api";
+import {
+  api,
+  type CatchUp,
+  type HomeGuidance as Guidance,
+  type Me,
+  type TodaysChallenge,
+} from "@/lib/api";
 
 /**
  * Home: one card per Active Stack, with its Streak, today's Daily Challenge (Play, Continue, or
@@ -29,8 +37,13 @@ export default async function Home() {
   await connection();
   const me = await api<Me>("/me");
   if (!me || me.needs_onboarding) redirect("/onboarding");
-  const todays = await Promise.all(me.active_stacks.map((stack) => loadToday(stack.id)));
-  const catchUp = await api<CatchUp>("/catch-up");
+  const todays = await Promise.all(
+    me.active_stacks.map((stack) => loadToday(stack.id)),
+  );
+  const [catchUp, guidance] = await Promise.all([
+    api<CatchUp>("/catch-up"),
+    api<Guidance>("/home/guidance"),
+  ]);
 
   return (
     <main>
@@ -46,6 +59,14 @@ export default async function Home() {
           </Button>
         }
       />
+      {guidance ? (
+        <HomeGuidance guidance={guidance} />
+      ) : (
+        <Notice role="status">
+          Next Action couldn&apos;t be loaded. Your activities are available
+          below.
+        </Notice>
+      )}
       <ul
         className={cn(
           "grid list-none gap-5 p-0",
@@ -78,7 +99,9 @@ export default async function Home() {
                   </Link>
                 </Button>
                 <Button asChild variant="ghost" size="sm">
-                  <Link href={`/stacks/${encodeURIComponent(stack.id)}/archive`}>
+                  <Link
+                    href={`/stacks/${encodeURIComponent(stack.id)}/archive`}
+                  >
                     <Archive aria-hidden />
                     Archive
                   </Link>
@@ -94,7 +117,8 @@ export default async function Home() {
           icon={<Repeat aria-hidden className="size-5" />}
           link={<Link href="/review">Review</Link>}
         >
-          Practise Missed Questions and past Lessons from all your Stacks, whenever you like.
+          Practise Missed Questions and past Lessons from all your Stacks,
+          whenever you like.
         </Tile>
         <CatchUpLine catchUp={catchUp} />
       </div>
@@ -103,7 +127,15 @@ export default async function Home() {
 }
 
 /** A card that is one big link, with the link's own text kept short for screen readers. */
-function Tile({ icon, link, children }: { icon: ReactNode; link: ReactNode; children: ReactNode }) {
+function Tile({
+  icon,
+  link,
+  children,
+}: {
+  icon: ReactNode;
+  link: ReactNode;
+  children: ReactNode;
+}) {
   return (
     <div className="group relative flex items-start gap-4 rounded-2xl border bg-card p-5 shadow-xs transition-colors hover:border-primary/50 hover:bg-accent/30">
       <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
@@ -151,7 +183,8 @@ function CatchUpLine({ catchUp }: { catchUp: CatchUp | null }) {
       icon={<History aria-hidden className="size-5" />}
       link={<Link href="/catch-up">Catch-up</Link>}
     >
-      {count} past Challenge{count === 1 ? "" : "s"} you haven&apos;t played. Optional.
+      {count} past Challenge{count === 1 ? "" : "s"} you haven&apos;t played.
+      Optional.
     </Tile>
   );
 }
@@ -162,7 +195,9 @@ function CatchUpLine({ catchUp }: { catchUp: CatchUp | null }) {
  */
 async function loadToday(stackId: string): Promise<TodaysChallenge | null> {
   try {
-    return await api<TodaysChallenge>(`/stacks/${encodeURIComponent(stackId)}/challenges/today`);
+    return await api<TodaysChallenge>(
+      `/stacks/${encodeURIComponent(stackId)}/challenges/today`,
+    );
   } catch (error) {
     unstable_rethrow(error);
     console.error(error);
@@ -188,7 +223,10 @@ function TodaysChallengeLine({
         className="flex h-full items-center gap-3 rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-5 text-sm"
       >
         <CircleAlert aria-hidden className="size-5 shrink-0 text-destructive" />
-        <p>Today&apos;s Challenge couldn&apos;t be loaded. Reload the page to try again.</p>
+        <p>
+          Today&apos;s Challenge couldn&apos;t be loaded. Reload the page to try
+          again.
+        </p>
       </div>
     );
   }
@@ -206,8 +244,12 @@ function TodaysChallengeLine({
   return (
     <div className="flex h-full flex-col justify-between gap-4 rounded-xl bg-linear-to-br from-primary/10 via-primary/5 to-transparent px-4 py-4 ring-1 ring-primary/15">
       <div className="space-y-1">
-        <p className="text-xs font-medium tracking-wide text-primary uppercase">Daily Challenge</p>
-        <p className="font-heading text-base font-semibold">{challenge.label}</p>
+        <p className="text-xs font-medium tracking-wide text-primary uppercase">
+          Daily Challenge
+        </p>
+        <p className="font-heading text-base font-semibold">
+          {challenge.label}
+        </p>
       </div>
       {finished ? (
         <div className="flex flex-wrap items-center justify-between gap-3">

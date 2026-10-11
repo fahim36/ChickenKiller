@@ -88,7 +88,13 @@ def review_bank(session: Session, stack_id: str) -> list[Question]:
 
 
 def review_set(
-    session: Session, records: Sequence[LearnerStack], now: datetime
+    session: Session,
+    records: Sequence[LearnerStack],
+    now: datetime,
+    *,
+    stack_id: str | None = None,
+    concept_id: str | None = None,
+    limit: int | None = review.SET_SIZE,
 ) -> list[ReviewQuestion]:
     """The Learner's Review set at `now` across `records` (their Active Stacks): up to
     `review.SET_SIZE` Questions, in the order they are asked. Empty when nothing is due."""
@@ -100,7 +106,12 @@ def review_set(
         updated=[q for s in sources for q in s.updated],
         repeats=[q for s in sources for q in s.repeats],
     )
-    picked = review.queue(merged, review.utc_day(now))[: review.SET_SIZE]
+    picked = [
+        ref
+        for ref in review.queue(merged, review.utc_day(now))
+        if (stack_id is None or ref.stack_id == stack_id)
+        and (concept_id is None or banks[ref.stack_id][ref.question_id].concept.id == concept_id)
+    ][:limit]
     return [
         ReviewQuestion(stacks[ref.stack_id], banks[ref.stack_id][ref.question_id]) for ref in picked
     ]

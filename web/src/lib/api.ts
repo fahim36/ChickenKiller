@@ -4,7 +4,14 @@ import { redirect } from "next/navigation";
 // Types mirror the FastAPI response models in api/app/schemas.py.
 
 export type MaterialType =
-  "docs" | "free" | "video" | "book" | "paper" | "tool" | "paid" | "platform";
+  | "docs"
+  | "free"
+  | "video"
+  | "book"
+  | "paper"
+  | "tool"
+  | "paid"
+  | "platform";
 
 export interface StackSummary {
   id: string;
@@ -199,6 +206,23 @@ export interface StackEvidence {
   stack_id: string;
   as_of: string;
   concepts: ConceptEvidenceItem[];
+}
+
+export interface HomeGuidance {
+  action: {
+    kind: "retake" | "concept_review" | "lesson" | "review" | "complete";
+    title: string;
+    reason: string;
+    stack_id: string | null;
+    lesson_id: string | null;
+    attempt_id: string | null;
+    concept_id: string | null;
+  };
+  weak_concepts: (ConceptEvidenceItem & {
+    stack_id: string;
+    stack_name: string;
+  })[];
+  stacks: { stack_id: string; stack_name: string }[];
 }
 
 /**
@@ -487,7 +511,10 @@ export interface Draft {
   author_email: string;
   note: string;
   payload: {
-    questions?: ({ id: string; type: string; prompt: string; lesson?: string | null } | string)[];
+    questions?: (
+      | { id: string; type: string; prompt: string; lesson?: string | null }
+      | string
+    )[];
     concepts?: { id: string; name: string }[];
     day?: string;
     /** A `stack` request. */
@@ -680,7 +707,8 @@ export async function apiPut<T>(path: string, body: unknown): Promise<T> {
 /** DELETE on the API. Throws ApiError on any error status, including 404. */
 export async function apiDelete<T = null>(path: string): Promise<T | null> {
   const res = await request("DELETE", path);
-  if (res.status === 404) throw new ApiError(404, "Not found", `DELETE ${path}`);
+  if (res.status === 404)
+    throw new ApiError(404, "Not found", `DELETE ${path}`);
   if (res.status === 204) return null;
   return res.json() as Promise<T>;
 }

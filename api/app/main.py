@@ -3,6 +3,7 @@ import random
 import uuid
 from collections.abc import AsyncIterator, Callable, Iterator
 from contextlib import asynccontextmanager, contextmanager
+from dataclasses import asdict
 from datetime import UTC, date, datetime
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Response
@@ -15,6 +16,7 @@ from app import (
     challenges,
     config,
     grading,
+    home_guidance,
     learners,
     lessons,
     llm_keys,
@@ -50,10 +52,40 @@ from app.deps import (
     get_current_learner,
     get_now,
 )
-from app.models import ContentDraft, Learner, Question
+from app.models import Concept, ContentDraft, Learner, Question
 
 # Everything except the health check: only a signed-in, invited Learner gets in (app/deps.py).
 router = APIRouter(dependencies=[Depends(get_current_learner)])
+
+
+@router.get("/home/guidance")
+def get_home_guidance(
+    learner: CurrentLearner, session: SessionDep, now: Now, rng: QuizRandom
+) -> schemas.HomeGuidanceOut:
+    records = onboarding.active_stacks(session, learner)
+    if not records:
+        raise HTTPException(409, ONBOARDING_NEEDED)
+    result = home_guidance.for_learner(session, records, now, rng)
+    return schemas.HomeGuidanceOut(
+        action=schemas.NextActionOut(**asdict(result.action)),
+        weak_concepts=[
+            schemas.HomeWeakConceptOut(
+                stack_id=w.stack_id,
+                stack_name=w.stack_name,
+                id=w.concept.id,
+                name=w.concept.name,
+                active_questions=w.concept.active_questions,
+                lesson_id=w.concept.lesson_id,
+                lesson_title=w.concept.lesson_title,
+                **asdict(w.concept.evidence),
+            )
+            for w in result.weak_concepts
+        ],
+        stacks=[
+            schemas.GuidanceStackOut(stack_id=r.stack_id, stack_name=r.stack.name)
+            for r in sorted(records, key=lambda r: r.stack_id)
+        ],
+    )
 
 
 @router.get("/stacks/{stack_id}/concept-evidence")
@@ -823,7 +855,13 @@ NOT_IN_REVIEW = {
 
 
 @router.get("/review")
-def get_review_set(learner: CurrentLearner, session: SessionDep, now: Now) -> schemas.ReviewSetOut:
+def get_review_set(
+    learner: CurrentLearner,
+    session: SessionDep,
+    now: Now,
+    stack_id: str | None = None,
+    concept_id: str | None = None,
+) -> schemas.ReviewSetOut:
     """A Review set across all the Learner's Active Stacks: up to ten Questions, without their
     answers, to answer one at a time. Missed Questions come first (oldest first), then Updated
     Lessons' new Questions, then spaced repeats from Completed Lessons (app/review.py). Empty
@@ -835,6 +873,17 @@ def get_review_set(learner: CurrentLearner, session: SessionDep, now: Now) -> sc
     records = onboarding.active_stacks(session, learner)
     if not records:
         raise HTTPException(409, ONBOARDING_NEEDED)
+    if (stack_id is None) != (concept_id is None):
+        raise HTTPException(422, "Targeted Review needs both Stack and Concept.")
+    if stack_id is not None:
+        get_active_stack_in_path(stack_id, learner, session)
+        if (
+            session.scalar(
+                select(Concept.pk).where(Concept.stack_id == stack_id, Concept.id == concept_id)
+            )
+            is None
+        ):
+            raise HTTPException(404, "Concept not found")
     return schemas.ReviewSetOut(
         size=review.SET_SIZE,
         max_answer_chars=grading.MAX_ANSWER_CHARS,
@@ -844,7 +893,9 @@ def get_review_set(learner: CurrentLearner, session: SessionDep, now: Now) -> sc
                 stack_id=r.stack.id,
                 stack_name=r.stack.name,
             )
-            for r in reviews.review_set(session, records, now)
+            for r in reviews.review_set(
+                session, records, now, stack_id=stack_id, concept_id=concept_id
+            )
         ],
     )
 

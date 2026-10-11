@@ -33,7 +33,10 @@ afterEach(() => {
 });
 
 async function renderQuizPage() {
-  const params = Promise.resolve({ stackId: "agentic-ai-engineer", lessonId: "w01-l01" });
+  const params = Promise.resolve({
+    stackId: "agentic-ai-engineer",
+    lessonId: "w01-l01",
+  });
   render(await LessonQuizPage({ params } as never));
 }
 
@@ -47,12 +50,18 @@ it("starts (or resumes) the Lesson's quiz and shows its Questions", async () => 
     "http://localhost:8000/stacks/agentic-ai-engineer/lessons/w01-l01/quiz",
     expect.objectContaining({ method: "POST" }),
   );
-  expect(screen.getByRole("group", { name: "What does is compare?" })).toBeTruthy();
+  expect(
+    screen.getByRole("group", { name: "What does is compare?" }),
+  ).toBeTruthy();
   expect(screen.getByText(/Pass Mark is 80%/)).toBeTruthy();
 });
 
 it("shows the pending Retakes when the last quiz passed with Missed Questions", async () => {
-  const detail = { code: "retakes_pending", message: "Finish the Retakes.", attempt_id: "attempt-1" };
+  const detail = {
+    code: "retakes_pending",
+    message: "Finish the Retakes.",
+    attempt_id: "attempt-1",
+  };
   const pending: Retakes = {
     attempt_id: "attempt-1",
     lesson_id: "w01-l01",
@@ -62,7 +71,11 @@ it("shows the pending Retakes when the last quiz passed with Missed Questions", 
       {
         id: "retake-1",
         missed_question_id: "w01-l01-q01",
-        question: { ...quiz.questions[0], id: "w01-l01-q02", prompt: "Sibling?" },
+        question: {
+          ...quiz.questions[0],
+          id: "w01-l01-q02",
+          prompt: "Sibling?",
+        },
       },
     ],
   };
@@ -79,7 +92,9 @@ it("shows the pending Retakes when the last quiz passed with Missed Questions", 
     "http://localhost:8000/stacks/agentic-ai-engineer/lessons/w01-l01/quiz/attempt-1/retakes",
     expect.objectContaining({ method: "GET" }),
   );
-  expect(screen.getByRole("heading", { name: "Retakes", level: 1 })).toBeTruthy();
+  expect(
+    screen.getByRole("heading", { name: "Retakes", level: 1 }),
+  ).toBeTruthy();
   expect(screen.getByRole("group", { name: "Sibling?" })).toBeTruthy();
 });
 
@@ -88,13 +103,55 @@ it("explains why when the quiz can't be started", async () => {
     code: "lesson_locked",
     message: "This Lesson is locked. Complete the Lessons before it first.",
   };
-  vi.stubGlobal("fetch", vi.fn(async () => Response.json({ detail }, { status: 409 })));
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => Response.json({ detail }, { status: 409 })),
+  );
 
   await renderQuizPage();
 
   expect(screen.getByRole("alert").textContent).toBe(detail.message);
-  expect(screen.getByRole("link", { name: "Back to the Lesson" }).getAttribute("href")).toBe(
-    "/stacks/agentic-ai-engineer/lessons/w01-l01",
-  );
+  expect(
+    screen
+      .getByRole("link", { name: "Back to the Lesson" })
+      .getAttribute("href"),
+  ).toBe("/stacks/agentic-ai-engineer/lessons/w01-l01");
   expect(screen.queryByRole("group")).toBeNull();
+});
+
+it("opens a specific pending Retake attempt without starting another quiz", async () => {
+  const pending: Retakes = {
+    attempt_id: "old-attempt",
+    lesson_id: "w01-l01",
+    lesson_completed: false,
+    max_answer_chars: 4000,
+    retakes: [
+      {
+        id: "retake-1",
+        missed_question_id: "w01-l01-q01",
+        question: {
+          ...quiz.questions[0],
+          id: "w01-l01-q02",
+          prompt: "Sibling?",
+        },
+      },
+    ],
+  };
+  const fetch = vi.fn(async () => Response.json(pending));
+  vi.stubGlobal("fetch", fetch);
+  render(
+    await LessonQuizPage({
+      params: Promise.resolve({
+        stackId: "agentic-ai-engineer",
+        lessonId: "w01-l01",
+      }),
+      searchParams: Promise.resolve({ attempt_id: "old-attempt" }),
+    }),
+  );
+  expect(fetch).toHaveBeenCalledTimes(1);
+  expect(fetch).toHaveBeenCalledWith(
+    "http://localhost:8000/stacks/agentic-ai-engineer/lessons/w01-l01/quiz/old-attempt/retakes",
+    expect.objectContaining({ method: "GET" }),
+  );
+  expect(screen.getByRole("group", { name: "Sibling?" })).toBeTruthy();
 });
