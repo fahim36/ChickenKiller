@@ -11,6 +11,8 @@ import { DeviceSpeech } from "./DeviceSpeech";
 import {
   confirmInterviewTranscript,
   transcribeInterviewAudio,
+  loadInterviewAudio,
+  uploadInterviewAudio,
 } from "./actions";
 import type { InterviewSession } from "./types";
 
@@ -137,4 +139,62 @@ it("keeps visible content usable without device speech", () => {
   expect(screen.getByRole("status").textContent).toContain(
     "Read the visible text",
   );
+});
+
+it("clears the old playback when loading a replacement fails", async () => {
+  class Recorder {
+    static isTypeSupported() {
+      return true;
+    }
+    state = "inactive";
+    mimeType = "audio/webm";
+    ondataavailable: ((event: { data: Blob }) => void) | null = null;
+    onstop: (() => void) | null = null;
+    start() {
+      this.state = "recording";
+    }
+    stop() {
+      this.state = "inactive";
+      this.ondataavailable?.({
+        data: new Blob(["replacement"], { type: this.mimeType }),
+      });
+      this.onstop?.();
+    }
+  }
+  vi.stubGlobal("MediaRecorder", Recorder);
+  Object.defineProperty(navigator, "mediaDevices", {
+    configurable: true,
+    value: {
+      getUserMedia: vi
+        .fn()
+        .mockResolvedValue({ getTracks: () => [{ stop: vi.fn() }] }),
+    },
+  });
+  vi.mocked(loadInterviewAudio)
+    .mockResolvedValueOnce({ mime: "audio/webm", data: "b2xk" })
+    .mockRejectedValueOnce(new Error("Unavailable"));
+  vi.mocked(uploadInterviewAudio).mockResolvedValue({
+    ...initial,
+    id: "replacement",
+  });
+  render(
+    <VoiceResponse
+      sessionId="session"
+      promptId="prompt"
+      initial={initial}
+      onConfirmed={vi.fn()}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Load playback" }));
+  await screen.findByLabelText("Your temporary response recording");
+  const replace = screen.getByRole("button", { name: "Replace recording" });
+  await waitFor(() => expect(replace.hasAttribute("disabled")).toBe(false));
+  fireEvent.click(replace);
+  fireEvent.click(
+    await screen.findByRole("button", { name: "Stop recording" }),
+  );
+  await screen.findByRole("alert");
+  expect(
+    screen.queryByLabelText("Your temporary response recording"),
+  ).toBeNull();
 });

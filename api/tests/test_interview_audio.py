@@ -149,3 +149,26 @@ def test_unsupported_or_oversized_audio_is_rejected() -> None:
         interview_audio.normalize(b"not audio", "audio/wav", 90)
     with pytest.raises(interview_feedback.Refused, match="oversized"):
         interview_audio.normalize(wav(94), "audio/wav", 90)
+
+
+def test_discard_during_transcription_does_not_resurrect_audio(
+    api: TestClient, session: Session, make_content: ContentFactory
+) -> None:
+    path = setup(api, session, make_content)
+    clip = upload(api, path)
+    audio_path = path + "/audio/" + clip["id"]
+    enable(api)
+    operation_id = uuid.uuid4()
+
+    def discarded(*args: object, **kwargs: object) -> str:
+        assert api.delete(audio_path).status_code == 204
+        return json.dumps({"transcript": "Use a token."})
+
+    with patch("app.interview_provider.generate", side_effect=discarded):
+        assert api.post(
+            audio_path + "/transcribe", json={"operation_id": str(operation_id)}
+        ).status_code == 404
+    assert api.get(audio_path).status_code == 404
+    operation = session.get(InterviewOperation, operation_id)
+    assert operation is not None and operation.state == "audio_unavailable"
+    assert session.scalar(select(func.count()).select_from(InterviewRecording)) == 0

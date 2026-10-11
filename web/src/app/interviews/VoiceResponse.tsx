@@ -138,6 +138,7 @@ export function VoiceResponse({
             await cancelInterviewAudio(sessionId, saved.id);
             return;
           }
+          setPlayback(null);
           setClip(saved);
           setTranscript("");
           operationId.current = null;
