@@ -193,6 +193,8 @@ class SessionOut(BaseModel):
     operations: list[dict[str, Any]] = Field(default_factory=list)
     recordings: list[dict[str, Any]] = Field(default_factory=list)
     turns: list[dict[str, Any]] = Field(default_factory=list)
+    practice_state: str
+    ai_enabled: bool
 
 
 def output(row: InterviewSession, session: SessionDep, now: datetime) -> SessionOut:
@@ -203,6 +205,8 @@ def output(row: InterviewSession, session: SessionDep, now: datetime) -> Session
         prompts=row.prompts,
         responses=row.responses,
         turns=interview_turns.output(row),
+        practice_state=interviews.practice_state(session, row, now),
+        ai_enabled=interview_feedback.settings(session, row.learner_id)["enabled"],
         operations=[
             interview_feedback.operation_out(op)
             for op in session.scalars(
@@ -288,6 +292,7 @@ def respond(
     if row is None:
         raise HTTPException(404, "Interview unavailable.")
     try:
+        interviews.require_current(session, row, now)
         interview_turns.require_accepts(row, body.prompt_id)
     except ValueError as error:
         raise HTTPException(409, str(error)) from None
@@ -327,6 +332,7 @@ def open_optional_turn(
     if row is None:
         raise HTTPException(404, "Interview unavailable.")
     try:
+        interviews.require_current(session, row, now)
         interview_turns.open_turn(session, row, body.parent_id, body.kind, body.follow_up_id)
     except ValueError as error:
         raise HTTPException(409, str(error)) from None

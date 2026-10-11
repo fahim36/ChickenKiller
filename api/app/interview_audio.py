@@ -96,6 +96,7 @@ def upload(
     if interview is None:
         raise interview_feedback.Refused(404, "Interview unavailable.")
     try:
+        interviews.require_current(session, interview, now)
         _, kind = interview_turns.require_accepts(interview, prompt_id)
     except ValueError as error:
         raise interview_feedback.Refused(409, str(error)) from None
@@ -203,6 +204,7 @@ def transcribe(
             return {**recording_out(clip), "state": "complete"}
         record = onboarding.active_stack(session, learner, interview.stack_id)
         try:
+            interviews.require_current(session, interview, now)
             prompt, kind = interview_turns.require_accepts(interview, clip.prompt_id)
         except ValueError as error:
             raise interview_feedback.Refused(409, str(error)) from None
@@ -289,9 +291,16 @@ def transcribe(
             session.commit()
             raise
         try:
-            interview_feedback.allowed_key(session, box, learner.id)
+            if interview_feedback.allowed_key(session, box, learner.id) != key:
+                raise interview_feedback.Refused(409, "Processing settings changed.")
         except interview_feedback.Refused:
             state, transcript = "processing_disabled", None
+        try:
+            current_interview = interviews.owned(session, learner.id, interview_id, now)
+            assert current_interview is not None
+            interviews.require_current(session, current_interview, now)
+        except ValueError:
+            state, transcript = "practice_unavailable", None
         saved.state = state
         if state == "complete":
             current.transcript = transcript

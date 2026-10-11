@@ -83,6 +83,29 @@ def start(
     return row
 
 
+def practice_state(session: Session, row: InterviewSession, now: datetime) -> str:
+    """Private history survives changes; new work must still use eligible reviewed content."""
+    record = session.get(LearnerStack, (row.learner_id, row.stack_id))
+    if record is None or not record.active:
+        return "inactive_stack"
+    for document in row.prompts:
+        current = session.get(InterviewContent, (row.stack_id, document["id"]))
+        if current is None or current.document["version"] != document["version"]:
+            return "content_changed"
+    studied = {prompt.concept for prompt in eligible(session, record, now)}
+    if any(document["concept"] not in studied for document in row.prompts):
+        return "topic_no_longer_studied"
+    return "available"
+
+
+def require_current(session: Session, row: InterviewSession, now: datetime) -> None:
+    state = practice_state(session, row, now)
+    if state != "available":
+        raise ValueError(
+            f"New practice is unavailable ({state}); original history and self-review remain."
+        )
+
+
 def owned(
     session: Session, learner_id: int, interview_id: uuid.UUID, now: datetime, *, lock: bool = False
 ) -> InterviewSession | None:

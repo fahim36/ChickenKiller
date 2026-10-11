@@ -6,6 +6,7 @@ import {
   startInterview,
   saveInterviewResponse,
   deleteInterview,
+  loadInterviewSession,
 } from "./actions";
 import type { InterviewSession, Topics } from "./types";
 import { InterviewFeedback } from "./InterviewFeedback";
@@ -31,6 +32,8 @@ export function InterviewPractice({
   const prompt =
     current?.turns?.find((p) => !(p.id in current.responses)) ??
     current?.prompts.find((p) => !(p.id in current.responses));
+  const available =
+    !current?.practice_state || current.practice_state === "available";
   const draftKey = `${current?.id ?? ""}:${prompt?.id ?? ""}`;
   const text = drafts[draftKey] ?? "";
   function setText(value: string) {
@@ -134,7 +137,18 @@ export function InterviewPractice({
           <p>
             History expires {new Date(current.expires_at).toLocaleDateString()}.
           </p>
-          {prompt ? (
+          <p>
+            {current.operations?.length ?? 0} of 18 provider attempts used.
+            Failed attempts count; retries are manual. No universal free-quota
+            reset time is promised.
+          </p>
+          {!available ? (
+            <p role="status">
+              New practice is unavailable (
+              {current.practice_state?.replaceAll("_", " ")}). Original
+              responses and reviewed rubrics remain available.
+            </p>
+          ) : prompt ? (
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -189,7 +203,7 @@ export function InterviewPractice({
             </p>
           )}
           {[...current.prompts, ...(current.turns ?? [])]
-            .filter((p) => p.id in current.responses)
+            .filter((p) => !available || p.id in current.responses)
             .map((p) => (
               <article key={p.id} className="border rounded p-4">
                 <h2>{p.scenario}</h2>
@@ -208,9 +222,24 @@ export function InterviewPractice({
                     sessionId={current.id}
                     promptId={p.id}
                     text={current.responses[p.id] ?? ""}
-                    existing={current.operations?.find(
-                      (op) => op.prompt_id === p.id && op.state === "complete",
-                    )}
+                    enabled={
+                      available &&
+                      current.ai_enabled !== false &&
+                      (current.operations?.length ?? 0) < 18
+                    }
+                    existing={
+                      current.operations?.find(
+                        (op) =>
+                          op.prompt_id === p.id && op.state === "complete",
+                      ) ??
+                      current.operations
+                        ?.filter(
+                          (op) =>
+                            op.prompt_id === p.id &&
+                            op.kind !== "transcription",
+                        )
+                        .at(-1)
+                    }
                     onResult={(operation) => {
                       const merge = (
                         row: InterviewSession,
@@ -248,7 +277,7 @@ export function InterviewPractice({
                 >
                   Review the Lesson
                 </Link>
-                {!p.kind && current.responses[p.id] && (
+                {available && !p.kind && current.responses[p.id] && (
                   <GuidedOptions
                     session={current}
                     prompt={p}
@@ -275,13 +304,22 @@ export function InterviewPractice({
           <div key={s.id} className="flex gap-4">
             <button
               disabled={pending}
-              onClick={() => {
-                setCurrent(s);
-                setText("");
-              }}
+              onClick={() =>
+                run(async () => update(await loadInterviewSession(s.id)))
+              }
             >
-              Open session · {s.prompts.length} scenarios
+              Open session · {s.prompts.length} scenarios ·{" "}
+              {Object.keys(s.responses).length} saved turns
             </button>
+            <p>
+              {(s.operations ?? [])
+                .map(
+                  (o) =>
+                    `${o.kind ?? "feedback"}: ${o.state.replaceAll("_", " ")}`,
+                )
+                .join("; ") || "Reviewed self-review"}
+              . Audio is only available until its stated expiry.
+            </p>
             <button
               disabled={pending}
               onClick={() =>

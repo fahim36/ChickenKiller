@@ -1,10 +1,11 @@
 """Consent-gated operations with durable reservations and owner-only result storage."""
 
 import hashlib
+import time
 import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 from sqlalchemy import func, select, text, update
@@ -89,6 +90,7 @@ def operation_out(row: InterviewOperation) -> dict[str, Any]:
     return {
         "id": str(row.id),
         "prompt_id": row.prompt_id,
+        "kind": row.kind,
         "state": row.state,
         "feedback": row.result,
     }
@@ -143,6 +145,7 @@ def _request_feedback(
     confirmed: bool,
     now: datetime,
 ) -> dict[str, Any]:
+    started_at = time.monotonic()
     # Serialize reservations on the owner, including across separate sessions/tabs.
     session.execute(select(Learner.id).where(Learner.id == learner.id).with_for_update())
     interview = interviews.owned(session, learner.id, interview_id, now, lock=True)
@@ -169,6 +172,10 @@ def _request_feedback(
     if not confirmed:
         raise Refused(422, "Confirm the response text before requesting feedback.")
     text = interview.responses.get(prompt_id)
+    try:
+        interviews.require_current(session, interview, now)
+    except ValueError as error:
+        raise Refused(409, str(error)) from None
     try:
         prompt, _ = interview_turns.resolve(interview, prompt_id)
     except ValueError:
@@ -236,9 +243,23 @@ def _request_feedback(
     if saved is None:
         raise Refused(404, "Interview deleted while processing.")
     try:
-        allowed_key(session, box, learner.id)
+        if allowed_key(session, box, learner.id) != key:
+            raise Refused(409, "Processing settings changed.")
     except Refused:
         state, result = "processing_disabled", None
+    current = interviews.owned(
+        session,
+        learner.id,
+        interview_id,
+        now + timedelta(seconds=time.monotonic() - started_at),
+    )
+    if current is None:
+        state, result = "session_unavailable", None
+    else:
+        try:
+            interviews.require_current(session, current, now)
+        except ValueError:
+            state, result = "practice_unavailable", None
     saved.state, saved.result = state, result
     session.commit()
     return operation_out(saved)

@@ -90,6 +90,14 @@ export async function deleteInterview(id: string) {
   await apiDelete(`/me/interviews/${encodeURIComponent(id)}`);
 }
 
+export async function loadInterviewSession(id: string) {
+  const row = await api<InterviewSession>(
+    `/me/interviews/${encodeURIComponent(id)}`,
+  );
+  if (!row) throw Error("Session unavailable or expired");
+  return row;
+}
+
 export async function openInterviewTurn(
   id: string,
   parentId: string,

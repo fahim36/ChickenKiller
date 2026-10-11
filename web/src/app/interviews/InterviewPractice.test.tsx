@@ -13,6 +13,7 @@ import {
   startInterview,
   deleteInterview,
   openInterviewTurn,
+  loadInterviewSession,
 } from "./actions";
 
 vi.mock("./actions", () => ({
@@ -20,6 +21,7 @@ vi.mock("./actions", () => ({
   saveInterviewResponse: vi.fn(),
   deleteInterview: vi.fn(),
   openInterviewTurn: vi.fn(),
+  loadInterviewSession: vi.fn(),
 }));
 afterEach(() => {
   cleanup();
@@ -172,4 +174,27 @@ it("keeps a main draft when an earlier optional turn is opened and skipped", asy
       "My unfinished main answer",
     ),
   );
+});
+
+it("reloads history and preserves reviewed self-review when content changed", async () => {
+  vi.mocked(loadInterviewSession).mockResolvedValue({
+    ...row,
+    practice_state: "content_changed",
+    ai_enabled: false,
+  });
+  render(
+    <InterviewPractice
+      stack="python"
+      topics={{ topics: [], lesson_id: null, message: "Study first" }}
+      history={[row]}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: /Open session/ }));
+  expect(await screen.findByRole("status")).toHaveProperty(
+    "textContent",
+    expect.stringContaining("content changed"),
+  );
+  expect(loadInterviewSession).toHaveBeenCalledWith("private-id");
+  expect(screen.getByText("Coordinate shared updates.")).toBeTruthy();
+  expect(screen.queryByRole("textbox")).toBeNull();
 });

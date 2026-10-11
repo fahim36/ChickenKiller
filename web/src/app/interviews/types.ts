@@ -19,6 +19,8 @@ export interface InterviewSession {
   operations?: InterviewOperation[];
   recordings?: InterviewRecording[];
   turns?: InterviewPrompt[];
+  practice_state?: string;
+  ai_enabled?: boolean;
 }
 export interface InterviewRecording {
   id: string;
@@ -31,6 +33,7 @@ export interface InterviewOperation {
   id: string;
   prompt_id: string;
   state: string;
+  kind?: "feedback" | "transcription";
   feedback: {
     criteria: { dimension: string; finding: string; quote: string | null }[];
     uncertainty: string;

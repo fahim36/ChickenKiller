@@ -11,12 +11,14 @@ export function InterviewFeedback({
   text,
   existing,
   onResult,
+  enabled = true,
 }: {
   sessionId: string;
   promptId: string;
   text: string;
   existing?: InterviewOperation;
   onResult?: (operation: InterviewOperation) => void;
+  enabled?: boolean;
 }) {
   const [confirmed, setConfirmed] = useState(false);
   const [operation, setOperation] = useState(existing);
@@ -68,7 +70,7 @@ export function InterviewFeedback({
             I confirm the response shown above is the text I want assessed.
           </label>
           <button
-            disabled={pending || !confirmed || !text.trim()}
+            disabled={pending || !enabled || !confirmed || !text.trim()}
             onClick={() =>
               transition(async () => {
                 const id = operationId ?? crypto.randomUUID();
@@ -104,6 +106,13 @@ export function InterviewFeedback({
           </button>
           {operation && (
             <p>Saved status: {operation.state.replaceAll("_", " ")}</p>
+          )}
+          {!enabled && (
+            <p>
+              AI processing is unavailable for this session. Check the saved
+              budget, current key and consent; reviewed self-review remains
+              available.
+            </p>
           )}
         </>
       )}
