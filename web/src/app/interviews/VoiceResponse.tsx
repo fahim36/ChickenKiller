@@ -186,6 +186,13 @@ export function VoiceResponse({
         recording. Audio expires within 24 hours and is deleted after transcript
         confirmation.
       </p>
+      <p>
+        Transcription uses your enabled Gemini key and one request from the
+        shared session budget. Server Whisper is disabled until recording
+        quality and server capacity are verified. Playback and typing remain
+        available. Deleting audio here does not control Google’s processing of
+        submitted audio.
+      </p>
       <p role="status">
         {recording
           ? `Microphone recording: ${elapsed} seconds`

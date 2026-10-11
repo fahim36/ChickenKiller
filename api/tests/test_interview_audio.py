@@ -13,7 +13,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app import interview_audio, interview_feedback, interviews
+from app import interview_audio, interview_feedback, interview_provider, interviews
 from app.models import InterviewOperation, InterviewRecording
 from tests.conftest import ContentFactory, FakeClock, complete_lessons
 from tests.test_interview_feedback import FEEDBACK, enable
@@ -165,10 +165,75 @@ def test_discard_during_transcription_does_not_resurrect_audio(
         return json.dumps({"transcript": "Use a token."})
 
     with patch("app.interview_provider.generate", side_effect=discarded):
-        assert api.post(
-            audio_path + "/transcribe", json={"operation_id": str(operation_id)}
-        ).status_code == 404
+        assert (
+            api.post(
+                audio_path + "/transcribe", json={"operation_id": str(operation_id)}
+            ).status_code
+            == 404
+        )
     assert api.get(audio_path).status_code == 404
     operation = session.get(InterviewOperation, operation_id)
     assert operation is not None and operation.state == "audio_unavailable"
     assert session.scalar(select(func.count()).select_from(InterviewRecording)) == 0
+
+
+def test_unverified_whisper_path_is_truthful_and_spends_no_attempts(
+    api: TestClient, session: Session
+) -> None:
+    with patch("app.interview_provider.generate") as provider:
+        result = api.get("/me/interview-transcription")
+    assert result.status_code == 200
+    assert result.json()["selected_path"] == "gemini_audio"
+    assert result.json()["whisper_gate"] == "disabled_unverified"
+    assert api.get("/me/interview-transcription", headers={"Authorization": ""}).status_code == 401
+    provider.assert_not_called()
+    assert session.scalar(select(func.count()).select_from(InterviewOperation)) == 0
+
+
+def test_audio_quota_preserves_playback_and_never_automatically_falls_back(
+    api: TestClient, session: Session, make_content: ContentFactory
+) -> None:
+    path = setup(api, session, make_content)
+    clip = upload(api, path)
+    audio_path = path + "/audio/" + clip["id"]
+    enable(api)
+    with patch(
+        "app.interview_provider.generate",
+        side_effect=interview_provider.ProviderUnavailable("quota_exhausted"),
+    ) as provider:
+        for _ in range(18):
+            assert (
+                api.post(
+                    audio_path + "/transcribe", json={"operation_id": str(uuid.uuid4())}
+                ).json()["state"]
+                == "quota_exhausted"
+            )
+        assert (
+            api.post(
+                audio_path + "/transcribe", json={"operation_id": str(uuid.uuid4())}
+            ).status_code
+            == 409
+        )
+        assert provider.call_count == 18
+    assert api.get(audio_path).status_code == 200
+    assert api.get(path).json()["responses"] == {}
+    with patch("app.interview_provider.feedback") as feedback:
+        assert (
+            api.post(
+                path + "/responses",
+                json={"prompt_id": "race-condition", "text": "Typed manually."},
+            ).status_code
+            == 200
+        )
+        assert (
+            api.post(
+                path + "/feedback",
+                json={
+                    "prompt_id": "race-condition",
+                    "confirmed": True,
+                    "operation_id": str(uuid.uuid4()),
+                },
+            ).status_code
+            == 409
+        )
+        feedback.assert_not_called()

@@ -16,6 +16,16 @@ from app.models import InterviewContent, InterviewOperation, InterviewRecording,
 router = APIRouter()
 
 
+@router.get("/me/interview-transcription")
+def transcription_path(_: CurrentLearner) -> dict[str, str]:
+    """The unverified Whisper gate cannot be enabled by a request or environment flag."""
+    return {
+        "selected_path": "gemini_audio",
+        "whisper_gate": "disabled_unverified",
+        "reason": "Representative recording quality and deployment capacity are unverified.",
+    }
+
+
 class SettingsIn(BaseModel):
     enabled: bool
     processing_consent: bool
