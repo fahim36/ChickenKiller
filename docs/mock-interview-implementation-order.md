@@ -1,6 +1,6 @@
 # Implementation order: free-quota voice Mock Interviews
 
-Status: design and eight-ticket breakdown approved on 11 October 2026. All eight issues are published on GitHub with ready-for-agent labels and verified native blocking edges. Implementation has not started. This document does not authorize production load, merge or deployment.
+Status: design and eight-ticket breakdown approved on 11 October 2026. All eight issues were published with ready-for-agent labels and verified native blocking edges. Current completion and verification evidence is in [progress](mock-interview-progress.md). This document does not authorize production load, merge or deployment.
 
 ## Source and tracker
 
@@ -214,7 +214,7 @@ codex -C 'D:\Job Hunt' '$implement Implement only approved Mock Interview ticket
 
 ## Publication verification
 
-- Eight issues created and read back; each is open and labelled `ready-for-agent`.
+- At publication, eight issues were created and read back; each was open and labelled `ready-for-agent`.
 - All ten native blocking edges were added using blocker database IDs and read back. Their identifiers match the dependency map above.
 - Local ticket copies and commands include the real verified GitHub identifiers. No existing parent issue was modified or closed.
-- Completion status is not implied by publication or labels: all eight implementation tickets are unfinished.
+- Completion is recorded separately in [progress](mock-interview-progress.md), not implied by the original publication or labels.

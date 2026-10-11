@@ -1,19 +1,50 @@
 """Authenticated self-review endpoints; administrative roles confer no private access."""
 
 import uuid
+from collections.abc import Callable, Coroutine
 from datetime import datetime
 from typing import Any, Literal
 
-from fastapi import APIRouter, HTTPException, Response
+from fastapi import APIRouter, HTTPException, Request, Response
+from fastapi.exceptions import RequestValidationError
+from fastapi.routing import APIRoute
 from pydantic import BaseModel, Field
 from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 
 from app import interview_audio, interview_feedback, interview_turns, interviews
 from app.deps import ActiveStackInPath, AdminLearner, CurrentLearner, KeyBoxDep, Now, SessionDep
 from app.interview_coverage import coverage
 from app.models import InterviewContent, InterviewOperation, InterviewRecording, InterviewSession
 
-router = APIRouter()
+
+class PrivateInterviewRoute(APIRoute):
+    """Database errors can contain private bound parameters; never log their exception."""
+
+    def get_route_handler(self) -> Callable[[Request], Coroutine[Any, Any, Response]]:
+        handler = super().get_route_handler()
+
+        async def private_handler(request: Request) -> Response:
+            try:
+                return await handler(request)
+            except SQLAlchemyError:
+                raise HTTPException(
+                    503,
+                    {
+                        "code": "interview_storage_unavailable",
+                        "message": "Interview storage unavailable. Reload before a manual retry.",
+                    },
+                ) from None
+            except RequestValidationError:
+                # Default validation details can echo an oversized transcript or encoded audio.
+                raise HTTPException(
+                    422, "Invalid interview request. Check the turn and input limits."
+                ) from None
+
+        return private_handler
+
+
+router = APIRouter(route_class=PrivateInterviewRoute)
 
 
 @router.get("/me/interview-transcription")

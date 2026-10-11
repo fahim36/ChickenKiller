@@ -1,6 +1,6 @@
 # Voice mock interviews: agreed design
 
-Status: accepted by the product owner on 11 October 2026, including final shared-understanding confirmation. Eight implementation tickets and their blocking edges were approved and published as GitHub issues #21–#28. No implementation or production benchmark has begun.
+Status: accepted by the product owner on 11 October 2026, including final shared-understanding confirmation. Eight implementation tickets and their blocking edges were approved and published as GitHub issues #21–#28. Implementation and verification are tracked in [progress](mock-interview-progress.md). No production benchmark or deployment was performed; Whisper remains disabled under the documented gate decision.
 
 ## Purpose and first release
 
