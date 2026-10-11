@@ -4,7 +4,7 @@ Authorized: implement all eight tickets sequentially and resume automatically af
 
 Branch: `codex/mock-interviews`. Baseline: `e8d4b11fb05b3099f153a41616d89c9237f560c5`, including the pushed content-health release; it has not been merged to main.
 
-Automation: `resume-mock-interview-tickets`, active every 30 minutes. Check usage limits before implementation; preserve checkpoints if a window is exhausted. Do not overlap another active implementation run.
+Automation: `resume-mock-interview-tickets`; stop after the final verified branch push. Check usage limits before implementation; preserve checkpoints if a window is exhausted. Do not overlap another active implementation run.
 
 | Ticket | Issue | Status |
 | --- | --- | --- |
@@ -15,7 +15,7 @@ Automation: `resume-mock-interview-tickets`, active every 30 minutes. Check usag
 | 05 | #25 | Verified: bdfa748; Whisper disabled with documented unverified gate |
 | 06 | #26 | Verified: cb57583; bounded typed and voice guided turns |
 | 07 | #27 | Verified: c70033b and d824615 |
-| 08 | #28 | Pending |
+| 08 | #28 | Implementation and automated verification complete: 0e8d8dd; rollout qualifications below |
 
 Complete focused verification and review, then commit and push each ticket before advancing. Full release checks belong to ticket 08. Record evidence and unresolved limitations here. Stop the automation after all eight are verified and pushed.
 
@@ -61,4 +61,12 @@ History reloads current owner-only state before resume and includes inactive Sta
 
 Checks: 33 focused resume/self-review/feedback/audio/guided/migration tests; 14 frontend interactions including zero-Active-Stack open/delete; strict mypy (110 files), ruff, frontend typecheck/lint/build. Initial spec review caught hidden inactive Stack history; corrected and re-reviewed with no remaining blockers. Standards review found no blockers. A clock-test harness issue was corrected by mocking only the feedback module's clock, then all focused backend checks passed. No live provider calls.
 
-Next: ticket 08, the full release verification. Seven tickets are complete; final verification remains. Automatic runs must read actual working changes before continuing.
+## Ticket 08 evidence
+
+Completed release regression, privacy-safe storage/validation errors, deterministic feedback cases, isolated native-browser recording smoke, CI FFmpeg installation, and operation/rollout documentation. All eight implementation tickets are complete. Whisper remains disabled under the accepted gate decision.
+
+Checks: full API suite 766 passed in 904.79 seconds; seven release/privacy regressions passed after the final API boundary change; full frontend 255 tests across 63 files passed; strict mypy (111 files), ruff, schema/content checks, frontend typecheck/lint/production build passed. Desktop and mobile-viewport Edge smoke passed native recording/playback, transcript correction/confirmation, audio deletion, microphone shutdown, keyboard activation and accessible control names. Both standards and spec reviews found no remaining code blockers; incremental accessibility changes were reviewed again.
+
+Qualifications: mocked feedback verifies contracts, not real Gemini semantic quality. Physical Android/iOS/Safari, installed screen-reader experience, varied-accent accuracy and live AI quality remain unmeasured rollout checks. No live provider calls, paid spending, production load tests, deployment or main merge occurred. See docs/mock-interview-release-verification.md and docs/mock-interview-operations.md before rollout.
+
+Final action: commit and push ticket 08 to origin/codex/mock-interviews, close #28 and stop the recurring follow-up. Preserve unrelated working files.

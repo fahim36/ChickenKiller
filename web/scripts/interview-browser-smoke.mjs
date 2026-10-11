@@ -215,6 +215,15 @@ try {
       windowsVirtualKeyCode: 13,
     });
     await waitFor('document.body.textContent.includes("Microphone recording")');
+    const recordingTree = await send("Accessibility.getFullAXTree");
+    const recordingControls = ["Stop recording", "Cancel recording"].every(
+      (name) =>
+        recordingTree.nodes.some(
+          (node) => node.role?.value === "button" && node.name?.value === name,
+        ),
+    );
+    if (!recordingControls)
+      throw Error("Recording controls lack accessible names");
     await delay(800);
     await click("Stop recording");
     await waitFor('document.querySelector("audio")');
@@ -235,6 +244,14 @@ try {
       Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value").set.call(area, "Corrected concurrency token.");
       area.dispatchEvent(new Event("input", { bubbles: true }));
     })()`);
+    const transcriptTree = await send("Accessibility.getFullAXTree");
+    const transcriptAccessibleName = transcriptTree.nodes.some(
+      (node) =>
+        node.role?.value === "textbox" &&
+        node.name?.value === "Confirm or correct your transcript",
+    );
+    if (!transcriptAccessibleName)
+      throw Error("Transcript lacks an accessible name");
     await click("Confirm transcript and delete audio");
     await waitFor(
       'document.querySelector("#confirmed")?.textContent.includes("Corrected concurrency token.")',
@@ -248,7 +265,14 @@ try {
       result.events.length !== 3
     )
       throw Error("Recording lifecycle assertion failed");
-    reports.push({ mode, width, height, ...result });
+    reports.push({
+      mode,
+      width,
+      height,
+      recordingControls,
+      transcriptAccessibleName,
+      ...result,
+    });
     const screenshot = await send("Page.captureScreenshot", { format: "png" });
     await writeFile(
       resolve(artifacts, `${mode}.png`),
