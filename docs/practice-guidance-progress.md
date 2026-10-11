@@ -8,8 +8,8 @@ Order: **01 → 02 → 07 → 03 → 04 → 05 → 06 → 08**. Specification: [
 | --- | --- | --- |
 | 01 Retirement-safe Retakes | Complete | `6aeb067`, `f5221e2`; pushed to `origin/codex/practice-guidance` |
 | 02 Weak Concept evidence | Complete | `1b6ccb9`; pushed to `origin/codex/practice-guidance` |
-| 07 Question variants | In progress | Research and coverage selection next |
-| 03 Home Next Action | Queued | — |
+| 07 Question variants | Complete | `ca3a0f1` and validation fix; pushed to `origin/codex/practice-guidance` |
+| 03 Home Next Action | In progress | API/UI acceptance checks next |
 | 04 Private Question Reports | Queued | — |
 | 05 Admin report triage | Queued | — |
 | 06 Resolution after import | Queued | — |
@@ -27,5 +27,8 @@ Heartbeat automation `resume-practice-guidance-tickets` checks every 30 minutes.
 - Ticket 01 stores waiver/replacement reasons separately from Answer evidence. Retrieval and submission reconcile retirement; stale displayed Questions return ungraded replacement results. PostgreSQL attempt locks serialize completion and duplicate submissions.
 - Ticket 01 is complete. Final verification: **649 API tests passed**; API lint, formatting and strict mypy passed; **203 frontend tests passed**, with frontend lint, typechecking and production build passed. Standards/spec review and follow-up review have no remaining blockers.
 - Ticket 02 is complete at `1b6ccb9`: **662 API tests passed**, API lint/formatting/strict mypy passed; **207 frontend tests passed**, frontend lint/typechecking/production build passed. Standards and Spec reviews found no remaining issues. The private endpoint `/stacks/{stack_id}/concept-evidence` and Stack views distinguish weak/recovered/expired/insufficient evidence with counts, dates and current teaching links.
-- Next: ticket 07. Research official sources, select two thinnest Concepts per Stack, append permanent Question variants and create bank-only Syllabus versions. Verify ordinary Quiz/Retake/Review availability, review, commit and push before ticket 03.
+- Ticket 07 implementation `ca3a0f1` adds sixteen sourced MC/MS Questions: two thinnest Concepts per Stack, all eight now 2 → 4 active Questions. Four `v2026-10-10` versions preserve existing Lessons; the web Stack adds a sequence-function Material. Three upcoming Challenges schedule untagged variants for 20–21 October. Existing Questions and released Challenges remain unchanged. Coverage/source notes are in `docs/practice-guidance-variant-coverage.md` and `docs/practice-guidance-variant-sources.md`.
+- Ticket 07 content-check against `3601b16` passes all four Stacks with only deliberate sibling warnings; no answer-length warning. All content diffs match the intended additions. API lint, formatting and strict mypy pass. Standards/Spec follow-up reviews have no remaining findings; Python print choices, distinct setval reset behavior and source notes were corrected in the local candidate. Python traces and a PostgreSQL temporary-sequence reset trace were verified.
+- Ticket 07 is verified: all four import-to-Review tests passed for all sixteen variants; all eight committed-content checks passed (eleven checks passed together, the longest import passed separately after refreshing its expired fixture token). API lint/formatting/strict mypy and both final reviews pass. Content-check against ticket baseline passes all Stacks. The existing multi-version import test now refreshes the normal signed-in Learner token after lengthy imports, preserving authentication checks.
+- Next: ticket 03, Home Next Action and up to three Weak Concepts. Read the full due Review queue before filtering/limiting targeted Concept practice; existing submission eligibility remains authoritative. Reconcile retirement-safe Retakes first. Implement, verify, review, commit and push before ticket 04. Untracked variant working helpers are not deliverables; do not rerun write-variants.py (it appends another batch) or stage unrelated scratch work.
 - No production database migration or deployment has been run. API tests use dedicated `learning_test`, including temporary isolated schemas for genuine concurrent transactions.

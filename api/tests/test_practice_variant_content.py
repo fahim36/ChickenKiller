@@ -61,7 +61,7 @@ def test_variants_are_answerable_in_eligible_review_after_import(
 
     clock.set(datetime(2026, 10, 24, 12, tzinfo=UTC))
     # Review accepts any currently due Question, even beyond its first ten-item page.
-    # Completing a later Lesson also completes preceding Lessons, so that page can
+    # Completing a later Lesson also makes earlier Lessons eligible, so that page can
     # contain older material; do not bypass eligibility or fabricate Answer evidence.
     for question in api.get("/review").json()["questions"]:
         assert "answer" not in question and "answers" not in question

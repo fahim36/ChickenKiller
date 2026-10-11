@@ -16,7 +16,7 @@ from app.content.importer import import_folder
 from app.content.loader import read_bank, read_folder
 from app.content.versions import stack_versions
 from app.models import Lesson, Stack
-from tests.conftest import onboard
+from tests.conftest import TokenFactory, onboard
 
 STACKS = sorted(p for p in (REPO_ROOT / "content").iterdir() if p.name != "schema")
 
@@ -44,7 +44,7 @@ def test_every_lesson_of_the_newest_version_has_enough_questions(stack_dir: Path
 
 @pytest.mark.parametrize("stack_dir", STACKS, ids=lambda p: p.name)
 def test_the_stack_imports_with_questions_for_every_lesson(
-    session: Session, api: TestClient, stack_dir: Path
+    session: Session, api: TestClient, stack_dir: Path, make_token: TokenFactory
 ) -> None:
     for version in stack_versions(stack_dir):
         import_folder(session, version)
@@ -57,5 +57,7 @@ def test_the_stack_imports_with_questions_for_every_lesson(
     assert lessons
     assert [x.id for x in lessons if len(x.question_ids) < LESSON_MIN] == []
 
+    # Importing every version can outlast the fixture's one-minute session token.
+    api.headers["Authorization"] = f"Bearer {make_token()}"
     onboard(api, stack.id)
     assert stack.id in [s["id"] for s in api.get("/stacks").json()]
