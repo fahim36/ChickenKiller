@@ -14,7 +14,7 @@ Automation: `resume-mock-interview-tickets`, active every 30 minutes. Check usag
 | 04 | #24 | Verified: ee9e810 and 687d860 |
 | 05 | #25 | Verified: bdfa748; Whisper disabled with documented unverified gate |
 | 06 | #26 | Verified: cb57583; bounded typed and voice guided turns |
-| 07 | #27 | Pending |
+| 07 | #27 | Verified: c70033b and d824615 |
 | 08 | #28 | Pending |
 
 Complete focused verification and review, then commit and push each ticket before advancing. Full release checks belong to ticket 08. Record evidence and unresolved limitations here. Stop the automation after all eight are verified and pushed.
@@ -55,4 +55,10 @@ Server-locked optional turn creation supports one reviewed follow-up and one mai
 
 Checks: 30 guided/self-review/feedback/audio/migration tests, 12 frontend interactions including draft preservation, strict mypy (109 files), ruff, frontend typecheck/lint/production build. Both parallel reviews found no blockers; a draft-preservation usability suggestion was addressed. No live provider call or Quiz evidence mutation.
 
-Next: ticket 07. Six tickets are complete; remaining two require implementation. Automatic runs must read actual working changes before continuing.
+## Ticket 07 evidence
+
+History reloads current owner-only state before resume and includes inactive Stack sessions even with no Active Stacks. Original reviewed snapshots/rubrics remain; new work rechecks reviewed version, studied Concepts and active membership. Removed/replaced keys and withdrawn consent block sends and late-result retention. Late feedback after session expiry is discarded. Saved provider failure states and used attempts remain visible; retry is manual, confirmed text is reused, and audio is not promised beyond its expiry.
+
+Checks: 33 focused resume/self-review/feedback/audio/guided/migration tests; 14 frontend interactions including zero-Active-Stack open/delete; strict mypy (110 files), ruff, frontend typecheck/lint/build. Initial spec review caught hidden inactive Stack history; corrected and re-reviewed with no remaining blockers. Standards review found no blockers. A clock-test harness issue was corrected by mocking only the feedback module's clock, then all focused backend checks passed. No live provider calls.
+
+Next: ticket 08, the full release verification. Seven tickets are complete; final verification remains. Automatic runs must read actual working changes before continuing.
