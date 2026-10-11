@@ -58,7 +58,12 @@ def test_launch_batch_eligibility_three_topics_manual_choice_and_private_coverag
     for item in coverage.json():
         assert item["reviewed_prompts"] == item["covered_concepts"] == 4
         assert not any(p["unresolved"] for p in item["prompts"])
-    assert "responses" not in coverage.text and "learner_id" not in coverage.text
+    assert all("responses" not in item and "learner_id" not in item for item in coverage.json())
+    assert all(
+        "responses" not in p and "learner_id" not in p
+        for item in coverage.json()
+        for p in item["prompts"]
+    )
     # Removal of a current teaching association is reported, without rewriting private history.
     row = session.scalar(select(InterviewContent))
     assert row is not None

@@ -9,8 +9,8 @@ Automation: `resume-mock-interview-tickets`, active every 30 minutes. Check usag
 | Ticket | Issue | Status |
 | --- | --- | --- |
 | 01 | #21 | Verified; implementation commits 24453a1 and 3188ce5 |
-| 02 | #22 | Next: reviewed content batch and Admin coverage |
-| 03 | #23 | Pending |
+| 02 | #22 | Verified: 0df4352, 5dac168 and final test correction |
+| 03 | #23 | In progress: own-key consent and bounded feedback |
 | 04 | #24 | Pending |
 | 05 | #25 | Pending |
 | 06 | #26 | Pending |
@@ -25,4 +25,10 @@ Four seed prompts, separate reviewed schema/check/import, studied-topic selectio
 
 Checks: eight focused content/API tests; 17 migration/import regression tests; two frontend interaction tests; strict backend mypy (100 files); backend ruff; frontend lint/typecheck/production build; all four Stacks content check against baseline. Parallel standards/spec review completed. Spec finding about mismatched teaching links corrected and re-reviewed; no remaining blockers. Standards suggested typed prompt serialization as a nonblocking maintenance improvement.
 
-Next: ticket 02. Only ticket 01 is complete; remaining seven require implementation. Automatic runs must read actual working changes before continuing.
+## Ticket 02 evidence
+
+Sixteen reviewed scenarios, four distinct Concepts per Stack, and Admin-only coverage are implemented. All 16 imported topics qualify after their teaching Lessons are completed; three-distinct-topic automatic and manual sessions verified on each Stack. Repeated imports preserve 16 rows. Admin coverage reports unresolved teaching links without private evidence. Existing Questions, Syllabuses and Challenges are unchanged.
+
+Checks: full-batch integration test passed (79 seconds), two coverage UI tests, strict mypy (102 files), ruff, frontend lint/typecheck/build and schema/content checks. Parallel standards/spec reviews found no blockers. Source claims made concrete following an editorial suggestion. Test credentials refreshed after lengthy imports; privacy assertions inspect JSON fields rather than public identifier substrings.
+
+Next: ticket 03. Two tickets are complete; remaining six require implementation. Automatic runs must read actual working changes before continuing.
