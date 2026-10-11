@@ -73,6 +73,44 @@ class InterviewSession(Base):
     responses: Mapped[dict[str, str | None]] = mapped_column(JSONB, default=dict)
 
 
+class InterviewSettings(Base):
+    __tablename__ = "interview_settings"
+
+    learner_id: Mapped[int] = mapped_column(
+        ForeignKey("learners.id", ondelete="CASCADE"), primary_key=True
+    )
+    enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    processing_consent: Mapped[bool] = mapped_column(Boolean, default=False)
+    free_project_confirmed: Mapped[bool] = mapped_column(Boolean, default=False)
+    key_fingerprint: Mapped[str | None] = mapped_column(String(64))
+
+
+class InterviewOperation(Base):
+    """A reserved provider attempt; failures count and duplicate IDs never send twice."""
+
+    __tablename__ = "interview_operations"
+    __table_args__ = (
+        Index(
+            "uq_interview_operation_inflight",
+            "learner_id",
+            unique=True,
+            postgresql_where=text("state = 'running'"),
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True)
+    interview_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("interview_sessions.id", ondelete="CASCADE"), index=True
+    )
+    learner_id: Mapped[int] = mapped_column(ForeignKey("learners.id", ondelete="CASCADE"))
+    prompt_id: Mapped[str] = mapped_column(String(160))
+    kind: Mapped[str] = mapped_column(String(20))
+    state: Mapped[str] = mapped_column(String(30))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    response_text: Mapped[str | None] = mapped_column(Text)
+    result: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+
+
 def _syllabus_pk() -> Mapped[int]:
     return mapped_column(ForeignKey(_SYLLABUS_FK, ondelete="CASCADE"), index=True)
 

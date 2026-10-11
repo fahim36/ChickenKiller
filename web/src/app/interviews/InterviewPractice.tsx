@@ -8,6 +8,7 @@ import {
   deleteInterview,
 } from "./actions";
 import type { InterviewSession, Topics } from "./types";
+import { InterviewFeedback } from "./InterviewFeedback";
 
 export function InterviewPractice({
   stack,
@@ -160,6 +161,17 @@ export function InterviewPractice({
               <article key={p.id} className="border rounded p-4">
                 <h2>{p.scenario}</h2>
                 <p>{current.responses[p.id] ?? "Skipped — no assessment."}</p>
+                {current.responses[p.id] && (
+                  <InterviewFeedback
+                    key={`${current.id}-${p.id}`}
+                    sessionId={current.id}
+                    promptId={p.id}
+                    text={current.responses[p.id] ?? ""}
+                    existing={current.operations?.find(
+                      (op) => op.prompt_id === p.id && op.state === "complete",
+                    )}
+                  />
+                )}
                 <h3>Reviewed self-review rubric</h3>
                 <ul>
                   {p.rubric.map((r) => (

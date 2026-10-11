@@ -12,6 +12,18 @@ export interface InterviewSession {
   expires_at: string;
   prompts: InterviewPrompt[];
   responses: Record<string, string | null>;
+  operations?: InterviewOperation[];
+}
+export interface InterviewOperation {
+  id: string;
+  prompt_id: string;
+  state: string;
+  feedback: {
+    criteria: { dimension: string; finding: string; quote: string | null }[];
+    uncertainty: string;
+    next_steps: string[];
+    follow_up: string | null;
+  } | null;
 }
 export interface Topics {
   topics: { concept: string; id: string; scenario: string }[];

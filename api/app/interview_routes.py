@@ -8,12 +8,64 @@ from fastapi import APIRouter, HTTPException, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
-from app import interviews
-from app.deps import ActiveStackInPath, AdminLearner, CurrentLearner, Now, SessionDep
+from app import interview_feedback, interviews
+from app.deps import ActiveStackInPath, AdminLearner, CurrentLearner, KeyBoxDep, Now, SessionDep
 from app.interview_coverage import coverage
-from app.models import InterviewContent, InterviewSession
+from app.models import InterviewContent, InterviewOperation, InterviewSession
 
 router = APIRouter()
+
+
+class SettingsIn(BaseModel):
+    enabled: bool
+    processing_consent: bool
+    free_project_confirmed: bool
+
+
+class FeedbackIn(BaseModel):
+    operation_id: uuid.UUID
+    prompt_id: str
+    confirmed: bool
+
+
+@router.get("/me/interview-settings")
+def get_settings(learner: CurrentLearner, session: SessionDep) -> dict[str, bool]:
+    return interview_feedback.settings(session, learner.id)
+
+
+@router.put("/me/interview-settings")
+def set_settings(body: SettingsIn, learner: CurrentLearner, session: SessionDep) -> dict[str, bool]:
+    try:
+        return interview_feedback.save_settings(
+            session, learner.id, body.enabled, body.processing_consent, body.free_project_confirmed
+        )
+    except interview_feedback.Refused as error:
+        raise HTTPException(error.status, error.message) from None
+
+
+@router.post("/me/interviews/{interview_id}/feedback")
+def feedback(
+    interview_id: uuid.UUID,
+    body: FeedbackIn,
+    learner: CurrentLearner,
+    session: SessionDep,
+    box: KeyBoxDep,
+    now: Now,
+) -> dict[str, Any]:
+    try:
+        return interview_feedback.request_feedback(
+            session,
+            box,
+            learner,
+            interview_id,
+            body.operation_id,
+            body.prompt_id,
+            body.confirmed,
+            now,
+        )
+    except interview_feedback.Refused as error:
+        session.rollback()
+        raise HTTPException(error.status, error.message) from None
 
 
 @router.get("/admin/interview-coverage")
@@ -36,15 +88,24 @@ class SessionOut(BaseModel):
     expires_at: datetime
     prompts: list[dict[str, Any]]
     responses: dict[str, str | None]
+    operations: list[dict[str, Any]] = Field(default_factory=list)
 
 
-def output(row: InterviewSession) -> SessionOut:
+def output(row: InterviewSession, session: SessionDep) -> SessionOut:
     return SessionOut(
         id=row.id,
         stack_id=row.stack_id,
         expires_at=row.expires_at,
         prompts=row.prompts,
         responses=row.responses,
+        operations=[
+            interview_feedback.operation_out(op)
+            for op in session.scalars(
+                select(InterviewOperation)
+                .where(InterviewOperation.interview_id == row.id)
+                .order_by(InterviewOperation.created_at)
+            )
+        ],
     )
 
 
@@ -72,13 +133,13 @@ def start(body: StartIn, active: ActiveStackInPath, session: SessionDep, now: No
     except ValueError as error:
         raise HTTPException(422, str(error)) from error
     session.commit()
-    return output(row)
+    return output(row, session)
 
 
 @router.get("/me/interviews")
 def history(learner: CurrentLearner, session: SessionDep, now: Now) -> list[SessionOut]:
     return [
-        output(row)
+        output(row, session)
         for row in session.scalars(
             select(InterviewSession)
             .where(
@@ -98,7 +159,7 @@ def detail(
     row = interviews.owned(session, learner.id, interview_id, now)
     if row is None:
         raise HTTPException(404, "Interview unavailable.")
-    return output(row)
+    return output(row, session)
 
 
 @router.post("/me/interviews/{interview_id}/responses")
@@ -121,7 +182,7 @@ def respond(
         body.prompt_id: body.text.strip() if body.text and body.text.strip() else None,
     }
     session.commit()
-    return output(row)
+    return output(row, session)
 
 
 @router.delete("/me/interviews/{interview_id}", status_code=204)

@@ -81,6 +81,7 @@ export default async function SettingsPage() {
       </Section>
 
       <Section title="Grading" id="grading-heading">
+        <p className="mb-4">Your saved Gemini key can also serve interviews when you explicitly enable it and consent in <Link className="underline" href="/settings/interviews">Interview AI settings</Link>.</p>
         <div className="mb-4 space-y-2 text-sm leading-relaxed text-muted-foreground">
           {ownKeyOnly ? (
             <p>

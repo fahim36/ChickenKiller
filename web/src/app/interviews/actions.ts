@@ -1,7 +1,19 @@
 "use server";
 
 import { apiPost, apiDelete } from "@/lib/api";
-import type { InterviewSession } from "./types";
+import type { InterviewSession, InterviewOperation } from "./types";
+
+export async function requestInterviewFeedback(
+  id: string,
+  operationId: string,
+  promptId: string,
+  confirmed: boolean,
+) {
+  return apiPost<InterviewOperation>(
+    `/me/interviews/${encodeURIComponent(id)}/feedback`,
+    { operation_id: operationId, prompt_id: promptId, confirmed },
+  );
+}
 
 export async function startInterview(stack: string, concepts: string[]) {
   return apiPost<InterviewSession>(
