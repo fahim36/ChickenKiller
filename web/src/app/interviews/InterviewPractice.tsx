@@ -25,16 +25,20 @@ export function InterviewPractice({
   const [current, setCurrent] = useState<InterviewSession | null>(null);
   const [sessions, setSessions] = useState(history);
   const [selected, setSelected] = useState<string[]>([]);
-  const [text, setText] = useState("");
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
   const [pending, transition] = useTransition();
   const prompt =
     current?.turns?.find((p) => !(p.id in current.responses)) ??
     current?.prompts.find((p) => !(p.id in current.responses));
+  const draftKey = `${current?.id ?? ""}:${prompt?.id ?? ""}`;
+  const text = drafts[draftKey] ?? "";
+  function setText(value: string) {
+    setDrafts((rows) => ({ ...rows, [draftKey]: value }));
+  }
   function update(row: InterviewSession) {
     setCurrent(row);
     setSessions((rows) => rows.map((s) => (s.id === row.id ? row : s)));
-    setText("");
   }
   function run(action: () => Promise<void>) {
     setError("");

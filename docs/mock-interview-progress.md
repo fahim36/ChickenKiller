@@ -13,7 +13,7 @@ Automation: `resume-mock-interview-tickets`, active every 30 minutes. Check usag
 | 03 | #23 | Verified: 6332080 and c169299 |
 | 04 | #24 | Verified: ee9e810 and 687d860 |
 | 05 | #25 | Verified: bdfa748; Whisper disabled with documented unverified gate |
-| 06 | #26 | Pending |
+| 06 | #26 | Verified: cb57583; bounded typed and voice guided turns |
 | 07 | #27 | Pending |
 | 08 | #28 | Pending |
 
@@ -49,4 +49,10 @@ Whisper remains disabled: no permissioned representative corpus or deployment sp
 
 Checks: 21 audio/feedback tests including zero-spend path metadata, quota18, playback preservation, no hidden retry/fallback and shared feedback budget; eight frontend interaction tests; mypy (107 files), ruff and frontend typecheck/lint. Both parallel reviews found no blockers. Ticket 05 explicitly accepts this disabled outcome; it does not promise measured Whisper performance.
 
-Next: ticket 06. Five tickets are complete; remaining three require implementation. Automatic runs must read actual working changes before continuing.
+## Ticket 06 evidence
+
+Server-locked optional turn creation supports one reviewed follow-up and one main-scenario retry, requires main evidence first, enforces scenario/open-turn order and rejects duplicate/recursive turns. AI feedback selects only from reviewed options; self-review explicitly chooses reviewed content without a provider call. Follow-up/retry feedback cannot generate another follow-up. All responses stay immutable, separate from Quiz evidence, and bounded to nine; existing 18-attempt policy is reused. Voice upload/transcription derive 90/45/60 seconds from server-resolved turn kind. Teaching Lesson links and quoted evidence remain available; retries show earlier responses without an improvement/readiness claim. In-memory drafts are keyed per session/turn to avoid losing an unfinished main response when opening earlier optional practice.
+
+Checks: 30 guided/self-review/feedback/audio/migration tests, 12 frontend interactions including draft preservation, strict mypy (109 files), ruff, frontend typecheck/lint/production build. Both parallel reviews found no blockers; a draft-preservation usability suggestion was addressed. No live provider call or Quiz evidence mutation.
+
+Next: ticket 07. Six tickets are complete; remaining two require implementation. Automatic runs must read actual working changes before continuing.

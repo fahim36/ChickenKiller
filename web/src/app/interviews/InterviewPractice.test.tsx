@@ -12,12 +12,14 @@ import {
   saveInterviewResponse,
   startInterview,
   deleteInterview,
+  openInterviewTurn,
 } from "./actions";
 
 vi.mock("./actions", () => ({
   startInterview: vi.fn(),
   saveInterviewResponse: vi.fn(),
   deleteInterview: vi.fn(),
+  openInterviewTurn: vi.fn(),
 }));
 afterEach(() => {
   cleanup();
@@ -102,4 +104,72 @@ it("offers a Lesson when no reviewed topics are studied", () => {
     screen.getByRole("link", { name: "Study the Lesson" }).getAttribute("href"),
   ).toBe("/stacks/python/lessons/w01-l01");
   expect(screen.queryByRole("button", { name: "Start practice" })).toBeNull();
+});
+
+it("keeps a main draft when an earlier optional turn is opened and skipped", async () => {
+  const first = {
+    ...row.prompts[0],
+    follow_ups: [
+      {
+        id: "replicas",
+        scenario: "Explain replicas",
+        rubric: ["Shared state"],
+      },
+    ],
+  };
+  const second = {
+    ...row.prompts[0],
+    id: "second",
+    scenario: "Next main scenario",
+  };
+  const started = {
+    ...row,
+    prompts: [first, second],
+    responses: { scenario: "Token." },
+  };
+  const turn = {
+    ...first,
+    id: "follow",
+    parent_id: first.id,
+    kind: "follow_up" as const,
+    seconds: 45 as const,
+  };
+  vi.mocked(startInterview).mockResolvedValue(started);
+  vi.mocked(openInterviewTurn).mockResolvedValue({ ...started, turns: [turn] });
+  vi.mocked(saveInterviewResponse).mockResolvedValue({
+    ...started,
+    turns: [turn],
+    responses: { ...started.responses, follow: null },
+  });
+  render(
+    <InterviewPractice
+      stack="python"
+      topics={{
+        topics: [
+          { id: "scenario", concept: "aliases", scenario: "Explain the race." },
+        ],
+        lesson_id: "w01-l01",
+        message: null,
+      }}
+      history={[]}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Start practice" }));
+  await screen.findByRole("textbox");
+  fireEvent.change(screen.getByRole("textbox"), {
+    target: { value: "My unfinished main answer" },
+  });
+  fireEvent.click(
+    screen.getByRole("button", {
+      name: /Explain replicas.*Practice follow-up/,
+    }),
+  );
+  await screen.findByRole("button", { name: "Skip optional turn" });
+  fireEvent.click(screen.getByRole("button", { name: "Skip optional turn" }));
+  await waitFor(() =>
+    expect(screen.getByRole("textbox")).toHaveProperty(
+      "value",
+      "My unfinished main answer",
+    ),
+  );
 });
