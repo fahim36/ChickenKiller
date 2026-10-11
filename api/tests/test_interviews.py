@@ -152,4 +152,3 @@ def test_played_topics_weak_order_distinct_selection_and_manual_validation(
             interviews.start(session, record, clock.now, ["unknown"])
         with pytest.raises(ValueError, match="distinct studied"):
             interviews.start(session, record, clock.now, ["aaa", "aaa"])
-
