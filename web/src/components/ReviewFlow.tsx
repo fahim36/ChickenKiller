@@ -4,6 +4,7 @@ import { ArrowRight, PartyPopper, SkipForward } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import { AnsweredQuestionDetail } from "@/components/MissedQuestions";
 import { Notice } from "@/components/Notice";
+import { QuestionReportLink } from "@/components/QuestionReportLink";
 import {
   Mark,
   QuestionAnswer,
@@ -115,6 +116,7 @@ export function ReviewFlow({
               <AnsweredQuestionDetail question={outcome.question} />
             </>
           )}
+          <QuestionReportLink stackId={question.stack_id} questionId={question.id} />
           <Button type="button" size="lg" className="px-4" onClick={next}>
             {isLast ? "Finish" : "Next Question"}
             <ArrowRight aria-hidden />

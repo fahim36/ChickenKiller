@@ -6,6 +6,7 @@ import { type FormEvent, useState } from "react";
 import { Inline } from "@/components/Inline";
 import { AnsweredQuestionDetail } from "@/components/MissedQuestions";
 import { Notice } from "@/components/Notice";
+import { QuestionReportLink } from "@/components/QuestionReportLink";
 import {
   Mark as MarkLine,
   QuestionAnswer,
@@ -75,6 +76,7 @@ export function DailyChallengeFlow({
   if (replaying) {
     return (
       <Replay
+        stackId={stackId}
         questions={questions.filter((q) => !q.retired)}
         maxAnswerChars={challenge.max_answer_chars}
         answerAction={answerAction}
@@ -87,6 +89,7 @@ export function DailyChallengeFlow({
     return (
       <section className="space-y-5">
         <Result
+          stackId={stackId}
           result={shown}
           maxAnswerChars={challenge.max_answer_chars}
           answerAction={answerAction}
@@ -182,6 +185,7 @@ function Summary({
                 <OutcomeHeading outcome={q.outcome} number={i + 1} />
                 {q.retired && <Retired question={q} stackId={stackId} />}
                 {q.answered && <AnsweredQuestionDetail question={q.answered} />}
+                  {!q.retired && q.answered && <QuestionReportLink stackId={stackId} questionId={q.id} />}
                 {q.outcome === "ungraded" && q.answered && (
                   <Resubmit
                     question={q}
@@ -252,11 +256,13 @@ function Retired({ question, stackId }: { question: ChallengeQuestion; stackId: 
 
 /** A replay: every Question that can be answered, marked and explained, counting for nothing. */
 function Replay({
+  stackId,
   questions,
   maxAnswerChars,
   answerAction,
   onDone,
 }: {
+  stackId: string;
   questions: ChallengeQuestion[];
   maxAnswerChars: number;
   answerAction: AnswerChallengeAction;
@@ -277,7 +283,7 @@ function Replay({
       />
       {shown ? (
         <div className="space-y-5">
-          <Result result={shown} maxAnswerChars={maxAnswerChars} answerAction={answerAction} />
+          <Result stackId={stackId} result={shown} maxAnswerChars={maxAnswerChars} answerAction={answerAction} />
           <Button
             type="button"
             size="lg"
@@ -308,10 +314,12 @@ function Replay({
 
 /** One answer's result: the mark, then the correct answer, Explanation and every Source. */
 function Result({
+  stackId,
   result,
   maxAnswerChars,
   answerAction,
 }: {
+  stackId: string;
   result: ChallengeAnswerResult;
   maxAnswerChars: number;
   answerAction: AnswerChallengeAction;
@@ -334,6 +342,7 @@ function Result({
         </p>
       )}
       <AnsweredQuestionDetail question={question} />
+      <QuestionReportLink stackId={stackId} questionId={question.id} />
       {ungraded && (
         <Resubmit
           question={question}

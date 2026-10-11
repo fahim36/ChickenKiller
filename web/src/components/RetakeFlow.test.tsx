@@ -128,6 +128,7 @@ it("after a wrong Retake shows its Explanation and offers another sibling", asyn
   choose("Wrong 2");
 
   const explained = await screen.findByRole("article", { name: "Sibling 2?" });
+  expect(screen.getByRole("link", { name: "Report Question w01-l01-q02" })).toBeTruthy();
   expect(within(explained).getByText("Because of sibling 2.")).toBeTruthy();
   expect(screen.getByRole("group", { name: "Sibling 3?" })).toBeTruthy();
   expect(screen.queryByRole("group", { name: "Sibling 2?" })).toBeNull();

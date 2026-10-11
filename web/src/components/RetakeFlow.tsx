@@ -5,6 +5,7 @@ import Link from "next/link";
 import { type FormEvent, useState } from "react";
 import { AnsweredQuestionDetail } from "@/components/MissedQuestions";
 import { Notice } from "@/components/Notice";
+import { QuestionReportLink } from "@/components/QuestionReportLink";
 import { Mark, QuestionAnswer, QuestionCard, Spinner } from "@/components/QuestionCard";
 import { Button } from "@/components/ui/button";
 import { submittedAnswer } from "@/lib/answers";
@@ -62,8 +63,15 @@ export function RetakeFlow({
   );
   const [completed, setCompleted] = useState(false);
   const [messages, setMessages] = useState(notices);
+  const [answeredIds, setAnsweredIds] = useState<string[]>([]);
+
+  const reports = answeredIds.map((id) => <p key={id}><QuestionReportLink stackId={stackId} questionId={id} /></p>);
 
   function answered(result: RetakeResult) {
+    if (result.correct !== null && result.question) {
+      const id = result.question.id;
+      setAnsweredIds((ids) => ids.includes(id) ? ids : [...ids, id]);
+    }
     setMessages(result.notices ?? []);
     setStates((current) =>
       current.map((s) =>
@@ -89,6 +97,7 @@ export function RetakeFlow({
       <Notice tone="success" role="status" className="mt-8 text-base">
         <RetakeNotices notices={messages} />
         <p>Every Retake is resolved: this Lesson is Completed and the next one is Unlocked.</p>
+        {reports}
         <p>
           <Button asChild variant="outline" className="no-underline!">
             <Link href={`/stacks/${stackId}`}>
@@ -105,6 +114,7 @@ export function RetakeFlow({
     <section className="mt-10 space-y-4">
       <h2 className="font-heading text-lg font-semibold tracking-tight">Retakes</h2>
       <RetakeNotices notices={messages} />
+      {reports}
       <p className="text-sm text-muted-foreground">
         Answer a sibling Question on the same Concept for each Missed Question. The Lesson is
         Completed once every Retake is answered correctly or waived for retired or unavailable content.

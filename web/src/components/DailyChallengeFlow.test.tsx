@@ -145,6 +145,7 @@ it("shows the result, the Explanation and every Source with its link after each 
   submit();
 
   expect(await screen.findByText("Correct")).toBeTruthy();
+  expect(screen.getByRole("link", { name: "Report Question c001-q01" })).toBeTruthy();
   expect(answerAction).toHaveBeenCalledWith("c001-q01", "a");
   expect(screen.getByText("Because of c001-q01.")).toBeTruthy();
   const link = within(screen.getByRole("list", { name: "Sources" })).getByRole("link", {

@@ -67,6 +67,9 @@ export default async function SettingsPage() {
         </div>
       )}
 
+      <Section title="Question Reports" id="question-reports-heading">
+        <p className="mb-4"><Link className="underline" href="/question-reports">Your Question Reports</Link></p>
+      </Section>
       <Section title="Appearance" id="appearance-heading">
         <p className="mb-4 text-sm leading-relaxed text-muted-foreground">
           Light or Dark, or follow your device&apos;s setting. Saved in this browser.

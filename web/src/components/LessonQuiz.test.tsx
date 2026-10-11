@@ -144,6 +144,8 @@ it("submits the chosen and written answers, leaving unanswered Questions out", a
       "w01-l01-q05": "An agent calls tools in a loop.",
     }),
   );
+  expect(await screen.findByRole("link", { name: "Report Question w01-l01-q01" })).toBeTruthy();
+  expect(screen.queryByRole("link", { name: "Report Question w01-l01-q06" })).toBeNull();
 });
 
 it("shows a pass with no misses as a Completed Lesson with a way back to the Week map", async () => {

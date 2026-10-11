@@ -13,6 +13,24 @@ export type MaterialType =
   | "paid"
   | "platform";
 
+export type ReportCategory = "wrong_answer" | "ambiguous_wording" | "outdated_claim" | "broken_source";
+export interface QuestionReport {
+  id: string;
+  stack_id: string;
+  question_id: string;
+  category: ReportCategory;
+  note: string | null;
+  status: "open" | "accepted" | "resolved" | "closed";
+  explanation: string | null;
+  created_at: string;
+  updated_at: string;
+}
+export interface ReportEligibility {
+  answered: boolean;
+  retired_reason: string | null;
+  report: QuestionReport | null;
+}
+
 export interface StackSummary {
   id: string;
   name: string;

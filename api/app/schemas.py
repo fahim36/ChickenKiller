@@ -13,6 +13,27 @@ class BaseModel(_BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class QuestionReportIn(BaseModel):
+    category: Literal["wrong_answer", "ambiguous_wording", "outdated_claim", "broken_source"]
+    note: str | None = Field(default=None, max_length=4000)
+
+
+class QuestionReportOut(QuestionReportIn):
+    id: uuid.UUID
+    stack_id: str
+    question_id: str
+    status: Literal["open", "accepted", "resolved", "closed"]
+    explanation: str | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class QuestionReportEligibilityOut(BaseModel):
+    answered: bool
+    retired_reason: str | None
+    report: QuestionReportOut | None
+
+
 class StackSummary(BaseModel):
     id: str
     name: str

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { type FormEvent, useState } from "react";
 import { MissedQuestions } from "@/components/MissedQuestions";
 import { Notice } from "@/components/Notice";
+import { QuestionReportLink } from "@/components/QuestionReportLink";
 import { Mark, QuestionAnswer, QuestionCard, Spinner } from "@/components/QuestionCard";
 import { type AnswerRetakeAction, RetakeFlow, RetakeNotices } from "@/components/RetakeFlow";
 import { Button } from "@/components/ui/button";
@@ -111,6 +112,7 @@ export function LessonQuiz({
                       {mark.feedback}
                     </p>
                   )}
+                  {mark && isAnswered(answers[q.id]) && <QuestionReportLink stackId={stackId} questionId={q.id} />}
                 </QuestionCard>
               </li>
             );

@@ -24,6 +24,7 @@ from app import (
     mcp_server,
     onboarding,
     progress,
+    question_reports,
     quiz,
     quizzes,
     retakes,
@@ -52,10 +53,66 @@ from app.deps import (
     get_current_learner,
     get_now,
 )
-from app.models import Concept, ContentDraft, Learner, Question
+from app.models import Concept, ContentDraft, Learner, Question, QuestionReport
 
 # Everything except the health check: only a signed-in, invited Learner gets in (app/deps.py).
 router = APIRouter(dependencies=[Depends(get_current_learner)])
+
+
+@router.get("/me/question-reports")
+def own_question_reports(
+    learner: CurrentLearner, session: SessionDep
+) -> list[schemas.QuestionReportOut]:
+    return [
+        schemas.QuestionReportOut.model_validate(r)
+        for r in session.scalars(
+            select(QuestionReport)
+            .where(QuestionReport.learner_id == learner.id)
+            .order_by(QuestionReport.created_at.desc(), QuestionReport.id)
+        )
+    ]
+
+
+@router.get("/question-reports/{report_id}")
+def get_question_report(
+    report_id: uuid.UUID, learner: CurrentLearner, session: SessionDep, verifier: VerifierDep
+) -> schemas.QuestionReportOut:
+    report = session.get(QuestionReport, report_id)
+    if report is None or (
+        report.learner_id != learner.id
+        and not learners.is_admin(learner, verifier.settings.admin_emails)
+    ):
+        raise HTTPException(404, "Report not found")
+    return schemas.QuestionReportOut.model_validate(report)
+
+
+@router.get("/stacks/{stack_id}/questions/{question_id}/report")
+def report_eligibility(
+    stack_id: str, question_id: str, learner: CurrentLearner, session: SessionDep
+) -> schemas.QuestionReportEligibilityOut:
+    current = question_reports.question(session, stack_id, question_id)
+    report = question_reports.unresolved(session, learner.id, stack_id, question_id)
+    return schemas.QuestionReportEligibilityOut(
+        answered=question_reports.answered(session, learner.id, stack_id, question_id),
+        retired_reason=current.retired_reason,
+        report=schemas.QuestionReportOut.model_validate(report) if report else None,
+    )
+
+
+@router.put("/stacks/{stack_id}/questions/{question_id}/report")
+def save_question_report(
+    stack_id: str,
+    question_id: str,
+    body: schemas.QuestionReportIn,
+    learner: CurrentLearner,
+    session: SessionDep,
+    now: Now,
+) -> schemas.QuestionReportOut:
+    return schemas.QuestionReportOut.model_validate(
+        question_reports.save(
+            session, learner.id, stack_id, question_id, body.category, body.note, now
+        )
+    )
 
 
 @router.get("/home/guidance")

@@ -625,6 +625,45 @@ class Answer(Base):
     answered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
+class QuestionReport(Base):
+    """Private content feedback. Open and accepted reports are unresolved."""
+
+    __tablename__ = "question_reports"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["stack_id", "question_id"],
+            ["questions.stack_id", "questions.id"],
+            ondelete="CASCADE",
+        ),
+        CheckConstraint(
+            "category IN ('wrong_answer', 'ambiguous_wording', 'outdated_claim', 'broken_source')",
+            name="category",
+        ),
+        CheckConstraint("status IN ('open', 'accepted', 'resolved', 'closed')", name="status"),
+        Index(
+            "uq_question_reports_unresolved",
+            "learner_id",
+            "stack_id",
+            "question_id",
+            unique=True,
+            postgresql_where=text("status IN ('open', 'accepted')"),
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    learner_id: Mapped[int] = mapped_column(
+        ForeignKey("learners.id", ondelete="CASCADE"), index=True
+    )
+    stack_id: Mapped[str] = mapped_column(ID)
+    question_id: Mapped[str] = mapped_column(ID)
+    category: Mapped[str] = mapped_column(String(30))
+    note: Mapped[str | None] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(20), default="open")
+    explanation: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
 class GradingKey(Base):
     """A Learner's own LLM provider key for grading their written answers (app/llm_keys.py).
     The Admin's is used for every Learner who has none. The key is stored only encrypted, and

@@ -103,6 +103,7 @@ it("sends the answer to that Question on its Stack and moves on after a right on
   submit();
 
   expect(await screen.findByText("Correct")).toBeTruthy();
+  expect(screen.getByRole("link", { name: "Report Question w01-l01-q01" }).getAttribute("href")).toBe("/question-reports/new?stack_id=agentic-ai-engineer&question_id=w01-l01-q01");
   expect(answerAction).toHaveBeenCalledWith("agentic-ai-engineer", "w01-l01-q01", "a");
   expect(screen.queryByText("Because of w01-l01-q01.")).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Next Question" }));
