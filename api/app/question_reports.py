@@ -1,6 +1,7 @@
 """After-answer content feedback, isolated from scoring and learning progress."""
 
 from datetime import datetime
+from uuid import UUID
 
 from fastapi import HTTPException
 from sqlalchemy import func, select
@@ -35,16 +36,15 @@ def answered(session: Session, learner_id: int, stack_id: str, question_id: str)
 
 
 def unresolved(
-    session: Session, learner_id: int, stack_id: str, question_id: str
+    session: Session, learner_id: int, stack_id: str, question_id: str, *, lock: bool = False
 ) -> QuestionReport | None:
-    return session.scalar(
-        select(QuestionReport).where(
-            QuestionReport.learner_id == learner_id,
-            QuestionReport.stack_id == stack_id,
-            QuestionReport.question_id == question_id,
-            QuestionReport.status.in_(("open", "accepted")),
-        )
+    query = select(QuestionReport).where(
+        QuestionReport.learner_id == learner_id,
+        QuestionReport.stack_id == stack_id,
+        QuestionReport.question_id == question_id,
+        QuestionReport.status.in_(("open", "accepted")),
     )
+    return session.scalar(query.with_for_update() if lock else query)
 
 
 def save(
@@ -64,7 +64,7 @@ def save(
         raise HTTPException(409, {"code": "question_retired", "message": current.retired_reason})
     if not answered(session, learner_id, stack_id, question_id):
         raise HTTPException(409, "Answer this Question before reporting it.")
-    report = unresolved(session, learner_id, stack_id, question_id)
+    report = unresolved(session, learner_id, stack_id, question_id, lock=True)
     if report is not None and report.status != "open":
         raise HTTPException(409, "Only Open reports can be edited.")
     if report is None:
@@ -77,5 +77,22 @@ def save(
         )
         session.add(report)
     report.category, report.note, report.updated_at = category, note, now
+    session.commit()
+    return report
+
+
+def decide(
+    session: Session, report_id: UUID, status: str, explanation: str, now: datetime
+) -> QuestionReport:
+    report = session.scalar(
+        select(QuestionReport).where(QuestionReport.id == report_id).with_for_update()
+    )
+    if report is None:
+        raise HTTPException(404, "Report not found")
+    if report.status != "open":
+        raise HTTPException(409, "This report has already been decided.")
+    report.status = status
+    report.explanation = explanation
+    report.updated_at = now
     session.commit()
     return report

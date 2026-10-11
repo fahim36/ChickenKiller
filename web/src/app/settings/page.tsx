@@ -64,6 +64,7 @@ export default async function SettingsPage() {
               Drafts
             </Link>
           </Button>
+          <Button asChild variant="outline" size="sm"><Link href="/admin/question-reports">Question Reports</Link></Button>
         </div>
       )}
 

@@ -30,6 +30,13 @@ export interface ReportEligibility {
   retired_reason: string | null;
   report: QuestionReport | null;
 }
+export interface QuestionReportGroup {
+  stack_id: string;
+  question_id: string;
+  prompt: string;
+  retired_reason: string | null;
+  reports: (QuestionReport & { reporter_email: string })[];
+}
 
 export interface StackSummary {
   id: string;

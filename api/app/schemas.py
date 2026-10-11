@@ -34,6 +34,31 @@ class QuestionReportEligibilityOut(BaseModel):
     report: QuestionReportOut | None
 
 
+class AdminQuestionReportOut(QuestionReportOut):
+    reporter_email: str
+
+
+class QuestionReportGroupOut(BaseModel):
+    stack_id: str
+    question_id: str
+    prompt: str
+    retired_reason: str | None
+    reports: list[AdminQuestionReportOut]
+
+
+class QuestionReportDecisionIn(BaseModel):
+    status: Literal["accepted", "closed"]
+    explanation: str = Field(min_length=1, max_length=4000)
+
+    @field_validator("explanation")
+    @classmethod
+    def meaningful_explanation(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("Explain the decision.")
+        return value
+
+
 class StackSummary(BaseModel):
     id: str
     name: str

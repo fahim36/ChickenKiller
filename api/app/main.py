@@ -73,6 +73,64 @@ def own_question_reports(
     ]
 
 
+@router.get("/admin/question-reports")
+def admin_question_reports(
+    _: AdminLearner, session: SessionDep
+) -> list[schemas.QuestionReportGroupOut]:
+    rows = session.execute(
+        select(QuestionReport, Question, Learner.email)
+        .join(
+            Question,
+            (Question.stack_id == QuestionReport.stack_id)
+            & (Question.id == QuestionReport.question_id),
+        )
+        .join(Learner, Learner.id == QuestionReport.learner_id)
+        .order_by(
+            QuestionReport.stack_id,
+            QuestionReport.question_id,
+            QuestionReport.created_at,
+            QuestionReport.id,
+        )
+    ).all()
+    groups: dict[tuple[str, str], schemas.QuestionReportGroupOut] = {}
+    for report, question, email in rows:
+        key = (report.stack_id, report.question_id)
+        if key not in groups:
+            groups[key] = schemas.QuestionReportGroupOut(
+                stack_id=report.stack_id,
+                question_id=report.question_id,
+                prompt=question.prompt,
+                retired_reason=question.retired_reason,
+                reports=[],
+            )
+        groups[key].reports.append(
+            schemas.AdminQuestionReportOut(
+                **schemas.QuestionReportOut.model_validate(report).model_dump(),
+                reporter_email=email,
+            )
+        )
+    return list(groups.values())
+
+
+@router.put("/admin/question-reports/{report_id}")
+def decide_question_report(
+    report_id: uuid.UUID,
+    body: schemas.QuestionReportDecisionIn,
+    _: AdminLearner,
+    session: SessionDep,
+    now: Now,
+) -> schemas.QuestionReportOut:
+    return schemas.QuestionReportOut.model_validate(
+        question_reports.decide(
+            session,
+            report_id,
+            body.status,
+            body.explanation,
+            now,
+        )
+    )
+
+
 @router.get("/question-reports/{report_id}")
 def get_question_report(
     report_id: uuid.UUID, learner: CurrentLearner, session: SessionDep, verifier: VerifierDep
