@@ -42,7 +42,7 @@ export default async function Home() {
   );
   const [catchUp, guidance] = await Promise.all([
     api<CatchUp>("/catch-up"),
-    api<Guidance>("/home/guidance"),
+    loadGuidance(),
   ]);
 
   return (
@@ -193,6 +193,16 @@ function CatchUpLine({ catchUp }: { catchUp: CatchUp | null }) {
  * A Stack's Daily Challenge for today, or null when it couldn't be loaded: a failed request must
  * not look like a Day with no Challenge. The API's redirects (sign-in, onboarding) still apply.
  */
+async function loadGuidance(): Promise<Guidance | null> {
+  try {
+    return await api<Guidance>("/home/guidance");
+  } catch (error) {
+    unstable_rethrow(error);
+    console.error(error);
+    return null;
+  }
+}
+
 async function loadToday(stackId: string): Promise<TodaysChallenge | null> {
   try {
     return await api<TodaysChallenge>(

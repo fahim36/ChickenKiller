@@ -37,12 +37,21 @@ class Guidance:
     weak_concepts: list[WeakConcept]
 
 
+@dataclass(frozen=True, order=True)
+class PendingRetake:
+    created_at: datetime
+    stack_id: str
+    lesson_id: str
+    retake_id: str
+    attempt_id: str
+
+
 def for_learner(
     session: Session, records: Sequence[LearnerStack], now: datetime, rng: random.Random
 ) -> Guidance:
     """Resolve content retirement before ranking pending Retakes; never change scores."""
     by_stack = {r.stack_id: r for r in records}
-    pending: list[tuple[datetime, str, str, str, str]] = []
+    pending: list[PendingRetake] = []
     attempts = session.scalars(
         select(LessonQuizAttempt)
         .join(Retake, Retake.lesson_quiz_attempt_id == LessonQuizAttempt.id)
@@ -60,7 +69,7 @@ def for_learner(
             session, by_stack[attempt.stack_id], attempt.lesson_id, attempt.id, rng, now
         )
         pending.extend(
-            (
+            PendingRetake(
                 p.retake.created_at,
                 attempt.stack_id,
                 attempt.lesson_id,
@@ -82,14 +91,14 @@ def for_learner(
     due = reviews.review_set(session, records, now, limit=None)
     due_concepts = {(q.stack.id, q.question.concept.id) for q in due}
     if pending:
-        _, stack_id, lesson_id, _, attempt_id = min(pending)
+        oldest = min(pending)
         action = Action(
             "retake",
             "Finish your oldest pending Retake",
             "This passed Lesson Quiz is waiting for its remaining Retakes.",
-            stack_id,
-            lesson_id,
-            attempt_id,
+            oldest.stack_id,
+            oldest.lesson_id,
+            oldest.attempt_id,
         )
     elif target := next((w for w in weak if (w.stack_id, w.concept.id) in due_concepts), None):
         action = Action(

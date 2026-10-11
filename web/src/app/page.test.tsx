@@ -9,6 +9,26 @@ vi.mock("@clerk/nextjs/server", () => ({
   auth: async () => ({ getToken: async () => "session-token" }),
 }));
 
+it.each(["server", "network"])("keeps activities available when guidance fails: %s", async (failure) => {
+  const fetch = stubApi({
+    "/me": ONBOARDED,
+    "/stacks/agentic-ai-engineer/challenges/today": today("agentic-ai-engineer", "Agentic AI Engineer", {}, 3),
+  });
+  const original = fetch.getMockImplementation()!;
+  fetch.mockImplementation(async (url: string) => {
+    if (new URL(url).pathname === "/home/guidance") {
+      if (failure === "network") throw new TypeError("Network unavailable");
+      return Response.json({ detail: "Unavailable" }, { status: 500 });
+    }
+    return original(url);
+  });
+  vi.spyOn(console, "error").mockImplementation(() => {});
+  render(await Home());
+  expect(screen.getByText(/Next Action couldn't be loaded/)).toBeTruthy();
+  expect(screen.getByRole("link", { name: "Play" }).getAttribute("href")).toBe("/stacks/agentic-ai-engineer/challenge");
+  expect(screen.getByRole("link", { name: "Week map" })).toBeTruthy();
+});
+
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
