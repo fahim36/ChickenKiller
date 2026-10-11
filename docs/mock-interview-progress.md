@@ -10,8 +10,8 @@ Automation: `resume-mock-interview-tickets`, active every 30 minutes. Check usag
 | --- | --- | --- |
 | 01 | #21 | Verified; implementation commits 24453a1 and 3188ce5 |
 | 02 | #22 | Verified: 0df4352, 5dac168 and final test correction |
-| 03 | #23 | In progress: own-key consent and bounded feedback |
-| 04 | #24 | Pending |
+| 03 | #23 | Verified: 6332080 and c169299 |
+| 04 | #24 | Next: recorded audio and explicit transcript confirmation |
 | 05 | #25 | Pending |
 | 06 | #26 | Pending |
 | 07 | #27 | Pending |
@@ -31,4 +31,10 @@ Sixteen reviewed scenarios, four distinct Concepts per Stack, and Admin-only cov
 
 Checks: full-batch integration test passed (79 seconds), two coverage UI tests, strict mypy (102 files), ruff, frontend lint/typecheck/build and schema/content checks. Parallel standards/spec reviews found no blockers. Source claims made concrete following an editorial suggestion. Test credentials refreshed after lengthy imports; privacy assertions inspect JSON fields rather than public identifier substrings.
 
-Next: ticket 03. Two tickets are complete; remaining six require implementation. Automatic runs must read actual working changes before continuing.
+## Ticket 03 evidence
+
+Own saved Gemini key explicitly enabled with free-project attestation and processing consent, fixed Flash-Lite endpoint, confirmed-text feedback, bounded structured output, exact-quote/reviewed-follow-up validation and immutable evaluated text are implemented. No legacy fallback key or provider retries. Failed attempts count toward the 18-request limit. A dedicated owner-level PostgreSQL advisory lock spans the network request independently of deletable session data. Interrupted attempts remain charged and require manual new IDs; replayed IDs never resend.
+
+Checks: nine feedback tests including quota18, idempotency, overlap, deletion during processing, malformed provider envelopes and interrupted recovery; 29 earlier feedback/legacy grading checks; self-review/migration regression checks; four frontend interaction tests; strict mypy (105 files), ruff, frontend typecheck/lint/build. Reviews caught delete-guard and stranded-operation defects, both fixed and re-reviewed with no remaining blockers. No real Gemini requests made.
+
+Next: ticket 04. Three tickets are complete; remaining five require implementation. Automatic runs must read actual working changes before continuing.
