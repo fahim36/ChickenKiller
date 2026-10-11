@@ -142,6 +142,7 @@ def import_content(
         content.path.parent,
         {c.id for _, c in content.bank.concepts()},
         {lesson.id for lesson in content.lessons()},
+        {(q.concept, q.lesson) for _, q in content.bank.questions() if q.lesson is not None},
     )
 
     existing = session.scalar(

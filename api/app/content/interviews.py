@@ -52,10 +52,12 @@ def read_prompts(stack_folder: Path) -> list[InterviewPrompt]:
 
 
 def check_prompts(
-    stack_folder: Path, concepts: set[str], lessons: set[str]
+    stack_folder: Path, concepts: set[str], lessons: set[str], teaching: set[tuple[str, str]]
 ) -> list[InterviewPrompt]:
     prompts = read_prompts(stack_folder)
     for prompt in prompts:
         if prompt.concept not in concepts or prompt.lesson not in lessons:
             raise ValueError(f"{prompt.id}: Concept and teaching Lesson must resolve")
+        if (prompt.concept, prompt.lesson) not in teaching:
+            raise ValueError(f"{prompt.id}: Lesson must teach this Concept")
     return prompts

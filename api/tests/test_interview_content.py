@@ -1,9 +1,12 @@
 """Reviewed prompts reject malformed follow-ups before publication."""
 
+import json
+from pathlib import Path
+
 import pytest
 from pydantic import ValidationError
 
-from app.content.interviews import InterviewPrompt
+from app.content.interviews import InterviewPrompt, check_prompts
 
 
 def prompt() -> dict[str, object]:
@@ -55,3 +58,11 @@ def test_reviewed_prompt_rejects_missing_rubric_and_unknown_fields() -> None:
 def test_reviewed_prompt_round_trips_snapshot() -> None:
     reviewed = InterviewPrompt.model_validate(prompt())
     assert InterviewPrompt.model_validate_json(reviewed.model_dump_json()) == reviewed
+
+
+def test_teaching_lesson_must_match_concept(tmp_path: Path) -> None:
+    stack = tmp_path / "dotnet"
+    (stack / "interviews").mkdir(parents=True)
+    (stack / "interviews" / "prompt.json").write_text(json.dumps(prompt()), encoding="utf-8")
+    with pytest.raises(ValueError, match="must teach"):
+        check_prompts(stack, {"concurrency"}, {"w01-l01", "w01-l02"}, {("concurrency", "w01-l02")})

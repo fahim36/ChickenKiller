@@ -242,6 +242,7 @@ def load_checked_folder(path: Path, today: date | None = None) -> ContentFolder:
                 path.parent,
                 {c.id for _, c in bank.concepts()},
                 {lesson.id for lesson in folder.lessons()},
+                {(q.concept, q.lesson) for _, q in bank.questions() if q.lesson is not None},
             )
         except (ValueError, OSError) as error:
             problems.append(
@@ -263,6 +264,7 @@ def _check_version(path: Path, bank: Bank, links: bool) -> list[Problem]:
             path.parent,
             {c.id for _, c in bank.concepts()},
             {lesson.id for lesson in folder.lessons()},
+            {(q.concept, q.lesson) for _, q in bank.questions() if q.lesson is not None},
         )
     except (ValueError, ValidationError, OSError) as error:
         problems.append(Problem("error", str(path.parent / "interviews"), "prompts", str(error)))
