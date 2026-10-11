@@ -27,6 +27,11 @@ class QuestionReportOut(QuestionReportIn):
     created_at: datetime
     updated_at: datetime
 
+    correction_kind: Literal["retirement", "replacement"] | None = None
+    replacement_id: str | None = None
+    resolved_at: datetime | None = None
+    resolution_reason: str | None = None
+
 
 class QuestionReportEligibilityOut(BaseModel):
     answered: bool
@@ -57,6 +62,13 @@ class QuestionReportDecisionIn(BaseModel):
         if not value:
             raise ValueError("Explain the decision.")
         return value
+
+
+class QuestionReportCorrectionIn(BaseModel):
+    kind: Literal["retirement", "replacement"]
+    replacement_id: str | None = Field(
+        default=None, pattern=r"^[a-z0-9]+(-[a-z0-9]+)*$", max_length=80
+    )
 
 
 class StackSummary(BaseModel):

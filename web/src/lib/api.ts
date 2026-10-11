@@ -24,6 +24,10 @@ export interface QuestionReport {
   explanation: string | null;
   created_at: string;
   updated_at: string;
+  correction_kind?: "retirement" | "replacement" | null;
+  replacement_id?: string | null;
+  resolved_at?: string | null;
+  resolution_reason?: string | null;
 }
 export interface ReportEligibility {
   answered: boolean;

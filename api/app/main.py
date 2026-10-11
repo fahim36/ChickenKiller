@@ -131,6 +131,25 @@ def decide_question_report(
     )
 
 
+@router.put("/admin/question-reports/{report_id}/correction")
+def associate_report_correction(
+    report_id: uuid.UUID,
+    body: schemas.QuestionReportCorrectionIn,
+    _: AdminLearner,
+    session: SessionDep,
+    now: Now,
+) -> schemas.QuestionReportOut:
+    return schemas.QuestionReportOut.model_validate(
+        question_reports.associate_correction(
+            session,
+            report_id,
+            body.kind,
+            body.replacement_id,
+            now,
+        )
+    )
+
+
 @router.get("/question-reports/{report_id}")
 def get_question_report(
     report_id: uuid.UUID, learner: CurrentLearner, session: SessionDep, verifier: VerifierDep

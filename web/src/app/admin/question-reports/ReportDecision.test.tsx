@@ -39,7 +39,8 @@ it("requires an explanation and displays acceptance awaiting publication", async
   expect(
     await screen.findByText("Status: Accepted, awaiting publication"),
   ).toBeTruthy();
-  expect(screen.queryByRole("button")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Save decision" })).toBeNull();
+  expect(screen.getByRole("button", { name: "Save correction association" })).toBeTruthy();
   expect(decideReport).toHaveBeenCalledWith(
     "report-1",
     "accepted",

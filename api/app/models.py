@@ -660,6 +660,10 @@ class QuestionReport(Base):
     note: Mapped[str | None] = mapped_column(Text)
     status: Mapped[str] = mapped_column(String(20), default="open")
     explanation: Mapped[str | None] = mapped_column(Text)
+    correction_kind: Mapped[str | None] = mapped_column(String(20))
+    replacement_id: Mapped[str | None] = mapped_column(ID)
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    resolution_reason: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 

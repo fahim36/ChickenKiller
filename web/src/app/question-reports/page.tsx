@@ -2,6 +2,7 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { PageHeader } from "@/components/PageHeader";
 import { Notice } from "@/components/Notice";
+import { ReportCorrection } from "@/components/ReportCorrection";
 import { api, type QuestionReport } from "@/lib/api";
 import { REPORT_CATEGORIES, REPORT_STATUSES } from "@/lib/question-reports";
 
@@ -33,6 +34,7 @@ export default async function YourReports() {
               <p>Updated {r.updated_at.slice(0, 10)} UTC</p>
               {r.note && <p className="whitespace-pre-wrap">{r.note}</p>}
               {r.explanation && <p>Admin explanation: {r.explanation}</p>}
+              <ReportCorrection report={r} />
               {r.status === "open" && (
                 <Link
                   className="underline"

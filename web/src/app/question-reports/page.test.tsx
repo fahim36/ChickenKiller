@@ -44,3 +44,12 @@ it("shows private report statuses, notes and Admin explanations, with Open-only 
     screen.getAllByRole("link", { name: "Edit Open report" }),
   ).toHaveLength(1);
 });
+
+it("shows the imported correction and its retirement reason on a resolved report", async () => {
+  stubApi({ "/me/question-reports": [{ id: "1", category: "outdated_claim", stack_id: "mini", question_id: "q1", status: "resolved", note: null, explanation: "Confirmed.", updated_at: "2026-10-11", correction_kind: "replacement", replacement_id: "q2", resolved_at: "2026-10-11T10:00:00Z", resolution_reason: "Obsolete premise." }] });
+  render(await YourReports());
+  expect(screen.getByText("Status: Resolved")).toBeTruthy();
+  expect(screen.getByText(/Correction imported 2026-10-11 UTC/)).toBeTruthy();
+  expect(screen.getByText(/Retirement reason: Obsolete premise/)).toBeTruthy();
+  expect(screen.queryByRole("link", { name: "Edit Open report" })).toBeNull();
+});

@@ -40,13 +40,14 @@ import hashlib
 import json
 import sys
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Literal
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
+from app import question_reports
 from app.content import format as fmt
 from app.content.baseline import question_fields
 from app.content.challenges import is_frozen
@@ -342,6 +343,14 @@ def import_bank(session: Session, stack_id: str, bank: Bank) -> BankChanges:
         raise ContentError(refused)
     session.flush()
     _link_materials(session, stack_id, list(imported.values()))
+
+    question_reports.resolve_imported(
+        session,
+        stack_id,
+        {q.id: q.retired.replaced_by for _, q in bank.questions() if q.retired is not None},
+        {q.id for q in bank.live_questions()},
+        datetime.now(UTC),
+    )
     return changes
 
 

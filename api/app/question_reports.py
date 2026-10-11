@@ -96,3 +96,79 @@ def decide(
     report.updated_at = now
     session.commit()
     return report
+
+
+def associate_correction(
+    session: Session, report_id: UUID, kind: str, replacement_id: str | None, now: datetime
+) -> QuestionReport:
+    report = session.scalar(
+        select(QuestionReport).where(QuestionReport.id == report_id).with_for_update()
+    )
+    if report is None:
+        raise HTTPException(404, "Report not found")
+    if report.status != "accepted":
+        raise HTTPException(409, "Associate a correction with an accepted report.")
+    if (kind == "replacement") != (
+        replacement_id is not None
+    ) or replacement_id == report.question_id:
+        raise HTTPException(
+            422,
+            "A replacement needs a different Question ID; a retirement has no replacement.",
+        )
+    if report.correction_kind == kind and report.replacement_id == replacement_id:
+        session.commit()
+        return report
+    report.correction_kind = kind
+    report.replacement_id = replacement_id
+    report.updated_at = now
+    session.commit()
+    return report
+
+
+def resolve_imported(
+    session: Session,
+    stack_id: str,
+    retirements: dict[str, str | None],
+    active_question_ids: set[str],
+    now: datetime,
+) -> None:
+    """Flush resolutions in the import transaction; the importing caller must commit.
+
+    The original must be retired with exactly the expected replacement (or none). A
+    replacement must actually exist and be active in this Stack. Drafts have no effect.
+    """
+    reports = session.scalars(
+        select(QuestionReport)
+        .where(
+            QuestionReport.stack_id == stack_id,
+            QuestionReport.status == "accepted",
+            QuestionReport.correction_kind.is_not(None),
+        )
+        .order_by(QuestionReport.id)
+        .with_for_update()
+    ).all()
+    for report in reports:
+        if (
+            report.question_id not in retirements
+            or retirements[report.question_id] != report.replacement_id
+        ):
+            continue
+        original = question(session, stack_id, report.question_id)
+        if not original.retired or original.replaced_by != report.replacement_id:
+            continue
+        if report.correction_kind == "replacement":
+            if report.replacement_id not in active_question_ids:
+                continue
+            replacement = session.scalar(
+                select(Question).where(
+                    Question.stack_id == stack_id,
+                    Question.id == report.replacement_id,
+                )
+            )
+            if replacement is None or replacement.retired:
+                continue
+        report.status = "resolved"
+        report.resolved_at = now
+        report.updated_at = now
+        report.resolution_reason = original.retired_reason
+    session.flush()

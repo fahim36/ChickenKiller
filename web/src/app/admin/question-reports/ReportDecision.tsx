@@ -6,6 +6,8 @@ import { Notice } from "@/components/Notice";
 import type { QuestionReport } from "@/lib/api";
 import { REPORT_STATUSES } from "@/lib/question-reports";
 import { decideReport } from "./actions";
+import { CorrectionForm } from "./CorrectionForm";
+import { ReportCorrection } from "@/components/ReportCorrection";
 
 export function ReportDecision({ initial }: { initial: QuestionReport }) {
   const id = useId();
@@ -30,6 +32,7 @@ export function ReportDecision({ initial }: { initial: QuestionReport }) {
     <div className="space-y-3">
       <p>Status: {REPORT_STATUSES[report.status]}</p>
       {report.explanation && <p>Admin explanation: {report.explanation}</p>}
+      {report.status === "accepted" ? <CorrectionForm key={report.id} initial={report} /> : <ReportCorrection report={report} />}
       {report.status === "open" && (
         <form onSubmit={submit} className="space-y-3">
           <div>
