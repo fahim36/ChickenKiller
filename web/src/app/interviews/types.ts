@@ -5,6 +5,10 @@ export interface InterviewPrompt {
   scenario: string;
   rubric: string[];
   misconceptions: string[];
+  follow_ups?: { id: string; scenario: string; rubric: string[] }[];
+  parent_id?: string;
+  kind?: "follow_up" | "retry";
+  seconds?: 45 | 60;
 }
 export interface InterviewSession {
   id: string;
@@ -14,6 +18,7 @@ export interface InterviewSession {
   responses: Record<string, string | null>;
   operations?: InterviewOperation[];
   recordings?: InterviewRecording[];
+  turns?: InterviewPrompt[];
 }
 export interface InterviewRecording {
   id: string;

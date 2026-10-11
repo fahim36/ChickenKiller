@@ -14,12 +14,11 @@ from typing import Any
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
-from app import interview_feedback, interview_provider, interviews, onboarding
+from app import interview_feedback, interview_provider, interview_turns, interviews, onboarding
 from app.llm_keys import KeyBox
 from app.models import InterviewOperation, InterviewRecording, Learner
 
 MAX_BYTES = 3_000_000
-TURN_SECONDS = {"main": 90, "follow_up": 45, "retry": 60}
 
 
 def normalize(audio: bytes, mime: str, seconds: int) -> bytes:
@@ -96,8 +95,10 @@ def upload(
     interview = interviews.owned(session, learner.id, interview_id, now, lock=True)
     if interview is None:
         raise interview_feedback.Refused(404, "Interview unavailable.")
-    if prompt_id not in {p["id"] for p in interview.prompts} or prompt_id in interview.responses:
-        raise interview_feedback.Refused(409, "This turn no longer accepts a recording.")
+    try:
+        _, kind = interview_turns.require_accepts(interview, prompt_id)
+    except ValueError as error:
+        raise interview_feedback.Refused(409, str(error)) from None
     if (
         session.get(InterviewRecording, recording_id) is not None
         or f"upload:{recording_id}" in interview.recording_counts
@@ -110,7 +111,7 @@ def upload(
         audio = base64.b64decode(encoded, validate=True)
     except (ValueError, binascii.Error):
         raise interview_feedback.Refused(422, "Invalid recording data.") from None
-    normalize(audio, mime, TURN_SECONDS["main"])
+    normalize(audio, mime, interview_turns.SECONDS[kind])
     existing = session.scalar(
         select(InterviewRecording).where(
             InterviewRecording.interview_id == interview.id,
@@ -201,8 +202,11 @@ def transcribe(
         if clip.transcript is not None:
             return {**recording_out(clip), "state": "complete"}
         record = onboarding.active_stack(session, learner, interview.stack_id)
-        concept = next(p["concept"] for p in interview.prompts if p["id"] == clip.prompt_id)
-        if record is None or concept not in {
+        try:
+            prompt, kind = interview_turns.require_accepts(interview, clip.prompt_id)
+        except ValueError as error:
+            raise interview_feedback.Refused(409, str(error)) from None
+        if record is None or prompt.concept not in {
             p.concept for p in interviews.eligible(session, record, now)
         }:
             raise interview_feedback.Refused(
@@ -221,7 +225,7 @@ def transcribe(
             raise interview_feedback.Refused(
                 409, "The 18-request session budget is exhausted. Use self-review."
             )
-        normalized = normalize(clip.audio, clip.mime, TURN_SECONDS["main"])
+        normalized = normalize(clip.audio, clip.mime, interview_turns.SECONDS[kind])
         operation = InterviewOperation(
             id=operation_id,
             interview_id=interview.id,

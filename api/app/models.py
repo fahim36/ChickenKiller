@@ -73,6 +73,7 @@ class InterviewSession(Base):
     prompts: Mapped[list[dict[str, Any]]] = mapped_column(JSONB)
     responses: Mapped[dict[str, str | None]] = mapped_column(JSONB, default=dict)
     recording_counts: Mapped[dict[str, int]] = mapped_column(JSONB, default=dict)
+    turns: Mapped[dict[str, dict[str, str]]] = mapped_column(JSONB, default=dict)
 
 
 class InterviewRecording(Base):

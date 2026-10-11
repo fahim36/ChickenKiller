@@ -10,8 +10,7 @@ from typing import Any
 from sqlalchemy import func, select, text, update
 from sqlalchemy.orm import Session
 
-from app import interview_provider, interviews, onboarding
-from app.content.interviews import InterviewPrompt
+from app import interview_provider, interview_turns, interviews, onboarding
 from app.grading import GEMINI_BASE_URL
 from app.llm_keys import KeyBox
 from app.models import GradingKey, InterviewOperation, InterviewSettings, Learner
@@ -170,10 +169,11 @@ def _request_feedback(
     if not confirmed:
         raise Refused(422, "Confirm the response text before requesting feedback.")
     text = interview.responses.get(prompt_id)
-    prompt = next(
-        (InterviewPrompt.model_validate(p) for p in interview.prompts if p["id"] == prompt_id), None
-    )
-    if prompt is None or not text:
+    try:
+        prompt, _ = interview_turns.resolve(interview, prompt_id)
+    except ValueError:
+        raise Refused(422, "This turn is not part of your session.") from None
+    if not text:
         raise Refused(
             422, "Save a response to this scenario first; skipped responses use self-review."
         )

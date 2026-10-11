@@ -10,11 +10,13 @@ export function InterviewFeedback({
   promptId,
   text,
   existing,
+  onResult,
 }: {
   sessionId: string;
   promptId: string;
   text: string;
   existing?: InterviewOperation;
+  onResult?: (operation: InterviewOperation) => void;
 }) {
   const [confirmed, setConfirmed] = useState(false);
   const [operation, setOperation] = useState(existing);
@@ -80,6 +82,7 @@ export function InterviewFeedback({
                     confirmed,
                   );
                   setOperation(result);
+                  onResult?.(result);
                   if (result.state !== "running") setOperationId(null);
                   if (result.state !== "complete")
                     setMessage(

@@ -2,13 +2,13 @@
 
 import uuid
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import APIRouter, HTTPException, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
-from app import interview_audio, interview_feedback, interviews
+from app import interview_audio, interview_feedback, interview_turns, interviews
 from app.deps import ActiveStackInPath, AdminLearner, CurrentLearner, KeyBoxDep, Now, SessionDep
 from app.interview_coverage import coverage
 from app.models import InterviewContent, InterviewOperation, InterviewRecording, InterviewSession
@@ -47,6 +47,12 @@ class AudioIn(BaseModel):
 
 class TranscribeIn(BaseModel):
     operation_id: uuid.UUID
+
+
+class TurnIn(BaseModel):
+    parent_id: str
+    kind: Literal["follow_up", "retry"]
+    follow_up_id: str | None = None
 
 
 @router.post("/me/interviews/{interview_id}/audio")
@@ -186,6 +192,7 @@ class SessionOut(BaseModel):
     responses: dict[str, str | None]
     operations: list[dict[str, Any]] = Field(default_factory=list)
     recordings: list[dict[str, Any]] = Field(default_factory=list)
+    turns: list[dict[str, Any]] = Field(default_factory=list)
 
 
 def output(row: InterviewSession, session: SessionDep, now: datetime) -> SessionOut:
@@ -195,6 +202,7 @@ def output(row: InterviewSession, session: SessionDep, now: datetime) -> Session
         expires_at=row.expires_at,
         prompts=row.prompts,
         responses=row.responses,
+        turns=interview_turns.output(row),
         operations=[
             interview_feedback.operation_out(op)
             for op in session.scalars(
@@ -279,10 +287,10 @@ def respond(
     row = interviews.owned(session, learner.id, interview_id, now, lock=True)
     if row is None:
         raise HTTPException(404, "Interview unavailable.")
-    if body.prompt_id not in {p["id"] for p in row.prompts}:
-        raise HTTPException(422, "This scenario is not part of your session.")
-    if body.prompt_id in row.responses:
-        raise HTTPException(409, "This response is already saved.")
+    try:
+        interview_turns.require_accepts(row, body.prompt_id)
+    except ValueError as error:
+        raise HTTPException(409, str(error)) from None
     if body.recording_id is not None:
         try:
             clip = interview_audio.recording(
@@ -303,6 +311,25 @@ def respond(
         **row.responses,
         body.prompt_id: body.text.strip() if body.text and body.text.strip() else None,
     }
+    session.commit()
+    return output(row, session, now)
+
+
+@router.post("/me/interviews/{interview_id}/turns")
+def open_optional_turn(
+    interview_id: uuid.UUID,
+    body: TurnIn,
+    learner: CurrentLearner,
+    session: SessionDep,
+    now: Now,
+) -> SessionOut:
+    row = interviews.owned(session, learner.id, interview_id, now, lock=True)
+    if row is None:
+        raise HTTPException(404, "Interview unavailable.")
+    try:
+        interview_turns.open_turn(session, row, body.parent_id, body.kind, body.follow_up_id)
+    except ValueError as error:
+        raise HTTPException(409, str(error)) from None
     session.commit()
     return output(row, session, now)
 

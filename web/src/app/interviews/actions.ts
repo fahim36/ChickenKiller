@@ -89,3 +89,19 @@ export async function saveInterviewResponse(
 export async function deleteInterview(id: string) {
   await apiDelete(`/me/interviews/${encodeURIComponent(id)}`);
 }
+
+export async function openInterviewTurn(
+  id: string,
+  parentId: string,
+  kind: "follow_up" | "retry",
+  followUpId?: string,
+) {
+  return apiPost<InterviewSession>(
+    `/me/interviews/${encodeURIComponent(id)}/turns`,
+    {
+      parent_id: parentId,
+      kind,
+      follow_up_id: followUpId ?? null,
+    },
+  );
+}

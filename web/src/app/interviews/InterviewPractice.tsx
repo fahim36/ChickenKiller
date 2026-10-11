@@ -11,6 +11,7 @@ import type { InterviewSession, Topics } from "./types";
 import { InterviewFeedback } from "./InterviewFeedback";
 import { VoiceResponse } from "./VoiceResponse";
 import { DeviceSpeech } from "./DeviceSpeech";
+import { GuidedOptions } from "./GuidedOptions";
 
 export function InterviewPractice({
   stack,
@@ -27,7 +28,14 @@ export function InterviewPractice({
   const [text, setText] = useState("");
   const [error, setError] = useState("");
   const [pending, transition] = useTransition();
-  const prompt = current?.prompts.find((p) => !(p.id in current.responses));
+  const prompt =
+    current?.turns?.find((p) => !(p.id in current.responses)) ??
+    current?.prompts.find((p) => !(p.id in current.responses));
+  function update(row: InterviewSession) {
+    setCurrent(row);
+    setSessions((rows) => rows.map((s) => (s.id === row.id ? row : s)));
+    setText("");
+  }
   function run(action: () => Promise<void>) {
     setError("");
     transition(async () => {
@@ -130,21 +138,23 @@ export function InterviewPractice({
               }}
             >
               <h2>{prompt.scenario}</h2>
+              {prompt.kind && (
+                <p>
+                  {prompt.kind === "follow_up"
+                    ? "Reviewed follow-up"
+                    : "Practice retry of the main scenario"}
+                </p>
+              )}
               <DeviceSpeech text={prompt.scenario} />
               <VoiceResponse
                 key={`${current.id}-${prompt.id}`}
                 sessionId={current.id}
                 promptId={prompt.id}
+                seconds={prompt.seconds ?? 90}
                 initial={current.recordings?.find(
                   (r) => r.prompt_id === prompt.id,
                 )}
-                onConfirmed={(row) => {
-                  setCurrent(row);
-                  setSessions((rows) =>
-                    rows.map((s) => (s.id === row.id ? row : s)),
-                  );
-                  setText("");
-                }}
+                onConfirmed={update}
               />
               <label className="block">
                 Your response (optional)
@@ -164,21 +174,30 @@ export function InterviewPractice({
                 type="button"
                 onClick={() => save(null)}
               >
-                Skip scenario
+                {prompt.kind ? "Skip optional turn" : "Skip scenario"}
               </button>
             </form>
           ) : (
             <p role="status">
-              Practice complete. Use the rubrics below to choose what to
-              improve.
+              Practice complete. Use the rubrics and teaching Lessons below to
+              choose your next topic. Optional follow-ups and retries remain
+              available.
             </p>
           )}
-          {current.prompts
+          {[...current.prompts, ...(current.turns ?? [])]
             .filter((p) => p.id in current.responses)
             .map((p) => (
               <article key={p.id} className="border rounded p-4">
                 <h2>{p.scenario}</h2>
                 <p>{current.responses[p.id] ?? "Skipped — no assessment."}</p>
+                {p.kind === "retry" && p.parent_id && (
+                  <p>
+                    Earlier main response: {current.responses[p.parent_id]}.
+                    Compare the explanations against the rubric and quoted
+                    feedback. A repeated answer alone does not establish
+                    improvement.
+                  </p>
+                )}
                 {current.responses[p.id] && (
                   <InterviewFeedback
                     key={`${current.id}-${p.id}`}
@@ -188,6 +207,24 @@ export function InterviewPractice({
                     existing={current.operations?.find(
                       (op) => op.prompt_id === p.id && op.state === "complete",
                     )}
+                    onResult={(operation) => {
+                      const merge = (
+                        row: InterviewSession,
+                      ): InterviewSession =>
+                        row.id === current.id
+                          ? {
+                              ...row,
+                              operations: [
+                                ...(row.operations ?? []).filter(
+                                  (o) => o.id !== operation.id,
+                                ),
+                                operation,
+                              ],
+                            }
+                          : row;
+                      setCurrent((row) => (row ? merge(row) : null));
+                      setSessions((rows) => rows.map(merge));
+                    }}
                   />
                 )}
                 <h3>Reviewed self-review rubric</h3>
@@ -207,6 +244,13 @@ export function InterviewPractice({
                 >
                   Review the Lesson
                 </Link>
+                {!p.kind && current.responses[p.id] && (
+                  <GuidedOptions
+                    session={current}
+                    prompt={p}
+                    onOpened={update}
+                  />
+                )}
               </article>
             ))}
           <button
