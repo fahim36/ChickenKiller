@@ -53,11 +53,13 @@ from app.content.baseline import question_fields
 from app.content.challenges import is_frozen
 from app.content.check import load_checked_folder, utc_today, version_folders
 from app.content.diff import lesson_fingerprints, lesson_questions
+from app.content.interviews import InterviewPrompt, check_prompts
 from app.content.loader import Bank, Challenges, ContentError, ContentFolder, Problem
 from app.content.versions import version_key
 from app.models import (
     Concept,
     DailyChallenge,
+    InterviewContent,
     Lesson,
     LessonMaterial,
     Material,
@@ -136,6 +138,11 @@ def import_content(
     today = today or utc_today()
     syllabus = content.syllabus
     content_hash = _content_hash(content)
+    prompts = check_prompts(
+        content.path.parent,
+        {c.id for _, c in content.bank.concepts()},
+        {lesson.id for lesson in content.lessons()},
+    )
 
     existing = session.scalar(
         select(Syllabus).where(
@@ -158,6 +165,7 @@ def import_content(
         _fill_fingerprints(session, existing.pk, content)
         bank = import_bank(session, syllabus.stack.id, content.bank)
         challenges = import_challenges(session, syllabus.stack.id, content.challenges, today)
+        _import_interviews(session, syllabus.stack.id, prompts)
         return ImportResult(
             syllabus.stack.id,
             syllabus.version,
@@ -193,6 +201,7 @@ def import_content(
     session.flush()
     bank = import_bank(session, syllabus.stack.id, content.bank)
     challenges = import_challenges(session, syllabus.stack.id, content.challenges, today)
+    _import_interviews(session, syllabus.stack.id, prompts)
     return ImportResult(
         syllabus.stack.id,
         syllabus.version,
@@ -201,6 +210,19 @@ def import_content(
         bank,
         challenges,
     )
+
+
+def _import_interviews(session: Session, stack_id: str, prompts: list["InterviewPrompt"]) -> None:
+    for prompt in prompts:
+        row = session.get(InterviewContent, (stack_id, prompt.id))
+        document = prompt.model_dump(mode="json")
+        if row is None:
+            session.add(InterviewContent(stack_id=stack_id, id=prompt.id, document=document))
+        elif row.document != document:
+            if prompt.version <= row.document["version"]:
+                raise ValueError("Changed reviewed prompts require a higher version.")
+            row.document = document
+    session.flush()
 
 
 def _fill_fingerprints(session: Session, syllabus_pk: int, content: ContentFolder) -> None:

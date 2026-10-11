@@ -47,6 +47,32 @@ ID = String(80)
 _SYLLABUS_FK = "syllabuses.pk"
 
 
+class InterviewContent(Base):
+    """The current reviewed prompt; session snapshots preserve earlier revisions."""
+
+    __tablename__ = "interview_content"
+
+    stack_id: Mapped[str] = mapped_column(ForeignKey("stacks.id"), primary_key=True)
+    id: Mapped[str] = mapped_column(ID, primary_key=True)
+    document: Mapped[dict[str, Any]] = mapped_column(JSONB)
+
+
+class InterviewSession(Base):
+    """Private practice, deliberately unrelated to quiz Answer rows."""
+
+    __tablename__ = "interview_sessions"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    learner_id: Mapped[int] = mapped_column(
+        ForeignKey("learners.id", ondelete="CASCADE"), index=True
+    )
+    stack_id: Mapped[str] = mapped_column(ForeignKey("stacks.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    prompts: Mapped[list[dict[str, Any]]] = mapped_column(JSONB)
+    responses: Mapped[dict[str, str | None]] = mapped_column(JSONB, default=dict)
+
+
 def _syllabus_pk() -> Mapped[int]:
     return mapped_column(ForeignKey(_SYLLABUS_FK, ondelete="CASCADE"), index=True)
 

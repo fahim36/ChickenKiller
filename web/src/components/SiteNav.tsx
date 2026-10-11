@@ -9,6 +9,7 @@ const LINKS = [
   { href: "/", label: "Home", icon: House },
   { href: "/stacks", label: "Stacks", icon: Layers },
   { href: "/review", label: "Review", icon: Repeat },
+  { href: "/interviews", label: "Interviews", icon: Repeat },
   { href: "/settings", label: "Settings", icon: Settings },
 ] as const;
 
@@ -28,7 +29,8 @@ export function SiteNav() {
             : href === "/stacks"
               ? pathname === "/stacks" || pathname === "/stacks/new"
               : href === "/settings"
-                ? pathname.startsWith("/settings") || pathname.startsWith("/admin")
+                ? pathname.startsWith("/settings") ||
+                  pathname.startsWith("/admin")
                 : pathname.startsWith(href);
         return (
           <Link

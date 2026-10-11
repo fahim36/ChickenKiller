@@ -1,8 +1,9 @@
+import asyncio
 import logging
 import random
 import uuid
 from collections.abc import AsyncIterator, Callable, Iterator
-from contextlib import asynccontextmanager, contextmanager
+from contextlib import asynccontextmanager, contextmanager, suppress
 from dataclasses import asdict
 from datetime import UTC, date, datetime
 
@@ -55,10 +56,13 @@ from app.deps import (
     get_current_learner,
     get_now,
 )
+from app.interview_cleanup import run_cleanup
+from app.interview_routes import router as interview_router
 from app.models import Concept, ContentDraft, Learner, Question, QuestionReport
 
 # Everything except the health check: only a signed-in, invited Learner gets in (app/deps.py).
 router = APIRouter(dependencies=[Depends(get_current_learner)])
+router.include_router(interview_router)
 
 
 @router.get("/me/question-reports")
@@ -1358,7 +1362,13 @@ def create_app(
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         async with server.session_manager.run():
-            yield
+            cleanup_task = asyncio.create_task(run_cleanup())
+            try:
+                yield
+            finally:
+                cleanup_task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await cleanup_task
 
     app = FastAPI(title="ChickenKiller API", lifespan=lifespan)
     app.state.verifier = app_verifier

@@ -48,6 +48,7 @@ from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 import httpx
+from pydantic import ValidationError
 
 from app.content.baseline import (
     BadBaseline,
@@ -76,6 +77,7 @@ from app.content.format import (
     MultipleSelectQuestion,
     WrittenQuestion,
 )
+from app.content.interviews import check_prompts
 from app.content.loader import (
     CHALLENGES_DIR,
     CHANGELOG_FILE,
@@ -235,6 +237,16 @@ def load_checked_folder(path: Path, today: date | None = None) -> ContentFolder:
         problems += _check_legacy_folder(path) + _check_parsed(folder, links=False)
         problems += _check_bank(path.parent, bank, None, today)
         problems += _check_challenges(challenges, bank, today)
+        try:
+            check_prompts(
+                path.parent,
+                {c.id for _, c in bank.concepts()},
+                {lesson.id for lesson in folder.lessons()},
+            )
+        except (ValueError, OSError) as error:
+            problems.append(
+                Problem("error", str(path.parent / "interviews"), "prompts", str(error))
+            )
     errors = [p for p in problems if p.level == "error"]
     if errors or folder is None:
         raise ContentError(errors)
@@ -246,6 +258,14 @@ def _check_version(path: Path, bank: Bank, links: bool) -> list[Problem]:
     problems += _check_legacy_folder(path)
     if folder is None:
         return problems  # the rules below assume a well-formed syllabus
+    try:
+        check_prompts(
+            path.parent,
+            {c.id for _, c in bank.concepts()},
+            {lesson.id for lesson in folder.lessons()},
+        )
+    except (ValueError, ValidationError, OSError) as error:
+        problems.append(Problem("error", str(path.parent / "interviews"), "prompts", str(error)))
     return problems + _check_parsed(folder, links=links)
 
 
