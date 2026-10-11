@@ -298,42 +298,40 @@ export function InterviewPractice({
         </>
       )}
       <h2>Private history</h2>
-      {sessions
-        .filter((s) => s.stack_id === stack)
-        .map((s) => (
-          <div key={s.id} className="flex gap-4">
-            <button
-              disabled={pending}
-              onClick={() =>
-                run(async () => update(await loadInterviewSession(s.id)))
-              }
-            >
-              Open session · {s.prompts.length} scenarios ·{" "}
-              {Object.keys(s.responses).length} saved turns
-            </button>
-            <p>
-              {(s.operations ?? [])
-                .map(
-                  (o) =>
-                    `${o.kind ?? "feedback"}: ${o.state.replaceAll("_", " ")}`,
-                )
-                .join("; ") || "Reviewed self-review"}
-              . Audio is only available until its stated expiry.
-            </p>
-            <button
-              disabled={pending}
-              onClick={() =>
-                run(async () => {
-                  await deleteInterview(s.id);
-                  setSessions((rows) => rows.filter((row) => row.id !== s.id));
-                  if (current?.id === s.id) setCurrent(null);
-                })
-              }
-            >
-              Delete session
-            </button>
-          </div>
-        ))}
+      {sessions.map((s) => (
+        <div key={s.id} className="flex gap-4">
+          <button
+            disabled={pending}
+            onClick={() =>
+              run(async () => update(await loadInterviewSession(s.id)))
+            }
+          >
+            Open session · {s.stack_id} · {s.prompts.length} scenarios ·{" "}
+            {Object.keys(s.responses).length} saved turns
+          </button>
+          <p>
+            {(s.operations ?? [])
+              .map(
+                (o) =>
+                  `${o.kind ?? "feedback"}: ${o.state.replaceAll("_", " ")}`,
+              )
+              .join("; ") || "Reviewed self-review"}
+            . Audio is only available until its stated expiry.
+          </p>
+          <button
+            disabled={pending}
+            onClick={() =>
+              run(async () => {
+                await deleteInterview(s.id);
+                setSessions((rows) => rows.filter((row) => row.id !== s.id));
+                if (current?.id === s.id) setCurrent(null);
+              })
+            }
+          >
+            Delete session
+          </button>
+        </div>
+      ))}
     </section>
   );
 }

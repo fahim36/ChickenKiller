@@ -15,14 +15,12 @@ export default async function InterviewsPage({
   const query = await searchParams;
   const stack =
     me?.active_stacks.find((s) => s.id === query.stack) ?? me?.active_stacks[0];
-  const [topics, history] = stack
-    ? await Promise.all([
-        api<Topics>(
-          `/stacks/${encodeURIComponent(stack.id)}/interviews/topics`,
-        ),
-        api<InterviewSession[]>("/me/interviews"),
-      ])
-    : [null, null];
+  const [topics, history] = await Promise.all([
+    stack
+      ? api<Topics>(`/stacks/${encodeURIComponent(stack.id)}/interviews/topics`)
+      : Promise.resolve(null),
+    api<InterviewSession[]>("/me/interviews"),
+  ]);
   return (
     <main className="mx-auto max-w-3xl">
       <PageHeader
@@ -40,18 +38,24 @@ export default async function InterviewsPage({
           </Link>
         ))}
       </nav>
-      {stack && topics && history ? (
+      {history ? (
         <InterviewPractice
-          key={stack.id}
-          stack={stack.id}
-          topics={topics}
+          key={stack?.id ?? "private-history"}
+          stack={stack?.id ?? ""}
+          topics={
+            topics ?? {
+              topics: [],
+              lesson_id: null,
+              message: stack
+                ? "New practice could not be loaded. Your private history is still available."
+                : "Choose an Active Stack in Settings to start new practice. Private history remains available.",
+            }
+          }
           history={history}
         />
       ) : (
         <p>
-          {stack
-            ? "Practice could not be loaded. Reload to try again."
-            : "Choose an Active Stack in Settings first."}
+          Private practice history could not be loaded. Reload to try again.
         </p>
       )}
     </main>
