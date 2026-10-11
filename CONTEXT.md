@@ -133,7 +133,7 @@ The minimum score, 80%, a Lesson Quiz or Placement Quiz needs. Below it, the Lea
 _Avoid_: Threshold, passing grade
 
 **Placement Quiz**:
-A quiz covering a whole Week. Meeting the Pass Mark counts every Lesson in that Week as a Completed Lesson.
+An optional quiz covering a whole Week, available to new and existing Learners. Meeting the Pass Mark overall and within every Lesson counts every Lesson in that Week as a Completed Lesson; Milestones remain separately self-ticked.
 _Avoid_: Skip test, entrance exam, test-out
 
 **Dispute**:
@@ -157,7 +157,7 @@ A second attempt at a Missed Question, made after reading its Explanation.
 _Avoid_: Retry, redo
 
 **Completed Lesson**:
-A Lesson whose Lesson Quiz met the Pass Mark and whose Retakes have all been answered correctly or waived because the missed Question was retired or no active sibling remains. A waiver records its reason and awards no answer credit.
+A Lesson completed through a passing Placement Quiz, or through a Lesson Quiz meeting the Pass Mark with all Retakes answered correctly or waived because the missed Question was retired or no active sibling remains. A Retake waiver records its reason and awards no answer credit; Placement Quiz misses require no Retakes.
 _Avoid_: Finished, passed, done
 
 **Review**:

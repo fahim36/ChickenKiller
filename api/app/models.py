@@ -48,6 +48,17 @@ ID = String(80)
 _SYLLABUS_FK = "syllabuses.pk"
 
 
+class PlacementCoverage(Base):
+    __tablename__ = "placement_coverage"
+
+    syllabus_pk: Mapped[int] = mapped_column(
+        ForeignKey("syllabuses.pk", ondelete="CASCADE"), primary_key=True
+    )
+    week_id: Mapped[str] = mapped_column(ID, primary_key=True)
+    document: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    teaching_revision: Mapped[str] = mapped_column(String(64))
+
+
 class InterviewContent(Base):
     """The current reviewed prompt; session snapshots preserve earlier revisions."""
 

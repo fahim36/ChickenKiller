@@ -59,10 +59,12 @@ from app.deps import (
 from app.interview_cleanup import run_cleanup
 from app.interview_routes import router as interview_router
 from app.models import Concept, ContentDraft, Learner, Question, QuestionReport
+from app.placement_routes import router as placement_router
 
 # Everything except the health check: only a signed-in, invited Learner gets in (app/deps.py).
 router = APIRouter(dependencies=[Depends(get_current_learner)])
 router.include_router(interview_router)
+router.include_router(placement_router)
 
 
 @router.get("/me/question-reports")

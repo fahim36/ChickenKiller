@@ -17,9 +17,11 @@ from pydantic import BaseModel
 from app.config import CONTENT_SCHEMA_DIR
 from app.content.format import ChallengeLaunch, Changelog, DailyChallenge, QuestionBank, Syllabus
 from app.content.interviews import InterviewPrompt
+from app.content.placement import PlacementPlan
 
 _DIALECT = "https://json-schema.org/draft/2020-12/schema"
 _MODELS: dict[str, type[BaseModel]] = {
+    "placement-plan.schema.json": PlacementPlan,
     "interview-prompt.schema.json": InterviewPrompt,
     "syllabus.schema.json": Syllabus,
     "question-bank.schema.json": QuestionBank,
