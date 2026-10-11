@@ -43,7 +43,7 @@ def fixture_plan(make_content: ContentFactory) -> tuple[Path, dict[str, Any]]:
         ],
     }
     folder = path / "placement"
-    folder.mkdir()
+    folder.mkdir(exist_ok=True)
     (folder / "w01.json").write_text(json.dumps(plan), encoding="utf-8")
     return path, plan
 

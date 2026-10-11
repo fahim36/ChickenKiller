@@ -48,6 +48,17 @@ ID = String(80)
 _SYLLABUS_FK = "syllabuses.pk"
 
 
+class QuestionExposure(Base):
+    __tablename__ = "question_exposures"
+
+    learner_id: Mapped[int] = mapped_column(
+        ForeignKey("learners.id", ondelete="CASCADE"), primary_key=True
+    )
+    stack_id: Mapped[str] = mapped_column(ForeignKey("stacks.id"), primary_key=True)
+    question_id: Mapped[str] = mapped_column(ID, primary_key=True)
+    first_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
 class PlacementCoverage(Base):
     __tablename__ = "placement_coverage"
 
