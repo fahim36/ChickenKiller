@@ -95,6 +95,8 @@ def probe(url: str, client: httpx.Client | None = None) -> Probe:
         except httpx.TransportError as exc:
             if attempt:
                 return Probe("unreachable", None, type(exc).__name__)
+        except httpx.HTTPError as exc:
+            return Probe("unreachable", None, type(exc).__name__)
     raise AssertionError("retry loop must return")
 
 
@@ -134,6 +136,17 @@ def save(report: dict[str, Any], output: Path) -> None:
                 f"  - {ref['stack_id']} / {ref['kind']} / {ref['item_id']} / {ref['file']}"
             )
     (output / "links.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    counts = {
+        state: sum(r["state"] == state for r in report["results"])
+        for state in ("ok", "blocked", "broken", "unreachable")
+    }
+    summary = lines[:6] + [
+        f"{len(report['results'])} distinct URLs checked.",
+        *(f"- {state}: {count}" for state, count in counts.items()),
+        "",
+        "Download the content-link-results artifact for links.md and links.json.",
+    ]
+    (output / "summary.md").write_text("\n".join(summary) + "\n", encoding="utf-8")
 
 
 def main() -> None:

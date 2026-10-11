@@ -77,6 +77,18 @@ def test_exhausted_transport_retry_is_unknown_availability() -> None:
     assert len(calls) == 2
 
 
+def test_redirect_loop_is_saved_as_unreachable_not_an_aborted_scan() -> None:
+    with httpx.Client(
+        transport=httpx.MockTransport(
+            lambda request: httpx.Response(302, headers={"location": "/loop"})
+        ),
+        follow_redirects=True,
+        max_redirects=2,
+    ) as client:
+        result = link_report.probe("https://example.com/loop", client)
+    assert result == link_report.Probe("unreachable", None, "TooManyRedirects")
+
+
 def test_duplicate_urls_are_probed_once_and_failed_results_are_saved(tmp_path: Path) -> None:
     refs = [
         link_report.Reference("https://example.com/dead", "source", "s", "q1", "bank.json"),
