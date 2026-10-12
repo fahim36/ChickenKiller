@@ -4,6 +4,7 @@ import json
 import shutil
 import uuid
 from copy import deepcopy
+from typing import Any
 
 from fastapi.testclient import TestClient
 from sqlalchemy import func, select
@@ -71,8 +72,8 @@ def test_failed_attempt_can_restart_after_actual_teaching_import(
     )
 
 
-def fill(session: Session, api: TestClient, row: dict, misses: set[int]) -> str:
-    path = "/me/placements/" + row["id"]
+def fill(session: Session, api: TestClient, row: dict[str, Any], misses: set[int]) -> str:
+    path = "/me/placements/" + str(row["id"])
     private = session.get_one(PlacementAttempt, uuid.UUID(row["id"]))
     for index, question in enumerate(private.questions):
         if index in misses:
@@ -145,6 +146,7 @@ def test_overall_eighty_does_not_hide_lesson_failure_and_misses_enter_review(
     misses = set(session.scalars(select(Answer.question_id).where(Answer.correct.is_(False))))
     assert misses == {row["questions"][0]["id"], row["questions"][1]["id"]}
     assert "already submitted" in api.get(ENTRY).json()["reason"]
+    assert api.get(ENTRY).json()["result_id"] == row["id"]
     reviewed = {q["id"] for q in api.get("/review").json()["questions"]}
     assert misses <= reviewed
 

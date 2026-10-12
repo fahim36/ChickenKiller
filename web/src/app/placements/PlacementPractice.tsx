@@ -1,9 +1,25 @@
 "use client";
 
 import Link from "next/link";
+import { Inline } from "@/components/Inline";
 import { useRef, useState } from "react";
 import { abandonPlacement, savePlacement, submitPlacement } from "./actions";
 import type { PlacementAttempt } from "./types";
+
+function PlacementText({ text }: { text: string }) {
+  return text.split(/```[\w+-]*\n([\s\S]*?)```/g).map((part, index) =>
+    index % 2 ? (
+      <code
+        key={index}
+        className="my-2 block overflow-x-auto whitespace-pre-wrap rounded bg-muted p-3 text-sm"
+      >
+        {part}
+      </code>
+    ) : (
+      <Inline key={index} text={part} />
+    ),
+  );
+}
 
 export function PlacementPractice({ initial }: { initial: PlacementAttempt }) {
   const [attempt, setAttempt] = useState(initial);
@@ -65,7 +81,7 @@ export function PlacementPractice({ initial }: { initial: PlacementAttempt }) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6 break-words">
       <p>
         Self-assessment: answer without outside help. No timer. Answers save
         automatically; correctness appears after submission.
@@ -116,7 +132,9 @@ export function PlacementPractice({ initial }: { initial: PlacementAttempt }) {
           </p>
           {attempt.questions.map((q) => (
             <section key={q.id} className="rounded border p-4">
-              <h3>{q.prompt}</h3>
+              <h3>
+                <PlacementText text={q.prompt} />
+              </h3>
               <p>
                 {attempt.result?.correct_questions[q.id]
                   ? "Correct"
@@ -144,9 +162,12 @@ export function PlacementPractice({ initial }: { initial: PlacementAttempt }) {
       ) : (
         <>
           {attempt.questions.map((q, index) => (
-            <fieldset key={q.id} className="rounded border p-4 space-y-3">
-              <legend>
-                {index + 1}. {q.prompt}
+            <fieldset
+              key={q.id}
+              className="min-w-0 rounded border p-4 space-y-3"
+            >
+              <legend className="max-w-full">
+                {index + 1}. <PlacementText text={q.prompt} />
               </legend>
               <p>
                 {q.lesson} ·{" "}
@@ -177,7 +198,7 @@ export function PlacementPractice({ initial }: { initial: PlacementAttempt }) {
                         );
                       }}
                     />
-                    {choice.text}
+                    <Inline text={choice.text} />
                   </label>
                 );
               })}

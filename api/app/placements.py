@@ -200,6 +200,7 @@ def eligibility(session: Session, record: LearnerStack, week_id: str) -> dict[st
         (w for w in weeks if any(lesson.id not in completed for lesson in w.lessons)), None
     )
     reason: str | None = None
+    result_id: str | None = None
     if next_week is None or next_week.id != week_id:
         reason = "Placement is offered only for your earliest incomplete Week."
     elif (
@@ -230,6 +231,7 @@ def eligibility(session: Session, record: LearnerStack, week_id: str) -> dict[st
             )
         )
         if submitted is not None:
+            result_id = str(submitted)
             reason = (
                 "You already submitted placement for this teaching revision. "
                 "Continue the Lesson path."
@@ -242,7 +244,13 @@ def eligibility(session: Session, record: LearnerStack, week_id: str) -> dict[st
                     "Not enough unseen Questions cover every essential Concept. "
                     "Continue the Lesson path."
                 )
-    return {"available": reason is None, "reason": reason, "attempt_id": None, "week_id": week_id}
+    return {
+        "available": reason is None,
+        "reason": reason,
+        "attempt_id": None,
+        "week_id": week_id,
+        "result_id": result_id,
+    }
 
 
 def snapshot(q: Question) -> dict[str, Any]:

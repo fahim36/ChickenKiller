@@ -34,7 +34,7 @@ afterEach(() => {
 
 async function renderReview(body: ReviewSet) {
   stubApi({ "/review": body });
-  render(await ReviewPage());
+  render(await ReviewPage({}));
 }
 
 it("asks the set's first Question, saying which Stack it is from", async () => {
@@ -98,6 +98,6 @@ it("does not turn an incomplete target into unrestricted practice", async () => 
 
 it("distinguishes unavailable Review from an empty due queue", async () => {
   stubApi({});
-  render(await ReviewPage());
+  render(await ReviewPage({}));
   expect(screen.getByText(/Review couldn't be loaded/)).toBeTruthy();
 });

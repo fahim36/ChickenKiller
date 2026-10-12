@@ -48,6 +48,12 @@ const syllabus: Syllabus = {
   removed_lessons: [],
 };
 
+it("makes Week hubs open their Week detail and placement entry", () => {
+  const { nodes } = weekGraphLayout(syllabus);
+  const hub = nodes.find((node) => node.type === "week");
+  expect(hub?.data.href).toBe("/stacks/agentic-ai-engineer/weeks/w01");
+});
+
 it("puts each Week on its own row: hub, then Lessons in order, then Milestones", () => {
   const { nodes } = weekGraphLayout(syllabus);
 

@@ -35,4 +35,5 @@ export interface PlacementEligibility {
   reason: string | null;
   attempt_id: string | null;
   week_id: string;
+  result_id?: string | null;
 }

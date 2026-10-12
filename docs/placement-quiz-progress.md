@@ -1,35 +1,38 @@
 # Placement Quiz implementation progress
 
-Authorized: finish all six approved tickets sequentially, test on the local instance, and commit/push each ticket on the feature branch. Resume after natural usage resets; no reset credit spending, main merge or deployment.
+Authorized: complete six tickets sequentially, verify through the local instance and push per ticket on codex/placement-quizzes. Natural usage resets only; no reset credits, purchases, main merge, deployment or production load tests.
 
-Branch: `codex/placement-quizzes`. Baseline: `79120fc` from the completed mock-interview branch, including practice guidance and content health. Preserve unrelated working changes.
+Baseline: 79120fc. Unrelated schemas, Docker Compose, mock-interview documents and scratch work were preserved. The other task's API on port 8000 was preserved.
 
-Automation: `resume-placement-quiz-tickets`, active hourly thread heartbeat. Do not overlap an active implementation turn or shared-database tests. Pause after all verified pushes.
+| Ticket | Issue | State |
+| --- | --- | --- |
+| 01 | #29 | Complete: 57731c3 pushed |
+| 02 | #30 | Complete: c120322 pushed |
+| 03 | #31 | Complete: bc82050 pushed |
+| 04 | #32 | Complete: 7ffd28c pushed |
+| 05 | #33 | Complete: e69069b pushed |
+| 06 | #34 | Complete locally: final reviewed commit/push verification pending |
 
-| Ticket | Issue | Blockers | State |
-| --- | --- | --- | --- |
-| 01 | #29 | None | Complete: 57731c3 pushed |
-| 02 | #30 | None | Complete: c120322 pushed |
-| 03 | #31 | #29, #30 | Complete: bc82050 pushed |
-| 04 | #32 | #31 | Complete: 7ffd28c pushed |
-| 05 | #33 | #29 | Verified: push pending |
-| 06 | #34 | #32, #33 | Not started |
+All six implementation slices are locally verified. Final step: commit/push ticket 06, compare remote HEAD, close issue 34, record its verified hash here and pause resume-placement-quiz-tickets. Do not start another implementation or shared-database test run.
 
-GitHub native dependency endpoint returned 404; real issue references are recorded in each issue body as the configured fallback. Local copies are in `.scratch/placement-quizzes/issues/`. Read live tickets/comments before execution.
+## Verification
 
-Ticket 01: five coverage/migration checks passed against isolated IPv4 placement_test; nine focused frontend checks passed, backend strict mypy/ruff and frontend lint/typecheck passed. Isolated local HTTP instance on 127.0.0.1:8011 passed unsigned401, dummy Learner403 and signed Admin valid coverage200. Fixture identity uses normal RSA token verification with local public keys, not live Clerk login. Standards review: no findings. Spec review found mutable published plans and missing substantive material revision fields; both corrected, regression-tested and re-reviewed with no remaining findings. Published plans are immutable within a Syllabus; changes/removal require a new Syllabus. A small existing Stacks page signature correction unblocked Next generated typechecking.
+- Full backend: 789 passed in 709.44 seconds. Final focused checks after the failed-result link: 11 passed.
+- Final frontend: 263 passed across 65 files; 16 focused checks passed. Typecheck, lint and production build passed.
+- Strict mypy: 125 configured files passed. Ruff lint/format: 157 files passed. Content schemas match.
+- All committed Stacks pass content checks against 79120fc. Two deliberate same-Concept Android variant warnings are reviewed.
+- Fresh placement_import database migrated to 0030 and imported all content twice; second import unchanged.
+- Repeatable signed-fixture local HTTP smoke passes exposure, ownership, parallel lifecycle, save/submission races, duplicate immutable results, atomic completion and fresh shipped draws all four Stacks.
+- Real Clerk development sign-in and browser verification used the disposable mock-sanity learner only in placement_local. Android/.NET passed 19/20; Agentic AI/Web failed 23/25 and18/20 due to 3/5 within one Lesson. Saved edits survive refresh; visible save failure/retry, all four Review misses, prior completion preservation, next-Week unlocking and desktop/mobile layout passed.
+- Dummy-only final evidence: 85 placement Answers, 8 completions (7 placement plus 1 prior fixture), 0 Retakes, 0 Milestone ticks, 0 Challenge plays.
+- Standards reviews found no hard violations. Spec reviews found no remaining behavior blockers. Final fresh-checkout smoke directory creation and documentation precision fixes were applied.
 
+See docs/placement-quiz-local-verification.md, docs/placement-quiz-operations.md and docs/placement-quiz-pilot-coverage.md. Native physical-device testing was not performed. Entry remains off by default; production rollout needs separate authorization. Some minimal fresh pools can be exhausted. Historical unrecorded views remain unknown.
 
-Ticket 02: 113 focused exposure/Lesson Quiz/Retake/Review/Daily Challenge/migration tests passed in 144.76 seconds against placement_test via 127.0.0.1. Backend strict mypy and ruff passed. Local HTTP dummy Learner quiz delivery verified persistent exposure without submitted answers. Standards and Spec reviews found no blockers; the seen-history docstring was corrected. Historical answered Questions are backfilled; unrecorded prior views remain unknown.
+## Continuation and environment
 
-Environment: use TEST_DATABASE_URL=postgresql+psycopg://learning:learning@127.0.0.1:5433/placement_test?connect_timeout=10 for pytest; localhost can hang in psycopg on this host. Local network smoke uses separate placement_local and signed fixture identities with ordinary verifier, not live Clerk. Use gh auth token --user fahim36 only inside the executing process as GH_TOKEN for push; cached/current saifulhoque-bjit account is denied. Never print tokens. The issue repo is fahim36/ChickenKiller; origin redirects from the old name.
+Automation resume-placement-quiz-tickets remains active only until final remote verification; pause it after all six pushes. It must not overlap an active run or tests against the same database. User notification is limited to meaningful completion/failure/action.
 
-Ticket 03 checkpoint: live issue31 read. New uncommitted placement_selection.py and test_placement_selection.py implement fresh five/ten-Question selection with every essential Concept and no seen fallback. This is only the selector: attempt tables/migration, API, Week page/UI, autosave, owner isolation, reservations across practice, cancellation and local flow remain required before ticket03 can be committed/pushed. Existing Week map has no separate Week page; add a Week detail entry without changing the study path. Account usage reached 94% during ticket02; continuation automation is active. Do not mark ticket03 complete from selector tests alone. Ticket01/02 are both pushed and closed.
+Use explicit IPv4 for local PostgreSQL. pytest uses placement_test, whose existing fixture rebuilds that isolated test database; never use learner data for TEST_DATABASE_URL. Browser/HTTP verification used placement_local, and deploy-style import used placement_import. The owned browser/API servers on 3000/8012 were stopped after checks; HTTP smoke stops 8011 itself.
 
-Ticket 03 verified: private Week entry/start/save/resume/abandon, fresh coverage selection, reservations and teaching/retirement cancellation. 118 broader backend checks passed; seven final lifecycle/Retake/two-session importer checks passed. Four frontend behavior checks, typecheck/lint and strict backend mypy/ruff passed. Local HTTP signed dummy accounts verified concurrent starts, concurrent saves, owner isolation and abandonment. Frozen Daily Questions stay unchanged. Standards review had no hard violations; final Spec review has no blockers. Submission remains gated for ticket04.
-
-
-Ticket04: atomic exact-match scoring and per-Lesson threshold, immutable results, optional Review, preserved completions and owner-only Completed by placement links implemented. Five submission regressions and migration alignment passed; local HTTP signed dummy identities verified concurrent submit/save, duplicate submissions and pass/fail completion. Five frontend checks and typecheck/lint passed. Strict backend mypy/ruff passed. Final review and broader progression regression pending before push.
-
-Ticket04 final: 50 scoring/migration/new-Syllabus/unlocking checks passed; Standards zero hard violations, shared Score adopted; Spec no remaining blockers. Pushed7ffd28c, issue32closed.
-Ticket05 verified: all17 Week1 Lessons covered by five-Question blueprints. Two Android variants verified against official Kotlin docs; all other immutable Questions preserved. Shipped-content repeated imports/Admin validity/fresh draw regression passed, local HTTP fresh draws allfour passed. Content check passes with deliberate same-Concept variant warnings. Standards/Spec no blockers. Some pools have exactlyfive usable Questions, so exposure can exhaust eligibility.
+GitHub repo is fahim36/ChickenKiller; origin redirects from the old name. Cached saifulhoque-bjit credentials are denied. Use gh auth token --user fahim36 only within the push process as GH_TOKEN, without printing it. Native dependency endpoint returned 404; published issue references record the approved blocking edges.

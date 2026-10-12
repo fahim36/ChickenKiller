@@ -1,6 +1,6 @@
 # Placement Quiz design interview
 
-Design confirmed on 12 October 2026. User authorized sequential implementation after ticket generation, local-instance testing, and per-ticket commits and pushes on a feature branch, with continuation after natural usage-limit resets. Ticket breakdown awaits review before publication.
+Design confirmed on 12 October 2026. User approved the six published tickets, sequential implementation, local-instance testing and per-ticket feature-branch pushes, with continuation after natural usage-limit resets.
 
 ## Settled decisions
 
@@ -32,7 +32,7 @@ Design confirmed on 12 October 2026. User authorized sequential implementation a
 
 ## Open decisions
 
-None. Design confirmed; ticket breakdown review is the next workflow step.
+None. The approved ticket order and verification evidence are recorded in the implementation and local-verification documents.
 
 ## Implementation acceptance boundaries
 

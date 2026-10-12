@@ -56,6 +56,11 @@ export function PlacementEntry({
         <p>{eligibility.reason}</p>
       )}
       {error && <p role="alert">{error}</p>}
+      {eligibility.result_id && (
+        <Link href={`/placements/${encodeURIComponent(eligibility.result_id)}`}>
+          View placement result
+        </Link>
+      )}
     </section>
   );
 }
