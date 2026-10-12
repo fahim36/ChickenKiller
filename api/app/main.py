@@ -25,6 +25,7 @@ from app import (
     marking,
     mcp_server,
     onboarding,
+    placements,
     practice_outcomes,
     progress,
     question_exposure,
@@ -208,6 +209,9 @@ def get_home_guidance(
     records = onboarding.active_stacks(session, learner)
     if not records:
         raise HTTPException(409, ONBOARDING_NEEDED)
+    for record in sorted(records, key=lambda item: item.stack_id):
+        placements.lock(session, learner.id, record.stack_id)
+        placements.open_attempt(session, learner.id, record.stack_id)
     result = home_guidance.for_learner(session, records, now, rng)
     return schemas.HomeGuidanceOut(
         action=schemas.NextActionOut(**asdict(result.action)),
@@ -566,6 +570,7 @@ def start_lesson_quiz(
     the new quiz avoids that attempt's Questions as far as the bank allows.
     """
     try:
+        placements.guard_lesson(session, active, lesson.id)
         started = quizzes.start_lesson_quiz(session, active, lesson, rng, now)
     except quizzes.QuizUnavailable as error:
         raise HTTPException(409, QUIZ_UNAVAILABLE) from error
@@ -614,6 +619,7 @@ def submit_lesson_quiz(
     the Learner submits again without penalty.
     """
     try:
+        placements.guard_lesson(session, active, lesson_id)
         attempt_uuid = uuid.UUID(attempt_id)
         result = quizzes.submit_lesson_quiz(
             session,
@@ -692,6 +698,7 @@ def get_retakes(
     Learner's or isn't submitted.
     """
     try:
+        placements.guard_lesson(session, active, lesson_id)
         state = retakes.open_retakes(session, active, lesson_id, uuid.UUID(attempt_id), rng, now)
     except (ValueError, retakes.RetakeNotFound) as error:
         raise HTTPException(404, "Lesson Quiz not found") from error
@@ -728,6 +735,7 @@ def answer_retake(
     graded. In each of those nothing is recorded and the Learner can answer again.
     """
     try:
+        placements.guard_lesson(session, active, lesson_id)
         result = retakes.answer_retake(
             session,
             active,

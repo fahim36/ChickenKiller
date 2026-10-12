@@ -40,7 +40,9 @@ export default async function WeekMapPage({
     `/stacks/${encodeURIComponent(stackId)}`,
   );
   if (!syllabus) notFound();
-  const evidence = await api<StackEvidence>(`/stacks/${encodeURIComponent(stackId)}/concept-evidence`);
+  const evidence = await api<StackEvidence>(
+    `/stacks/${encodeURIComponent(stackId)}/concept-evidence`,
+  );
   const tickAction = setMilestoneTicked.bind(null, syllabus.id);
   const lessons = syllabus.weeks.flatMap((w) => w.lessons);
   const done = lessons.filter(
@@ -95,7 +97,11 @@ export default async function WeekMapPage({
         </p>
       </div>
 
-      {evidence ? <ConceptEvidence evidence={evidence} /> : <p>Concept evidence is unavailable.</p>}
+      {evidence ? (
+        <ConceptEvidence evidence={evidence} />
+      ) : (
+        <p>Concept evidence is unavailable.</p>
+      )}
 
       <nav aria-label="Week map view" className="mb-6 flex justify-end">
         <div className="inline-flex rounded-xl border bg-card p-1 shadow-xs">
@@ -150,9 +156,11 @@ export default async function WeekMapPage({
                       id={`week-${week.id}`}
                       className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 font-heading text-lg font-semibold tracking-tight"
                     >
-                      <span>
+                      <Link
+                        href={`/stacks/${encodeURIComponent(syllabus.id)}/weeks/${encodeURIComponent(week.id)}`}
+                      >
                         Week {week.number}: {week.title}
-                      </span>{" "}
+                      </Link>{" "}
                       <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground">
                         <Clock aria-hidden className="size-3.5" />
                         {formatMinutes(weekMinutes(week))}

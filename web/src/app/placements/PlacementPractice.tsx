@@ -1,0 +1,137 @@
+"use client";
+
+import Link from "next/link";
+import { useRef, useState } from "react";
+import { abandonPlacement, savePlacement } from "./actions";
+import type { PlacementAttempt } from "./types";
+
+export function PlacementPractice({ initial }: { initial: PlacementAttempt }) {
+  const [attempt, setAttempt] = useState(initial);
+  const [answers, setAnswers] = useState(initial.responses);
+  const answersRef = useRef(initial.responses);
+  const queue = useRef(Promise.resolve());
+  const dirty = useRef(new Set<string>());
+  const [pending, setPending] = useState(0);
+  const [error, setError] = useState("");
+
+  function save(question: string, answer: string | string[] | null) {
+    const next = { ...answersRef.current, [question]: answer };
+    answersRef.current = next;
+    setAnswers(next);
+    dirty.current.add(question);
+    setPending((n) => n + 1);
+    queue.current = queue.current.then(async () => {
+      try {
+        const result = await savePlacement(attempt.id, question, answer);
+        if (result.state !== "open") setAttempt(result);
+        if (answersRef.current[question] === answer)
+          dirty.current.delete(question);
+        if (dirty.current.size === 0) setError("");
+      } catch {
+        setError(
+          "Some answers could not be saved. Retry before leaving this page.",
+        );
+      } finally {
+        setPending((n) => n - 1);
+      }
+    });
+  }
+
+  async function abandon() {
+    try {
+      const result = await abandonPlacement(attempt.id);
+      setAttempt(result);
+    } catch {
+      setError("Could not abandon this attempt. Try again.");
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <p>
+        Self-assessment: answer without outside help. No timer. Answers save
+        automatically; correctness appears after submission.
+      </p>
+      <p role="status">
+        {pending
+          ? "Saving answers…"
+          : error
+            ? "Unsaved answers"
+            : "Answers saved"}
+      </p>
+      {error && (
+        <div role="alert">
+          <p>{error}</p>
+          <button
+            type="button"
+            onClick={() => {
+              for (const question of dirty.current)
+                save(question, answersRef.current[question] ?? null);
+            }}
+          >
+            Retry saving
+          </button>
+        </div>
+      )}
+      {attempt.state !== "open" ? (
+        <p>{attempt.reason ?? "This attempt has finished."}</p>
+      ) : (
+        <>
+          {attempt.questions.map((q, index) => (
+            <fieldset key={q.id} className="rounded border p-4 space-y-3">
+              <legend>
+                {index + 1}. {q.prompt}
+              </legend>
+              <p>
+                {q.lesson} ·{" "}
+                {q.type === "multiple_select"
+                  ? "Select all that apply"
+                  : "Choose one"}
+              </p>
+              {q.choices.map((choice) => {
+                const current = answers[q.id];
+                const checked = Array.isArray(current)
+                  ? current.includes(choice.id)
+                  : current === choice.id;
+                return (
+                  <label key={choice.id} className="flex gap-2">
+                    <input
+                      type={q.type === "multiple_select" ? "checkbox" : "radio"}
+                      name={q.id}
+                      checked={checked}
+                      onChange={() => {
+                        const ticks = Array.isArray(current) ? current : [];
+                        save(
+                          q.id,
+                          q.type === "multiple_select"
+                            ? checked
+                              ? ticks.filter((id) => id !== choice.id)
+                              : [...ticks, choice.id]
+                            : choice.id,
+                        );
+                      }}
+                    />
+                    {choice.text}
+                  </label>
+                );
+              })}
+              <button type="button" onClick={() => save(q.id, null)}>
+                Clear answer
+              </button>
+            </fieldset>
+          ))}
+          <button type="button" disabled={pending > 0} onClick={abandon}>
+            Abandon attempt
+          </button>
+          <p>
+            Abandoning uses no submitted attempt, but viewed Questions remain
+            seen.
+          </p>
+        </>
+      )}
+      <Link href={`/stacks/${encodeURIComponent(attempt.stack_id)}`}>
+        Return to your Week map
+      </Link>
+    </div>
+  );
+}

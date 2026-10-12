@@ -44,7 +44,7 @@ from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Literal
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session, selectinload
 
 from app import question_reports
@@ -139,6 +139,10 @@ def import_content(
 ) -> ImportResult:
     today = today or utc_today()
     syllabus = content.syllabus
+    session.execute(
+        text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))"),
+        {"key": f"content:{syllabus.stack.id}"},
+    )
     content_hash = _content_hash(content)
     prompts = check_prompts(
         content.path.parent,
