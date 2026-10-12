@@ -14,7 +14,9 @@ import { StacksBeingBuilt } from "./StacksBeingBuilt";
  * time; this is where a Learner changes it later. A deactivated Stack keeps its progress.
  * Below, the Stacks being built (Add a Stack), with how far Claude has got.
  */
-export default async function StacksPage({ searchParams }: Partial<PageProps<"/stacks">> = {}) {
+export default async function StacksPage({
+  searchParams,
+}: Partial<PageProps<"/stacks">>) {
   await connection();
   const [me, stackList, building, query] = await Promise.all([
     api<Me>("/me"),
@@ -22,14 +24,20 @@ export default async function StacksPage({ searchParams }: Partial<PageProps<"/s
     api<StackPlan[]>("/stack-requests"),
     searchParams,
   ]);
-  const requested = typeof query?.requested === "string" ? query.requested : undefined;
+  const requested =
+    typeof query?.requested === "string" ? query.requested : undefined;
   if (!me || me.needs_onboarding) redirect("/onboarding");
 
   // A Stack the Admin has since withdrawn is no longer listed, but its Learners may keep it.
   const stacks = stackList ?? [];
   const withdrawn: StackSummary[] = me.active_stacks
     .filter((a) => !stacks.some((s) => s.id === a.id))
-    .map((a) => ({ id: a.id, name: a.name, summary: "One of your Active Stacks.", version: "" }));
+    .map((a) => ({
+      id: a.id,
+      name: a.name,
+      summary: "One of your Active Stacks.",
+      version: "",
+    }));
 
   return (
     <main className="mx-auto max-w-3xl">
@@ -38,8 +46,9 @@ export default async function StacksPage({ searchParams }: Partial<PageProps<"/s
         title="Your Active Stacks"
         description={
           <p>
-            Tick the Stacks you want to study. Your progress on each Stack is kept, so a Stack you
-            untick picks up where you left off when you tick it again.
+            Tick the Stacks you want to study. Your progress on each Stack is
+            kept, so a Stack you untick picks up where you left off when you
+            tick it again.
           </p>
         }
         actions={

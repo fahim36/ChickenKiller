@@ -25,8 +25,10 @@ from app import (
     marking,
     mcp_server,
     onboarding,
+    placements,
     practice_outcomes,
     progress,
+    question_exposure,
     question_reports,
     quiz,
     quizzes,
@@ -58,11 +60,13 @@ from app.deps import (
 )
 from app.interview_cleanup import run_cleanup
 from app.interview_routes import router as interview_router
-from app.models import Concept, ContentDraft, Learner, Question, QuestionReport
+from app.models import CompletedLesson, Concept, ContentDraft, Learner, Question, QuestionReport
+from app.placement_routes import router as placement_router
 
 # Everything except the health check: only a signed-in, invited Learner gets in (app/deps.py).
 router = APIRouter(dependencies=[Depends(get_current_learner)])
 router.include_router(interview_router)
+router.include_router(placement_router)
 
 
 @router.get("/me/question-reports")
@@ -205,6 +209,9 @@ def get_home_guidance(
     records = onboarding.active_stacks(session, learner)
     if not records:
         raise HTTPException(409, ONBOARDING_NEEDED)
+    for record in sorted(records, key=lambda item: item.stack_id):
+        placements.lock(session, learner.id, record.stack_id)
+        placements.open_attempt(session, learner.id, record.stack_id)
     result = home_guidance.for_learner(session, records, now, rng)
     return schemas.HomeGuidanceOut(
         action=schemas.NextActionOut(**asdict(result.action)),
@@ -355,6 +362,16 @@ def get_week_map(
     if syllabus is None:
         raise HTTPException(404, "Stack not found")
     states = progress.lesson_states(session, learner.id, stack_id)
+    placement_completions = {
+        c.lesson_id: str(c.placement_attempt_id)
+        for c in session.scalars(
+            select(CompletedLesson).where(
+                CompletedLesson.learner_id == learner.id,
+                CompletedLesson.stack_id == stack_id,
+                CompletedLesson.placement_attempt_id.is_not(None),
+            )
+        )
+    }
     ticked = progress.ticked_milestone_ids(session, learner.id, stack_id)
     stack = syllabus.stack
     return schemas.SyllabusOut(
@@ -375,6 +392,7 @@ def get_week_map(
                         title=lesson.title,
                         minutes=lesson.minutes,
                         state=states[lesson.id],
+                        placement_attempt_id=placement_completions.get(lesson.id),
                     )
                     for lesson in week.lessons
                 ],
@@ -563,6 +581,7 @@ def start_lesson_quiz(
     the new quiz avoids that attempt's Questions as far as the bank allows.
     """
     try:
+        placements.guard_lesson(session, active, lesson.id)
         started = quizzes.start_lesson_quiz(session, active, lesson, rng, now)
     except quizzes.QuizUnavailable as error:
         raise HTTPException(409, QUIZ_UNAVAILABLE) from error
@@ -573,6 +592,7 @@ def start_lesson_quiz(
             "attempt_id": str(error.attempt_id),
         }
         raise HTTPException(409, detail) from error
+    question_exposure.deliver(session, active.learner_id, started.questions, now)
     return schemas.LessonQuizOut(
         attempt_id=started.attempt.id,
         lesson_id=started.attempt.lesson_id,
@@ -610,6 +630,7 @@ def submit_lesson_quiz(
     the Learner submits again without penalty.
     """
     try:
+        placements.guard_lesson(session, active, lesson_id)
         attempt_uuid = uuid.UUID(attempt_id)
         result = quizzes.submit_lesson_quiz(
             session,
@@ -647,6 +668,7 @@ def submit_lesson_quiz(
     next_step: schemas.NextStep = (
         "fresh_quiz" if not result.score.passed else "completed" if completed else "retakes"
     )
+    question_exposure.deliver(session, active.learner_id, [p.question for p in pending], now)
     return schemas.LessonQuizResultOut(
         attempt_id=result.attempt.id,
         lesson_id=result.attempt.lesson_id,
@@ -687,9 +709,11 @@ def get_retakes(
     Learner's or isn't submitted.
     """
     try:
+        placements.guard_lesson(session, active, lesson_id)
         state = retakes.open_retakes(session, active, lesson_id, uuid.UUID(attempt_id), rng, now)
     except (ValueError, retakes.RetakeNotFound) as error:
         raise HTTPException(404, "Lesson Quiz not found") from error
+    question_exposure.deliver(session, active.learner_id, [p.question for p in state.pending], now)
     return schemas.RetakesOut(
         attempt_id=state.attempt.id,
         lesson_id=state.attempt.lesson_id,
@@ -722,6 +746,7 @@ def answer_retake(
     graded. In each of those nothing is recorded and the Learner can answer again.
     """
     try:
+        placements.guard_lesson(session, active, lesson_id)
         result = retakes.answer_retake(
             session,
             active,
@@ -745,6 +770,12 @@ def answer_retake(
         raise HTTPException(503, GRADING_KEY_NEEDED) from error
     except grading.GradingFailed as error:
         raise HTTPException(503, GRADING_FAILED) from error
+    question_exposure.deliver(
+        session,
+        active.learner_id,
+        [q for q in (result.question, result.next_question) if q is not None],
+        now,
+    )
     return schemas.RetakeResultOut(
         retake_id=result.retake.id,
         correct=result.correct,
@@ -863,6 +894,10 @@ def get_todays_challenge(
     state = (
         None if challenge is None else challenges.challenge_state(session, active, challenge, now)
     )
+    if state is not None:
+        question_exposure.deliver(
+            session, active.learner_id, [q.question for q in state.questions], now
+        )
     return schemas.TodaysChallengeOut(
         stack_id=stack.id,
         stack_name=stack.name,
@@ -898,6 +933,9 @@ def get_archived_challenge(
     if challenge is None:
         raise HTTPException(404, "Daily Challenge not found")
     state = challenges.challenge_state(session, active, challenge, now)
+    question_exposure.deliver(
+        session, active.learner_id, [q.question for q in state.questions], now
+    )
     return schemas.StackChallengeOut(
         stack_id=stack.id,
         stack_name=stack.name,
@@ -978,6 +1016,9 @@ def answer_challenge_question(
         raise HTTPException(503, GRADING_KEY_NEEDED) from error
     except grading.GradingFailed as error:
         raise HTTPException(503, CHALLENGE_GRADING_FAILED) from error
+    question_exposure.deliver(
+        session, active.learner_id, [q.question for q in result.state.questions], now
+    )
     return schemas.ChallengeAnswerOut(
         counted=result.counted,
         outcome=result.outcome,
@@ -1050,6 +1091,8 @@ def get_review_set(
             is None
         ):
             raise HTTPException(404, "Concept not found")
+    drawn = reviews.review_set(session, records, now, stack_id=stack_id, concept_id=concept_id)
+    question_exposure.deliver(session, learner.id, [r.question for r in drawn], now)
     return schemas.ReviewSetOut(
         size=review.SET_SIZE,
         max_answer_chars=grading.MAX_ANSWER_CHARS,
@@ -1059,9 +1102,7 @@ def get_review_set(
                 stack_id=r.stack.id,
                 stack_name=r.stack.name,
             )
-            for r in reviews.review_set(
-                session, records, now, stack_id=stack_id, concept_id=concept_id
-            )
+            for r in drawn
         ],
     )
 

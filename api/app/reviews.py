@@ -110,10 +110,14 @@ def review_set(
         updated=[q for s in sources for q in s.updated],
         repeats=[q for s in sources for q in s.repeats],
     )
+    from app.placements import reserved
+
+    reservations = {r.stack_id: reserved(session, r.learner_id, r.stack_id) for r in records}
     picked = [
         ref
         for ref in review.queue(merged, review.utc_day(now))
         if (stack_id is None or ref.stack_id == stack_id)
+        and ref.question_id not in reservations[ref.stack_id]
         and (concept_id is None or banks[ref.stack_id][ref.question_id].concept.id == concept_id)
     ][:limit]
     return [
@@ -139,6 +143,12 @@ def answer_question(
     The Learner's record on the Stack is locked while a written answer is graded, so a double
     submission can't grade twice.
     """
+    from app.placements import lock, open_attempt, reserved
+
+    lock(session, record.learner_id, record.stack_id)
+    open_attempt(session, record.learner_id, record.stack_id)
+    if question_id in reserved(session, record.learner_id, record.stack_id):
+        raise NotInReview(question_id)
     session.execute(
         select(LearnerStack.learner_id)
         .where(

@@ -48,6 +48,80 @@ ID = String(80)
 _SYLLABUS_FK = "syllabuses.pk"
 
 
+class PlacementAttempt(Base):
+    """Owner-only saved placement; submitted evidence is immutable."""
+
+    __tablename__ = "placement_attempts"
+    __table_args__ = (
+        Index(
+            "uq_placement_open",
+            "learner_id",
+            "stack_id",
+            unique=True,
+            postgresql_where=text("state = 'open'"),
+        ),
+        Index(
+            "uq_placement_submitted_revision",
+            "learner_id",
+            "stack_id",
+            "week_id",
+            "teaching_revision",
+            unique=True,
+            postgresql_where=text("state = 'submitted'"),
+        ),
+        CheckConstraint("state IN ('open', 'submitted', 'cancelled', 'abandoned')", name="state"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    learner_id: Mapped[int] = mapped_column(ForeignKey("learners.id", ondelete="CASCADE"))
+    stack_id: Mapped[str] = mapped_column(ForeignKey("stacks.id"))
+    week_id: Mapped[str] = mapped_column(ID)
+    syllabus_version: Mapped[str] = mapped_column(String(20))
+    teaching_revision: Mapped[str] = mapped_column(String(64))
+    state: Mapped[str] = mapped_column(String(20), default="open")
+    reason: Mapped[str | None] = mapped_column(Text)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    questions: Mapped[list[dict[str, Any]]] = mapped_column(JSONB)
+    responses: Mapped[dict[str, list[str] | str | None]] = mapped_column(JSONB, default=dict)
+    result: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+
+
+class PlacementReservation(Base):
+    __tablename__ = "placement_reservations"
+
+    learner_id: Mapped[int] = mapped_column(
+        ForeignKey("learners.id", ondelete="CASCADE"), primary_key=True
+    )
+    stack_id: Mapped[str] = mapped_column(ForeignKey("stacks.id"), primary_key=True)
+    question_id: Mapped[str] = mapped_column(ID, primary_key=True)
+    attempt_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("placement_attempts.id", ondelete="CASCADE"), index=True
+    )
+
+
+class QuestionExposure(Base):
+    __tablename__ = "question_exposures"
+
+    learner_id: Mapped[int] = mapped_column(
+        ForeignKey("learners.id", ondelete="CASCADE"), primary_key=True
+    )
+    stack_id: Mapped[str] = mapped_column(ForeignKey("stacks.id"), primary_key=True)
+    question_id: Mapped[str] = mapped_column(ID, primary_key=True)
+    first_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class PlacementCoverage(Base):
+    __tablename__ = "placement_coverage"
+
+    syllabus_pk: Mapped[int] = mapped_column(
+        ForeignKey("syllabuses.pk", ondelete="CASCADE"), primary_key=True
+    )
+    week_id: Mapped[str] = mapped_column(ID, primary_key=True)
+    document: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    teaching_revision: Mapped[str] = mapped_column(String(64))
+
+
 class InterviewContent(Base):
     """The current reviewed prompt; session snapshots preserve earlier revisions."""
 
@@ -493,7 +567,7 @@ def _of_learner_stack() -> ForeignKeyConstraint:
 
 
 class CompletedLesson(Base):
-    """A Completed Lesson: its Lesson Quiz met the Pass Mark and every Retake was correct.
+    """A Lesson completed by its Quiz/Retakes or a passing whole-Week Placement Quiz.
 
     `syllabus_version` is the version the Learner's Lesson Quiz started in. A later version
     that changed the Lesson makes it an Updated Lesson, whose new Questions are the ones tagged
@@ -507,6 +581,9 @@ class CompletedLesson(Base):
     stack_id: Mapped[str] = mapped_column(ID, primary_key=True)
     lesson_id: Mapped[str] = mapped_column(ID, primary_key=True, comment="Permanent ID.")
     completed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    placement_attempt_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("placement_attempts.id", ondelete="SET NULL")
+    )
     syllabus_version: Mapped[str] = mapped_column(
         String(20), comment="The version the Lesson was completed in."
     )

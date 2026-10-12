@@ -39,7 +39,7 @@ const isDone = (state: LessonState) =>
   state === "completed" || state === "updated";
 
 type WeekNode = Node<
-  { week: Week; status: "done" | "current" | "ahead" },
+  { week: Week; status: "done" | "current" | "ahead"; href: string },
   "week"
 >;
 type LessonNode = Node<{ lesson: LessonSummary; href: string }, "lesson">;
@@ -85,7 +85,12 @@ export function weekGraphLayout(syllabus: Syllabus): {
       id: hubId,
       type: "week",
       position: { x: 0, y },
-      data: { week, status: weekDone ? "done" : current ? "current" : "ahead" },
+      data: {
+        week,
+        status: weekDone ? "done" : current ? "current" : "ahead",
+        href: `/stacks/${syllabus.id}/weeks/${week.id}`,
+      },
+      style: { pointerEvents: "all" },
     });
     if (row > 0) {
       const previous = syllabus.weeks[row - 1];
@@ -177,9 +182,10 @@ const ICONS = {
 
 const hidden = "!size-1 !min-w-0 !border-0 !bg-transparent";
 
-function WeekHub({ data: { week, status } }: NodeProps<WeekNode>) {
+function WeekHub({ data: { week, status, href } }: NodeProps<WeekNode>) {
   return (
-    <div
+    <Link
+      href={href}
       className={cn(
         "flex w-[200px] items-center gap-3 rounded-2xl border bg-card p-3 shadow-xs",
         status === "current" && "border-primary/50 ring-2 ring-primary/20",
@@ -216,7 +222,7 @@ function WeekHub({ data: { week, status } }: NodeProps<WeekNode>) {
         id="bottom"
         className={hidden}
       />
-    </div>
+    </Link>
   );
 }
 

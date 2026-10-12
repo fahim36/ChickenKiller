@@ -250,16 +250,11 @@ def recorded_answers(session: Session, learner_id: int, stack_id: str) -> list[A
 
 
 def seen_question_ids(session: Session, learner_id: int, stack_id: str) -> set[str]:
-    """Permanent IDs of the Questions the Learner has seen on the Stack: every Question they have
-    an `Answer` to, in any context (Lesson Quiz, Retake, Review, a Daily Challenge's first
-    answers). Unanswered Questions of a submitted quiz count: they were shown."""
-    return set(
-        session.scalars(
-            select(Answer.question_id)
-            .where(Answer.learner_id == learner_id, Answer.stack_id == stack_id)
-            .distinct()
-        )
-    )
+    """Permanent IDs delivered to this Learner, including unanswered prompts, plus historical
+    Answers in every practice context. Unrecorded historical views cannot be reconstructed."""
+    from app.question_exposure import seen
+
+    return seen(session, learner_id, stack_id)
 
 
 @dataclass(frozen=True)

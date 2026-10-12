@@ -95,6 +95,7 @@ from app.content.loader import (
     read_challenges,
     read_folder,
 )
+from app.content.placement import read_plans
 from app.content.versions import (
     VersionKey,
     earlier_versions,
@@ -234,6 +235,10 @@ def load_checked_folder(path: Path, today: date | None = None) -> ContentFolder:
     problems += folder_problems + challenge_problems
     if folder is not None:
         folder.challenges = challenges
+        try:
+            read_plans(folder)
+        except (ValueError, OSError) as error:
+            problems.append(Problem("error", str(path / "placement"), "coverage", str(error)))
         problems += _check_legacy_folder(path) + _check_parsed(folder, links=False)
         problems += _check_bank(path.parent, bank, None, today)
         problems += _check_challenges(challenges, bank, today)
@@ -259,6 +264,10 @@ def _check_version(path: Path, bank: Bank, links: bool) -> list[Problem]:
     problems += _check_legacy_folder(path)
     if folder is None:
         return problems  # the rules below assume a well-formed syllabus
+    try:
+        read_plans(folder)
+    except (ValueError, OSError) as error:
+        problems.append(Problem("error", str(path / "placement"), "coverage", str(error)))
     try:
         check_prompts(
             path.parent,

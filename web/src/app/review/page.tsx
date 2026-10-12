@@ -15,9 +15,7 @@ import { TargetedReviewVisit } from "./TargetedReviewVisit";
  */
 export default async function ReviewPage({
   searchParams,
-}: {
-  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
-} = {}) {
+}: Partial<PageProps<"/review">>) {
   await connection();
   const query: { [key: string]: string | string[] | undefined } =
     await (searchParams ?? Promise.resolve({}));

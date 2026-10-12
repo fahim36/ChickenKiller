@@ -44,7 +44,7 @@ from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Literal
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session, selectinload
 
 from app import question_reports
@@ -55,6 +55,7 @@ from app.content.check import load_checked_folder, utc_today, version_folders
 from app.content.diff import lesson_fingerprints, lesson_questions
 from app.content.interviews import InterviewPrompt, check_prompts
 from app.content.loader import Bank, Challenges, ContentError, ContentFolder, Problem
+from app.content.placement import read_plans, teaching_revision
 from app.content.versions import version_key
 from app.models import (
     Concept,
@@ -65,6 +66,7 @@ from app.models import (
     Material,
     Milestone,
     MilestoneMaterial,
+    PlacementCoverage,
     Question,
     QuestionMaterial,
     QuestionSource,
@@ -137,6 +139,10 @@ def import_content(
 ) -> ImportResult:
     today = today or utc_today()
     syllabus = content.syllabus
+    session.execute(
+        text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))"),
+        {"key": f"content:{syllabus.stack.id}"},
+    )
     content_hash = _content_hash(content)
     prompts = check_prompts(
         content.path.parent,
@@ -167,6 +173,7 @@ def import_content(
         bank = import_bank(session, syllabus.stack.id, content.bank)
         challenges = import_challenges(session, syllabus.stack.id, content.challenges, today)
         _import_interviews(session, syllabus.stack.id, prompts)
+        _import_placement(session, existing.pk, content)
         return ImportResult(
             syllabus.stack.id,
             syllabus.version,
@@ -203,6 +210,7 @@ def import_content(
     bank = import_bank(session, syllabus.stack.id, content.bank)
     challenges = import_challenges(session, syllabus.stack.id, content.challenges, today)
     _import_interviews(session, syllabus.stack.id, prompts)
+    _import_placement(session, row.pk, content)
     return ImportResult(
         syllabus.stack.id,
         syllabus.version,
@@ -211,6 +219,33 @@ def import_content(
         bank,
         challenges,
     )
+
+
+def _import_placement(session: Session, syllabus_pk: int, content: ContentFolder) -> None:
+    plans = read_plans(content)
+    published = list(
+        session.scalars(
+            select(PlacementCoverage).where(PlacementCoverage.syllabus_pk == syllabus_pk)
+        )
+    )
+    if {row.week_id for row in published} - {plan.week for plan in plans}:
+        raise ValueError("Published placement coverage cannot be removed; publish a new Syllabus")
+    for plan in plans:
+        document = plan.model_dump(mode="json")
+        existing = session.get(PlacementCoverage, (syllabus_pk, plan.week))
+        revision = teaching_revision(content, plan)
+        if existing is None:
+            session.add(
+                PlacementCoverage(
+                    syllabus_pk=syllabus_pk,
+                    week_id=plan.week,
+                    document=document,
+                    teaching_revision=revision,
+                )
+            )
+        elif existing.document != document:
+            raise ValueError("Published placement coverage is immutable; publish a new Syllabus")
+    session.flush()
 
 
 def _import_interviews(session: Session, stack_id: str, prompts: list["InterviewPrompt"]) -> None:
