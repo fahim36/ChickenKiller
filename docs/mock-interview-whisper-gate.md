@@ -2,11 +2,13 @@
 
 Decision date: 11 October 2026. Ticket #25 permits an infeasible or unverified gate to complete with Whisper disabled. This is that outcome, not a successful benchmark.
 
+Update, 12 October: the user accepted a 30-second target for a 90-second answer, with quality taking priority. An isolated [local synthetic benchmark](mock-interview-local-sanity.md) tested small.en and base.en with pinned runtime/model revisions. Small.en took approximately 26 seconds for the tested 90-second clips and meets the revised timing target on those samples; both models made material technical-term errors. These measurements do not pass the representative-recording or deployment-capacity gate. The application still has no Whisper worker.
+
 ## Evidence available
 
 Repository inventory found no representative audio corpus, permission records or reviewed reference transcripts. Generated silence/container fixtures in `api/tests/test_interview_audio.py` check decoding and duration only; they provide no recognition-quality evidence.
 
-The development machine reports an Intel Core i5-1235U (10 cores, 12 logical processors). It runs Windows and existing Docker development services. Its momentary free memory and laptop performance cannot establish spare resources on the shared deployment VPS. No production hardware inspection or production load test was performed. `deploy/vps/docker-compose.yml` gives Postgres, API and web one host and declares no transcription worker, resource reservation or queue. Candidate packages/models are not installed or downloaded.
+The development machine reports an Intel Core i5-1235U (10 cores, 12 logical processors). It runs Windows and existing Docker development services. Its momentary free memory and laptop performance cannot establish spare resources on the shared deployment VPS. No production hardware inspection or production load test was performed. `deploy/vps/docker-compose.yml` gives Postgres, API and web one host and declares no transcription worker, resource reservation or queue. Candidate packages/models were installed only in isolated local benchmark environments; application dependencies are unchanged.
 
 Candidate for a future isolated benchmark: faster-whisper `small.en`, CPU INT8, one worker. This candidate is unverified; model/runtime versions must be pinned in the benchmark record before use. Published third-party numbers in [transcription research](mock-interview-transcription-research.md) are not measurements of this app.
 
@@ -14,7 +16,7 @@ Candidate for a future isolated benchmark: faster-whisper `small.en`, CPU INT8, 
 | --- | --- |
 | Consented English recordings across accents, all four Stacks, quiet/noisy conditions | Unavailable |
 | Reviewed reference transcripts, technical-term and meaning-changing error review | Not measured |
-| Target: 90-second answer transcribed in at most 20 seconds | Not measured |
+| Target: 90-second answer transcribed in at most 30 seconds | Met on tested local synthetic clips; representative host and recordings unverified |
 | Warm/cold latency, peak RAM/CPU and spare deployment capacity | Not measured |
 | Existing API/web responsiveness with one worker and bounded queue load | Not measured |
 | Recognition hallucinations/silence and correction burden | Not measured |
@@ -29,7 +31,7 @@ The existing confirmed-transcript flow is the selected end-to-end path. Decoding
 
 Use an isolated environment representative of the target host; obtain consented recordings and expected transcripts with provenance. Record pinned faster-whisper/CTranslate2/model revisions and artifact checksums, candidate quantization, hardware and process limits. Keep model files in a persistent read-only model directory, outside learner storage. Installation must be a separate worker image, not an API request worker.
 
-Measure cold and warm latency for 30/45/60/90-second clips, technical-term and meaning-changing errors by accent/noise/Stack, silence hallucinations, peak RAM/CPU, queue pressure and API/web responsiveness under bounded load. Report individual failures and representative quality; synthetic-only clips cannot pass. Enabling requires acceptable reviewed quality, spare app capacity and the 20-second target. Set concrete CPU/RAM limits from those measurements, one worker, a bounded queue and bounded job deadline; do not guess production limits from laptop measurements.
+Measure cold and warm latency for 30/45/60/90-second clips, technical-term and meaning-changing errors by accent/noise/Stack, silence hallucinations, peak RAM/CPU, queue pressure and API/web responsiveness under bounded load. Report individual failures and representative quality; synthetic-only clips cannot pass. Enabling requires acceptable reviewed quality, spare app capacity and the 30-second target. Review negations, technical identifiers and claims explicitly: errors such as “non-idempotent” becoming “known idempotent” or “untrusted data” becoming “untested data” require resolution and retesting before enabling. Transcript confirmation remains a safeguard, not evidence of model accuracy. Set concrete CPU/RAM limits from those measurements, one worker, a bounded queue and bounded job deadline; do not guess production limits from laptop measurements.
 
 Only a passing reviewed record justifies worker integration. Jobs must carry owner/session/recording identity, enforce cancellation and expiry, and recheck stored state before writing a result; never recreate a deleted clip or overwrite confirmed text. Then keep Whisper pinned while available; an explicit consented Gemini action may handle unavailable capacity, never a hidden request. Diagnostics may record counts, timings and error categories, never audio/text/key payloads.
 

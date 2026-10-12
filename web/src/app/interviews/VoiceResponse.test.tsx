@@ -1,5 +1,6 @@
 import {
   cleanup,
+  act,
   fireEvent,
   render,
   screen,
@@ -50,12 +51,14 @@ it("keeps transcription unconfirmed until the learner corrects and confirms it",
   });
   vi.mocked(confirmInterviewTranscript).mockResolvedValue(row);
   const onConfirmed = vi.fn();
+  const onProcessed = vi.fn().mockResolvedValue(undefined);
   render(
     <VoiceResponse
       sessionId="session"
       promptId="prompt"
       initial={initial}
       onConfirmed={onConfirmed}
+      onProcessed={onProcessed}
     />,
   );
   fireEvent.click(
@@ -65,6 +68,7 @@ it("keeps transcription unconfirmed until the learner corrects and confirms it",
     expect(screen.getByRole("textbox")).toHaveProperty("value", "Use a taken."),
   );
   expect(confirmInterviewTranscript).not.toHaveBeenCalled();
+  await waitFor(() => expect(onProcessed).toHaveBeenCalledOnce());
   fireEvent.change(screen.getByRole("textbox"), {
     target: { value: "Use a token." },
   });
@@ -106,6 +110,17 @@ it("leaves playback and correction available when transcription quota fails", as
   expect(screen.getByRole("button", { name: "Load playback" })).toBeTruthy();
   expect(screen.getByRole("textbox")).toHaveProperty("value", "");
   expect(confirmInterviewTranscript).not.toHaveBeenCalled();
+});
+
+it("does not refresh an abandoned turn when transcription finishes late", async () => {
+  let finish!: (value: typeof initial) => void;
+  vi.mocked(transcribeInterviewAudio).mockReturnValue(new Promise((resolve) => { finish = resolve; }));
+  const onProcessed = vi.fn();
+  const view = render(<VoiceResponse sessionId="session" promptId="prompt" initial={initial} onConfirmed={vi.fn()} onProcessed={onProcessed} />);
+  fireEvent.click(screen.getByRole("button", { name: "Transcribe with my Gemini key" }));
+  view.unmount();
+  await act(async () => finish({ ...initial }));
+  expect(onProcessed).not.toHaveBeenCalled();
 });
 
 it("explains microphone refusal and keeps the typing fallback", async () => {

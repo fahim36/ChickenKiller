@@ -14,6 +14,7 @@ import {
   deleteInterview,
   openInterviewTurn,
   loadInterviewSession,
+  transcribeInterviewAudio,
 } from "./actions";
 
 vi.mock("./actions", () => ({
@@ -22,6 +23,7 @@ vi.mock("./actions", () => ({
   deleteInterview: vi.fn(),
   openInterviewTurn: vi.fn(),
   loadInterviewSession: vi.fn(),
+  transcribeInterviewAudio: vi.fn(),
 }));
 afterEach(() => {
   cleanup();
@@ -43,6 +45,29 @@ const row: InterviewSession = {
   ],
   responses: {},
 };
+
+it("refreshes charged attempts after transcription before transcript confirmation", async () => {
+  const clip = {
+    id: "clip", prompt_id: "scenario", transcript: null,
+    expires_at: new Date(Date.now() + 3600000).toISOString(),
+  };
+  const active = { ...row, recordings: [clip], operations: [] };
+  vi.mocked(startInterview).mockResolvedValue(active);
+  vi.mocked(transcribeInterviewAudio).mockResolvedValue({
+    ...clip, transcript: "Use a token.", state: "complete",
+  });
+  vi.mocked(loadInterviewSession).mockResolvedValue({
+    ...active,
+    operations: [{ id: "operation", prompt_id: "scenario", kind: "transcription", state: "complete", feedback: null }],
+  });
+  render(<InterviewPractice stack="python" topics={{ topics: [], lesson_id: null, message: null }} history={[]} />);
+  fireEvent.click(screen.getByRole("button", { name: "Start practice" }));
+  const transcribe = await screen.findByRole("button", { name: "Transcribe with my Gemini key" });
+  fireEvent.click(transcribe);
+  await screen.findByText(/1 of 18 provider attempts used/);
+  expect(screen.getByLabelText("Confirm or correct your transcript")).toHaveProperty("value", "Use a token.");
+  expect(screen.getByRole("button", { name: "Confirm transcript and delete audio" })).toBeTruthy();
+});
 
 it("saves a response and shows reviewed guidance without an AI key", async () => {
   vi.mocked(startInterview).mockResolvedValue(row);

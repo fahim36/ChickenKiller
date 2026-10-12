@@ -173,6 +173,11 @@ export function InterviewPractice({
                   (r) => r.prompt_id === prompt.id,
                 )}
                 onConfirmed={update}
+                onProcessed={async () => {
+                  const refreshed = await loadInterviewSession(current.id);
+                  setSessions((rows) => rows.map((s) => s.id === refreshed.id ? refreshed : s));
+                  setCurrent((active) => active?.id === refreshed.id ? refreshed : active);
+                }}
               />
               <label className="block">
                 Your response (optional)

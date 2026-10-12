@@ -14,12 +14,14 @@ export function VoiceResponse({
   promptId,
   initial,
   onConfirmed,
+  onProcessed,
   seconds = 90,
 }: {
   sessionId: string;
   promptId: string;
   initial?: InterviewRecording;
   onConfirmed: (row: InterviewSession) => void;
+  onProcessed?: () => Promise<void>;
   seconds?: 90 | 45 | 60;
 }) {
   const [clip, setClip] = useState(initial);
@@ -262,6 +264,7 @@ export function VoiceResponse({
                   clip.id,
                   id,
                 );
+                if (!mounted.current) return;
                 setClip(result);
                 if (result.state !== "running") operationId.current = null;
                 if (result.transcript) setTranscript(result.transcript);
@@ -269,6 +272,14 @@ export function VoiceResponse({
                   setMessage(
                     `No confirmed transcript (${result.state ?? "unavailable"}). Keep playback, type your response or retry manually later.`,
                   );
+                try {
+                  await onProcessed?.();
+                } catch {
+                  if (mounted.current)
+                    setMessage((status) =>
+                      `${status} Request count could not refresh. Reopen the session to check used attempts.`.trim(),
+                    );
+                }
               })
             }
           >

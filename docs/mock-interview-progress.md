@@ -2,6 +2,8 @@
 
 Authorized: implement all eight tickets sequentially and resume automatically after natural usage resets. No reset credits, paid provider spending, main merge, deployment or production load tests.
 
+Update, 12 October 2026: the user subsequently authorized completing local sanity testing and merging/pushing the verified interview work to main. Natural-reset continuation is active for that follow-up. Use the isolated `codex/mock-interview-sanity` worktree at `C:/Users/saifu/.codex/worktrees/mock-interview-sanity/Job Hunt`; preserve the separate Placement Quiz checkout. Main push invokes the repository's existing CI/deployment workflow; no direct production operations or load testing are authorized.
+
 Branch: `codex/mock-interviews`. Baseline: `e8d4b11fb05b3099f153a41616d89c9237f560c5`, including the pushed content-health release; it has not been merged to main.
 
 Automation: `resume-mock-interview-tickets`; stop after the final verified branch push. Check usage limits before implementation; preserve checkpoints if a window is exhausted. Do not overlap another active implementation run.
@@ -70,3 +72,11 @@ Checks: full API suite 766 passed in 904.79 seconds; seven release/privacy regre
 Qualifications: mocked feedback verifies contracts, not real Gemini semantic quality. Physical Android/iOS/Safari, installed screen-reader experience, varied-accent accuracy and live AI quality remain unmeasured rollout checks. No live provider calls, paid spending, production load tests, deployment or main merge occurred. See docs/mock-interview-release-verification.md and docs/mock-interview-operations.md before rollout.
 
 Final action: commit and push ticket 08 to origin/codex/mock-interviews, close #28 and stop the recurring follow-up. Preserve unrelated working files.
+
+## Local sanity follow-up
+
+Completed live dummy-account resume, three-scenario completion, inactive-Stack history, UI deletion and key cleanup. See [the local sanity record](mock-interview-local-sanity.md) and [21 synthetic Whisper measurements](mock-interview-whisper-local-benchmark.json). The timing target is now 30 seconds; semantic errors and unverified representative capacity keep Whisper disabled.
+
+Fixed the stale post-transcription request counter. Initial review found a late-callback navigation race; the revised fix suppresses abandoned-turn callbacks and conditionally refreshes the current session. Eleven focused frontend tests pass, including the counter-before-confirmation and unmount regression. Full frontend verification passed: 257 tests across 63 files, typecheck, lint and production build. A stale development-generated type artifact initially failed the build; archiving that cache outside the source tree and rebuilding resolved it without changing the Stack page. Content checks pass for all four Stacks against origin/main on 12 October. Both spec and standards re-reviews report no remaining blockers. The earlier 39 focused API sanity tests and 766-test release suite cover the unchanged API implementation.
+
+Local sanity testing and review are complete; commit/push this follow-up and fast-forward main as authorized. Verify the exact pushed commit's CI before deleting the continuation. Preserve unrelated Placement Quiz work.
