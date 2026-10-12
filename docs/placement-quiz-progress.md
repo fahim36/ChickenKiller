@@ -11,9 +11,9 @@ Baseline: 79120fc. Unrelated schemas, Docker Compose, mock-interview documents a
 | 03 | #31 | Complete: bc82050 pushed |
 | 04 | #32 | Complete: 7ffd28c pushed |
 | 05 | #33 | Complete: e69069b pushed |
-| 06 | #34 | Complete locally: final reviewed commit/push verification pending |
+| 06 | #34 | Complete: 2e42fc0 pushed and remote verified |
 
-All six implementation slices are locally verified. Final step: commit/push ticket 06, compare remote HEAD, close issue 34, record its verified hash here and pause resume-placement-quiz-tickets. Do not start another implementation or shared-database test run.
+All six implementation slices are locally verified, committed and pushed; remote ticket06 HEAD matched 2e42fc0. Issues29–34 are closed. The continuation automation is being paused after final bookkeeping push; no further implementation is pending.
 
 ## Verification
 
@@ -31,7 +31,7 @@ See docs/placement-quiz-local-verification.md, docs/placement-quiz-operations.md
 
 ## Continuation and environment
 
-Automation resume-placement-quiz-tickets remains active only until final remote verification; pause it after all six pushes. It must not overlap an active run or tests against the same database. User notification is limited to meaningful completion/failure/action.
+Automation resume-placement-quiz-tickets is to be paused immediately after the verified final bookkeeping push. It must not overlap an active run or tests against the same database. User notification is limited to meaningful completion/failure/action.
 
 Use explicit IPv4 for local PostgreSQL. pytest uses placement_test, whose existing fixture rebuilds that isolated test database; never use learner data for TEST_DATABASE_URL. Browser/HTTP verification used placement_local, and deploy-style import used placement_import. The owned browser/API servers on 3000/8012 were stopped after checks; HTTP smoke stops 8011 itself.
 
