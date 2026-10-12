@@ -11,8 +11,8 @@ Automation: `resume-placement-quiz-tickets`, active hourly thread heartbeat. Do 
 | 01 | #29 | None | Complete: 57731c3 pushed |
 | 02 | #30 | None | Complete: c120322 pushed |
 | 03 | #31 | #29, #30 | Complete: bc82050 pushed |
-| 04 | #32 | #31 | Verified: review and push pending |
-| 05 | #33 | #29 | Not started |
+| 04 | #32 | #31 | Complete: 7ffd28c pushed |
+| 05 | #33 | #29 | Verified: push pending |
 | 06 | #34 | #32, #33 | Not started |
 
 GitHub native dependency endpoint returned 404; real issue references are recorded in each issue body as the configured fallback. Local copies are in `.scratch/placement-quizzes/issues/`. Read live tickets/comments before execution.
@@ -30,3 +30,6 @@ Ticket 03 verified: private Week entry/start/save/resume/abandon, fresh coverage
 
 
 Ticket04: atomic exact-match scoring and per-Lesson threshold, immutable results, optional Review, preserved completions and owner-only Completed by placement links implemented. Five submission regressions and migration alignment passed; local HTTP signed dummy identities verified concurrent submit/save, duplicate submissions and pass/fail completion. Five frontend checks and typecheck/lint passed. Strict backend mypy/ruff passed. Final review and broader progression regression pending before push.
+
+Ticket04 final: 50 scoring/migration/new-Syllabus/unlocking checks passed; Standards zero hard violations, shared Score adopted; Spec no remaining blockers. Pushed7ffd28c, issue32closed.
+Ticket05 verified: all17 Week1 Lessons covered by five-Question blueprints. Two Android variants verified against official Kotlin docs; all other immutable Questions preserved. Shipped-content repeated imports/Admin validity/fresh draw regression passed, local HTTP fresh draws allfour passed. Content check passes with deliberate same-Concept variant warnings. Standards/Spec no blockers. Some pools have exactlyfive usable Questions, so exposure can exhaust eligibility.
