@@ -92,6 +92,7 @@ class LessonSummary(BaseModel):
     title: str
     minutes: int
     state: LessonState
+    placement_attempt_id: str | None = None
 
 
 class MilestoneOut(BaseModel):

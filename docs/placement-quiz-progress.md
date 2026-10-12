@@ -10,8 +10,8 @@ Automation: `resume-placement-quiz-tickets`, active hourly thread heartbeat. Do 
 | --- | --- | --- | --- |
 | 01 | #29 | None | Complete: 57731c3 pushed |
 | 02 | #30 | None | Complete: c120322 pushed |
-| 03 | #31 | #29, #30 | Verified: commit/push pending |
-| 04 | #32 | #31 | Not started |
+| 03 | #31 | #29, #30 | Complete: bc82050 pushed |
+| 04 | #32 | #31 | Verified: review and push pending |
 | 05 | #33 | #29 | Not started |
 | 06 | #34 | #32, #33 | Not started |
 
@@ -28,3 +28,5 @@ Ticket 03 checkpoint: live issue31 read. New uncommitted placement_selection.py 
 
 Ticket 03 verified: private Week entry/start/save/resume/abandon, fresh coverage selection, reservations and teaching/retirement cancellation. 118 broader backend checks passed; seven final lifecycle/Retake/two-session importer checks passed. Four frontend behavior checks, typecheck/lint and strict backend mypy/ruff passed. Local HTTP signed dummy accounts verified concurrent starts, concurrent saves, owner isolation and abandonment. Frozen Daily Questions stay unchanged. Standards review had no hard violations; final Spec review has no blockers. Submission remains gated for ticket04.
 
+
+Ticket04: atomic exact-match scoring and per-Lesson threshold, immutable results, optional Review, preserved completions and owner-only Completed by placement links implemented. Five submission regressions and migration alignment passed; local HTTP signed dummy identities verified concurrent submit/save, duplicate submissions and pass/fail completion. Five frontend checks and typecheck/lint passed. Strict backend mypy/ruff passed. Final review and broader progression regression pending before push.

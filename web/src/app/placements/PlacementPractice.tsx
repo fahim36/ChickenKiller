@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRef, useState } from "react";
-import { abandonPlacement, savePlacement } from "./actions";
+import { abandonPlacement, savePlacement, submitPlacement } from "./actions";
 import type { PlacementAttempt } from "./types";
 
 export function PlacementPractice({ initial }: { initial: PlacementAttempt }) {
@@ -13,12 +13,14 @@ export function PlacementPractice({ initial }: { initial: PlacementAttempt }) {
   const dirty = useRef(new Set<string>());
   const [pending, setPending] = useState(0);
   const [error, setError] = useState("");
+  const [unsaved, setUnsaved] = useState(false);
 
   function save(question: string, answer: string | string[] | null) {
     const next = { ...answersRef.current, [question]: answer };
     answersRef.current = next;
     setAnswers(next);
     dirty.current.add(question);
+    setUnsaved(true);
     setPending((n) => n + 1);
     queue.current = queue.current.then(async () => {
       try {
@@ -26,7 +28,10 @@ export function PlacementPractice({ initial }: { initial: PlacementAttempt }) {
         if (result.state !== "open") setAttempt(result);
         if (answersRef.current[question] === answer)
           dirty.current.delete(question);
-        if (dirty.current.size === 0) setError("");
+        if (dirty.current.size === 0) {
+          setError("");
+          setUnsaved(false);
+        }
       } catch {
         setError(
           "Some answers could not be saved. Retry before leaving this page.",
@@ -43,6 +48,19 @@ export function PlacementPractice({ initial }: { initial: PlacementAttempt }) {
       setAttempt(result);
     } catch {
       setError("Could not abandon this attempt. Try again.");
+    }
+  }
+
+  async function submit() {
+    setPending((n) => n + 1);
+    try {
+      setAttempt(await submitPlacement(attempt.id));
+    } catch {
+      setError(
+        "Could not submit. Your saved answers remain available; try again.",
+      );
+    } finally {
+      setPending((n) => n - 1);
     }
   }
 
@@ -73,7 +91,55 @@ export function PlacementPractice({ initial }: { initial: PlacementAttempt }) {
           </button>
         </div>
       )}
-      {attempt.state !== "open" ? (
+      {attempt.state === "submitted" && attempt.result ? (
+        <div className="space-y-4">
+          <h2>
+            {attempt.result.passed
+              ? "Placement passed"
+              : "Continue the Lesson path"}
+          </h2>
+          <p>
+            {attempt.result.correct}/{attempt.result.total} correct. Passing
+            requires 80% overall and in every Lesson.
+          </p>
+          {attempt.result.lessons.map((lesson) => (
+            <p key={lesson.lesson}>
+              {lesson.lesson}: {lesson.correct}/{lesson.total} ·{" "}
+              {lesson.passed ? "Passed" : "Below 80%"}
+            </p>
+          ))}
+          <p>
+            {attempt.result.passed
+              ? "Previously incomplete Lessons are completed by placement."
+              : "No additional Lessons were completed."}{" "}
+            Misses are available in optional Review.
+          </p>
+          {attempt.questions.map((q) => (
+            <section key={q.id} className="rounded border p-4">
+              <h3>{q.prompt}</h3>
+              <p>
+                {attempt.result?.correct_questions[q.id]
+                  ? "Correct"
+                  : "Incorrect or unanswered"}
+              </p>
+              <p>
+                Correct choices:{" "}
+                {q.choices
+                  .filter((c) => (q.answers ?? [q.answer]).includes(c.id))
+                  .map((c) => c.text)
+                  .join("; ")}
+              </p>
+              <p>{q.explanation}</p>
+              {q.sources?.map((source) => (
+                <p key={source.url}>
+                  <a href={source.url}>{source.title}</a>
+                </p>
+              ))}
+            </section>
+          ))}
+          <Link href="/review">Optional Review</Link>
+        </div>
+      ) : attempt.state !== "open" ? (
         <p>{attempt.reason ?? "This attempt has finished."}</p>
       ) : (
         <>
@@ -120,6 +186,17 @@ export function PlacementPractice({ initial }: { initial: PlacementAttempt }) {
               </button>
             </fieldset>
           ))}
+          <button
+            type="button"
+            disabled={pending > 0 || unsaved}
+            onClick={submit}
+          >
+            Submit placement
+          </button>
+          <p>
+            Submission is final. Unanswered Questions count as incorrect. One
+            submitted attempt is allowed per Week teaching revision.
+          </p>
           <button type="button" disabled={pending > 0} onClick={abandon}>
             Abandon attempt
           </button>

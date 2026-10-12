@@ -60,7 +60,7 @@ from app.deps import (
 )
 from app.interview_cleanup import run_cleanup
 from app.interview_routes import router as interview_router
-from app.models import Concept, ContentDraft, Learner, Question, QuestionReport
+from app.models import CompletedLesson, Concept, ContentDraft, Learner, Question, QuestionReport
 from app.placement_routes import router as placement_router
 
 # Everything except the health check: only a signed-in, invited Learner gets in (app/deps.py).
@@ -362,6 +362,16 @@ def get_week_map(
     if syllabus is None:
         raise HTTPException(404, "Stack not found")
     states = progress.lesson_states(session, learner.id, stack_id)
+    placement_completions = {
+        c.lesson_id: str(c.placement_attempt_id)
+        for c in session.scalars(
+            select(CompletedLesson).where(
+                CompletedLesson.learner_id == learner.id,
+                CompletedLesson.stack_id == stack_id,
+                CompletedLesson.placement_attempt_id.is_not(None),
+            )
+        )
+    }
     ticked = progress.ticked_milestone_ids(session, learner.id, stack_id)
     stack = syllabus.stack
     return schemas.SyllabusOut(
@@ -382,6 +392,7 @@ def get_week_map(
                         title=lesson.title,
                         minutes=lesson.minutes,
                         state=states[lesson.id],
+                        placement_attempt_id=placement_completions.get(lesson.id),
                     )
                     for lesson in week.lessons
                 ],

@@ -7,12 +7,13 @@ import {
 } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { PlacementPractice } from "./PlacementPractice";
-import { savePlacement, abandonPlacement } from "./actions";
+import { savePlacement, abandonPlacement, submitPlacement } from "./actions";
 import type { PlacementAttempt } from "./types";
 
 vi.mock("./actions", () => ({
   savePlacement: vi.fn(),
   abandonPlacement: vi.fn(),
+  submitPlacement: vi.fn(),
 }));
 afterEach(() => {
   cleanup();
@@ -89,4 +90,30 @@ it("abandonment preserves the terminal reason", async () => {
   render(<PlacementPractice initial={attempt} />);
   fireEvent.click(screen.getByText("Abandon attempt"));
   await screen.findByText("Viewed Questions remain seen");
+});
+
+it("shows final per-Lesson results and explanations after submission", async () => {
+  vi.mocked(submitPlacement).mockResolvedValue({
+    ...attempt,
+    state: "submitted",
+    questions: [
+      {
+        ...attempt.questions[0],
+        answer: "b",
+        explanation: "Separate process boundary",
+      },
+    ],
+    result: {
+      passed: false,
+      correct: 0,
+      total: 1,
+      lessons: [{ lesson: "l1", correct: 0, total: 1, passed: false }],
+      correct_questions: { q1: false },
+    },
+  });
+  render(<PlacementPractice initial={attempt} />);
+  fireEvent.click(screen.getByText("Submit placement"));
+  await screen.findByText("Separate process boundary");
+  expect(screen.getByText("l1: 0/1 · Below 80%")).toBeTruthy();
+  expect(screen.queryByRole("radio")).toBeNull();
 });

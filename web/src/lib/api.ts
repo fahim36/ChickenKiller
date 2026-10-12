@@ -69,6 +69,7 @@ export interface LessonSummary {
   title: string;
   minutes: number;
   state: LessonState;
+  placement_attempt_id?: string | null;
 }
 
 export interface Milestone {

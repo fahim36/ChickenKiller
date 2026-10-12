@@ -85,3 +85,12 @@ def abandon(
             session, row, "abandoned", "You abandoned this attempt. Viewed Questions remain seen."
         )
     return placements.output(session, row, now)
+
+
+@router.post("/me/placements/{attempt_id}/submit")
+def submit(
+    attempt_id: uuid.UUID, learner: CurrentLearner, session: SessionDep, now: Now
+) -> dict[str, Any]:
+    row = placements.owned(session, learner.id, attempt_id)
+    placements.submit(session, row, now)
+    return placements.output(session, row, now)

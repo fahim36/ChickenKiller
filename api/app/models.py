@@ -567,7 +567,7 @@ def _of_learner_stack() -> ForeignKeyConstraint:
 
 
 class CompletedLesson(Base):
-    """A Completed Lesson: its Lesson Quiz met the Pass Mark and every Retake was correct.
+    """A Lesson completed by its Quiz/Retakes or a passing whole-Week Placement Quiz.
 
     `syllabus_version` is the version the Learner's Lesson Quiz started in. A later version
     that changed the Lesson makes it an Updated Lesson, whose new Questions are the ones tagged
@@ -581,6 +581,9 @@ class CompletedLesson(Base):
     stack_id: Mapped[str] = mapped_column(ID, primary_key=True)
     lesson_id: Mapped[str] = mapped_column(ID, primary_key=True, comment="Permanent ID.")
     completed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    placement_attempt_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("placement_attempts.id", ondelete="SET NULL")
+    )
     syllabus_version: Mapped[str] = mapped_column(
         String(20), comment="The version the Lesson was completed in."
     )

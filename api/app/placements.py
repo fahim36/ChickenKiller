@@ -7,11 +7,14 @@ from typing import Any
 
 from fastapi import HTTPException
 from sqlalchemy import delete, select, text
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
-from app import progress, question_exposure
+from app import progress, question_exposure, quiz
 from app.content.placement import PlacementPlan
 from app.models import (
+    Answer,
+    CompletedLesson,
     DailyChallenge,
     LearnerStack,
     LessonQuizAttempt,
@@ -353,3 +356,91 @@ def output(session: Session, row: PlacementAttempt, now: datetime) -> dict[str, 
         "responses": row.responses,
         "result": row.result,
     }
+
+
+def submit(session: Session, row: PlacementAttempt, now: datetime) -> None:
+    """Score the pinned draw and complete its Lessons in one locked transaction."""
+    if row.state != "open":
+        return
+    record = session.get_one(LearnerStack, (row.learner_id, row.stack_id))
+    session.refresh(record.stack)
+    completed = progress.completed_lesson_ids(session, row.learner_id, row.stack_id)
+    weeks = list(
+        session.scalars(
+            select(Week)
+            .where(Week.syllabus_pk == record.stack.current_syllabus_pk)
+            .order_by(Week.position)
+        )
+    )
+    target = next(
+        (w for w in weeks if any(lesson.id not in completed for lesson in w.lessons)), None
+    )
+    lessons = {q["lesson"] for q in row.questions}
+    pending = session.scalar(
+        select(Retake.id)
+        .join(LessonQuizAttempt)
+        .where(
+            Retake.learner_id == row.learner_id,
+            Retake.stack_id == row.stack_id,
+            Retake.done_at.is_(None),
+            LessonQuizAttempt.lesson_id.in_(lessons),
+        )
+    )
+    if target is None or target.id != row.week_id or pending is not None:
+        release(session, row, "cancelled", "Week eligibility changed. Continue the Lesson path.")
+        session.commit()
+        return
+    if reserved(session, row.learner_id, row.stack_id) != {q["id"] for q in row.questions}:
+        release(session, row, "cancelled", "This attempt's Question reservations changed.")
+        session.commit()
+        return
+    scores: dict[str, dict[str, Any]] = {}
+    correct_questions: dict[str, bool] = {}
+    for q in row.questions:
+        response = row.responses.get(q["id"])
+        selected = set(response if isinstance(response, list) else [response] if response else [])
+        expected = set(q["answers"] or []) if q["type"] == "multiple_select" else {q["answer"]}
+        correct = bool(selected) and selected == expected
+        correct_questions[q["id"]] = correct
+        score = scores.setdefault(q["lesson"], {"lesson": q["lesson"], "correct": 0, "total": 0})
+        score["total"] += 1
+        score["correct"] += int(correct)
+        session.add(
+            Answer(
+                learner_id=row.learner_id,
+                stack_id=row.stack_id,
+                question_id=q["id"],
+                context="placement",
+                response=",".join(sorted(selected)) or None,
+                correct=correct,
+                answered_at=now,
+            )
+        )
+    for score in scores.values():
+        score["passed"] = quiz.Score(score["correct"], score["total"]).passed
+    total, correct_count = len(row.questions), sum(correct_questions.values())
+    passed = quiz.Score(correct_count, total).passed and all(s["passed"] for s in scores.values())
+    row.result = {
+        "passed": passed,
+        "correct": correct_count,
+        "total": total,
+        "lessons": list(scores.values()),
+        "correct_questions": correct_questions,
+    }
+    row.submitted_at = now
+    release(session, row, "submitted")
+    if passed:
+        for lesson in lessons:
+            session.execute(
+                insert(CompletedLesson)
+                .values(
+                    learner_id=row.learner_id,
+                    stack_id=row.stack_id,
+                    lesson_id=lesson,
+                    completed_at=now,
+                    syllabus_version=row.syllabus_version,
+                    placement_attempt_id=row.id,
+                )
+                .on_conflict_do_nothing()
+            )
+    session.commit()

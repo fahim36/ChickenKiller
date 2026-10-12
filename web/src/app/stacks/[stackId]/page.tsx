@@ -195,6 +195,14 @@ export default async function WeekMapPage({
                         >
                           <Inline text={lesson.title} />
                         </Link>
+                        {lesson.placement_attempt_id && (
+                          <Link
+                            className="relative z-10 text-xs underline"
+                            href={`/placements/${lesson.placement_attempt_id}`}
+                          >
+                            Completed by placement
+                          </Link>
+                        )}
                       </li>
                     ))}
                   </ol>

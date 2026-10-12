@@ -34,6 +34,15 @@ export default async function WeekPage({
               {lesson.title}
             </Link>{" "}
             · {lesson.state}
+            {lesson.placement_attempt_id && (
+              <>
+                {" "}
+                ·{" "}
+                <Link href={`/placements/${lesson.placement_attempt_id}`}>
+                  Completed by placement
+                </Link>
+              </>
+            )}
           </li>
         ))}
       </ul>

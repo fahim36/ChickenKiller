@@ -25,3 +25,10 @@ export async function abandonPlacement(id: string) {
     {},
   );
 }
+
+export async function submitPlacement(id: string) {
+  return apiPost<PlacementAttempt>(
+    `/me/placements/${encodeURIComponent(id)}/submit`,
+    {},
+  );
+}
