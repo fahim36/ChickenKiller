@@ -1,6 +1,13 @@
 "use client";
 
-import { ArrowRight, CircleCheck, CircleMinus, CircleX, RotateCcw, Trophy } from "lucide-react";
+import {
+  ArrowRight,
+  CircleCheck,
+  CircleMinus,
+  CircleX,
+  RotateCcw,
+  Trophy,
+} from "lucide-react";
 import Link from "next/link";
 import { type FormEvent, useState } from "react";
 import { Inline } from "@/components/Inline";
@@ -40,7 +47,11 @@ const OUTCOME_LABELS: Record<ChallengeOutcome, string> = {
   ungraded: "Ungraded: no point",
 };
 
-const OUTCOME_ICONS = { correct: CircleCheck, wrong: CircleX, ungraded: CircleMinus };
+const OUTCOME_ICONS = {
+  correct: CircleCheck,
+  wrong: CircleX,
+  ungraded: CircleMinus,
+};
 
 const OUTCOME_STYLES: Record<ChallengeOutcome, string> = {
   correct: "text-success-foreground",
@@ -94,7 +105,12 @@ export function DailyChallengeFlow({
           maxAnswerChars={challenge.max_answer_chars}
           answerAction={answerAction}
         />
-        <Button type="button" size="lg" className="px-4" onClick={() => setShown(null)}>
+        <Button
+          type="button"
+          size="lg"
+          className="px-4"
+          onClick={() => setShown(null)}
+        >
           {pending ? "Next Question" : "See your score"}
           <ArrowRight aria-hidden />
         </Button>
@@ -107,7 +123,8 @@ export function DailyChallengeFlow({
       <section className="space-y-4">
         {challenge.status === "not_started" && (
           <p className="text-sm text-muted-foreground">
-            {questions.length} Questions. Only your first answer to each Question counts.
+            {questions.length} Questions. Only your first answer to each
+            Question counts.
           </p>
         )}
         <StepProgress
@@ -165,11 +182,15 @@ function Summary({
             <p className="font-heading text-2xl font-semibold tabular-nums">
               Played: {challenge.score}/{challenge.out_of}
             </p>
-            <p className="text-sm text-muted-foreground">Only your first try counts.</p>
+            <p className="text-sm text-muted-foreground">
+              Only your first try counts.
+            </p>
           </div>
         </div>
       )}
-      {challenge.result_card && <ResultCard text={challenge.result_card} />}
+      {challenge.result_card && (
+        <ResultCard text={challenge.result_card} day={challenge.day} />
+      )}
       <ol className="space-y-4">
         {challenge.questions.map((q, i) => (
           <li key={q.id} className="space-y-3">
@@ -185,7 +206,9 @@ function Summary({
                 <OutcomeHeading outcome={q.outcome} number={i + 1} />
                 {q.retired && <Retired question={q} stackId={stackId} />}
                 {q.answered && <AnsweredQuestionDetail question={q.answered} />}
-                  {!q.retired && q.answered && <QuestionReportLink stackId={stackId} questionId={q.id} />}
+                {!q.retired && q.answered && (
+                  <QuestionReportLink stackId={stackId} questionId={q.id} />
+                )}
                 {q.outcome === "ungraded" && q.answered && (
                   <Resubmit
                     question={q}
@@ -205,7 +228,8 @@ function Summary({
           Replay
         </Button>{" "}
         <span className="text-sm text-muted-foreground">
-          For learning: it changes nothing about your score, Streak or Missed Questions.
+          For learning: it changes nothing about your score, Streak or Missed
+          Questions.
         </span>
       </div>
     </section>
@@ -213,10 +237,21 @@ function Summary({
 }
 
 /** "Question 1" and how its first try went, above that Question in the summary. */
-function OutcomeHeading({ outcome, number }: { outcome: ChallengeOutcome; number: number }) {
+function OutcomeHeading({
+  outcome,
+  number,
+}: {
+  outcome: ChallengeOutcome;
+  number: number;
+}) {
   const Icon = OUTCOME_ICONS[outcome];
   return (
-    <p className={cn("flex items-center gap-2 text-sm font-semibold", OUTCOME_STYLES[outcome])}>
+    <p
+      className={cn(
+        "flex items-center gap-2 text-sm font-semibold",
+        OUTCOME_STYLES[outcome],
+      )}
+    >
       <Icon aria-hidden className="size-4" />
       <span className="sr-only">Question {number}: </span>
       <strong>{OUTCOME_LABELS[outcome]}</strong>
@@ -228,12 +263,18 @@ function OutcomeHeading({ outcome, number }: { outcome: ChallengeOutcome; number
  * Why a Question was retired, and where its replacement is: the first released Challenge that
  * asks it, in the Stack's Archive. A replacement no released Challenge asks yet has no link.
  */
-function Retired({ question, stackId }: { question: ChallengeQuestion; stackId: string }) {
+function Retired({
+  question,
+  stackId,
+}: {
+  question: ChallengeQuestion;
+  stackId: string;
+}) {
   const replacement = question.replaced_by;
   return (
     <p className="rounded-xl bg-muted px-3 py-2 text-sm text-muted-foreground">
-      Retired{question.retired_reason ? `: ${question.retired_reason}` : "."} It can&apos;t be
-      answered and isn&apos;t scored.
+      Retired{question.retired_reason ? `: ${question.retired_reason}` : "."} It
+      can&apos;t be answered and isn&apos;t scored.
       {replacement &&
         (replacement.challenge_number !== null ? (
           <>
@@ -243,7 +284,7 @@ function Retired({ question, stackId }: { question: ChallengeQuestion; stackId: 
               className="font-medium text-foreground underline underline-offset-4 hover:text-primary"
               href={`/stacks/${encodeURIComponent(stackId)}/archive/${replacement.challenge_number}`}
             >
-              {replacement.challenge_label}
+              {replacement.challenge_label?.split(" · ")[0]}
             </Link>
             .
           </>
@@ -283,7 +324,12 @@ function Replay({
       />
       {shown ? (
         <div className="space-y-5">
-          <Result stackId={stackId} result={shown} maxAnswerChars={maxAnswerChars} answerAction={answerAction} />
+          <Result
+            stackId={stackId}
+            result={shown}
+            maxAnswerChars={maxAnswerChars}
+            answerAction={answerAction}
+          />
           <Button
             type="button"
             size="lg"
@@ -330,15 +376,16 @@ function Result({
     <div className="space-y-4">
       {ungraded ? (
         <Notice tone="error" role="alert">
-          Your answer couldn&apos;t be graded, so it earns no point toward your score. You can
-          resubmit it for feedback.
+          Your answer couldn&apos;t be graded, so it earns no point toward your
+          score. You can resubmit it for feedback.
         </Notice>
       ) : (
         <Mark outcome={result.outcome} />
       )}
       {!result.counted && (
         <p className="text-sm text-muted-foreground">
-          A replay changes no score, Streak or Missed Question: only your first answer counts.
+          A replay changes no score, Streak or Missed Question: only your first
+          answer counts.
         </p>
       )}
       <AnsweredQuestionDetail question={question} />
@@ -358,20 +405,29 @@ function Result({
 function Mark({ outcome }: { outcome: ChallengeOutcome }) {
   if (outcome === "correct") {
     return (
-      <MarkLine correct className="rounded-xl bg-success/10 px-4 py-3 text-base">
+      <MarkLine
+        correct
+        className="rounded-xl bg-success/10 px-4 py-3 text-base"
+      >
         Correct
       </MarkLine>
     );
   }
   if (outcome === "wrong") {
     return (
-      <MarkLine correct={false} className="rounded-xl bg-destructive/10 px-4 py-3 text-base">
+      <MarkLine
+        correct={false}
+        className="rounded-xl bg-destructive/10 px-4 py-3 text-base"
+      >
         Not quite. Read the Explanation.
       </MarkLine>
     );
   }
   return (
-    <MarkLine correct={false} className="rounded-xl bg-destructive/10 px-4 py-3 text-base">
+    <MarkLine
+      correct={false}
+      className="rounded-xl bg-destructive/10 px-4 py-3 text-base"
+    >
       Couldn&apos;t be graded.
     </MarkLine>
   );
@@ -416,13 +472,20 @@ function Resubmit({
     return (
       <div className="space-y-2 rounded-2xl border bg-card p-5">
         <Mark outcome={graded.outcome} />
-        {graded.question.feedback && <p className="text-sm">{graded.question.feedback}</p>}
-        <p className="text-sm text-muted-foreground">Feedback only: this answer earns no point.</p>
+        {graded.question.feedback && (
+          <p className="text-sm">{graded.question.feedback}</p>
+        )}
+        <p className="text-sm text-muted-foreground">
+          Feedback only: this answer earns no point.
+        </p>
       </div>
     );
   }
   return (
-    <form onSubmit={submit} className="space-y-3 rounded-2xl border bg-card p-5">
+    <form
+      onSubmit={submit}
+      className="space-y-3 rounded-2xl border bg-card p-5"
+    >
       <WrittenAnswer
         question={question}
         value={answer}
@@ -511,7 +574,10 @@ function QuestionForm({
           {submitting ? (written ? "Grading…" : "Checking…") : "Submit answer"}
         </Button>
         {submitting && written && (
-          <span className="text-sm text-muted-foreground"> Grading takes about ten seconds.</span>
+          <span className="text-sm text-muted-foreground">
+            {" "}
+            Grading takes about ten seconds.
+          </span>
         )}
       </div>
     </form>

@@ -1,3 +1,4 @@
+import { LocalTime } from "@/components/LocalTime";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
@@ -7,12 +8,6 @@ import { api, type Draft, type Me } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { decideDraft } from "./actions";
 import { DraftActions } from "./DraftActions";
-
-const dateFormat = new Intl.DateTimeFormat("en-GB", {
-  dateStyle: "medium",
-  timeStyle: "short",
-  timeZone: "UTC",
-});
 
 const STATUS_TONE: Record<Draft["status"], string> = {
   pending: "bg-warning/15 text-warning-foreground",
@@ -40,11 +35,12 @@ export default async function DraftsPage() {
         title="Drafts"
         description={
           <p>
-            Questions and Daily Challenges proposed through the Claude connector, and new Stacks
-            being built, each by its author. Accepting changes nothing yet: run{" "}
-            <code>content-export-drafts</code>, then merge the files with /update-syllabus or
-            /write-challenges and commit. A new Stack&apos;s accepted weekly plan and Questions
-            are written as its first version: run <code>content-check</code> and{" "}
+            Questions and Daily Challenges proposed through the Claude
+            connector, and new Stacks being built, each by its author. Accepting
+            changes nothing yet: run <code>content-export-drafts</code>, then
+            merge the files with /update-syllabus or /write-challenges and
+            commit. A new Stack&apos;s accepted weekly plan and Questions are
+            written as its first version: run <code>content-check</code> and{" "}
             <code>content-import</code>.
           </p>
         }
@@ -55,15 +51,18 @@ export default async function DraftsPage() {
       ) : (
         <ul className="space-y-4" aria-label="Drafts">
           {drafts.map((d) => (
-            <li key={d.id} className="space-y-3 rounded-2xl border bg-card p-5 shadow-xs">
+            <li
+              key={d.id}
+              className="space-y-3 rounded-2xl border bg-card p-5 shadow-xs"
+            >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="space-y-1">
                   <p className="font-heading font-semibold">
-                    {draftTitle(d)}{" "}
-                    · {d.stack_id}
+                    {draftTitle(d)} · {d.stack_id}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    #{d.id} by {d.author_email} · {dateFormat.format(new Date(d.created_at))} UTC
+                    #{d.id} by {d.author_email} ·{" "}
+                    <LocalTime value={d.created_at} />
                   </p>
                 </div>
                 <span
@@ -89,7 +88,9 @@ export default async function DraftsPage() {
                   ),
                 )}
               </ul>
-              {d.status === "pending" && <DraftActions id={d.id} action={decideDraft} />}
+              {d.status === "pending" && (
+                <DraftActions id={d.id} action={decideDraft} />
+              )}
             </li>
           ))}
         </ul>
@@ -98,12 +99,17 @@ export default async function DraftsPage() {
   );
 }
 
-function draftTitle(d: Draft): string {
+function draftTitle(d: Draft) {
   switch (d.kind) {
     case "questions":
       return `${d.payload.questions?.length ?? 0} Questions`;
     case "challenge":
-      return `Daily Challenge for ${d.payload.day}`;
+      return (
+        <>
+          Daily Challenge for{" "}
+          <LocalTime value={String(d.payload.day)} dateOnly />
+        </>
+      );
     case "stack":
       return `New Stack request: ${d.payload.name}`;
     case "syllabus": {

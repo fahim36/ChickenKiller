@@ -1,3 +1,4 @@
+import { ChallengeLabel } from "@/components/LocalTime";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
@@ -31,14 +32,19 @@ export default async function ArchivedChallengePage({
         crumbs={
           <>
             <Link href="/">Your Stacks</Link> ·{" "}
-            <Link href={`/stacks/${encodeURIComponent(stackId)}/archive`}>Archive</Link>
+            <Link href={`/stacks/${encodeURIComponent(stackId)}/archive`}>
+              Archive
+            </Link>
           </>
         }
-        title={challenge.label}
+        title={<ChallengeLabel label={challenge.label} day={challenge.day} />}
         description={
           past &&
           challenge.status !== "finished" && (
-            <p>From the Archive: scored as usual, but it doesn&apos;t count toward your Streak.</p>
+            <p>
+              From the Archive: scored as usual, but it doesn&apos;t count
+              toward your Streak.
+            </p>
           )
         }
       />
@@ -46,7 +52,11 @@ export default async function ArchivedChallengePage({
         key={challenge.number}
         stackId={stackId}
         challenge={challenge}
-        answerAction={answerChallengeQuestion.bind(null, stackId, challenge.number)}
+        answerAction={answerChallengeQuestion.bind(
+          null,
+          stackId,
+          challenge.number,
+        )}
       />
     </main>
   );

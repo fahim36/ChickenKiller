@@ -1,3 +1,4 @@
+import { formatLocalTime } from "@/components/LocalTime";
 import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import type { Draft } from "@/lib/api";
@@ -23,7 +24,11 @@ const DRAFTS: Draft[] = [
     status: "pending",
     author_email: "ada@example.com",
     note: "Two on tool use.",
-    payload: { questions: [{ id: "w01-l01-q90", type: "multiple_choice", prompt: "Why?" }] },
+    payload: {
+      questions: [
+        { id: "w01-l01-q90", type: "multiple_choice", prompt: "Why?" },
+      ],
+    },
     created_at: "2026-09-27T10:00:00Z",
     decided_at: null,
   },
@@ -50,7 +55,9 @@ it("lists each draft with its author, and offers a decision only on pending ones
   ) as HTMLElement[];
   expect(pending.textContent).toContain("by ada@example.com");
   expect(within(pending).getByRole("button", { name: "Accept" })).toBeTruthy();
-  expect(rejected.textContent).toContain("Daily Challenge for 2026-10-05");
+  expect(rejected.textContent).toContain(
+    `Daily Challenge for ${formatLocalTime("2026-10-05", true)}`,
+  );
   expect(within(rejected).queryByRole("button", { name: "Accept" })).toBeNull();
 });
 

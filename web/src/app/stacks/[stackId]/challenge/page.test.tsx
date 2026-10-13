@@ -1,3 +1,4 @@
+import { formatLocalTime } from "@/components/LocalTime";
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import type { TodaysChallenge } from "@/lib/api";
@@ -52,17 +53,21 @@ afterEach(() => {
 async function renderPage(body: TodaysChallenge) {
   stubApi({ [PATH]: body });
   render(
-    await ChallengePage({ params: Promise.resolve({ stackId: "agentic-ai-engineer" }) } as never),
+    await ChallengePage({
+      params: Promise.resolve({ stackId: "agentic-ai-engineer" }),
+    } as never),
   );
 }
 
-it("names today's Challenge by number and UTC date, and asks its first Question", async () => {
+it("names today's Challenge with a local date, and asks its first Question", async () => {
   await renderPage(TODAY);
 
   expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
-    "Agentic AI Engineer #1 · 27 Sep",
+    `Agentic AI Engineer #1 · ${formatLocalTime("2026-09-27", true)}`,
   );
-  expect(screen.getByRole("group", { name: "What does is compare?" })).toBeTruthy();
+  expect(
+    screen.getByRole("group", { name: "What does is compare?" }),
+  ).toBeTruthy();
 });
 
 it("says so when no Challenge is written for today", async () => {

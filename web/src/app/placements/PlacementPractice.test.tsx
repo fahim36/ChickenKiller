@@ -114,6 +114,6 @@ it("shows final per-Lesson results and explanations after submission", async () 
   render(<PlacementPractice initial={attempt} />);
   fireEvent.click(screen.getByText("Submit placement"));
   await screen.findByText("Separate process boundary");
-  expect(screen.getByText("l1: 0/1 · Below 80%")).toBeTruthy();
+  expect(screen.getByText("Lesson 1: 0/1 · Below 80%")).toBeTruthy();
   expect(screen.queryByRole("radio")).toBeNull();
 });

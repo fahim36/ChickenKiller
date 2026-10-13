@@ -1,3 +1,4 @@
+import { LocalTime } from "@/components/LocalTime";
 import Link from "next/link";
 import type { HomeGuidance as Guidance } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -52,9 +53,13 @@ export function HomeGuidance({ guidance }: { guidance: Guidance }) {
                 </p>
                 <p className="text-sm text-muted-foreground">
                   {c.recent_missed_questions} distinct Questions missed in 30
-                  UTC Days
-                  {c.latest_miss &&
-                    ` · Latest miss: ${c.latest_miss.slice(0, 10)} UTC`}
+                  days
+                  {c.latest_miss && (
+                    <>
+                      {" "}
+                      · Latest miss: <LocalTime value={c.latest_miss} />
+                    </>
+                  )}
                 </p>
                 {c.lesson_id ? (
                   <Link

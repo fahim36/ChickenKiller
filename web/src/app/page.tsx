@@ -1,3 +1,4 @@
+import { ChallengeLabel } from "@/components/LocalTime";
 import {
   ArrowRight,
   Archive,
@@ -258,7 +259,7 @@ function TodaysChallengeLine({
           Daily Challenge
         </p>
         <p className="font-heading text-base font-semibold">
-          {challenge.label}
+          <ChallengeLabel label={challenge.label} day={challenge.day} />
         </p>
       </div>
       {finished ? (

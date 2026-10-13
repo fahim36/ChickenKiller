@@ -1,7 +1,13 @@
+import { formatLocalTime } from "@/components/LocalTime";
 import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import type { DailyChallenge, TodaysChallenge } from "@/lib/api";
-import { NEW_LEARNER, ONBOARDED, ONBOARDED_TWICE, stubApi } from "@/test/stubApi";
+import {
+  NEW_LEARNER,
+  ONBOARDED,
+  ONBOARDED_TWICE,
+  stubApi,
+} from "@/test/stubApi";
 import Home from "./page";
 
 vi.mock("next/server", () => ({ connection: async () => {} }));
@@ -9,25 +15,35 @@ vi.mock("@clerk/nextjs/server", () => ({
   auth: async () => ({ getToken: async () => "session-token" }),
 }));
 
-it.each(["server", "network"])("keeps activities available when guidance fails: %s", async (failure) => {
-  const fetch = stubApi({
-    "/me": ONBOARDED,
-    "/stacks/agentic-ai-engineer/challenges/today": today("agentic-ai-engineer", "Agentic AI Engineer", {}, 3),
-  });
-  const original = fetch.getMockImplementation()!;
-  fetch.mockImplementation(async (url: string) => {
-    if (new URL(url).pathname === "/home/guidance") {
-      if (failure === "network") throw new TypeError("Network unavailable");
-      return Response.json({ detail: "Unavailable" }, { status: 500 });
-    }
-    return original(url);
-  });
-  vi.spyOn(console, "error").mockImplementation(() => {});
-  render(await Home());
-  expect(screen.getByText(/Next Action couldn't be loaded/)).toBeTruthy();
-  expect(screen.getByRole("link", { name: "Play" }).getAttribute("href")).toBe("/stacks/agentic-ai-engineer/challenge");
-  expect(screen.getByRole("link", { name: "Week map" })).toBeTruthy();
-});
+it.each(["server", "network"])(
+  "keeps activities available when guidance fails: %s",
+  async (failure) => {
+    const fetch = stubApi({
+      "/me": ONBOARDED,
+      "/stacks/agentic-ai-engineer/challenges/today": today(
+        "agentic-ai-engineer",
+        "Agentic AI Engineer",
+        {},
+        3,
+      ),
+    });
+    const original = fetch.getMockImplementation()!;
+    fetch.mockImplementation(async (url: string) => {
+      if (new URL(url).pathname === "/home/guidance") {
+        if (failure === "network") throw new TypeError("Network unavailable");
+        return Response.json({ detail: "Unavailable" }, { status: 500 });
+      }
+      return original(url);
+    });
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    render(await Home());
+    expect(screen.getByText(/Next Action couldn't be loaded/)).toBeTruthy();
+    expect(
+      screen.getByRole("link", { name: "Play" }).getAttribute("href"),
+    ).toBe("/stacks/agentic-ai-engineer/challenge");
+    expect(screen.getByRole("link", { name: "Week map" })).toBeTruthy();
+  },
+);
 
 afterEach(() => {
   cleanup();
@@ -39,7 +55,9 @@ it("sends a first sign-in to onboarding", async () => {
   stubApi({ "/me": NEW_LEARNER });
 
   await expect(Home()).rejects.toThrow(
-    expect.objectContaining({ digest: expect.stringContaining(";/onboarding;") }),
+    expect.objectContaining({
+      digest: expect.stringContaining(";/onboarding;"),
+    }),
   );
 });
 
@@ -48,18 +66,24 @@ it("gives each Active Stack its own card, linking to its Week map", async () => 
 
   render(await Home());
 
-  expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Your Stacks");
+  expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
+    "Your Stacks",
+  );
   const cards = [
     ["Agentic AI Engineer", "/stacks/agentic-ai-engineer"],
     ["Data Engineer", "/stacks/data-engineer"],
   ];
   for (const [name, href] of cards) {
     const card = screen.getByRole("region", { name });
-    expect(within(card).getByRole("link", { name: "Week map" }).getAttribute("href")).toBe(href);
+    expect(
+      within(card).getByRole("link", { name: "Week map" }).getAttribute("href"),
+    ).toBe(href);
   }
-  expect(screen.getByRole("link", { name: "Change Active Stacks" }).getAttribute("href")).toBe(
-    "/stacks",
-  );
+  expect(
+    screen
+      .getByRole("link", { name: "Change Active Stacks" })
+      .getAttribute("href"),
+  ).toBe("/stacks");
 });
 
 function today(
@@ -96,16 +120,22 @@ it("shows each Active Stack's Challenge for today, or says there is none", async
       "Agentic AI Engineer",
       {},
     ),
-    "/stacks/data-engineer/challenges/today": today("data-engineer", "Data Engineer", null),
+    "/stacks/data-engineer/challenges/today": today(
+      "data-engineer",
+      "Data Engineer",
+      null,
+    ),
   });
 
   render(await Home());
 
   const agentic = screen.getByRole("region", { name: "Agentic AI Engineer" });
-  expect(within(agentic).getByText("Agentic AI Engineer #1 · 27 Sep")).toBeTruthy();
-  expect(within(agentic).getByRole("link", { name: "Play" }).getAttribute("href")).toBe(
-    "/stacks/agentic-ai-engineer/challenge",
-  );
+  expect(
+    within(agentic).getByText(/^Agentic AI Engineer #1 ·/).textContent,
+  ).toContain(formatLocalTime("2026-09-27", true));
+  expect(
+    within(agentic).getByRole("link", { name: "Play" }).getAttribute("href"),
+  ).toBe("/stacks/agentic-ai-engineer/challenge");
   const data = screen.getByRole("region", { name: "Data Engineer" });
   expect(within(data).getByText("No Challenge today")).toBeTruthy();
   expect(within(data).queryByRole("link", { name: "Play" })).toBeNull();
@@ -125,7 +155,9 @@ it("says when today's Challenge couldn't be loaded, instead of \"No Challenge to
 
   for (const name of ["Agentic AI Engineer", "Data Engineer"]) {
     const card = screen.getByRole("region", { name });
-    expect(within(card).getByRole("alert").textContent).toContain("couldn't be loaded");
+    expect(within(card).getByRole("alert").textContent).toContain(
+      "couldn't be loaded",
+    );
     expect(within(card).queryByText("No Challenge today")).toBeNull();
   }
 });
@@ -133,24 +165,28 @@ it("says when today's Challenge couldn't be loaded, instead of \"No Challenge to
 it.each([
   [{ status: "in_progress" }, "Continue", null],
   [{ status: "finished", score: 2, out_of: 3 }, "Replay", "Played: 2/3"],
-] as const)("offers to continue or replay today's Challenge", async (challenge, link, played) => {
-  stubApi({
-    "/me": ONBOARDED,
-    "/stacks/agentic-ai-engineer/challenges/today": today(
-      "agentic-ai-engineer",
-      "Agentic AI Engineer",
-      challenge,
-    ),
-  });
+] as const)(
+  "offers to continue or replay today's Challenge",
+  async (challenge, link, played) => {
+    stubApi({
+      "/me": ONBOARDED,
+      "/stacks/agentic-ai-engineer/challenges/today": today(
+        "agentic-ai-engineer",
+        "Agentic AI Engineer",
+        challenge,
+      ),
+    });
 
-  render(await Home());
+    render(await Home());
 
-  const card = screen.getByRole("region", { name: "Agentic AI Engineer" });
-  expect(within(card).getByRole("link", { name: link }).getAttribute("href")).toBe(
-    "/stacks/agentic-ai-engineer/challenge",
-  );
-  if (played) expect(within(card).getByText(played, { exact: false })).toBeTruthy();
-});
+    const card = screen.getByRole("region", { name: "Agentic AI Engineer" });
+    expect(
+      within(card).getByRole("link", { name: link }).getAttribute("href"),
+    ).toBe("/stacks/agentic-ai-engineer/challenge");
+    if (played)
+      expect(within(card).getByText(played, { exact: false })).toBeTruthy();
+  },
+);
 
 it("shows each Active Stack's own Streak", async () => {
   stubApi({
@@ -161,7 +197,12 @@ it("shows each Active Stack's own Streak", async () => {
       {},
       3,
     ),
-    "/stacks/data-engineer/challenges/today": today("data-engineer", "Data Engineer", null, 0),
+    "/stacks/data-engineer/challenges/today": today(
+      "data-engineer",
+      "Data Engineer",
+      null,
+      0,
+    ),
   });
 
   render(await Home());
@@ -178,7 +219,9 @@ it("links to Review, one page across every Active Stack", async () => {
 
   render(await Home());
 
-  expect(screen.getByRole("link", { name: "Review" }).getAttribute("href")).toBe("/review");
+  expect(
+    screen.getByRole("link", { name: "Review" }).getAttribute("href"),
+  ).toBe("/review");
 });
 
 it("links each Active Stack to its Archive", async () => {
@@ -187,9 +230,9 @@ it("links each Active Stack to its Archive", async () => {
   render(await Home());
 
   const card = screen.getByRole("region", { name: "Data Engineer" });
-  expect(within(card).getByRole("link", { name: "Archive" }).getAttribute("href")).toBe(
-    "/stacks/data-engineer/archive",
-  );
+  expect(
+    within(card).getByRole("link", { name: "Archive" }).getAttribute("href"),
+  ).toBe("/stacks/data-engineer/archive");
 });
 
 it("links to Catch-up with how many past Challenges aren't played, across Active Stacks", async () => {
@@ -206,7 +249,9 @@ it("links to Catch-up with how many past Challenges aren't played, across Active
 
   render(await Home());
 
-  expect(screen.getByRole("link", { name: "Catch-up" }).getAttribute("href")).toBe("/catch-up");
+  expect(
+    screen.getByRole("link", { name: "Catch-up" }).getAttribute("href"),
+  ).toBe("/catch-up");
   expect(screen.getByText(/3 past Challenges you haven't played/)).toBeTruthy();
 });
 

@@ -56,10 +56,14 @@ it("lists the unplayed past Challenges of each Active Stack, with a count", asyn
   const agentic = screen.getByRole("region", {
     name: "Agentic AI Engineer (2)",
   });
-  expect(within(agentic).getByRole("link", { name: "Play #1 · 25 Sep" }).getAttribute("href")).toBe(
-    "/stacks/agentic-ai-engineer/archive/1",
-  );
-  expect(within(agentic).getByRole("link", { name: "Continue #2 · 26 Sep" })).toBeTruthy();
+  expect(
+    within(agentic)
+      .getByRole("link", { name: "Play Challenge #1" })
+      .getAttribute("href"),
+  ).toBe("/stacks/agentic-ai-engineer/archive/1");
+  expect(
+    within(agentic).getByRole("link", { name: "Continue Challenge #2" }),
+  ).toBeTruthy();
   expect(screen.queryByRole("region", { name: /Data Engineer/ })).toBeNull();
   expect(screen.getByText(/Optional/)).toBeTruthy();
 });

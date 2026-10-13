@@ -1,3 +1,4 @@
+import { LocalTime } from "@/components/LocalTime";
 import { CircleCheck, Play } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -15,12 +16,19 @@ export function ArchiveLine({
   challenge: ArchivedChallenge;
 }) {
   const href = `/stacks/${encodeURIComponent(stackId)}/archive/${c.number}`;
-  const name = shortLabel(c.label);
+  const name = (
+    <>
+      #{c.number} · <LocalTime value={c.day} dateOnly />
+    </>
+  );
   if (c.status === "finished") {
     const perfect = c.score === c.out_of;
     return (
       <p className="flex items-center justify-between gap-3 rounded-xl border bg-card px-4 py-3">
-        <Link href={href} className="font-medium underline-offset-4 hover:text-primary hover:underline">
+        <Link
+          href={href}
+          className="font-medium underline-offset-4 hover:text-primary hover:underline"
+        >
           {name}
         </Link>{" "}
         <span
@@ -42,8 +50,12 @@ export function ArchiveLine({
   return (
     <p className="flex items-center justify-between gap-3 rounded-xl border bg-card px-4 py-3">
       <strong className="font-medium">{name}</strong>{" "}
-      <Button asChild size="sm" variant={action === "Continue" ? "default" : "secondary"}>
-        <Link href={href} aria-label={`${action} ${name}`}>
+      <Button
+        asChild
+        size="sm"
+        variant={action === "Continue" ? "default" : "secondary"}
+      >
+        <Link href={href} aria-label={`${action} Challenge #${c.number}`}>
           <Play aria-hidden />
           {action}
         </Link>

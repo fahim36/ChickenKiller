@@ -23,7 +23,7 @@ export default async function PracticeOutcomesPage() {
         <>
           <section aria-label="Delayed performance" className="space-y-2">
             <h2 className="text-lg font-semibold">
-              Answers 7–14 UTC days after targeted practice
+              Answers 7–14 days after targeted practice
             </h2>
             {data.qualifying_answers === 0 ? (
               <p>No qualifying answers yet. Accuracy is unavailable.</p>
@@ -48,8 +48,8 @@ export default async function PracticeOutcomesPage() {
             <p>
               Targeted Review uptake: {data.uptake_days} learner/Stack/Concept
               days across {data.uptake_learners} learners. A loaded due queue
-              counts once per UTC day, including reloads; it does not prove
-              practice or recommendation effectiveness.
+              counts once per day, including reloads; it does not prove practice
+              or recommendation effectiveness.
             </p>
             <p>
               Completed targeted practice: {data.completed_practice_answers}{" "}

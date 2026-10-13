@@ -105,7 +105,7 @@ def for_learner(
             "concept_review",
             f"Practise {target.concept.name}",
             f"You missed {target.concept.evidence.recent_missed_questions} distinct active "
-            "Questions in 30 UTC Days. Due Review is available.",
+            "Questions in 30 days. Due Review is available.",
             target.stack_id,
             concept_id=target.concept.id,
         )

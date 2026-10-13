@@ -1,4 +1,5 @@
 "use client";
+import { LocalTime } from "@/components/LocalTime";
 import { useEffect, useRef, useState, useTransition } from "react";
 import {
   cancelInterviewAudio,
@@ -227,7 +228,9 @@ export function VoiceResponse({
       )}
       {clip && (
         <>
-          <p>Audio expires {new Date(clip.expires_at).toLocaleString()}.</p>
+          <p>
+            Audio expires <LocalTime value={clip.expires_at} />.
+          </p>
           <button
             type="button"
             disabled={pending || recording}

@@ -1,3 +1,4 @@
+import { LocalTime } from "@/components/LocalTime";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
@@ -7,8 +8,6 @@ import { PageHeader, Section } from "@/components/PageHeader";
 import { api, type Invitation, type Me } from "@/lib/api";
 import { invite } from "./actions";
 import { InviteForm } from "./InviteForm";
-
-const dateFormat = new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeZone: "UTC" });
 
 // Admin only. The API refuses non-Admins too; this check just keeps the screen out of sight.
 export default async function InvitationsPage() {
@@ -29,8 +28,8 @@ export default async function InvitationsPage() {
         title="Invitations"
         description={
           <p>
-            Invite someone by email. They sign in with that address, by email or Google, and
-            become a Learner.
+            Invite someone by email. They sign in with that address, by email or
+            Google, and become a Learner.
           </p>
         }
       />
@@ -50,10 +49,12 @@ export default async function InvitationsPage() {
                 <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
                   <Mail aria-hidden className="size-4" />
                 </span>
-                <span className="min-w-0 flex-1 truncate font-medium">{i.email}</span>{" "}
+                <span className="min-w-0 flex-1 truncate font-medium">
+                  {i.email}
+                </span>{" "}
                 <span className="inline-flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
                   <Clock aria-hidden className="size-3.5" />
-                  invited {dateFormat.format(new Date(i.invited_at))}
+                  invited <LocalTime value={i.invited_at} />
                 </span>
               </li>
             ))}

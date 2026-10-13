@@ -1,3 +1,4 @@
+import { formatLocalTime } from "@/components/LocalTime";
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import type { StackChallenge } from "@/lib/api";
@@ -61,13 +62,15 @@ it("plays a past Challenge like today's, saying it doesn't count toward a Streak
   await renderPage(PAST);
 
   expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
-    "Agentic AI Engineer #1 · 25 Sep",
+    `Agentic AI Engineer #1 · ${formatLocalTime("2026-09-25", true)}`,
   );
   expect(screen.getByText(/doesn't count toward your Streak/)).toBeTruthy();
-  expect(screen.getByRole("group", { name: "What does is compare?" })).toBeTruthy();
-  expect(screen.getByRole("link", { name: "Archive" }).getAttribute("href")).toBe(
-    "/stacks/agentic-ai-engineer/archive",
-  );
+  expect(
+    screen.getByRole("group", { name: "What does is compare?" }),
+  ).toBeTruthy();
+  expect(
+    screen.getByRole("link", { name: "Archive" }).getAttribute("href"),
+  ).toBe("/stacks/agentic-ai-engineer/archive");
 });
 
 it("says nothing about the Streak for today's Challenge, which counts as usual", async () => {

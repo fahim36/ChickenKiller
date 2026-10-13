@@ -1,3 +1,4 @@
+import { LocalTime } from "@/components/LocalTime";
 import type { QuestionReport } from "@/lib/api";
 
 export function ReportCorrection({ report }: { report: QuestionReport }) {
@@ -12,7 +13,9 @@ export function ReportCorrection({ report }: { report: QuestionReport }) {
         .
       </p>
       {report.resolved_at && (
-        <p>Correction imported {report.resolved_at.slice(0, 10)} UTC.</p>
+        <p>
+          Correction imported <LocalTime value={report.resolved_at} />.
+        </p>
       )}
       {report.resolution_reason && (
         <p>Retirement reason: {report.resolution_reason}</p>

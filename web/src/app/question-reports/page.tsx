@@ -1,3 +1,4 @@
+import { LocalTime } from "@/components/LocalTime";
 import Link from "next/link";
 import { connection } from "next/server";
 import { PageHeader } from "@/components/PageHeader";
@@ -31,7 +32,9 @@ export default async function YourReports() {
                 {REPORT_CATEGORIES[r.category]} · {r.stack_id} / {r.question_id}
               </h2>
               <p>Status: {REPORT_STATUSES[r.status]}</p>
-              <p>Updated {r.updated_at.slice(0, 10)} UTC</p>
+              <p>
+                Updated <LocalTime value={r.updated_at} />
+              </p>
               {r.note && <p className="whitespace-pre-wrap">{r.note}</p>}
               {r.explanation && <p>Admin explanation: {r.explanation}</p>}
               <ReportCorrection report={r} />

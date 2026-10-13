@@ -3,6 +3,7 @@
 import { Check, Copy } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { formatLocalTime, useLocalClockReady } from "@/components/LocalTime";
 
 /**
  * A finished Daily Challenge's Result Card, the text the API made ("Agentic AI Engineer #1 · 27
@@ -10,11 +11,20 @@ import { Button } from "@/components/ui/button";
  * answers. Copying uses the clipboard API, and falls back to copying a selection where that is
  * missing or refused (an older browser, or a page not served over HTTPS).
  */
-export function ResultCard({ text }: { text: string }) {
+export function ResultCard({ text, day }: { text: string; day?: string }) {
   const [copied, setCopied] = useState<boolean | null>(null);
+  const ready = useLocalClockReady();
+  const displayed = day
+    ? ready
+      ? text.replace(
+          /(#\d+\s*·\s*)[^·]+(?=\s*·)/,
+          `$1${formatLocalTime(day, true)} `,
+        )
+      : "…"
+    : text;
 
   async function copy() {
-    setCopied((await copyText(text)) || copyBySelection(text));
+    setCopied((await copyText(displayed)) || copyBySelection(displayed));
   }
 
   return (
@@ -24,17 +34,27 @@ export function ResultCard({ text }: { text: string }) {
       </p>
       <p>
         <output className="block rounded-xl bg-card px-4 py-3 font-mono text-base font-semibold shadow-xs ring-1 ring-border select-all sm:text-lg">
-          {text}
+          {displayed}
         </output>
       </p>
-      <p className="text-xs text-muted-foreground">✅ correct · ❌ wrong · ⬜ ungraded: couldn&apos;t be graded, no point</p>
+      <p className="text-xs text-muted-foreground">
+        ✅ correct · ❌ wrong · ⬜ ungraded: couldn&apos;t be graded, no point
+      </p>
       <p className="flex flex-wrap items-center gap-3">
-        <Button type="button" onClick={copy} variant="outline">
+        <Button
+          type="button"
+          onClick={copy}
+          variant="outline"
+          disabled={Boolean(day) && !ready}
+        >
           {copied ? <Check aria-hidden /> : <Copy aria-hidden />}
           Copy Result Card
         </Button>
         {copied === true && (
-          <span role="status" className="text-sm font-medium text-success-foreground">
+          <span
+            role="status"
+            className="text-sm font-medium text-success-foreground"
+          >
             Copied
           </span>
         )}

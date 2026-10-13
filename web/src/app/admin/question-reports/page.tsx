@@ -1,3 +1,4 @@
+import { LocalTime } from "@/components/LocalTime";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
@@ -54,7 +55,9 @@ export default async function ReportQueue() {
                       {REPORT_CATEGORIES[report.category]} ·{" "}
                       {report.reporter_email}
                     </p>
-                    <p>Reported {report.created_at.slice(0, 10)} UTC</p>
+                    <p>
+                      Reported <LocalTime value={report.created_at} />
+                    </p>
                     {report.note && (
                       <p className="whitespace-pre-wrap">{report.note}</p>
                     )}

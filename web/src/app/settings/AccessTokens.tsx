@@ -1,4 +1,5 @@
 "use client";
+import { LocalTime } from "@/components/LocalTime";
 
 import { Check, Copy, Plug, Trash2 } from "lucide-react";
 import { useActionState, useState, useTransition } from "react";
@@ -8,11 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { AccessToken } from "@/lib/api";
 import type { TokenState } from "./actions";
-
-const dateFormat = new Intl.DateTimeFormat("en-GB", {
-  dateStyle: "medium",
-  timeZone: "UTC",
-});
 
 const PLACEHOLDER = "<your token>";
 
@@ -36,7 +32,9 @@ export function AccessTokens({
   const [revoking, startRevoking] = useTransition();
   // Shown until the new token is revoked; a reload hides it for good.
   const created =
-    state?.ok === true && tokens.some((t) => t.id === state.token.id) ? state.token.token : null;
+    state?.ok === true && tokens.some((t) => t.id === state.token.id)
+      ? state.token.token
+      : null;
   const token = created ?? PLACEHOLDER;
   const command = `claude mcp add --transport http chickenkiller ${mcpUrl} --header "Authorization: Bearer ${token}"`;
 
@@ -45,8 +43,9 @@ export function AccessTokens({
       <ol className="list-decimal space-y-1 pl-5 text-sm leading-relaxed text-muted-foreground">
         <li>Create a token below and copy it.</li>
         <li>
-          Add a custom connector in your Claude client with the URL <code>{mcpUrl}</code> and the
-          header <code>Authorization: Bearer {token}</code>. In Claude Code:
+          Add a custom connector in your Claude client with the URL{" "}
+          <code>{mcpUrl}</code> and the header{" "}
+          <code>Authorization: Bearer {token}</code>. In Claude Code:
           <span className="mt-1 flex items-start gap-2">
             <pre
               aria-label="Claude Code command"
@@ -60,7 +59,10 @@ export function AccessTokens({
         <li>Revoke a token here as soon as you no longer need it.</li>
       </ol>
       <div className="space-y-4 rounded-2xl border bg-card p-5 shadow-xs">
-        <form action={formAction} className="flex flex-col gap-2 sm:flex-row sm:items-end">
+        <form
+          action={formAction}
+          className="flex flex-col gap-2 sm:flex-row sm:items-end"
+        >
           <div className="flex-1 space-y-1.5">
             <label htmlFor="token-name" className="text-sm font-semibold">
               Token name
@@ -73,7 +75,12 @@ export function AccessTokens({
               className="h-10 bg-background"
             />
           </div>
-          <Button type="submit" size="lg" className="h-10 px-4" disabled={pending}>
+          <Button
+            type="submit"
+            size="lg"
+            className="h-10 px-4"
+            disabled={pending}
+          >
             {pending ? <Spinner /> : <Plug aria-hidden />}
             Create token
           </Button>
@@ -89,17 +96,27 @@ export function AccessTokens({
         {tokens.length === 0 ? (
           <p className="text-sm text-muted-foreground">You have no tokens.</p>
         ) : (
-          <ul aria-label="Your tokens" className="divide-y overflow-hidden rounded-xl border">
+          <ul
+            aria-label="Your tokens"
+            className="divide-y overflow-hidden rounded-xl border"
+          >
             {tokens.map((t) => (
-              <li key={t.id} className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm">
+              <li
+                key={t.id}
+                className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm"
+              >
                 <span className="min-w-0 flex-1">
                   <span className="font-medium">{t.name}</span>{" "}
                   <code className="text-xs">{t.prefix}…</code>
                   <span className="block text-xs text-muted-foreground">
-                    Created {dateFormat.format(new Date(t.created_at))} ·{" "}
-                    {t.last_used_at
-                      ? `last used ${dateFormat.format(new Date(t.last_used_at))}`
-                      : "never used"}
+                    Created <LocalTime value={t.created_at} /> ·{" "}
+                    {t.last_used_at ? (
+                      <>
+                        last used <LocalTime value={t.last_used_at} />
+                      </>
+                    ) : (
+                      "never used"
+                    )}
                   </span>
                 </span>
                 <Button

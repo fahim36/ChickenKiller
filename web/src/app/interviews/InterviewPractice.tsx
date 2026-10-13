@@ -1,4 +1,5 @@
 "use client";
+import { LocalTime } from "@/components/LocalTime";
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
@@ -135,7 +136,7 @@ export function InterviewPractice({
       {current && (
         <>
           <p>
-            History expires {new Date(current.expires_at).toLocaleDateString()}.
+            History expires <LocalTime value={current.expires_at} />.
           </p>
           <p>
             {current.operations?.length ?? 0} of 18 provider attempts used.
@@ -175,8 +176,12 @@ export function InterviewPractice({
                 onConfirmed={update}
                 onProcessed={async () => {
                   const refreshed = await loadInterviewSession(current.id);
-                  setSessions((rows) => rows.map((s) => s.id === refreshed.id ? refreshed : s));
-                  setCurrent((active) => active?.id === refreshed.id ? refreshed : active);
+                  setSessions((rows) =>
+                    rows.map((s) => (s.id === refreshed.id ? refreshed : s)),
+                  );
+                  setCurrent((active) =>
+                    active?.id === refreshed.id ? refreshed : active,
+                  );
                 }}
               />
               <label className="block">

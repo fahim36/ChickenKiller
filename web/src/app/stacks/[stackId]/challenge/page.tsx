@@ -1,3 +1,4 @@
+import { ChallengeLabel } from "@/components/LocalTime";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
@@ -13,7 +14,9 @@ import { answerChallengeQuestion } from "./actions";
  * the next Question not answered yet, or the score once finished, with a replay for learning.
  * A Day with no Challenge written says so.
  */
-export default async function ChallengePage({ params }: PageProps<"/stacks/[stackId]/challenge">) {
+export default async function ChallengePage({
+  params,
+}: PageProps<"/stacks/[stackId]/challenge">) {
   await connection();
   const { stackId } = await params;
   const today = await api<TodaysChallenge>(
@@ -26,13 +29,23 @@ export default async function ChallengePage({ params }: PageProps<"/stacks/[stac
     <main className="mx-auto max-w-3xl">
       <PageHeader
         crumbs={<Link href="/">Your Stacks</Link>}
-        title={challenge ? challenge.label : `${today.stack_name}: Daily Challenge`}
+        title={
+          challenge ? (
+            <ChallengeLabel label={challenge.label} day={challenge.day} />
+          ) : (
+            `${today.stack_name}: Daily Challenge`
+          )
+        }
       />
       {challenge ? (
         <DailyChallengeFlow
           stackId={stackId}
           challenge={challenge}
-          answerAction={answerChallengeQuestion.bind(null, stackId, challenge.number)}
+          answerAction={answerChallengeQuestion.bind(
+            null,
+            stackId,
+            challenge.number,
+          )}
         />
       ) : (
         <Notice role="status">No Challenge today. Check back tomorrow.</Notice>

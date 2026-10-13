@@ -1,3 +1,4 @@
+import { LocalTime } from "@/components/LocalTime";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
@@ -7,13 +8,16 @@ import { PageHeader } from "@/components/PageHeader";
 import { api, type ChallengesAhead, type Me } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
-const dateFormat = new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeZone: "UTC" });
-
 /** "Challenges written through 3 Oct 2026 (7 Days left)", as the content check says it. */
-function aheadLine(a: ChallengesAhead): string {
+function aheadLine(a: ChallengesAhead) {
   const days = `${a.days_left} Day${a.days_left === 1 ? "" : "s"} left`;
   if (a.written_through === null) return `No Challenges written (${days})`;
-  return `Challenges written through ${dateFormat.format(new Date(a.written_through))} (${days})`;
+  return (
+    <>
+      Challenges written through{" "}
+      <LocalTime value={a.written_through} dateOnly /> ({days})
+    </>
+  );
 }
 
 // Admin only. The API refuses non-Admins too; this check just keeps the screen out of sight.
@@ -35,8 +39,9 @@ export default async function ChallengesPage() {
         title={<span id="challenges-heading">Upcoming Challenges</span>}
         description={
           <p>
-            How far ahead each Stack&apos;s Daily Challenges are written, counting from today.
-            A Day with no Challenge written has no Challenge.
+            How far ahead each Stack&apos;s Daily Challenges are written,
+            counting from today. A Day with no Challenge written has no
+            Challenge.
           </p>
         }
       />
@@ -53,9 +58,13 @@ export default async function ChallengesPage() {
               )}
             >
               <p className="flex items-start gap-3">
-                <CalendarDays aria-hidden className="mt-0.5 size-5 shrink-0 text-primary" />
+                <CalendarDays
+                  aria-hidden
+                  className="mt-0.5 size-5 shrink-0 text-primary"
+                />
                 <span>
-                  <strong className="font-semibold">{s.stack_name}</strong>: {aheadLine(s)}
+                  <strong className="font-semibold">{s.stack_name}</strong>:{" "}
+                  {aheadLine(s)}
                 </span>
               </p>
               {s.warning && (
